@@ -120,4 +120,14 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             expect(modal.style.display).toBe('none');
         });
     });
+
+    describe('Toolbar Commands', () => {
+        it('renders the Code Block button and handles clicks', () => {
+            const codeBlockBtn = screen.getByRole('button', { name: /code block/i });
+            expect(codeBlockBtn).not.toBeNull();
+            expect(codeBlockBtn.getAttribute('data-cmd')).toBe('code-block');
+
+            expect(() => fireEvent.click(codeBlockBtn)).not.toThrow();
+        });
+    });
 });

@@ -79,6 +79,7 @@ export async function initEditor(initialContent, authUrl) {
                 if (cmd === 'h2') editor.chain().focus().toggleHeading({ level: 2 }).run();
                 if (cmd === 'bullet') editor.chain().focus().toggleBulletList().run();
                 if (cmd === 'quote') editor.chain().focus().toggleBlockquote().run();
+                if (cmd === 'code-block') editor.chain().focus().toggleCodeBlock().run();
             });
         }
 

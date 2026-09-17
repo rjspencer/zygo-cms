@@ -12,6 +12,7 @@ export class Editor {
             toggleHeading: () => this.chain(),
             toggleBulletList: () => this.chain(),
             toggleBlockquote: () => this.chain(),
+            toggleCodeBlock: () => this.chain(),
             setImage: () => this.chain(),
             run: () => true,
         };

@@ -1,103 +1,86 @@
-# Future Improvements: Media & Image Architecture
+# Zygo CMS Architecture, Improvements & Roadmap
 
-An architectural breakdown and roadmap for enhancing media management and optimization in Zygo CMS.
-
----
-
-## 1. Direct Cover Image Upload
-
-### Current State
-- The editor provides a text input for `Cover Image URL` where authors manually paste an image URL or `/media/:key` path.
-
-### Proposed Improvement
-- Add an interactive file upload target / dropzone directly beside the `Cover Image URL` input.
-- Automatically upload the file to `POST /api/media` using the authenticated R2 pipeline.
-- Auto-fill the `cover_image` URL field and display an instant thumbnail preview with a "Remove" / "Replace" action.
-
-### Technical Considerations
-- **Open Graph / Twitter Card Sizing**: Standard social preview aspect ratio is **1.91:1** (recommended `1200 x 630px`).
-- In `src/views.rs`, ensure Twitter card headers are populated alongside Open Graph:
-  ```html
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image" content="{cover_image}">
-  ```
+A persistent record of architectural decisions, completed enhancements, and prioritized future work for Zygo CMS.
 
 ---
 
-## 2. Media Gallery Modal (Asset Browser)
+## 1. Recently Completed Improvements
 
-### Current State
-- Images uploaded in TipTap are saved to R2 with arbitrary UUID keys (`/media/:key`).
-- There is currently no way to view, search, or reuse previously uploaded images across posts.
+### Edge Caching & Purging
+- **Multi-Tier Caching**: Dynamic `EDGE_TTL_SECONDS` environment variable (defaulting to 24h / 86400s) with `Cache-Control` response headers.
+- **Worker Cache API**: Programmatic `Cache::default()` integration for edge and local worker caching on all public GET routes (`/`, `/:slug`, `/post/:slug`, `/sitemap.xml`, `/rss.xml`).
+- **Active Cache Purging**: Automated cache invalidation on `POST /entries`, `PUT /entries/:id`, and `DELETE /entries/:id` that purges the homepage, affected post/page, sitemap, and RSS feed.
 
-### Architecture Options
+### SEO, Normalization & Metadata
+- **Canonical URLs**: `utils::get_canonical_origin` auto-strips `www.` and normalizes domains against `CANONICAL_ORIGIN` / `SITE_URL`.
+- **Trailing Slash Rules**: Homepage canonical strictly includes trailing slash (`{origin}/`); post and page canonicals strictly omit trailing slashes (`{origin}/post/:slug`).
+- **Schema.org JSON-LD**: Auto-generated structured data for `BlogPosting` and `WebPage` with interactive validation, formatting, and template populator in the editor.
+- **Auto Meta Descriptions**: HTML block-tag-aware excerpt generation up to 160 characters.
+- **Syntax Highlighting & Code Snippets**: TipTap `</> Code Block` toolbar integration with native `<pre><code>` block generation and Highlight.js styling across editor and public post/page templates.
 
-| Approach | Implementation | Pros | Cons |
-| :--- | :--- | :--- | :--- |
-| **A. D1 Media Table (Recommended)** | Create a `media` table in D1 tracking `id, key, filename, mime_type, size_bytes, created_at`. | Fast indexed queries, pagination, search by filename, track post-image relationships. | Requires updating the upload handler to write to D1. |
-| **B. R2 Bucket Listing** | Call `bucket.list({ prefix, cursor, limit })` via Cloudflare Worker R2 API. | No extra D1 table or migrations needed. | Limited metadata (no original filenames or search capabilities), slower pagination. |
+### Reliability, Security & Edge Performance
+- **D1 List Query Optimization**: Separated queries into `LIST_COLUMNS` and `ALL_COLUMNS` in `src/db/entry.rs`, omitting heavy `body_html` and `body_json` from dashboard, sitemap, and RSS listings to keep memory well under Cloudflare Worker limits.
+- **Admin Dashboard Auth Gate**: Client-side PropelAuth verification in `templates/admin_dashboard.html` with default-hidden content and loading state to prevent unauthorized viewing of draft titles.
+- **Editor Unsaved Changes Guard**: Dirty state tracking and `beforeunload` event listener in `public/editor.js` to protect authors against accidental data loss.
+- **Askama Template Rendering Hygiene**: Clean `render_tmpl` helper eliminating repetitive error mapping closures.
 
-### Proposed UX Workflow
-1. Author clicks **"Browse Gallery"** (available in both the TipTap toolbar and the Cover Image section).
-2. A lightweight modal renders a responsive grid of uploaded thumbnails.
-3. Features:
-   - Search by filename / date uploaded.
-   - Direct file dropzone inside the modal for instant uploads.
-   - One-click selection:
-     - In TipTap: Inserts `<img src="/media/{key}" alt="{filename}">` at the cursor.
-     - In Cover Image: Populates the cover image input and closes the modal.
+### Testing Architecture
+- **Two-Tier Test Suite**:
+  - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
+  - **Level 2 (Worker Integration)**: End-to-end integration tests (`tests/worker.test.js`) booting the compiled Rust Wasm worker via Wrangler `unstable_dev`.
+  - **Unit Tests**: `cargo test --lib` covering models, excerpt generation, validation, and metadata logic.
+- **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/deploy.yml`) with automated caching, linting, tests, remote D1 migrations, and release deployment.
 
 ---
 
-## 3. Automatic Image Resizing & Optimization
+## 2. Prioritized Roadmap & Future Work
 
-### Comparison of Approaches
+### 1. Post Taxonomy (Tags & Categories)
+- **Goal**: Categorize and organize content by topic.
+- **Details**:
+  - Add a `tags` column or junction table in D1.
+  - Display clickable tag badges on post cards (`index.html`) and article headers (`post.html`).
+  - Add a `/tag/:tag` route to filter and browse posts by topic.
 
-```mermaid
-flowchart TD
-    ClientUpload[Author Selects Image] --> ResizeOption{Resizing Strategy}
+### 2. Homepage Pagination
+- **Goal**: Prevent the homepage from displaying an unbounded list of posts.
+- **Details**:
+  - Add `?page=N` query parameter handling to `GET /`.
+  - Render "Previous" and "Next" pagination controls in `templates/index.html`.
+  - Use `LIMIT ? OFFSET ?` queries with `LIST_COLUMNS` in `src/db/entry.rs`.
 
-    ResizeOption -->|Client-Side Canvas| ClientResize[Pre-upload Resize in Browser JS]
-    ClientResize --> UploadR2[Upload Optimized WebP/JPEG to R2]
+### 3. D1 Media Index & Gallery Modal (Phase 3)
+- **Goal**: Full asset management and search for uploaded images.
+- **Details**:
+  - Create a `media` table in D1 tracking `id, key, filename, mime_type, size_bytes, created_at`.
+  - Update `src/media.rs` to insert metadata on upload and delete records on removal.
+  - Add filename search and sorting in the media picker modal in `public/editor.js`.
 
-    ResizeOption -->|Cloudflare Image Resizing| OriginalR2[Store Original in R2]
-    OriginalR2 --> EdgeResize[Cloudflare Worker /cdn-cgi/image/ Transforms on-the-fly]
+### 5. Server-Side HTML Sanitization
+- **Goal**: Mitigate Stored XSS risks from rich-text content.
+- **Details**:
+  - Sanitize `body_html` on the server before saving to D1 using a lightweight sanitizer or tag whitelist (stripping `<script>`, `<iframe>`, inline event handlers).
 
-    ResizeOption -->|Wasm in Worker| WorkerImage[Resize with Rust 'image' Crate]
-    WorkerImage --> UploadR2
+---
+
+## 3. Developer & Testing Cheat Sheet
+
+```bash
+# Run Rust unit tests
+cargo test --lib
+
+# Run Level 1 DOM / Template tests (Vitest + HappyDOM)
+npm test
+
+# Run Level 2 Worker Integration tests (Wrangler dev server)
+npm run test:e2e
+
+# Run all test suites
+npm run test:all
+
+# Check compilation for Wasm target
+cargo check --target wasm32-unknown-unknown
+
+# Run local worker development server
+npx wrangler dev
 ```
-
-### 1. Client-Side Browser Resizing (Immediate & Free)
-- **How it works**: Before `POST /api/media`, load the file into an offscreen `<canvas>`, scale it down to a maximum width (e.g., max `1920px` for desktop, `1200px` for social covers), and export as high-quality WebP or JPEG (`canvas.toBlob(...)`).
-- **Benefits**:
-  - Zero server/worker CPU usage.
-  - Faster uploads over mobile connections.
-  - Drastically reduces R2 storage usage.
-- **Limitation**: Only provides one static size per uploaded file.
-
-### 2. Cloudflare Images / Edge Resizing (Dynamic Production Tier)
-- **How it works**: Store original high-resolution assets in R2. When delivering images via `GET /media/:key`, leverage Cloudflare's built-in image resizing:
-  ```rust
-  // Cloudflare Worker Fetch with Image Resizing option
-  ctx.env.media.get(&key).await...
-  ```
-  Or via URL transform: `/cdn-cgi/image/width=800,format=webp/media/:key`.
-- **Benefits**:
-  - Delivers modern formats (AVIF, WebP) automatically based on browser `Accept` headers.
-  - Supports responsive `srcset` (`width=400`, `width=800`, `width=1200`).
-  - Cached at Cloudflare edge cache (no recurring R2 read costs).
-- **Limitation**: Cloudflare Images or Image Resizing requires a paid Cloudflare add-on / plan.
-
-### 3. Server-side Rust Wasm Resizing (`image` crate)
-- **How it works**: Decode bytes in the Worker using `image = { version = "...", default-features = false, features = ["jpeg", "png"] }`.
-- **Trade-offs**: Wasm binary size increases by ~1-2 MB; CPU time on Workers free tier is capped at 50ms (which large JPEGs can easily exceed). **Not recommended for edge Workers.**
-
----
-
-## Recommended Implementation Order
-
-1. **Phase 1: Client-Side Pre-upload Resizing**: Add a simple canvas resize utility in `public/editor.js` to keep uploads under 1920px.
-2. **Phase 2: Cover Image Upload Button**: Add direct upload handling and instant preview to the Cover Image form control.
-3. **Phase 3: D1 Media Index & Gallery Modal**: Add a `media` migration to D1, an endpoint `GET /api/media` returning recent uploads, and the gallery modal.
-4. **Phase 4: Responsive Picture & srcset Rendering**: Render `<picture>` or `srcset` tags for edge-optimized delivery.
-
