@@ -26,8 +26,19 @@ jobs:
       - name: Install worker-build
         run: cargo install worker-build --locked
 
-      - name: Run Test Suite
+      - name: Run Rust Unit Test Suite
         run: cargo test --lib
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install JS Dependencies
+        run: npm ci
+
+      - name: Run Browser / DOM Test Suite
+        run: npm test
 
       - name: Apply D1 Database Migrations
         uses: cloudflare/wrangler-action@v3

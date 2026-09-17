@@ -2,6 +2,7 @@
 .env
 .dev.vars
 .vscode/
+node_modules/
 
 # ---- Cloudflare files ----
 .wrangler/

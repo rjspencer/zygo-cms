@@ -25,8 +25,8 @@
     <div class="form-group">
         <label for="type">Content Type</label>
         <select id="type">
-            <option value="post" {% if !is_page() %} selected{% endif %}>Post (Blog stream)</option>
-            <option value="page" {% if is_page() %} selected{% endif %}>Page (Static top-level URL)</option>
+            <option value="post" {% if !is_page() %} selected{% endif %}>Post</option>
+            <option value="page" {% if is_page() %} selected{% endif %}>Page</option>
         </select>
     </div>
 

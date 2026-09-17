@@ -1,0 +1,17 @@
+{
+    "name": "zygo-cms",
+    "version": "0.1.0",
+    "type": "module",
+    "scripts": {
+        "test": "vitest run tests/editor.test.js",
+        "test:e2e": "vitest run tests/worker.test.js",
+        "test:all": "vitest run"
+    },
+    "devDependencies": {
+        "@testing-library/dom": "^10.4.0",
+        "@testing-library/user-event": "^14.6.1",
+        "happy-dom": "^17.1.0",
+        "vitest": "^3.0.7",
+        "wrangler": "^4.133.0"
+    }
+}

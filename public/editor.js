@@ -377,7 +377,7 @@ export async function initEditor(initialContent, authUrl) {
             });
         }
 
-        const btnGallery = document.querySelector('#btn-gallery-cover');
+        const btnGallery = document.querySelector('#btn-gallery');
         if (btnGallery) {
             btnGallery.addEventListener('click', () => {
                 openMediaPicker({
