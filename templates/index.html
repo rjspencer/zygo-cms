@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Home &mdash; Zygo{% endblock %}
+
+{% block head %}
+<link rel="canonical" href="{{ origin }}/">
+<meta property="og:url" content="{{ origin }}/">
+{% endblock %}
+
+{% block content %}
+{% if posts.is_empty() %}
+<p>No posts published yet.</p>
+{% else %}
+<ul class="post-list">
+    {% for post in posts %}
+    <li class="post-item">
+        <a href="/post/{{ post.slug }}" class="post-link">{{ post.title }}</a>
+        <div class="post-meta">{{ post.display_date() }}</div>
+        <p class="post-desc">{{ post.meta_description() }}</p>
+    </li>
+    {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

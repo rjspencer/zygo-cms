@@ -1,0 +1,14 @@
+# Design choices
+
+## Fonts
+
+Headlines: Space Mono from Google Fonts
+
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono&display=swap" rel="stylesheet">
+```
+
+Body text: system font
+

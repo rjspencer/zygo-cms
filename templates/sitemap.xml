@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+        <loc>{{ origin }}/</loc>
+        <changefreq>daily</changefreq>
+        <priority>1.0</priority>
+    </url>
+    {% for entry in entries %}
+    <url>
+        <loc>{{ origin }}{{ entry.path() }}</loc>
+        <lastmod>{{ entry.display_date() }}</lastmod>
+        <changefreq>{% if entry.entry_type() == "post" %}monthly{% else %}weekly{% endif %}</changefreq>
+        <priority>{% if entry.entry_type() == "post" %}0.7{% else %}0.8{% endif %}</priority>
+    </url>
+    {% endfor %}
+</urlset>

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }} &mdash; Zygo{% endblock %}
+
+{% block head %}
+<meta name="description" content="{{ post.meta_description() }}">
+<meta property="og:description" content="{{ post.meta_description() }}">
+<meta name="twitter:description" content="{{ post.meta_description() }}">
+<meta property="og:title" content="{{ post.title }}">
+<meta name="twitter:title" content="{{ post.title }}">
+<meta name="twitter:card" content="summary_large_image">
+{% if let Some(img) = post.cover_image %}
+<meta property="og:image" content="{{ img }}">
+<meta name="twitter:image" content="{{ img }}">
+{% endif %}
+<link rel="canonical" href="{{ post.canonical(origin) }}">
+<meta property="og:url" content="{{ post.canonical(origin) }}">
+<script type="application/ld+json">{{ post.schema_json_ld(origin)|safe }}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
+{% endblock %}
+
+{% block content %}
+<article>
+    {% if let Some(img) = post.cover_image %}
+    <img class="cover-image" src="{{ img }}" alt="{{ post.title }}">
+    {% endif %}
+    <h1>{{ post.title }}</h1>
+    <div class="post-meta">Published on {{ post.display_date() }} &bull; <a href="/admin/editor/{{ post.id }}">Edit</a>
+    </div>
+    <div class="prose">
+        {{ post.body_html|safe }}
+    </div>
+</article>
+{% endblock %}

@@ -1,0 +1,23 @@
+name = "zygo-cms"
+main = "build/index.js"
+compatibility_date = "2024-09-01"
+
+[assets]
+directory = "public"
+
+[build]
+command = "worker-build --release"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zygo-cms-db"
+database_id = "1ab6229f-73a6-4760-bff2-8ea41dfecce5"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "zygo-cms-media"
+
+[vars]
+PROPELAUTH_AUTH_URL = "https://97543635.propelauthtest.com"
+EDGE_TTL_SECONDS = "86400"

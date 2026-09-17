@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page.title }} &mdash; Zygo{% endblock %}
+
+{% block head %}
+<meta name="description" content="{{ page.meta_description() }}">
+<meta property="og:description" content="{{ page.meta_description() }}">
+<meta property="og:title" content="{{ page.title }}">
+{% if let Some(img) = page.cover_image %}
+<meta property="og:image" content="{{ img }}">
+{% endif %}
+<link rel="canonical" href="{{ page.canonical(origin) }}">
+<meta property="og:url" content="{{ page.canonical(origin) }}">
+<script type="application/ld+json">{{ page.schema_json_ld(origin)|safe }}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
+{% endblock %}
+
+{% block content %}
+<article>
+    {% if let Some(img) = page.cover_image %}
+    <img class="cover-image" src="{{ img }}" alt="{{ page.title }}">
+    {% endif %}
+    <h1>{{ page.title }}</h1>
+    <div class="prose">
+        {{ page.body_html|safe }}
+    </div>
+</article>
+{% endblock %}

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Zygo CMS</title>
+    <link>{{ origin }}/</link>
+    <description>Recent posts from Zygo CMS</description>
+    <language>en-us</language>
+    <atom:link href="{{ origin }}/rss.xml" rel="self" type="application/rss+xml" />
+    {% for post in posts %}
+    <item>
+      <title>{{ post.title }}</title>
+      <link>{{ origin }}{{ post.path() }}</link>
+      <guid isPermaLink="true">{{ origin }}{{ post.path() }}</guid>
+      <pubDate>{{ post.rfc3339_date() }}</pubDate>
+      <description>{{ post.meta_description() }}</description>
+    </item>
+    {% endfor %}
+  </channel>
+</rss>
