@@ -22,6 +22,11 @@ export class Editor {
     getJSON() {
         return { type: 'doc', content: [] };
     }
+    on(event, callback) {
+        this.listeners = this.listeners || {};
+        this.listeners[event] = this.listeners[event] || [];
+        this.listeners[event].push(callback);
+    }
 }
 
 export default {};

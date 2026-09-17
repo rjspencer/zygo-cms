@@ -31,6 +31,7 @@ pub struct Entry {
     pub canonical_url: Option<String>,
     pub schema_json: Option<String>,
     pub published_at: Option<String>,
+    #[serde(default)]
     pub body_html: String,
     #[serde(default)]
     pub body_json: String,

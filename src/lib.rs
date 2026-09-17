@@ -253,7 +253,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             if let Some(entry) = existing_entry {
                 purge_list.push(format!("{}{}", origin, entry.path()));
             }
-            cache::purge_urls(&ctx.env, purge_list);
+            cache::purge_urls(&ctx.env, purge_list).await;
 
             Response::from_json(&json!({ "success": true, "id": id }))
         })
@@ -280,7 +280,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             if let Some(entry) = existing_entry {
                 purge_list.push(format!("{}{}", origin, entry.path()));
             }
-            cache::purge_urls(&ctx.env, purge_list);
+            cache::purge_urls(&ctx.env, purge_list).await;
 
             Response::from_json(&json!({ "success": true, "deleted": id }))
         })

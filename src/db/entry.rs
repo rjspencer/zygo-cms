@@ -2,10 +2,11 @@ use super::opt_js;
 use crate::models::{CreateEntryRequest, Entry, UpdateEntryRequest};
 use worker::{D1Database, Result};
 
+const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, published_at, created_at";
 const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, published_at, body_html, body_json, created_at";
 
 pub async fn find_all_entries(db: &D1Database) -> Result<Vec<Entry>> {
-    let query = format!("SELECT {ALL_COLUMNS} FROM entries ORDER BY created_at DESC");
+    let query = format!("SELECT {LIST_COLUMNS} FROM entries ORDER BY created_at DESC");
     let statement = db.prepare(&query);
     let result = statement.run().await?;
     result.results::<Entry>()
@@ -13,7 +14,7 @@ pub async fn find_all_entries(db: &D1Database) -> Result<Vec<Entry>> {
 
 pub async fn find_published_entries(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE status = 'published' ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE status = 'published' ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
@@ -22,7 +23,7 @@ pub async fn find_published_entries(db: &D1Database) -> Result<Vec<Entry>> {
 
 pub async fn find_published_posts(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.run().await?;

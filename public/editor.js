@@ -4,6 +4,15 @@ import Image from 'https://esm.sh/@tiptap/extension-image';
 import { createClient } from 'https://esm.sh/@propelauth/javascript';
 
 export async function initEditor(initialContent, authUrl) {
+    let isDirty = false;
+
+    window.addEventListener('beforeunload', (e) => {
+        if (isDirty) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+
     const setup = async () => {
         // 1. Initialize PropelAuth if configured
         let authClient = null;
@@ -53,6 +62,10 @@ export async function initEditor(initialContent, authUrl) {
             extensions: [StarterKit, Image],
             content: initialContent,
         });
+
+        if (typeof editor.on === 'function') {
+            editor.on('update', () => { isDirty = true; });
+        }
 
         // Toolbar commands
         const toolbar = document.querySelector('#toolbar');
@@ -298,6 +311,10 @@ export async function initEditor(initialContent, authUrl) {
                         if (!confirm(`Permanently delete "${displayName}" from storage?`)) return;
 
                         const curToken = await getAuthToken();
+                        if (!curToken) {
+                            alert('Please log in to delete images');
+                            return;
+                        }
                         const delHeaders = {};
                         if (curToken) delHeaders['Authorization'] = 'Bearer ' + curToken;
                         try {
@@ -393,6 +410,15 @@ export async function initEditor(initialContent, authUrl) {
         const postIdEl = document.querySelector('#post-id');
         const postId = postIdEl ? postIdEl.value : '';
 
+        const formInputs = ['#title', '#slug', '#description', '#cover-image', '#schema-json', '#type', '#status'];
+        formInputs.forEach(selector => {
+            const el = document.querySelector(selector);
+            if (el) {
+                el.addEventListener('input', () => { isDirty = true; });
+                el.addEventListener('change', () => { isDirty = true; });
+            }
+        });
+
         if (form) {
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -452,6 +478,7 @@ export async function initEditor(initialContent, authUrl) {
 
                     const data = await res.json();
                     if (res.ok) {
+                        isDirty = false;
                         if (statusEl) statusEl.textContent = 'Saved successfully! Slug: ' + (data.slug || slug);
                     } else {
                         if (statusEl) statusEl.textContent = 'Error: ' + (data.error || 'Failed to save');

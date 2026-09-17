@@ -22,22 +22,21 @@ pub struct PageTemplate<'a> {
     pub page: &'a Entry,
 }
 
-pub fn render_index(posts: &[Entry], origin: &str) -> worker::Result<String> {
-    IndexTemplate { origin, posts }
-        .render()
+fn render_tmpl<T: Template>(tmpl: &T) -> worker::Result<String> {
+    tmpl.render()
         .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+pub fn render_index(posts: &[Entry], origin: &str) -> worker::Result<String> {
+    render_tmpl(&IndexTemplate { origin, posts })
 }
 
 pub fn render_post(post: &Entry, origin: &str) -> worker::Result<String> {
-    PostTemplate { origin, post }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))
+    render_tmpl(&PostTemplate { origin, post })
 }
 
 pub fn render_page(page: &Entry, origin: &str) -> worker::Result<String> {
-    PageTemplate { origin, page }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))
+    render_tmpl(&PageTemplate { origin, page })
 }
 
 #[derive(Template)]
@@ -59,9 +58,7 @@ pub fn render_sitemap(
     entries: &[Entry],
     env: &worker::Env,
 ) -> worker::Result<worker::Response> {
-    let body = SitemapTemplate { origin, entries }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))?;
+    let body = render_tmpl(&SitemapTemplate { origin, entries })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/xml; charset=utf-8")?;
@@ -75,9 +72,7 @@ pub fn render_rss(
     posts: &[Entry],
     env: &worker::Env,
 ) -> worker::Result<worker::Response> {
-    let body = RssTemplate { origin, posts }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))?;
+    let body = render_tmpl(&RssTemplate { origin, posts })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/rss+xml; charset=utf-8")?;
