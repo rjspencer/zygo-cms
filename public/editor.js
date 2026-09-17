@@ -411,7 +411,7 @@ export async function initEditor(initialContent, authUrl) {
         const postIdEl = document.querySelector('#post-id');
         const postId = postIdEl ? postIdEl.value : '';
 
-        const formInputs = ['#title', '#slug', '#description', '#cover-image', '#schema-json', '#type', '#status'];
+        const formInputs = ['#title', '#slug', '#description', '#cover-image', '#canonical-url', '#category', '#tags', '#schema-json', '#type', '#status'];
         formInputs.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {
@@ -446,6 +446,8 @@ export async function initEditor(initialContent, authUrl) {
                 const cover_image = document.querySelector('#cover-image')?.value.trim() || null;
                 const canonical_url = document.querySelector('#canonical-url')?.value.trim() || null;
                 const schema_json = document.querySelector('#schema-json')?.value.trim() || null;
+                const category = document.querySelector('#category')?.value.trim() || null;
+                const tags = document.querySelector('#tags')?.value.trim() || null;
                 const body_html = editor.getHTML();
                 const body_json = JSON.stringify(editor.getJSON());
 
@@ -457,6 +459,8 @@ export async function initEditor(initialContent, authUrl) {
                     cover_image,
                     canonical_url,
                     schema_json,
+                    category,
+                    tags,
                     body_html,
                     body_json,
                 };

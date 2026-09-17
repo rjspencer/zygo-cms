@@ -6,6 +6,67 @@ use askama::Template;
 pub struct IndexTemplate<'a> {
     pub origin: &'a str,
     pub posts: &'a [Entry],
+    pub heading: Option<&'a str>,
+    pub canonical_path: Option<&'a str>,
+}
+
+impl<'a> IndexTemplate<'a> {
+    pub fn page_title(&self) -> String {
+        if let Some(h) = self.heading {
+            format!("{h} \u{2014} Zygo")
+        } else {
+            "Home \u{2014} Zygo".to_string()
+        }
+    }
+
+    pub fn canonical_url(&self) -> String {
+        let base = self.origin.trim_end_matches('/');
+        if let Some(path) = self.canonical_path {
+            format!("{}{}", base, path)
+        } else {
+            format!("{}/", base)
+        }
+    }
+}
+
+fn render_tmpl<T: Template>(tmpl: &T) -> worker::Result<String> {
+    tmpl.render()
+        .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+pub fn render_index(posts: &[Entry], origin: &str) -> worker::Result<String> {
+    render_tmpl(&IndexTemplate {
+        origin,
+        posts,
+        heading: None,
+        canonical_path: None,
+    })
+}
+
+pub fn render_tag_index(posts: &[Entry], origin: &str, tag: &str) -> worker::Result<String> {
+    let heading = format!("Tag: #{tag}");
+    let canonical = format!("/tag/{tag}");
+    render_tmpl(&IndexTemplate {
+        origin,
+        posts,
+        heading: Some(&heading),
+        canonical_path: Some(&canonical),
+    })
+}
+
+pub fn render_category_index(
+    posts: &[Entry],
+    origin: &str,
+    category: &str,
+) -> worker::Result<String> {
+    let heading = format!("Category: {category}");
+    let canonical = format!("/category/{category}");
+    render_tmpl(&IndexTemplate {
+        origin,
+        posts,
+        heading: Some(&heading),
+        canonical_path: Some(&canonical),
+    })
 }
 
 #[derive(Template)]
@@ -20,15 +81,6 @@ pub struct PostTemplate<'a> {
 pub struct PageTemplate<'a> {
     pub origin: &'a str,
     pub page: &'a Entry,
-}
-
-fn render_tmpl<T: Template>(tmpl: &T) -> worker::Result<String> {
-    tmpl.render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))
-}
-
-pub fn render_index(posts: &[Entry], origin: &str) -> worker::Result<String> {
-    render_tmpl(&IndexTemplate { origin, posts })
 }
 
 pub fn render_post(post: &Entry, origin: &str) -> worker::Result<String> {

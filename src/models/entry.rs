@@ -12,6 +12,10 @@ pub const RESERVED_SLUGS: &[&str] = &[
     "style.css",
     "editor.css",
     "editor.js",
+    "tag",
+    "tags",
+    "category",
+    "categories",
 ];
 
 fn default_type() -> String {
@@ -30,6 +34,8 @@ pub struct Entry {
     pub cover_image: Option<String>,
     pub canonical_url: Option<String>,
     pub schema_json: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<String>,
     pub published_at: Option<String>,
     #[serde(default)]
     pub body_html: String,
@@ -39,6 +45,13 @@ pub struct Entry {
 }
 
 impl Entry {
+    pub fn tag_list(&self) -> Vec<&str> {
+        self.tags
+            .as_deref()
+            .map(|t| t.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect())
+            .unwrap_or_default()
+    }
+
     pub fn display_date(&self) -> &str {
         let raw = self.published_at.as_deref().unwrap_or(&self.created_at);
         raw.split_whitespace().next().unwrap_or(raw)
@@ -223,6 +236,8 @@ pub struct CreateEntryRequest {
     pub cover_image: Option<String>,
     pub canonical_url: Option<String>,
     pub schema_json: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<String>,
     pub body_html: String,
     pub body_json: String,
 }
@@ -285,6 +300,8 @@ pub struct UpdateEntryRequest {
     pub cover_image: Option<String>,
     pub canonical_url: Option<String>,
     pub schema_json: Option<String>,
+    pub category: Option<String>,
+    pub tags: Option<String>,
     pub body_html: Option<String>,
     pub body_json: Option<String>,
 }
@@ -298,6 +315,8 @@ impl UpdateEntryRequest {
             || self.cover_image.is_some()
             || self.canonical_url.is_some()
             || self.schema_json.is_some()
+            || self.category.is_some()
+            || self.tags.is_some()
             || self.body_html.is_some()
             || self.body_json.is_some();
 
@@ -348,6 +367,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: Some("Tech".into()),
+            tags: Some("rust, wasm".into()),
             body_html: "<p>body html</p>".into(),
             body_json: "{}".into(),
         };
@@ -365,12 +386,35 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
         };
         let result = req.validate();
         assert!(result.is_err());
         assert!(matches!(result, Err(AppError::BadRequest(_))));
+    }
+
+    #[test]
+    fn test_reserved_taxonomy_slugs_fail() {
+        for slug in &["tag", "tags", "category", "categories"] {
+            let req = CreateEntryRequest {
+                title: "Taxonomy Slug".into(),
+                slug: (*slug).into(),
+                r#type: Some("page".into()),
+                status: Some("published".into()),
+                description: None,
+                cover_image: None,
+                canonical_url: None,
+                schema_json: None,
+                category: None,
+                tags: None,
+                body_html: "<p>Hi</p>".into(),
+                body_json: "{}".into(),
+            };
+            assert!(req.validate().is_err());
+        }
     }
 
     #[test]
@@ -384,6 +428,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
         };
@@ -401,6 +447,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
@@ -418,6 +466,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
@@ -435,6 +485,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
@@ -451,6 +503,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: None,
             body_json: None,
         };
@@ -467,11 +521,54 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             body_html: None,
             body_json: None,
         };
         assert!(req.validate().is_ok());
+
+        let req_tax = UpdateEntryRequest {
+            title: None,
+            r#type: None,
+            status: None,
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: Some("Engineering".into()),
+            tags: Some("rust, wasm".into()),
+            body_html: None,
+            body_json: None,
+        };
+        assert!(req_tax.validate().is_ok());
     }
+
+    #[test]
+    fn test_tag_list() {
+        let mut entry = Entry {
+            id: 1,
+            slug: "test".into(),
+            title: "Test".into(),
+            r#type: "post".into(),
+            status: "published".into(),
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: Some("General".into()),
+            tags: Some("rust,  cloudflare , , wasm  ".into()),
+            published_at: None,
+            body_html: "<p>Hello</p>".into(),
+            body_json: "{}".into(),
+            created_at: "2026-01-01".into(),
+        };
+        assert_eq!(entry.tag_list(), vec!["rust", "cloudflare", "wasm"]);
+
+        entry.tags = None;
+        assert!(entry.tag_list().is_empty());
+    }
+
     #[test]
     fn test_meta_description_custom() {
         let entry = Entry {
@@ -484,6 +581,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             published_at: None,
             body_html: "<p>Some HTML content here.</p>".into(),
             body_json: "{}".into(),
@@ -504,6 +603,8 @@ mod tests {
             cover_image: None,
             canonical_url: None,
             schema_json: None,
+            category: None,
+            tags: None,
             published_at: None,
             body_html: "<p>Hello <strong>world</strong>! This is a post about <em>Rust</em>.</p>"
                 .into(),

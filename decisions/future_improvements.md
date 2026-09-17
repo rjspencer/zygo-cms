@@ -17,6 +17,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Schema.org JSON-LD**: Auto-generated structured data for `BlogPosting` and `WebPage` with interactive validation, formatting, and template populator in the editor.
 - **Auto Meta Descriptions**: HTML block-tag-aware excerpt generation up to 160 characters.
 - **Syntax Highlighting & Code Snippets**: TipTap `</> Code Block` toolbar integration with native `<pre><code>` block generation and Highlight.js styling across editor and public post/page templates.
+- **Post Taxonomy (Tags & Categories)**: D1 taxonomy migration (`0002_add_taxonomy.sql`), category and tag input controls in the editor, clickable badges on post cards and post view, and public filtered routes `/category/:category` and `/tag/:tag` with automatic cache purging.
 
 ### Reliability, Security & Edge Performance
 - **D1 List Query Optimization**: Separated queries into `LIST_COLUMNS` and `ALL_COLUMNS` in `src/db/entry.rs`, omitting heavy `body_html` and `body_json` from dashboard, sitemap, and RSS listings to keep memory well under Cloudflare Worker limits.
@@ -35,28 +36,21 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. Post Taxonomy (Tags & Categories)
-- **Goal**: Categorize and organize content by topic.
-- **Details**:
-  - Add a `tags` column or junction table in D1.
-  - Display clickable tag badges on post cards (`index.html`) and article headers (`post.html`).
-  - Add a `/tag/:tag` route to filter and browse posts by topic.
-
-### 2. Homepage Pagination
+### 1. Homepage Pagination
 - **Goal**: Prevent the homepage from displaying an unbounded list of posts.
 - **Details**:
   - Add `?page=N` query parameter handling to `GET /`.
   - Render "Previous" and "Next" pagination controls in `templates/index.html`.
   - Use `LIMIT ? OFFSET ?` queries with `LIST_COLUMNS` in `src/db/entry.rs`.
 
-### 3. D1 Media Index & Gallery Modal (Phase 3)
+### 2. D1 Media Index & Gallery Modal (Phase 3)
 - **Goal**: Full asset management and search for uploaded images.
 - **Details**:
   - Create a `media` table in D1 tracking `id, key, filename, mime_type, size_bytes, created_at`.
   - Update `src/media.rs` to insert metadata on upload and delete records on removal.
   - Add filename search and sorting in the media picker modal in `public/editor.js`.
 
-### 5. Server-Side HTML Sanitization
+### 3. Server-Side HTML Sanitization
 - **Goal**: Mitigate Stored XSS risks from rich-text content.
 - **Details**:
   - Sanitize `body_html` on the server before saving to D1 using a lightweight sanitizer or tag whitelist (stripping `<script>`, `<iframe>`, inline event handlers).

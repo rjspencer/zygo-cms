@@ -27,8 +27,21 @@
     <img class="cover-image" src="{{ img }}" alt="{{ post.title }}">
     {% endif %}
     <h1>{{ post.title }}</h1>
-    <div class="post-meta">Published on {{ post.display_date() }} &bull; <a href="/admin/editor/{{ post.id }}">Edit</a>
+    <div class="post-meta">Published on {{ post.display_date() }}
+        {% if let Some(cat) = post.category.as_deref() %}
+        {% if !cat.is_empty() %}
+        &bull; <a href="/category/{{ cat }}" class="category-badge">{{ cat }}</a>
+        {% endif %}
+        {% endif %}
+        &bull; <a href="/admin/editor/{{ post.id }}">Edit</a>
     </div>
+    {% if !post.tag_list().is_empty() %}
+    <div class="post-taxonomy">
+        {% for tag in post.tag_list() %}
+        <a href="/tag/{{ tag }}" class="tag-badge">#{{ tag }}</a>
+        {% endfor %}
+    </div>
+    {% endif %}
     <div class="prose">
         {{ post.body_html|safe }}
     </div>

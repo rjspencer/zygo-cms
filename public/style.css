@@ -123,6 +123,58 @@ h4 {
     text-decoration: underline;
 }
 
+.taxonomy-header {
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 1rem;
+}
+
+.taxonomy-title {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.post-taxonomy {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+    align-items: center;
+}
+
+.category-badge {
+    font-family: var(--font-headline);
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #1a1a1a;
+    color: white;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-decoration: none;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.category-badge:hover {
+    background: #333;
+}
+
+.tag-badge {
+    font-family: var(--font-headline);
+    font-size: 0.75rem;
+    background: #eaeaea;
+    color: #444;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-decoration: none;
+    display: inline-block;
+}
+
+.tag-badge:hover {
+    background: #ddd;
+    color: #1a1a1a;
+}
+
 /* Dashboard & Admin Table */
 .header-nav {
     display: flex;

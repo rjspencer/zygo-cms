@@ -80,6 +80,16 @@
     </div>
 
     <div class="form-group">
+        <label for="category">Category (Optional)</label>
+        <input type="text" id="category" value="{{ category() }}" placeholder="e.g. Engineering">
+    </div>
+
+    <div class="form-group">
+        <label for="tags">Tags (Optional, comma-separated)</label>
+        <input type="text" id="tags" value="{{ tags() }}" placeholder="e.g. rust, wasm, cloudflare">
+    </div>
+
+    <div class="form-group">
         <div class="json-header">
             <label for="schema-json">Schema JSON-LD (Optional)</label>
             <div class="json-actions">

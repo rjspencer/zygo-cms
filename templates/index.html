@@ -1,22 +1,43 @@
 {% extends "base.html" %}
 
-{% block title %}Home &mdash; Zygo{% endblock %}
+{% block title %}{{ page_title() }}{% endblock %}
 
 {% block head %}
-<link rel="canonical" href="{{ origin }}/">
-<meta property="og:url" content="{{ origin }}/">
+<link rel="canonical" href="{{ canonical_url() }}">
+<meta property="og:url" content="{{ canonical_url() }}">
 {% endblock %}
 
 {% block content %}
+{% if let Some(h) = heading %}
+<div class="taxonomy-header">
+    <h1 class="taxonomy-title">{{ h }}</h1>
+    <a href="/" class="nav-link">&larr; All posts</a>
+</div>
+{% endif %}
+
 {% if posts.is_empty() %}
-<p>No posts published yet.</p>
+<p>No posts found.</p>
 {% else %}
 <ul class="post-list">
     {% for post in posts %}
     <li class="post-item">
         <a href="/post/{{ post.slug }}" class="post-link">{{ post.title }}</a>
-        <div class="post-meta">{{ post.display_date() }}</div>
+        <div class="post-meta">
+            {{ post.display_date() }}
+            {% if let Some(cat) = post.category.as_deref() %}
+            {% if !cat.is_empty() %}
+            &bull; <a href="/category/{{ cat }}" class="category-badge">{{ cat }}</a>
+            {% endif %}
+            {% endif %}
+        </div>
         <p class="post-desc">{{ post.meta_description() }}</p>
+        {% if !post.tag_list().is_empty() %}
+        <div class="post-taxonomy">
+            {% for tag in post.tag_list() %}
+            <a href="/tag/{{ tag }}" class="tag-badge">#{{ tag }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </li>
     {% endfor %}
 </ul>

@@ -172,6 +172,54 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Err(err) => err.to_response(),
             }
         })
+        // Public Tag Archive
+        .get_async("/tag/:tag", |req, ctx| async move {
+            if let Some(cached) = cache::get_cached(&req).await {
+                return Ok(cached);
+            }
+
+            let tag = match ctx.param("tag") {
+                Some(t) => t,
+                None => return Response::error("Missing tag", 400),
+            };
+
+            let origin = utils::get_canonical_origin(&req, &ctx.env);
+            let db = ctx.env.d1("DB")?;
+            let posts = db::find_published_posts_by_tag(&db, tag).await?;
+            let html = views::render_tag_index(&posts, &origin, tag)?;
+
+            let mut headers = Headers::new();
+            headers.set("Content-Type", "text/html; charset=utf-8")?;
+            cache::add_cache_headers(&mut headers, &ctx.env)?;
+
+            let mut res = Response::ok(html)?.with_headers(headers);
+            cache::put_cached(&req, &mut res).await;
+            Ok(res)
+        })
+        // Public Category Archive
+        .get_async("/category/:category", |req, ctx| async move {
+            if let Some(cached) = cache::get_cached(&req).await {
+                return Ok(cached);
+            }
+
+            let category = match ctx.param("category") {
+                Some(c) => c,
+                None => return Response::error("Missing category", 400),
+            };
+
+            let origin = utils::get_canonical_origin(&req, &ctx.env);
+            let db = ctx.env.d1("DB")?;
+            let posts = db::find_published_posts_by_category(&db, category).await?;
+            let html = views::render_category_index(&posts, &origin, category)?;
+
+            let mut headers = Headers::new();
+            headers.set("Content-Type", "text/html; charset=utf-8")?;
+            cache::add_cache_headers(&mut headers, &ctx.env)?;
+
+            let mut res = Response::ok(html)?.with_headers(headers);
+            cache::put_cached(&req, &mut res).await;
+            Ok(res)
+        })
         // Entries API (also supports /posts as alias)
         .get_async("/entries", |_req, ctx| async move {
             let db = ctx.env.d1("DB")?;
@@ -206,17 +254,28 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             db::create_entry(&db, &payload).await?;
 
             // Immediate cache invalidation in the background
-            cache::purge_urls(
-                &ctx.env,
-                vec![
-                    format!("{}/", origin),
-                    format!("{}{}", origin, entry_path),
-                    format!("{}/sitemap.xml", origin),
-                    format!("{}/rss.xml", origin),
-                    format!("{}/feed.xml", origin),
-                ],
-            )
-            .await;
+            let mut purge_list = vec![
+                format!("{}/", origin),
+                format!("{}{}", origin, entry_path),
+                format!("{}/sitemap.xml", origin),
+                format!("{}/rss.xml", origin),
+                format!("{}/feed.xml", origin),
+            ];
+            if let Some(ref cat) = payload.category {
+                let trimmed = cat.trim();
+                if !trimmed.is_empty() {
+                    purge_list.push(format!("{}/category/{}", origin, trimmed));
+                }
+            }
+            if let Some(ref tags) = payload.tags {
+                for tag in tags.split(',') {
+                    let trimmed = tag.trim();
+                    if !trimmed.is_empty() {
+                        purge_list.push(format!("{}/tag/{}", origin, trimmed));
+                    }
+                }
+            }
+            cache::purge_urls(&ctx.env, purge_list).await;
 
             Response::from_json(&json!({ "success": true, "slug": payload.slug }))
         })
@@ -250,8 +309,25 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 format!("{}/rss.xml", origin),
                 format!("{}/feed.xml", origin),
             ];
-            if let Some(entry) = existing_entry {
+            if let Some(ref entry) = existing_entry {
                 purge_list.push(format!("{}{}", origin, entry.path()));
+                if let Some(ref cat) = entry.category {
+                    purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+                }
+                for tag in entry.tag_list() {
+                    purge_list.push(format!("{}/tag/{}", origin, tag));
+                }
+            }
+            if let Some(ref cat) = payload.category {
+                purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+            }
+            if let Some(ref tags) = payload.tags {
+                for tag in tags.split(',') {
+                    let trimmed = tag.trim();
+                    if !trimmed.is_empty() {
+                        purge_list.push(format!("{}/tag/{}", origin, trimmed));
+                    }
+                }
             }
             cache::purge_urls(&ctx.env, purge_list).await;
 
@@ -277,8 +353,14 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 format!("{}/rss.xml", origin),
                 format!("{}/feed.xml", origin),
             ];
-            if let Some(entry) = existing_entry {
+            if let Some(ref entry) = existing_entry {
                 purge_list.push(format!("{}{}", origin, entry.path()));
+                if let Some(ref cat) = entry.category {
+                    purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+                }
+                for tag in entry.tag_list() {
+                    purge_list.push(format!("{}/tag/{}", origin, tag));
+                }
             }
             cache::purge_urls(&ctx.env, purge_list).await;
 

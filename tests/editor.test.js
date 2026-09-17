@@ -130,4 +130,20 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             expect(() => fireEvent.click(codeBlockBtn)).not.toThrow();
         });
     });
+
+    describe('Taxonomy Controls', () => {
+        it('renders category and tags inputs and updates value', () => {
+            const categoryInput = screen.getByLabelText(/category/i);
+            const tagsInput = screen.getByLabelText(/tags/i);
+
+            expect(categoryInput).not.toBeNull();
+            expect(tagsInput).not.toBeNull();
+
+            fireEvent.input(categoryInput, { target: { value: 'Engineering' } });
+            fireEvent.input(tagsInput, { target: { value: 'rust, cloudflare, wasm' } });
+
+            expect(categoryInput.value).toBe('Engineering');
+            expect(tagsInput.value).toBe('rust, cloudflare, wasm');
+        });
+    });
 });

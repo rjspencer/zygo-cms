@@ -72,6 +72,18 @@ impl<'a> EditorTemplate<'a> {
             .unwrap_or_default()
     }
 
+    pub fn category(&self) -> &str {
+        self.entry
+            .and_then(|p| p.category.as_deref())
+            .unwrap_or_default()
+    }
+
+    pub fn tags(&self) -> &str {
+        self.entry
+            .and_then(|p| p.tags.as_deref())
+            .unwrap_or_default()
+    }
+
     pub fn is_published(&self) -> bool {
         self.entry
             .map(|p| p.status.as_str() == "published")
