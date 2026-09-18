@@ -3,6 +3,7 @@ use serde::Deserialize;
 use worker::{Env, Fetch, Headers, Method, Request, RequestInit};
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct PropelAuthUser {
     pub user_id: String,
     pub email: Option<String>,
@@ -30,6 +31,20 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
     let token = auth_header
         .strip_prefix("Bearer ")
         .ok_or_else(|| AppError::Unauthorized("Invalid Bearer token format".into()))?;
+
+    // Test bypass for integration testing when explicitly enabled
+    if env
+        .var("TEST_AUTH_BYPASS")
+        .ok()
+        .map(|v| v.to_string() == "true")
+        .unwrap_or(false)
+        && token == "test-token"
+    {
+        return Ok(PropelAuthUser {
+            user_id: "test-user-id".into(),
+            email: Some("admin@zygo.dev".into()),
+        });
+    }
 
     // 3. Read the Auth URL from wrangler environment vars
     let auth_url = env

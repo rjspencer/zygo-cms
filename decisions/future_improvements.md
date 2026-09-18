@@ -20,6 +20,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Post Taxonomy (Tags & Categories)**: D1 taxonomy migration (`0002_add_taxonomy.sql`), category and tag input controls in the editor, clickable badges on post cards and post view, and public filtered routes `/category/:category` and `/tag/:tag` with automatic cache purging.
 
 ### Reliability, Security & Edge Performance
+- **Server-Side HTML Sanitization**: Integrated the `ammonia` crate (backed by Mozilla's HTML5 parser `html5ever`) with custom tag and attribute whitelisting for TipTap content, stripping scripts, iframes, inline event handlers, and pseudo-protocols before persisting to D1.
 - **D1 List Query Optimization**: Separated queries into `LIST_COLUMNS` and `ALL_COLUMNS` in `src/db/entry.rs`, omitting heavy `body_html` and `body_json` from dashboard, sitemap, and RSS listings to keep memory well under Cloudflare Worker limits.
 - **Admin Dashboard Auth Gate**: Client-side PropelAuth verification in `templates/admin_dashboard.html` with default-hidden content and loading state to prevent unauthorized viewing of draft titles.
 - **Editor Unsaved Changes Guard**: Dirty state tracking and `beforeunload` event listener in `public/editor.js` to protect authors against accidental data loss.
@@ -50,14 +51,19 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Update `src/media.rs` to insert metadata on upload and delete records on removal.
   - Add filename search and sorting in the media picker modal in `public/editor.js`.
 
-### 3. Server-Side HTML Sanitization
-- **Goal**: Mitigate Stored XSS risks from rich-text content.
-- **Details**:
-  - Sanitize `body_html` on the server before saving to D1 using a lightweight sanitizer or tag whitelist (stripping `<script>`, `<iframe>`, inline event handlers).
+---
+
+## 3. Icebox & Long-Term Considerations
+
+### Split Public & Admin Workers
+- **Concept**: Separate Zygo CMS into two independent Cloudflare Workers:
+  1. **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
+  2. **Admin Worker (Writer)**: Handles authentication, PropelAuth validation, media uploads, and heavy authoring libraries (e.g. Ammonia sanitization).
+- **Triggers**: Revisit only if future writer-side features push the compiled Wasm binary or CPU usage toward Cloudflare Worker limits. Currently, the unified worker remains well under 1 MB and well within performance boundaries.
 
 ---
 
-## 3. Developer & Testing Cheat Sheet
+## 4. Developer & Testing Cheat Sheet
 
 ```bash
 # Run Rust unit tests

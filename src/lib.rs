@@ -5,6 +5,7 @@ mod db;
 mod error;
 mod media;
 mod models;
+mod sanitize;
 mod utils;
 mod views;
 
@@ -234,7 +235,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/entries", |mut req, ctx| async move {
             let _user = auth_required!(&req, ctx);
 
-            let payload = match req.json::<CreateEntryRequest>().await {
+            let mut payload = match req.json::<CreateEntryRequest>().await {
                 Ok(p) => p,
                 Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
             };
@@ -242,6 +243,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             if let Err(err) = payload.validate() {
                 return err.to_response();
             }
+
+            payload.body_html = sanitize::sanitize_html(&payload.body_html);
 
             let origin = req.url()?.origin().ascii_serialization();
             let entry_path = if payload.r#type.as_deref() == Some("page") {
@@ -284,13 +287,17 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             let id = ctx.param("id").map(|s| s.as_str()).unwrap_or("");
 
-            let payload = match req.json::<UpdateEntryRequest>().await {
+            let mut payload = match req.json::<UpdateEntryRequest>().await {
                 Ok(p) => p,
                 Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
             };
 
             if let Err(err) = payload.validate() {
                 return err.to_response();
+            }
+
+            if let Some(ref mut html) = payload.body_html {
+                *html = sanitize::sanitize_html(html);
             }
 
             let db = ctx.env.d1("DB")?;
