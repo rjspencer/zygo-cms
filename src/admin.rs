@@ -18,6 +18,7 @@ pub fn render_dashboard_html(entries: &[Entry], auth_url: &str) -> worker::Resul
 #[template(path = "editor.html")]
 pub struct EditorTemplate<'a> {
     pub entry: Option<&'a Entry>,
+    pub pages: &'a [Entry],
     pub auth_url: &'a str,
 }
 
@@ -38,6 +39,21 @@ impl<'a> EditorTemplate<'a> {
         self.entry
             .map(|e| e.r#type.as_str() == "page")
             .unwrap_or(false)
+    }
+
+    pub fn is_parent(&self, page_id: &i64) -> bool {
+        self.entry
+            .and_then(|e| e.parent_id)
+            .map(|pid| pid == *page_id)
+            .unwrap_or(false)
+    }
+
+    pub fn sort_order(&self) -> i32 {
+        self.entry.and_then(|e| e.sort_order).unwrap_or(0)
+    }
+
+    pub fn can_be_parent(&self, page_id: &i64) -> bool {
+        self.entry.map(|e| e.id != *page_id).unwrap_or(true)
     }
 
     pub fn title(&self) -> &str {
@@ -98,8 +114,16 @@ impl<'a> EditorTemplate<'a> {
     }
 }
 
-pub fn render_editor_html(entry: Option<&Entry>, auth_url: &str) -> worker::Result<String> {
-    EditorTemplate { entry, auth_url }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))
+pub fn render_editor_html(
+    entry: Option<&Entry>,
+    pages: &[Entry],
+    auth_url: &str,
+) -> worker::Result<String> {
+    EditorTemplate {
+        entry,
+        pages,
+        auth_url,
+    }
+    .render()
+    .map_err(|e| worker::Error::RustError(e.to_string()))
 }

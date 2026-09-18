@@ -35,7 +35,7 @@
                 <tr id="entry-row-{{ entry.id }}">
                     <td>
                         <a href="/admin/editor/{{ entry.id }}" class="table-title">{{ entry.title }}</a>
-                        <span class="table-slug">/{{ entry.slug }}</span>
+                        <span class="table-slug">{{ entry.path() }}</span>
                     </td>
                     <td>
                         <span class="badge badge-type-{{ entry.entry_type() }}">{{ entry.entry_type() }}</span>
@@ -46,11 +46,7 @@
                     <td class="table-date">{{ entry.display_date() }}</td>
                     <td class="table-actions">
                         {% if entry.status == "published" %}
-                        {% if entry.entry_type() == "post" %}
-                        <a href="/post/{{ entry.slug }}" target="_blank" class="action-link">View</a>
-                        {% else %}
-                        <a href="/{{ entry.slug }}" target="_blank" class="action-link">View</a>
-                        {% endif %}
+                        <a href="{{ entry.path() }}" target="_blank" class="action-link">View</a>
                         {% endif %}
                         <a href="/admin/editor/{{ entry.id }}" class="action-link">Edit</a>
                         <button type="button" class="btn-delete" data-id="{{ entry.id }}"

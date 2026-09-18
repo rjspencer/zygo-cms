@@ -411,7 +411,7 @@ export async function initEditor(initialContent, authUrl) {
         const postIdEl = document.querySelector('#post-id');
         const postId = postIdEl ? postIdEl.value : '';
 
-        const formInputs = ['#title', '#slug', '#description', '#cover-image', '#canonical-url', '#category', '#tags', '#schema-json', '#type', '#status'];
+        const formInputs = ['#title', '#slug', '#description', '#cover-image', '#canonical-url', '#category', '#tags', '#schema-json', '#type', '#status', '#parent-id', '#sort-order'];
         formInputs.forEach(selector => {
             const el = document.querySelector(selector);
             if (el) {
@@ -419,6 +419,18 @@ export async function initEditor(initialContent, authUrl) {
                 el.addEventListener('change', () => { isDirty = true; });
             }
         });
+
+        const typeSelect = document.querySelector('#type');
+        const pageHierarchyFields = document.querySelector('#page-hierarchy-fields');
+        const updateHierarchyVisibility = () => {
+            if (pageHierarchyFields && typeSelect) {
+                pageHierarchyFields.style.display = typeSelect.value === 'page' ? 'block' : 'none';
+            }
+        };
+        if (typeSelect) {
+            typeSelect.addEventListener('change', updateHierarchyVisibility);
+            updateHierarchyVisibility();
+        }
 
         if (form) {
             form.addEventListener('submit', async (e) => {
@@ -448,6 +460,16 @@ export async function initEditor(initialContent, authUrl) {
                 const schema_json = document.querySelector('#schema-json')?.value.trim() || null;
                 const category = document.querySelector('#category')?.value.trim() || null;
                 const tags = document.querySelector('#tags')?.value.trim() || null;
+
+                let parent_id = null;
+                let sort_order = null;
+                if (type === 'page') {
+                    const parentVal = document.querySelector('#parent-id')?.value;
+                    parent_id = parentVal && parentVal !== '' ? parseInt(parentVal, 10) : null;
+                    const sortVal = document.querySelector('#sort-order')?.value;
+                    sort_order = sortVal && sortVal !== '' ? parseInt(sortVal, 10) : 0;
+                }
+
                 const body_html = editor.getHTML();
                 const body_json = JSON.stringify(editor.getJSON());
 
@@ -461,6 +483,8 @@ export async function initEditor(initialContent, authUrl) {
                     schema_json,
                     category,
                     tags,
+                    parent_id,
+                    sort_order,
                     body_html,
                     body_json,
                 };

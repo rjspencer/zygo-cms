@@ -126,4 +126,134 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
             }
         }
     });
+
+    it('supports page hierarchy: nested paths, breadcrumbs, sub-navigation, and delete guard', async () => {
+        const timestamp = Date.now();
+        const parentSlug = `corp-${timestamp}`;
+        const childSlug = `about-${timestamp}`;
+        const grandchildSlug = `team-${timestamp}`;
+
+        // 1. Create top-level parent page
+        const parentRes = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Corporate Inc',
+                slug: parentSlug,
+                type: 'page',
+                status: 'published',
+                body_html: '<p>Welcome to Corporate Inc.</p>',
+                body_json: '{}',
+                sort_order: 1,
+            }),
+        });
+        expect(parentRes.status).toBe(200);
+
+        // Fetch parent id
+        const entriesRes = await worker.fetch('/entries');
+        const entries = await entriesRes.json();
+        const parentEntry = entries.find((e) => e.slug === parentSlug);
+        expect(parentEntry).toBeDefined();
+        expect(parentEntry.path).toBe(`/${parentSlug}`);
+
+        // 2. Create child page
+        const childRes = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'About Corporate',
+                slug: childSlug,
+                type: 'page',
+                status: 'published',
+                parent_id: parentEntry.id,
+                body_html: '<p>About Corporate Inc info.</p>',
+                body_json: '{}',
+                sort_order: 2,
+            }),
+        });
+        expect(childRes.status).toBe(200);
+
+        const entriesRes2 = await worker.fetch('/entries');
+        const entries2 = await entriesRes2.json();
+        const childEntry = entries2.find((e) => e.slug === childSlug);
+        expect(childEntry).toBeDefined();
+        expect(childEntry.path).toBe(`/${parentSlug}/${childSlug}`);
+
+        // 3. Create grandchild page
+        const grandchildRes = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Our Team',
+                slug: grandchildSlug,
+                type: 'page',
+                status: 'published',
+                parent_id: childEntry.id,
+                body_html: '<p>Meet our leadership team.</p>',
+                body_json: '{}',
+                sort_order: 1,
+            }),
+        });
+        expect(grandchildRes.status).toBe(200);
+
+        // 4. Test public reader on grandchild path: breadcrumbs rendered
+        const pageRes = await worker.fetch(`/${parentSlug}/${childSlug}/${grandchildSlug}`);
+        expect(pageRes.status).toBe(200);
+        const pageHtml = await pageRes.text();
+
+        // Check breadcrumbs
+        expect(pageHtml).toContain('aria-label="Breadcrumb"');
+        expect(pageHtml).toContain(`<a href="/${parentSlug}">Corporate Inc</a>`);
+        expect(pageHtml).toContain(`<a href="/${parentSlug}/${childSlug}">About Corporate</a>`);
+        expect(pageHtml).toContain('<span class="crumb-current">Our Team</span>');
+        expect(pageHtml).toContain('"@type": "BreadcrumbList"');
+
+        // 5. Test public reader on parent: subpages navigation rendered
+        const parentPageRes = await worker.fetch(`/${parentSlug}`);
+        expect(parentPageRes.status).toBe(200);
+        const parentHtml = await parentPageRes.text();
+
+        expect(parentHtml).toContain('In this section');
+        expect(parentHtml).toContain(`href="/${parentSlug}/${childSlug}"`);
+        expect(parentHtml).toContain('About Corporate');
+
+        // 6. Test delete guard: deleting parent while it has active child fails with 400
+        const badDeleteRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(badDeleteRes.status).toBe(400);
+        const badDeleteText = await badDeleteRes.text();
+        expect(badDeleteText).toContain('Cannot delete a page that has child pages');
+
+        // 7. Cleanup in leaf-to-root order
+        const allEntriesRes = await worker.fetch('/entries');
+        const allEntries = await allEntriesRes.json();
+        const grandchildEntry = allEntries.find((e) => e.slug === grandchildSlug);
+
+        if (grandchildEntry) {
+            await worker.fetch(`/entries/${grandchildEntry.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer test-token' },
+            });
+        }
+        await worker.fetch(`/entries/${childEntry.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        const deleteParentRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(deleteParentRes.status).toBe(200);
+    });
 });

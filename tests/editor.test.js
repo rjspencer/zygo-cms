@@ -146,4 +146,33 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             expect(tagsInput.value).toBe('rust, cloudflare, wasm');
         });
     });
+
+    describe('Page Hierarchy Controls', () => {
+        it('toggles page hierarchy fields based on content type', () => {
+            const typeSelect = document.querySelector('#type');
+            const hierarchyContainer = document.querySelector('#page-hierarchy-fields');
+            const parentSelect = document.querySelector('#parent-id');
+            const sortOrderInput = document.querySelector('#sort-order');
+
+            expect(typeSelect).not.toBeNull();
+            expect(hierarchyContainer).not.toBeNull();
+            expect(parentSelect).not.toBeNull();
+            expect(sortOrderInput).not.toBeNull();
+
+            // Default is post -> hidden
+            typeSelect.value = 'post';
+            fireEvent.change(typeSelect);
+            expect(hierarchyContainer.style.display).toBe('none');
+
+            // Switch to page -> visible
+            typeSelect.value = 'page';
+            fireEvent.change(typeSelect);
+            expect(hierarchyContainer.style.display).toBe('block');
+
+            // Switch back to post -> hidden
+            typeSelect.value = 'post';
+            fireEvent.change(typeSelect);
+            expect(hierarchyContainer.style.display).toBe('none');
+        });
+    });
 });

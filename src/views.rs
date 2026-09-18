@@ -1,4 +1,4 @@
-use crate::models::Entry;
+use crate::models::{BreadcrumbItem, Entry};
 use askama::Template;
 
 #[derive(Template)]
@@ -81,14 +81,26 @@ pub struct PostTemplate<'a> {
 pub struct PageTemplate<'a> {
     pub origin: &'a str,
     pub page: &'a Entry,
+    pub breadcrumbs: &'a [BreadcrumbItem],
+    pub children: &'a [Entry],
 }
 
 pub fn render_post(post: &Entry, origin: &str) -> worker::Result<String> {
     render_tmpl(&PostTemplate { origin, post })
 }
 
-pub fn render_page(page: &Entry, origin: &str) -> worker::Result<String> {
-    render_tmpl(&PageTemplate { origin, page })
+pub fn render_page(
+    page: &Entry,
+    origin: &str,
+    breadcrumbs: &[BreadcrumbItem],
+    children: &[Entry],
+) -> worker::Result<String> {
+    render_tmpl(&PageTemplate {
+        origin,
+        page,
+        breadcrumbs,
+        children,
+    })
 }
 
 #[derive(Template)]

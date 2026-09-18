@@ -51,6 +51,13 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Update `src/media.rs` to insert metadata on upload and delete records on removal.
   - Add filename search and sorting in the media picker modal in `public/editor.js`.
 
+### 3. Editor Child Page Guard & Management
+- **Goal**: Prevent accidental deletion of parent pages with active subpages and provide quick access to edit child pages.
+- **Details**:
+  - In the Editor, retrieve the list of child pages for the current page entry.
+  - Disable the "Delete" option if child pages exist, displaying a helpful tooltip explaining why deletion is blocked.
+  - Render an "In this section / Child pages" panel in the editor displaying the list of child pages with direct links to edit them.
+
 ---
 
 ## 3. Icebox & Long-Term Considerations

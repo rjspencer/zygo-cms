@@ -22,6 +22,12 @@ fn default_type() -> String {
     "post".to_string()
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BreadcrumbItem {
+    pub title: String,
+    pub path: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Entry {
     pub id: i64,
@@ -42,6 +48,10 @@ pub struct Entry {
     #[serde(default)]
     pub body_json: String,
     pub created_at: String,
+    pub parent_id: Option<i64>,
+    pub path: Option<String>,
+    #[serde(default)]
+    pub sort_order: Option<i32>,
 }
 
 impl Entry {
@@ -62,6 +72,12 @@ impl Entry {
     }
 
     pub fn path(&self) -> String {
+        if let Some(ref p) = self.path {
+            let trimmed = p.trim();
+            if !trimmed.is_empty() {
+                return trimmed.to_string();
+            }
+        }
         if self.r#type == "post" {
             format!("/post/{}", self.slug)
         } else {
@@ -226,6 +242,14 @@ impl Entry {
     }
 }
 
+fn deserialize_some_opt<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: serde::Deserialize<'de>,
+{
+    Option::<T>::deserialize(deserializer).map(Some)
+}
+
 #[derive(Debug, Deserialize)]
 pub struct CreateEntryRequest {
     pub slug: String,
@@ -238,6 +262,8 @@ pub struct CreateEntryRequest {
     pub schema_json: Option<String>,
     pub category: Option<String>,
     pub tags: Option<String>,
+    pub parent_id: Option<i64>,
+    pub sort_order: Option<i32>,
     pub body_html: String,
     pub body_json: String,
 }
@@ -279,6 +305,12 @@ impl CreateEntryRequest {
             }
         }
 
+        if self.parent_id.is_some() && self.r#type.as_deref() != Some("page") {
+            return Err(AppError::BadRequest(
+                "Only pages can have a parent page".into(),
+            ));
+        }
+
         if let Some(ref status) = self.status {
             if status != "draft" && status != "published" {
                 return Err(AppError::BadRequest(
@@ -302,6 +334,9 @@ pub struct UpdateEntryRequest {
     pub schema_json: Option<String>,
     pub category: Option<String>,
     pub tags: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_some_opt")]
+    pub parent_id: Option<Option<i64>>,
+    pub sort_order: Option<i32>,
     pub body_html: Option<String>,
     pub body_json: Option<String>,
 }
@@ -317,6 +352,8 @@ impl UpdateEntryRequest {
             || self.schema_json.is_some()
             || self.category.is_some()
             || self.tags.is_some()
+            || self.parent_id.is_some()
+            || self.sort_order.is_some()
             || self.body_html.is_some()
             || self.body_json.is_some();
 
@@ -337,6 +374,16 @@ impl UpdateEntryRequest {
                 return Err(AppError::BadRequest(
                     "Type must be either 'post' or 'page'".into(),
                 ));
+            }
+        }
+
+        if let Some(Some(_)) = self.parent_id {
+            if let Some(ref t) = self.r#type {
+                if t != "page" {
+                    return Err(AppError::BadRequest(
+                        "Only pages can have a parent page".into(),
+                    ));
+                }
             }
         }
 
@@ -369,6 +416,8 @@ mod tests {
             schema_json: None,
             category: Some("Tech".into()),
             tags: Some("rust, wasm".into()),
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>body html</p>".into(),
             body_json: "{}".into(),
         };
@@ -388,6 +437,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
         };
@@ -410,6 +461,8 @@ mod tests {
                 schema_json: None,
                 category: None,
                 tags: None,
+                parent_id: None,
+                sort_order: None,
                 body_html: "<p>Hi</p>".into(),
                 body_json: "{}".into(),
             };
@@ -430,6 +483,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
         };
@@ -449,6 +504,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
@@ -468,6 +525,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
@@ -487,10 +546,51 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
         };
         assert!(req.validate().is_err());
+    }
+
+    #[test]
+    fn test_page_parent_id_validation() {
+        let req_valid = CreateEntryRequest {
+            title: "Subpage".into(),
+            slug: "subpage".into(),
+            r#type: Some("page".into()),
+            status: Some("published".into()),
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            parent_id: Some(1),
+            sort_order: Some(2),
+            body_html: "<p>Content</p>".into(),
+            body_json: "{}".into(),
+        };
+        assert!(req_valid.validate().is_ok());
+
+        let req_invalid = CreateEntryRequest {
+            title: "Subpost".into(),
+            slug: "subpost".into(),
+            r#type: Some("post".into()),
+            status: Some("published".into()),
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            parent_id: Some(1),
+            sort_order: None,
+            body_html: "<p>Content</p>".into(),
+            body_json: "{}".into(),
+        };
+        assert!(req_invalid.validate().is_err());
     }
 
     #[test]
@@ -505,6 +605,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: None,
             body_json: None,
         };
@@ -523,6 +625,8 @@ mod tests {
             schema_json: None,
             category: None,
             tags: None,
+            parent_id: None,
+            sort_order: None,
             body_html: None,
             body_json: None,
         };
@@ -538,10 +642,75 @@ mod tests {
             schema_json: None,
             category: Some("Engineering".into()),
             tags: Some("rust, wasm".into()),
+            parent_id: None,
+            sort_order: None,
             body_html: None,
             body_json: None,
         };
         assert!(req_tax.validate().is_ok());
+
+        let req_hierarchy = UpdateEntryRequest {
+            title: None,
+            r#type: Some("page".into()),
+            status: None,
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            parent_id: Some(Some(5)),
+            sort_order: Some(10),
+            body_html: None,
+            body_json: None,
+        };
+        assert!(req_hierarchy.validate().is_ok());
+    }
+
+    #[test]
+    fn test_deserialize_update_request_parent_id() {
+        let json_null: UpdateEntryRequest =
+            serde_json::from_str(r#"{"parent_id": null}"#).unwrap();
+        assert_eq!(json_null.parent_id, Some(None));
+
+        let json_val: UpdateEntryRequest =
+            serde_json::from_str(r#"{"parent_id": 42}"#).unwrap();
+        assert_eq!(json_val.parent_id, Some(Some(42)));
+
+        let json_omit: UpdateEntryRequest =
+            serde_json::from_str(r#"{"title": "Only Title"}"#).unwrap();
+        assert_eq!(json_omit.parent_id, None);
+    }
+
+    #[test]
+    fn test_entry_path_resolution() {
+        let mut entry = Entry {
+            id: 1,
+            slug: "team".into(),
+            title: "Team".into(),
+            r#type: "page".into(),
+            status: "published".into(),
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            published_at: None,
+            body_html: "".into(),
+            body_json: "".into(),
+            created_at: "2026-01-01".into(),
+            parent_id: Some(2),
+            path: Some("/about/team".into()),
+            sort_order: Some(0),
+        };
+        assert_eq!(entry.path(), "/about/team");
+
+        entry.path = None;
+        assert_eq!(entry.path(), "/team");
+
+        entry.r#type = "post".into();
+        assert_eq!(entry.path(), "/post/team");
     }
 
     #[test]
@@ -562,6 +731,9 @@ mod tests {
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
             created_at: "2026-01-01".into(),
+            parent_id: None,
+            path: None,
+            sort_order: None,
         };
         assert_eq!(entry.tag_list(), vec!["rust", "cloudflare", "wasm"]);
 
@@ -587,6 +759,9 @@ mod tests {
             body_html: "<p>Some HTML content here.</p>".into(),
             body_json: "{}".into(),
             created_at: "2026-01-01".into(),
+            parent_id: None,
+            path: None,
+            sort_order: None,
         };
         assert_eq!(entry.meta_description(), "Custom manual description");
     }
@@ -610,6 +785,9 @@ mod tests {
                 .into(),
             body_json: "{}".into(),
             created_at: "2026-01-01".into(),
+            parent_id: None,
+            path: None,
+            sort_order: None,
         };
         assert_eq!(
             entry.meta_description(),

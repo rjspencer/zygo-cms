@@ -12,6 +12,36 @@
 <link rel="canonical" href="{{ page.canonical(origin) }}">
 <meta property="og:url" content="{{ page.canonical(origin) }}">
 <script type="application/ld+json">{{ page.schema_json_ld(origin)|safe }}</script>
+{% if !breadcrumbs.is_empty() %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "Home",
+      "item": "{{ origin }}/"
+    }
+    {% for crumb in breadcrumbs %}
+    ,{
+      "@type": "ListItem",
+      "position": {{ loop.index + 1 }},
+      "name": "{{ crumb.title }}",
+      "item": "{{ origin }}{{ crumb.path }}"
+    }
+    {% endfor %}
+    ,{
+      "@type": "ListItem",
+      "position": {{ breadcrumbs.len() + 2 }},
+      "name": "{{ page.title }}",
+      "item": "{{ page.canonical(origin) }}"
+    }
+  ]
+}
+</script>
+{% endif %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => hljs.highlightAll());</script>
@@ -19,12 +49,31 @@
 
 {% block content %}
 <article>
-    {% if let Some(img) = page.cover_image %}
-    <img class="cover-image" src="{{ img }}" alt="{{ page.title }}">
-    {% endif %}
-    <h1>{{ page.title }}</h1>
-    <div class="prose">
-        {{ page.body_html|safe }}
-    </div>
+  <nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    {% for crumb in breadcrumbs %}
+    <span class="crumb-separator">/</span>
+    <a href="{{ crumb.path }}">{{ crumb.title }}</a>
+    {% endfor %}
+    <span class="crumb-separator">/</span>
+    <span class="crumb-current">{{ page.title }}</span>
+  </nav>
+  {% if let Some(img) = page.cover_image %}
+  <img class="cover-image" src="{{ img }}" alt="{{ page.title }}">
+  {% endif %}
+  <h1>{{ page.title }}</h1>
+  <div class="prose">
+    {{ page.body_html|safe }}
+  </div>
+  {% if !children.is_empty() %}
+  <aside class="subpages-nav">
+    <h2>In this section</h2>
+    <ul class="subpages-list">
+      {% for child in children %}
+      <li><a href="{{ child.path() }}">{{ child.title }}</a></li>
+      {% endfor %}
+    </ul>
+  </aside>
+  {% endif %}
 </article>
 {% endblock %}

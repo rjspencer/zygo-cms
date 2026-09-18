@@ -35,7 +35,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         })
         .get_async("/admin/editor", |_req, ctx| async move {
             let auth_url = get_auth_url(&ctx.env);
-            let html = admin::render_editor_html(None, &auth_url)?;
+            let db = ctx.env.d1("DB")?;
+            let pages = db::find_all_pages(&db).await.unwrap_or_default();
+            let html = admin::render_editor_html(None, &pages, &auth_url)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor/:id", |_req, ctx| async move {
@@ -48,11 +50,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let entry = db::find_entry_by_id(&db, id)
                 .await?
                 .ok_or(AppError::NotFound);
+            let pages = db::find_all_pages(&db).await.unwrap_or_default();
             let auth_url = get_auth_url(&ctx.env);
 
             match entry {
                 Ok(e) => {
-                    let html = admin::render_editor_html(Some(&e), &auth_url)?;
+                    let html = admin::render_editor_html(Some(&e), &pages, &auth_url)?;
                     Response::from_html(html)
                 }
                 Err(err) => err.to_response(),
@@ -246,15 +249,31 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             payload.body_html = sanitize::sanitize_html(&payload.body_html);
 
-            let origin = req.url()?.origin().ascii_serialization();
+            let db = ctx.env.d1("DB")?;
             let entry_path = if payload.r#type.as_deref() == Some("page") {
-                format!("/{}", payload.slug)
+                if let Some(pid) = payload.parent_id {
+                    let parent = db::find_entry_by_id(&db, &pid.to_string()).await?;
+                    parent
+                        .map(|p| {
+                            format!(
+                                "{}/{}",
+                                p.path().trim_end_matches('/'),
+                                payload.slug.trim_start_matches('/')
+                            )
+                        })
+                        .unwrap_or_else(|| format!("/{}", payload.slug))
+                } else {
+                    format!("/{}", payload.slug)
+                }
             } else {
                 format!("/post/{}", payload.slug)
             };
 
-            let db = ctx.env.d1("DB")?;
-            db::create_entry(&db, &payload).await?;
+            if let Err(e) = db::create_entry(&db, &payload).await {
+                return Response::error(e.to_string(), 400);
+            }
+
+            let origin = req.url()?.origin().ascii_serialization();
 
             // Immediate cache invalidation in the background
             let mut purge_list = vec![
@@ -302,11 +321,13 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             let db = ctx.env.d1("DB")?;
             let existing_entry = db::find_entry_by_id(&db, id).await?;
-            let updated = db::update_entry(&db, id, &payload).await?;
+            let update_result = db::update_entry(&db, id, &payload).await;
 
-            if !updated {
-                return AppError::NotFound.to_response();
-            }
+            let _updated = match update_result {
+                Ok(true) => true,
+                Ok(false) => return AppError::NotFound.to_response(),
+                Err(e) => return Response::error(e.to_string(), 400),
+            };
 
             // Immediate cache invalidation in the background
             let origin = req.url()?.origin().ascii_serialization();
@@ -318,12 +339,22 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             ];
             if let Some(ref entry) = existing_entry {
                 purge_list.push(format!("{}{}", origin, entry.path()));
+                let old_prefix = format!("{}/", entry.path());
+                let all_entries = db::find_all_entries(&db).await.unwrap_or_default();
+                for e in all_entries {
+                    if e.path().starts_with(&old_prefix) {
+                        purge_list.push(format!("{}{}", origin, e.path()));
+                    }
+                }
                 if let Some(ref cat) = entry.category {
                     purge_list.push(format!("{}/category/{}", origin, cat.trim()));
                 }
                 for tag in entry.tag_list() {
                     purge_list.push(format!("{}/tag/{}", origin, tag));
                 }
+            }
+            if let Some(updated_entry) = db::find_entry_by_id(&db, id).await? {
+                purge_list.push(format!("{}{}", origin, updated_entry.path()));
             }
             if let Some(ref cat) = payload.category {
                 purge_list.push(format!("{}/category/{}", origin, cat.trim()));
@@ -346,11 +377,13 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let id = ctx.param("id").map(|s| s.as_str()).unwrap_or("");
             let db = ctx.env.d1("DB")?;
             let existing_entry = db::find_entry_by_id(&db, id).await?;
-            let deleted = db::delete_entry(&db, id).await?;
+            let delete_result = db::delete_entry(&db, id).await;
 
-            if !deleted {
-                return AppError::NotFound.to_response();
-            }
+            let _deleted = match delete_result {
+                Ok(true) => true,
+                Ok(false) => return AppError::NotFound.to_response(),
+                Err(e) => return Response::error(e.to_string(), 400),
+            };
 
             // Immediate cache invalidation in the background
             let origin = req.url()?.origin().ascii_serialization();
@@ -373,26 +406,36 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             Response::from_json(&json!({ "success": true, "deleted": id }))
         })
-        // Public Single Page Reader
-        .get_async("/:slug", |req, ctx| async move {
+        // Public Page Reader (supports nested hierarchy e.g. /about, /about/team)
+        .get_async("/*path", |req, ctx| async move {
             if let Some(cached) = cache::get_cached(&req).await {
                 return Ok(cached);
             }
 
-            let slug = match ctx.param("slug") {
+            let path_param = match ctx.param("path") {
                 Some(s) => s,
-                None => return Response::error("Missing slug", 400),
+                None => return Response::error("Missing path", 400),
+            };
+
+            let normalized_path = if path_param.starts_with('/') {
+                path_param.to_string()
+            } else {
+                format!("/{}", path_param)
             };
 
             let origin = utils::get_canonical_origin(&req, &ctx.env);
             let db = ctx.env.d1("DB")?;
-            let page = db::find_published_page_by_slug(&db, slug)
+            let page = db::find_published_page_by_path(&db, &normalized_path)
                 .await?
                 .ok_or(AppError::NotFound);
 
             match page {
                 Ok(p) => {
-                    let html = views::render_page(&p, &origin)?;
+                    let breadcrumbs = db::find_page_ancestors(&db, p.id).await.unwrap_or_default();
+                    let children = db::find_published_children(&db, p.id)
+                        .await
+                        .unwrap_or_default();
+                    let html = views::render_page(&p, &origin, &breadcrumbs, &children)?;
                     let mut headers = Headers::new();
                     headers.set("Content-Type", "text/html; charset=utf-8")?;
                     cache::add_cache_headers(&mut headers, &ctx.env)?;

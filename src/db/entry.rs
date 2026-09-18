@@ -1,12 +1,27 @@
-use super::opt_js;
-use crate::models::{CreateEntryRequest, Entry, UpdateEntryRequest};
+use super::{opt_js, opt_js_i32, opt_js_i64};
+use crate::models::{BreadcrumbItem, CreateEntryRequest, Entry, UpdateEntryRequest};
+use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
-const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at";
-const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at";
+const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order";
+const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order";
+
+#[derive(serde::Deserialize)]
+struct CountResult {
+    count: i64,
+}
 
 pub async fn find_all_entries(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!("SELECT {LIST_COLUMNS} FROM entries ORDER BY created_at DESC");
+    let statement = db.prepare(&query);
+    let result = statement.run().await?;
+    result.results::<Entry>()
+}
+
+pub async fn find_all_pages(db: &D1Database) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+    );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
     result.results::<Entry>()
@@ -59,12 +74,62 @@ pub async fn find_published_post_by_slug(db: &D1Database, slug: &str) -> Result<
     statement.bind(&[slug.into()])?.first::<Entry>(None).await
 }
 
+#[allow(dead_code)]
 pub async fn find_published_page_by_slug(db: &D1Database, slug: &str) -> Result<Option<Entry>> {
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND slug = ?1"
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND (slug = ?1 OR path = ?2)"
+    );
+    let path = format!("/{}", slug.trim_start_matches('/'));
+    let statement = db.prepare(&query);
+    statement
+        .bind(&[slug.into(), path.into()])?
+        .first::<Entry>(None)
+        .await
+}
+
+pub async fn find_published_page_by_path(db: &D1Database, path: &str) -> Result<Option<Entry>> {
+    let normalized = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        format!("/{}", path)
+    };
+    let slug = normalized.trim_start_matches('/').to_string();
+
+    let query = format!(
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND (path = ?1 OR (path IS NULL AND slug = ?2))"
     );
     let statement = db.prepare(&query);
-    statement.bind(&[slug.into()])?.first::<Entry>(None).await
+    statement
+        .bind(&[normalized.into(), slug.into()])?
+        .first::<Entry>(None)
+        .await
+}
+
+pub async fn find_published_children(db: &D1Database, parent_id: i64) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND parent_id = ?1 ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+    );
+    let statement = db.prepare(&query);
+    let result = statement.bind(&[JsValue::from(parent_id as f64)])?.run().await?;
+    result.results::<Entry>()
+}
+
+pub async fn find_page_ancestors(db: &D1Database, entry_id: i64) -> Result<Vec<BreadcrumbItem>> {
+    let query = "WITH RECURSIVE ancestors(id, title, path, parent_id, level) AS (
+        SELECT id, title, COALESCE(path, '/' || slug) as path, parent_id, 0
+        FROM entries WHERE id = ?1
+        UNION ALL
+        SELECT e.id, e.title, COALESCE(e.path, '/' || e.slug) as path, e.parent_id, a.level + 1
+        FROM entries e JOIN ancestors a ON e.id = a.parent_id
+    )
+    SELECT title, path FROM ancestors WHERE id != ?1 ORDER BY level DESC";
+
+    let statement = db.prepare(query);
+    let result = statement
+        .bind(&[JsValue::from(entry_id as f64)])?
+        .run()
+        .await?;
+    result.results::<BreadcrumbItem>()
 }
 
 pub async fn find_entry_by_id(db: &D1Database, id: &str) -> Result<Option<Entry>> {
@@ -74,18 +139,36 @@ pub async fn find_entry_by_id(db: &D1Database, id: &str) -> Result<Option<Entry>
 }
 
 pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Result<()> {
+    let entry_type = payload.r#type.as_deref().unwrap_or("post");
+    let status = payload.status.as_deref().unwrap_or("published");
+
+    let computed_path = if entry_type == "page" {
+        if let Some(pid) = payload.parent_id {
+            let parent = find_entry_by_id(db, &pid.to_string())
+                .await?
+                .ok_or_else(|| worker::Error::RustError("Parent page not found".into()))?;
+            if parent.r#type != "page" {
+                return Err(worker::Error::RustError(
+                    "Parent entry is not a page".into(),
+                ));
+            }
+            format!("{}/{}", parent.path().trim_end_matches('/'), payload.slug.trim_start_matches('/'))
+        } else {
+            format!("/{}", payload.slug.trim_start_matches('/'))
+        }
+    } else {
+        format!("/post/{}", payload.slug.trim_start_matches('/'))
+    };
+
     let statement = db.prepare(
         "INSERT INTO entries (
-            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json
+            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order
          ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
             CASE WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
-            ?11, ?12
+            ?11, ?12, ?13, ?14, ?15
          )",
     );
-
-    let entry_type = payload.r#type.as_deref().unwrap_or("post");
-    let status = payload.status.as_deref().unwrap_or("published");
 
     statement
         .bind(&[
@@ -101,6 +184,9 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             opt_js(&payload.tags),
             payload.body_html.as_str().into(),
             payload.body_json.as_str().into(),
+            opt_js_i64(&payload.parent_id),
+            computed_path.into(),
+            opt_js_i32(&payload.sort_order.or(Some(0))),
         ])?
         .run()
         .await?;
@@ -109,6 +195,77 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
 }
 
 pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryRequest) -> Result<bool> {
+    let existing = match find_entry_by_id(db, id).await? {
+        Some(e) => e,
+        None => return Ok(false),
+    };
+
+    let new_type = payload.r#type.as_deref().unwrap_or(&existing.r#type);
+
+    let new_parent_id = match payload.parent_id {
+        Some(p) => p,
+        None => existing.parent_id,
+    };
+
+    // Cycle detection if parent_id is being set
+    if let Some(pid) = new_parent_id {
+        if pid.to_string() == id {
+            return Err(worker::Error::RustError(
+                "A page cannot be its own parent".into(),
+            ));
+        }
+
+        let cycle_stmt = db.prepare(
+            "WITH RECURSIVE ancestors(id, parent_id) AS (
+                SELECT id, parent_id FROM entries WHERE id = ?1
+                UNION ALL
+                SELECT e.id, e.parent_id FROM entries e JOIN ancestors a ON e.id = a.parent_id
+            )
+            SELECT id FROM ancestors WHERE id = ?2",
+        );
+        let cycle_res = cycle_stmt
+            .bind(&[JsValue::from(pid as f64), id.into()])?
+            .first::<serde_json::Value>(None)
+            .await?;
+        if cycle_res.is_some() {
+            return Err(worker::Error::RustError(
+                "Circular parent relationship detected".into(),
+            ));
+        }
+    }
+
+    // Compute updated path
+    let new_path = if new_type == "page" {
+        if let Some(pid) = new_parent_id {
+            let parent = find_entry_by_id(db, &pid.to_string())
+                .await?
+                .ok_or_else(|| worker::Error::RustError("Parent page not found".into()))?;
+            format!(
+                "{}/{}",
+                parent.path().trim_end_matches('/'),
+                existing.slug.trim_start_matches('/')
+            )
+        } else {
+            format!("/{}", existing.slug.trim_start_matches('/'))
+        }
+    } else {
+        format!("/post/{}", existing.slug.trim_start_matches('/'))
+    };
+
+    let old_path = existing.path();
+    if new_path != old_path {
+        // Cascade path updates to all descendants
+        let cascade_stmt = db.prepare(
+            "UPDATE entries
+             SET path = ?1 || SUBSTR(path, LENGTH(?2) + 1)
+             WHERE path LIKE ?2 || '/%'",
+        );
+        cascade_stmt
+            .bind(&[new_path.as_str().into(), old_path.as_str().into()])?
+            .run()
+            .await?;
+    }
+
     let statement = db.prepare(
         "UPDATE entries
          SET title = COALESCE(?1, title),
@@ -127,9 +284,15 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
              END,
              body_html = COALESCE(?10, body_html),
              body_json = COALESCE(?11, body_json),
+             parent_id = CASE WHEN ?12 THEN ?13 ELSE parent_id END,
+             path = ?14,
+             sort_order = COALESCE(?15, sort_order),
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?12",
+         WHERE id = ?16",
     );
+
+    let has_parent_update = payload.parent_id.is_some();
+    let parent_id_val = opt_js_i64(&new_parent_id);
 
     let result = statement
         .bind(&[
@@ -144,6 +307,10 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
             opt_js(&payload.tags),
             opt_js(&payload.body_html),
             opt_js(&payload.body_json),
+            JsValue::from(has_parent_update),
+            parent_id_val,
+            new_path.into(),
+            opt_js_i32(&payload.sort_order),
             id.into(),
         ])?
         .run()
@@ -154,9 +321,25 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
 }
 
 pub async fn delete_entry(db: &D1Database, id: &str) -> Result<bool> {
+    // Block deletion if any child pages exist
+    let count_stmt = db.prepare("SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1");
+    let count_res = count_stmt
+        .bind(&[id.into()])?
+        .first::<CountResult>(None)
+        .await?;
+    if let Some(c) = count_res {
+        if c.count > 0 {
+            return Err(worker::Error::RustError(
+                "Cannot delete a page that has child pages. Please move or delete its child pages first."
+                    .into(),
+            ));
+        }
+    }
+
     let statement = db.prepare("DELETE FROM entries WHERE id = ?1");
     let result = statement.bind(&[id.into()])?.run().await?;
 
     let rows_affected = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
     Ok(rows_affected > 0)
 }
+

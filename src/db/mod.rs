@@ -9,3 +9,14 @@ pub(crate) fn opt_js(val: &Option<String>) -> JsValue {
         .map(JsValue::from)
         .unwrap_or_else(JsValue::null)
 }
+
+pub(crate) fn opt_js_i64(val: &Option<i64>) -> JsValue {
+    val.map(|v| JsValue::from(v as f64))
+        .unwrap_or_else(JsValue::null)
+}
+
+pub(crate) fn opt_js_i32(val: &Option<i32>) -> JsValue {
+    val.map(|v| JsValue::from(v as f64))
+        .unwrap_or_else(JsValue::null)
+}
+
