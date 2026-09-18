@@ -58,6 +58,57 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Disable the "Delete" option if child pages exist, displaying a helpful tooltip explaining why deletion is blocked.
   - Render an "In this section / Child pages" panel in the editor displaying the list of child pages with direct links to edit them.
 
+### 4. Scheduled Publishing
+- **Goal**: Allow users to set a future publication date for posts.
+- **Details**: 
+  - Add UI in the editor to select a future date and time for `published_at`.
+  - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
+
+### 5. Draft Previews
+- **Goal**: Provide secure, tokenized share links for unpublished drafts.
+- **Details**:
+  - Generate a secure, unique preview token for draft entries.
+  - Create a specialized reader route that bypasses standard auth but requires the token to view draft content.
+
+### 6. User Roles & Permissions (RBAC)
+- **Goal**: Support multiple users with distinct permission levels.
+- **Details**:
+  - Move beyond the global Auth Gate to role-based access control (e.g., Admin, Editor, Author, Contributor).
+  - Map roles to specific database operations (e.g., Authors can only edit their own posts).
+
+### 7. Custom Content Types & Schema Builder
+- **Goal**: Enable custom content modeling via the admin UI.
+- **Details**:
+  - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
+
+### 8. Revisions & Version History
+- **Goal**: Track changes over time and support rollbacks.
+- **Details**:
+  - Create a new D1 table `entry_revisions` to snapshot content on each save.
+  - Add a UI in the editor to browse past versions and restore previous content.
+
+### 9. Full-Text Site Search
+- **Goal**: Allow users to search across all published content.
+- **Details**:
+  - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
+
+### 10. Navigation & Menu Builder
+- **Goal**: Manage site menus dynamically from the admin panel.
+- **Details**:
+  - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
+  - Build a drag-and-drop UI to construct header and footer menus.
+
+### 11. Webhooks & API Integrations
+- **Goal**: Notify external systems of CMS events.
+- **Details**:
+  - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
+
+### 12. Analytics Dashboard & Localization
+- **Goal**: Built-in insights and multi-language support.
+- **Details**:
+  - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
+  - Introduce i18n support for pages and posts.
+
 ---
 
 ## 3. Icebox & Long-Term Considerations
