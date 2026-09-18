@@ -1,0 +1,17 @@
+{% if pag.total_pages > 1 %}
+<nav class="pagination" aria-label="Pagination">
+    {% if let Some(prev) = pag.prev_url.as_deref() %}
+    <a href="{{ prev }}" class="pagination-link pagination-prev">&larr; Previous</a>
+    {% else %}
+    <span class="pagination-link pagination-disabled">&larr; Previous</span>
+    {% endif %}
+
+    <span class="pagination-info">Page {{ pag.page }} of {{ pag.total_pages }}</span>
+
+    {% if let Some(next) = pag.next_url.as_deref() %}
+    <a href="{{ next }}" class="pagination-link pagination-next">Next &rarr;</a>
+    {% else %}
+    <span class="pagination-link pagination-disabled">Next &rarr;</span>
+    {% endif %}
+</nav>
+{% endif %}

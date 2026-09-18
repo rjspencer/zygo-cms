@@ -1,4 +1,4 @@
-use crate::models::{BreadcrumbItem, Entry};
+use crate::models::{BreadcrumbItem, Entry, Pagination};
 use askama::Template;
 
 #[derive(Template)]
@@ -8,23 +8,41 @@ pub struct IndexTemplate<'a> {
     pub posts: &'a [Entry],
     pub heading: Option<&'a str>,
     pub canonical_path: Option<&'a str>,
+    pub pagination: Option<Pagination>,
 }
 
 impl<'a> IndexTemplate<'a> {
     pub fn page_title(&self) -> String {
-        if let Some(h) = self.heading {
-            format!("{h} \u{2014} Zygo")
+        let base_title = if let Some(h) = self.heading {
+            h.to_string()
         } else {
-            "Home \u{2014} Zygo".to_string()
+            "Home".to_string()
+        };
+
+        if let Some(ref p) = self.pagination {
+            if p.page > 1 {
+                return format!("{base_title} (Page {}) \u{2014} Zygo", p.page);
+            }
         }
+
+        format!("{base_title} \u{2014} Zygo")
     }
 
     pub fn canonical_url(&self) -> String {
         let base = self.origin.trim_end_matches('/');
+        let page_num = self.pagination.as_ref().map(|p| p.page).unwrap_or(1);
+
         if let Some(path) = self.canonical_path {
-            format!("{}{}", base, path)
+            let clean_path = path.trim_end_matches('/');
+            if page_num > 1 {
+                format!("{base}{clean_path}?page={page_num}")
+            } else {
+                format!("{base}{clean_path}")
+            }
+        } else if page_num > 1 {
+            format!("{base}/?page={page_num}")
         } else {
-            format!("{}/", base)
+            format!("{base}/")
         }
     }
 }
@@ -34,16 +52,26 @@ fn render_tmpl<T: Template>(tmpl: &T) -> worker::Result<String> {
         .map_err(|e| worker::Error::RustError(e.to_string()))
 }
 
-pub fn render_index(posts: &[Entry], origin: &str) -> worker::Result<String> {
+pub fn render_index(
+    posts: &[Entry],
+    origin: &str,
+    pagination: Option<Pagination>,
+) -> worker::Result<String> {
     render_tmpl(&IndexTemplate {
         origin,
         posts,
         heading: None,
         canonical_path: None,
+        pagination,
     })
 }
 
-pub fn render_tag_index(posts: &[Entry], origin: &str, tag: &str) -> worker::Result<String> {
+pub fn render_tag_index(
+    posts: &[Entry],
+    origin: &str,
+    tag: &str,
+    pagination: Option<Pagination>,
+) -> worker::Result<String> {
     let heading = format!("Tag: #{tag}");
     let canonical = format!("/tag/{tag}");
     render_tmpl(&IndexTemplate {
@@ -51,6 +79,7 @@ pub fn render_tag_index(posts: &[Entry], origin: &str, tag: &str) -> worker::Res
         posts,
         heading: Some(&heading),
         canonical_path: Some(&canonical),
+        pagination,
     })
 }
 
@@ -58,6 +87,7 @@ pub fn render_category_index(
     posts: &[Entry],
     origin: &str,
     category: &str,
+    pagination: Option<Pagination>,
 ) -> worker::Result<String> {
     let heading = format!("Category: {category}");
     let canonical = format!("/category/{category}");
@@ -66,6 +96,7 @@ pub fn render_category_index(
         posts,
         heading: Some(&heading),
         canonical_path: Some(&canonical),
+        pagination,
     })
 }
 

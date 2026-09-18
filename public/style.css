@@ -175,6 +175,39 @@ h4 {
     color: #1a1a1a;
 }
 
+/* Pagination Controls */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eaeaea;
+    font-family: var(--font-headline);
+    font-size: 0.85rem;
+}
+
+.pagination-link {
+    color: #1a1a1a;
+    text-decoration: none;
+    font-weight: 700;
+}
+
+.pagination-link:hover {
+    text-decoration: underline;
+}
+
+.pagination-disabled {
+    color: #bbb;
+    pointer-events: none;
+    text-decoration: none;
+    cursor: default;
+}
+
+.pagination-info {
+    color: #777;
+}
+
 /* Dashboard & Admin Table */
 .header-nav {
     display: flex;

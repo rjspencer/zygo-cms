@@ -94,10 +94,16 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 return Ok(cached);
             }
 
+            let page = utils::parse_page_param(&req);
+            let per_page = utils::get_page_size(&ctx.env);
             let origin = utils::get_canonical_origin(&req, &ctx.env);
             let db = ctx.env.d1("DB")?;
-            let posts = db::find_published_posts(&db).await?;
-            let html = views::render_index(&posts, &origin)?;
+
+            let total_posts = db::count_published_posts(&db).await?;
+            let pagination = models::Pagination::new("/", page, per_page, total_posts);
+            let offset = (pagination.page - 1) * per_page;
+            let posts = db::find_published_posts_paginated(&db, per_page, offset).await?;
+            let html = views::render_index(&posts, &origin, Some(pagination))?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -187,10 +193,18 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 None => return Response::error("Missing tag", 400),
             };
 
+            let page = utils::parse_page_param(&req);
+            let per_page = utils::get_page_size(&ctx.env);
             let origin = utils::get_canonical_origin(&req, &ctx.env);
             let db = ctx.env.d1("DB")?;
-            let posts = db::find_published_posts_by_tag(&db, tag).await?;
-            let html = views::render_tag_index(&posts, &origin, tag)?;
+
+            let total_posts = db::count_published_posts_by_tag(&db, tag).await?;
+            let base_path = format!("/tag/{tag}");
+            let pagination = models::Pagination::new(&base_path, page, per_page, total_posts);
+            let offset = (pagination.page - 1) * per_page;
+            let posts =
+                db::find_published_posts_by_tag_paginated(&db, tag, per_page, offset).await?;
+            let html = views::render_tag_index(&posts, &origin, tag, Some(pagination))?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -211,10 +225,19 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 None => return Response::error("Missing category", 400),
             };
 
+            let page = utils::parse_page_param(&req);
+            let per_page = utils::get_page_size(&ctx.env);
             let origin = utils::get_canonical_origin(&req, &ctx.env);
             let db = ctx.env.d1("DB")?;
-            let posts = db::find_published_posts_by_category(&db, category).await?;
-            let html = views::render_category_index(&posts, &origin, category)?;
+
+            let total_posts = db::count_published_posts_by_category(&db, category).await?;
+            let base_path = format!("/category/{category}");
+            let pagination = models::Pagination::new(&base_path, page, per_page, total_posts);
+            let offset = (pagination.page - 1) * per_page;
+            let posts =
+                db::find_published_posts_by_category_paginated(&db, category, per_page, offset)
+                    .await?;
+            let html = views::render_category_index(&posts, &origin, category, Some(pagination))?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;

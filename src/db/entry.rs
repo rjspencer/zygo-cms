@@ -45,6 +45,30 @@ pub async fn find_published_posts(db: &D1Database) -> Result<Vec<Entry>> {
     result.results::<Entry>()
 }
 
+pub async fn count_published_posts(db: &D1Database) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published'";
+    let statement = db.prepare(query);
+    let count_res = statement.first::<CountResult>(None).await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
+pub async fn find_published_posts_paginated(
+    db: &D1Database,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' ORDER BY published_at DESC, created_at DESC LIMIT ?1 OFFSET ?2"
+    );
+    let statement = db.prepare(&query);
+    let result = statement
+        .bind(&[JsValue::from(limit as f64), JsValue::from(offset as f64)])?
+        .run()
+        .await?;
+    result.results::<Entry>()
+}
+
+#[allow(dead_code)]
 pub async fn find_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<Vec<Entry>> {
     let query = format!(
         "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC"
@@ -54,6 +78,38 @@ pub async fn find_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<V
     result.results::<Entry>()
 }
 
+pub async fn count_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%')";
+    let statement = db.prepare(query);
+    let count_res = statement
+        .bind(&[tag.trim().into()])?
+        .first::<CountResult>(None)
+        .await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
+pub async fn find_published_posts_by_tag_paginated(
+    db: &D1Database,
+    tag: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
+    );
+    let statement = db.prepare(&query);
+    let result = statement
+        .bind(&[
+            tag.trim().into(),
+            JsValue::from(limit as f64),
+            JsValue::from(offset as f64),
+        ])?
+        .run()
+        .await?;
+    result.results::<Entry>()
+}
+
+#[allow(dead_code)]
 pub async fn find_published_posts_by_category(
     db: &D1Database,
     category: &str,
@@ -63,6 +119,37 @@ pub async fn find_published_posts_by_category(
     );
     let statement = db.prepare(&query);
     let result = statement.bind(&[category.trim().into()])?.run().await?;
+    result.results::<Entry>()
+}
+
+pub async fn count_published_posts_by_category(db: &D1Database, category: &str) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND LOWER(TRIM(category)) = LOWER(TRIM(?1))";
+    let statement = db.prepare(query);
+    let count_res = statement
+        .bind(&[category.trim().into()])?
+        .first::<CountResult>(None)
+        .await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
+pub async fn find_published_posts_by_category_paginated(
+    db: &D1Database,
+    category: &str,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND LOWER(TRIM(category)) = LOWER(TRIM(?1)) ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
+    );
+    let statement = db.prepare(&query);
+    let result = statement
+        .bind(&[
+            category.trim().into(),
+            JsValue::from(limit as f64),
+            JsValue::from(offset as f64),
+        ])?
+        .run()
+        .await?;
     result.results::<Entry>()
 }
 

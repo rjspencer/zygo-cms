@@ -26,6 +26,16 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Editor Unsaved Changes Guard**: Dirty state tracking and `beforeunload` event listener in `public/editor.js` to protect authors against accidental data loss.
 - **Askama Template Rendering Hygiene**: Clean `render_tmpl` helper eliminating repetitive error mapping closures.
 
+### Template Reusability & Sub-Templates
+- **Extracted Layout Partials**: Modularized `templates/includes/header.html`, `footer.html`, and `navigation.html` from `base.html`.
+- **Reusable Post List & Pagination**: Extracted `templates/includes/post_list.html` and `templates/includes/pagination.html` from `templates/index.html`.
+
+### Post List Pagination
+- **Server-Side Pagination**: Added `?page=N` query parameter handling across homepage (`/`), tag archives (`/tag/:tag`), and category archives (`/category/:category`).
+- **D1 Limit/Offset Queries**: Implemented `LIMIT ? OFFSET ?` with `LIST_COLUMNS` in `src/db/entry.rs`, backed by count queries to accurately determine total page count.
+- **Canonical & SEO Hygiene**: Strictly preserves canonical rules (homepage trailing slash `{origin}/?page=N`, clean page 1 root without query string, page title indicators `(Page N)`).
+- **Configurable Page Size**: Defaults to 10 posts per page, overridable via `POSTS_PER_PAGE` environment variable.
+
 ### Testing Architecture
 - **Two-Tier Test Suite**:
   - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
@@ -37,73 +47,66 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. Homepage Pagination
-- **Goal**: Prevent the homepage from displaying an unbounded list of posts.
-- **Details**:
-  - Add `?page=N` query parameter handling to `GET /`.
-  - Render "Previous" and "Next" pagination controls in `templates/index.html`.
-  - Use `LIMIT ? OFFSET ?` queries with `LIST_COLUMNS` in `src/db/entry.rs`.
-
-### 2. D1 Media Index & Gallery Modal (Phase 3)
+### 1. D1 Media Index & Gallery Modal (Phase 3)
 - **Goal**: Full asset management and search for uploaded images.
 - **Details**:
   - Create a `media` table in D1 tracking `id, key, filename, mime_type, size_bytes, created_at`.
   - Update `src/media.rs` to insert metadata on upload and delete records on removal.
   - Add filename search and sorting in the media picker modal in `public/editor.js`.
 
-### 3. Editor Child Page Guard & Management
+### 2. Editor Child Page Guard & Management
 - **Goal**: Prevent accidental deletion of parent pages with active subpages and provide quick access to edit child pages.
 - **Details**:
   - In the Editor, retrieve the list of child pages for the current page entry.
   - Disable the "Delete" option if child pages exist, displaying a helpful tooltip explaining why deletion is blocked.
   - Render an "In this section / Child pages" panel in the editor displaying the list of child pages with direct links to edit them.
 
-### 4. Scheduled Publishing
+### 3. Scheduled Publishing
 - **Goal**: Allow users to set a future publication date for posts.
 - **Details**: 
   - Add UI in the editor to select a future date and time for `published_at`.
   - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
 
-### 5. Draft Previews
+### 4. Draft Previews
 - **Goal**: Provide secure, tokenized share links for unpublished drafts.
 - **Details**:
   - Generate a secure, unique preview token for draft entries.
   - Create a specialized reader route that bypasses standard auth but requires the token to view draft content.
 
-### 6. User Roles & Permissions (RBAC)
+### 5. User Roles & Permissions (RBAC)
 - **Goal**: Support multiple users with distinct permission levels.
 - **Details**:
   - Move beyond the global Auth Gate to role-based access control (e.g., Admin, Editor, Author, Contributor).
   - Map roles to specific database operations (e.g., Authors can only edit their own posts).
 
-### 7. Custom Content Types & Schema Builder
+### 6. Custom Content Types & Schema Builder
 - **Goal**: Enable custom content modeling via the admin UI.
 - **Details**:
   - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
 
-### 8. Revisions & Version History
+### 7. Revisions & Version History
 - **Goal**: Track changes over time and support rollbacks.
 - **Details**:
   - Create a new D1 table `entry_revisions` to snapshot content on each save.
   - Add a UI in the editor to browse past versions and restore previous content.
 
-### 9. Full-Text Site Search
+### 8. Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 10. Navigation & Menu Builder
+### 9. Navigation & Menu Builder
 - **Goal**: Manage site menus dynamically from the admin panel.
 - **Details**:
   - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
   - Build a drag-and-drop UI to construct header and footer menus.
 
-### 11. Webhooks & API Integrations
+### 10. Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
-### 12. Analytics Dashboard & Localization
+### 11. Analytics Dashboard & Localization
 - **Goal**: Built-in insights and multi-language support.
 - **Details**:
   - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).

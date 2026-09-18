@@ -28,6 +28,77 @@ pub struct BreadcrumbItem {
     pub path: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Pagination {
+    pub page: i64,
+    pub per_page: i64,
+    pub total_posts: i64,
+    pub total_pages: i64,
+    pub has_prev: bool,
+    pub has_next: bool,
+    pub prev_url: Option<String>,
+    pub next_url: Option<String>,
+}
+
+impl Pagination {
+    pub fn new(base_path: &str, requested_page: i64, per_page: i64, total_posts: i64) -> Self {
+        let per_page = if per_page <= 0 { 10 } else { per_page };
+        let total_pages = if total_posts <= 0 {
+            1
+        } else {
+            (total_posts + per_page - 1) / per_page
+        };
+        let page = requested_page.max(1);
+        let has_prev = page > 1;
+        let has_next = page < total_pages;
+
+        let prev_url = if has_prev {
+            Some(Self::format_page_url(base_path, page - 1))
+        } else {
+            None
+        };
+
+        let next_url = if has_next {
+            Some(Self::format_page_url(base_path, page + 1))
+        } else {
+            None
+        };
+
+        Self {
+            page,
+            per_page,
+            total_posts,
+            total_pages,
+            has_prev,
+            has_next,
+            prev_url,
+            next_url,
+        }
+    }
+
+    pub fn format_page_url(base_path: &str, page_num: i64) -> String {
+        let clean = if base_path == "/" {
+            ""
+        } else {
+            base_path.trim_end_matches('/')
+        };
+
+        if page_num <= 1 {
+            if clean.is_empty() {
+                "/".to_string()
+            } else {
+                clean.to_string()
+            }
+        } else {
+            if clean.is_empty() {
+                format!("/?page={page_num}")
+            } else {
+                format!("{clean}?page={page_num}")
+            }
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Entry {
     pub id: i64,
@@ -794,4 +865,69 @@ mod tests {
             "Hello world! This is a post about Rust."
         );
     }
+
+    #[test]
+    fn test_pagination_homepage_calculation() {
+        // Page 1 of 3
+        let p1 = Pagination::new("/", 1, 10, 25);
+        assert_eq!(p1.page, 1);
+        assert_eq!(p1.total_pages, 3);
+        assert!(!p1.has_prev);
+        assert!(p1.has_next);
+        assert_eq!(p1.prev_url, None);
+        assert_eq!(p1.next_url, Some("/?page=2".to_string()));
+
+        // Page 2 of 3 (prev goes back to canonical root "/")
+        let p2 = Pagination::new("/", 2, 10, 25);
+        assert_eq!(p2.page, 2);
+        assert!(p2.has_prev);
+        assert!(p2.has_next);
+        assert_eq!(p2.prev_url, Some("/".to_string()));
+        assert_eq!(p2.next_url, Some("/?page=3".to_string()));
+
+        // Page 3 of 3 (last page)
+        let p3 = Pagination::new("/", 3, 10, 25);
+        assert_eq!(p3.page, 3);
+        assert!(p3.has_prev);
+        assert!(!p3.has_next);
+        assert_eq!(p3.prev_url, Some("/?page=2".to_string()));
+        assert_eq!(p3.next_url, None);
+    }
+
+    #[test]
+    fn test_pagination_tag_and_category_urls() {
+        let tag_pag = Pagination::new("/tag/rust", 2, 5, 12);
+        assert_eq!(tag_pag.page, 2);
+        assert_eq!(tag_pag.total_pages, 3);
+        assert_eq!(tag_pag.prev_url, Some("/tag/rust".to_string()));
+        assert_eq!(tag_pag.next_url, Some("/tag/rust?page=3".to_string()));
+
+        let cat_pag = Pagination::new("/category/tech", 1, 10, 15);
+        assert_eq!(cat_pag.page, 1);
+        assert_eq!(cat_pag.total_pages, 2);
+        assert_eq!(cat_pag.prev_url, None);
+        assert_eq!(cat_pag.next_url, Some("/category/tech?page=2".to_string()));
+    }
+
+    #[test]
+    fn test_pagination_edge_cases() {
+        // 0 total posts
+        let zero = Pagination::new("/", 1, 10, 0);
+        assert_eq!(zero.total_pages, 1);
+        assert_eq!(zero.page, 1);
+        assert!(!zero.has_prev);
+        assert!(!zero.has_next);
+
+        // Requested page beyond total_pages retains requested page with no next link
+        let beyond = Pagination::new("/", 99, 10, 25);
+        assert_eq!(beyond.page, 99);
+        assert_eq!(beyond.total_pages, 3);
+        assert!(beyond.has_prev);
+        assert!(!beyond.has_next);
+
+        // Negative requested page is normalized to 1
+        let neg = Pagination::new("/", -5, 10, 25);
+        assert_eq!(neg.page, 1);
+    }
 }
+

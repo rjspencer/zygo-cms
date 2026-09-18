@@ -30,3 +30,30 @@ pub fn get_canonical_origin(req: &Request, env: &Env) -> String {
 
     "".to_string()
 }
+
+pub const DEFAULT_PAGE_SIZE: i64 = 10;
+
+/// Safely extracts and validates the ?page= query parameter (defaults to 1, minimum 1)
+pub fn parse_page_param(req: &Request) -> i64 {
+    if let Ok(url) = req.url() {
+        for (k, v) in url.query_pairs() {
+            if k == "page" {
+                if let Ok(p) = v.parse::<i64>() {
+                    if p > 0 {
+                        return p;
+                    }
+                }
+            }
+        }
+    }
+    1
+}
+
+/// Retrieves the configured page size from the environment or falls back to DEFAULT_PAGE_SIZE (10)
+pub fn get_page_size(env: &Env) -> i64 {
+    env.var("POSTS_PER_PAGE")
+        .ok()
+        .and_then(|v| v.to_string().parse::<i64>().ok())
+        .filter(|&size| size > 0)
+        .unwrap_or(DEFAULT_PAGE_SIZE)
+}

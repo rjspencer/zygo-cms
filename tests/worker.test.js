@@ -256,4 +256,35 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         });
         expect(deleteParentRes.status).toBe(200);
     });
+
+    it('supports post list pagination and sub-template rendering on GET /', async () => {
+        // 1. Verify page 1 default rendering via sub-template
+        const res1 = await worker.fetch('/');
+        expect(res1.status).toBe(200);
+        const html1 = await res1.text();
+        expect(html1).toContain('<ul class="post-list">');
+        expect(html1).toContain('class="post-link"');
+        expect(html1).toContain('<title>Home — Zygo</title>');
+
+        // 2. Verify page 2 rendering with canonical link and title
+        const res2 = await worker.fetch('/?page=2');
+        expect(res2.status).toBe(200);
+        const html2 = await res2.text();
+        expect(html2).toContain('?page=2');
+        expect(html2).toContain('Page 2');
+
+        // 3. Verify tag archive rendering with sub-template
+        const tagRes = await worker.fetch('/tag/welcome');
+        expect(tagRes.status).toBe(200);
+        const tagHtml = await tagRes.text();
+        expect(tagHtml).toContain('Tag: #welcome');
+        expect(tagHtml).toContain('<ul class="post-list">');
+
+        // 4. Verify category archive rendering with sub-template
+        const catRes = await worker.fetch('/category/General');
+        expect(catRes.status).toBe(200);
+        const catHtml = await catRes.text();
+        expect(catHtml).toContain('Category: General');
+        expect(catHtml).toContain('<ul class="post-list">');
+    });
 });
