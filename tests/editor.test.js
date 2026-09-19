@@ -199,5 +199,22 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             fireEvent.change(typeSelect);
             expect(hierarchyContainer.style.display).toBe('none');
         });
+
+        it('blocks changing page to post when entry has child pages', () => {
+            const form = document.querySelector('#post-form');
+            form.dataset.hasChildren = 'true';
+            form.dataset.childCount = '2';
+
+            const typeSelect = document.querySelector('#type');
+            typeSelect.value = 'page';
+            fireEvent.change(typeSelect);
+
+            // Attempt to change to post
+            typeSelect.value = 'post';
+            fireEvent.change(typeSelect);
+
+            // Should revert back to page
+            expect(typeSelect.value).toBe('page');
+        });
     });
 });

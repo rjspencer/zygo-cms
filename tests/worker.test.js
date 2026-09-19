@@ -235,7 +235,30 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const badDeleteText = await badDeleteRes.text();
         expect(badDeleteText).toContain('Cannot delete a page that has child pages');
 
-        // 7. Cleanup in leaf-to-root order
+        // 7. Test type-conversion guard: changing page to post while it has children fails with 400
+        const badTypeRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({ type: 'post' }),
+        });
+        expect(badTypeRes.status).toBe(400);
+        const badTypeText = await badTypeRes.text();
+        expect(badTypeText).toContain('Cannot change a page to a post while it has child pages');
+
+        // 8. Test editor view: renders child pages panel and disabled delete button
+        const editorRes = await worker.fetch(`/admin/editor/${parentEntry.id}`);
+        expect(editorRes.status).toBe(200);
+        const editorHtml = await editorRes.text();
+        expect(editorHtml).toContain('id="child-pages-section"');
+        expect(editorHtml).toContain('Subpages in this section');
+        expect(editorHtml).toContain('About Corporate');
+        expect(editorHtml).toContain('btn-delete-disabled');
+        expect(editorHtml).toContain('Deletion blocked');
+
+        // 9. Cleanup in leaf-to-root order
         const allEntriesRes = await worker.fetch('/entries');
         const allEntries = await allEntriesRes.json();
         const grandchildEntry = allEntries.find((e) => e.slug === grandchildSlug);

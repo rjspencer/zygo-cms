@@ -542,3 +542,128 @@ textarea {
     color: #d32f2f;
     font-weight: bold;
 }
+
+/* Child pages management in editor */
+.child-pages-section {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: #f9f9fb;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+}
+
+.child-pages-help {
+    font-size: 0.82rem;
+    color: #666;
+    margin: 0.25rem 0 0.75rem 0;
+}
+
+.child-pages-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.85rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.child-page-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 4px;
+}
+
+.child-page-info {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.child-page-link {
+    font-weight: 600;
+    color: #1a1a1a;
+    text-decoration: none;
+    font-size: 0.88rem;
+}
+
+.child-page-link:hover {
+    text-decoration: underline;
+}
+
+.child-page-path {
+    font-size: 0.8rem;
+    color: #777;
+    font-family: 'Space Mono', monospace;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 0.15rem 0.45rem;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-pill.status-published {
+    background: #e6f4ea;
+    color: #137333;
+}
+
+.status-pill.status-draft {
+    background: #fef7e0;
+    color: #b06000;
+}
+
+.btn-child-edit {
+    font-size: 0.8rem;
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.btn-child-edit:hover {
+    text-decoration: underline;
+}
+
+.btn-small {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.8rem;
+}
+
+.btn-delete {
+    padding: 0.6rem 1.2rem;
+    font-family: var(--font-headline);
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: #d32f2f;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.btn-delete:hover:not(:disabled) {
+    background: #b71c1c;
+}
+
+.btn-delete-disabled,
+.btn-delete:disabled {
+    background: #ccc !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    opacity: 0.7;
+}
+
+.delete-blocked-hint {
+    font-size: 0.82rem;
+    color: #d32f2f;
+    margin-left: 0.5rem;
+    font-weight: 500;
+}

@@ -550,8 +550,86 @@ export async function initEditor(initialContent, authUrl) {
             }
         };
         if (typeSelect) {
-            typeSelect.addEventListener('change', updateHierarchyVisibility);
+            typeSelect.addEventListener('change', (e) => {
+                if (form && form.dataset.hasChildren === 'true' && typeSelect.value !== 'page') {
+                    const count = form.dataset.childCount || '1';
+                    const msg = `Cannot change this page to a post because it has ${count} active subpage(s). Move or delete its subpages first.`;
+                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                        window.alert(msg);
+                    }
+                    typeSelect.value = 'page';
+                    updateHierarchyVisibility();
+                    return;
+                }
+                updateHierarchyVisibility();
+            });
             updateHierarchyVisibility();
+        }
+
+        // Prepopulate parent page if navigated via ?parent_id=...
+        const urlParams = new URLSearchParams(window.location.search);
+        const preselectedParent = urlParams.get('parent_id');
+        const postIdInput = document.querySelector('#post-id');
+        if (preselectedParent && (!postIdInput || !postIdInput.value)) {
+            if (typeSelect) {
+                typeSelect.value = 'page';
+                updateHierarchyVisibility();
+            }
+            const parentSelect = document.querySelector('#parent-id');
+            if (parentSelect) {
+                parentSelect.value = preselectedParent;
+            }
+        }
+
+        // Handle Delete button if present
+        const deleteBtn = document.querySelector('#delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (deleteBtn.disabled) return;
+
+                const currentPostId = postIdInput ? postIdInput.value : '';
+                const currentTitle = document.querySelector('#title')?.value || 'this entry';
+                if (!currentPostId) return;
+
+                const confirmMsg = `Are you sure you want to permanently delete "${currentTitle}"? This cannot be undone.`;
+                const isConfirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
+                    ? window.confirm(confirmMsg)
+                    : true;
+                if (!isConfirmed) return;
+
+                deleteBtn.disabled = true;
+                deleteBtn.textContent = 'Deleting...';
+
+                const token = await getAuthToken();
+                const headers = {};
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                try {
+                    const res = await fetch('/entries/' + currentPostId, {
+                        method: 'DELETE',
+                        headers,
+                    });
+                    if (res.ok) {
+                        isDirty = false;
+                        window.location.href = '/admin';
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        const errMsg = data.error || 'Server error';
+                        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                            window.alert('Failed to delete: ' + errMsg);
+                        }
+                        deleteBtn.disabled = false;
+                        deleteBtn.textContent = 'Delete Entry';
+                    }
+                } catch (err) {
+                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                        window.alert('Network error deleting entry');
+                    }
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = 'Delete Entry';
+                }
+            });
         }
 
         if (form) {

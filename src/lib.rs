@@ -37,7 +37,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let auth_url = get_auth_url(&ctx.env);
             let db = ctx.env.d1("DB")?;
             let pages = db::find_all_pages(&db).await.unwrap_or_default();
-            let html = admin::render_editor_html(None, &pages, &auth_url)?;
+            let html = admin::render_editor_html(None, &pages, &[], &auth_url)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor/:id", |_req, ctx| async move {
@@ -55,7 +55,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             match entry {
                 Ok(e) => {
-                    let html = admin::render_editor_html(Some(&e), &pages, &auth_url)?;
+                    let child_pages = db::find_all_children(&db, e.id).await.unwrap_or_default();
+                    let html =
+                        admin::render_editor_html(Some(&e), &pages, &child_pages, &auth_url)?;
                     Response::from_html(html)
                 }
                 Err(err) => err.to_response(),

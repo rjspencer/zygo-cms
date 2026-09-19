@@ -9,7 +9,8 @@
 {% block content %}
 <h1 class="brand">Zygo CMS &mdash; {{ action() }}</h1>
 
-<form id="post-form" data-auth-url="{{ auth_url }}">
+<form id="post-form" data-auth-url="{{ auth_url }}" data-has-children="{{ has_children() }}"
+    data-child-count="{{ child_count() }}">
     <input type="hidden" id="post-id" value="{{ post_id() }}">
 
     <div class="form-group">
@@ -48,6 +49,29 @@
             <label for="sort-order">Sort Order (Optional, numeric)</label>
             <input type="number" id="sort-order" value="{{ sort_order() }}" placeholder="0">
         </div>
+
+        {% if has_children() %}
+        <div class="form-group child-pages-section" id="child-pages-section">
+            <label>Subpages in this section ({{ child_count() }})</label>
+            <p class="child-pages-help">These subpages have this page set as their parent. Deletion and post-conversion
+                are blocked until all subpages are moved or deleted.</p>
+            <ul class="child-pages-list" id="child-pages-list">
+                {% for child in child_pages %}
+                <li class="child-page-item">
+                    <div class="child-page-info">
+                        <a href="/admin/editor/{{ child.id }}" class="child-page-link">{{ child.title }}</a>
+                        <span class="child-page-path">{{ child.path() }}</span>
+                        <span class="status-pill status-{{ child.status }}">{{ child.status }}</span>
+                    </div>
+                    <a href="/admin/editor/{{ child.id }}" class="btn-child-edit">Edit &rarr;</a>
+                </li>
+                {% endfor %}
+            </ul>
+            <div class="child-pages-actions">
+                <a href="/admin/editor?parent_id={{ post_id() }}" class="btn-secondary btn-small">+ Add Subpage</a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <div class="form-group">
@@ -143,6 +167,17 @@
 
     <div class="actions">
         <button type="submit" class="btn-save" id="save-btn">Save Post</button>
+        {% if entry.is_some() %}
+        {% if has_children() %}
+        <button type="button" class="btn-delete btn-delete-disabled" id="delete-btn" disabled
+            title="Cannot delete: this page has {{ child_count() }} subpage(s). Move or delete subpages first.">Delete
+            Page</button>
+        <span class="delete-blocked-hint" id="delete-blocked-hint">⚠️ Deletion blocked: page has {{ child_count() }}
+            subpage(s).</span>
+        {% else %}
+        <button type="button" class="btn-delete" id="delete-btn">Delete Entry</button>
+        {% endif %}
+        {% endif %}
         <span class="status" id="status-msg"></span>
     </div>
 </form>

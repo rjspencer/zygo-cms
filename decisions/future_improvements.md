@@ -44,6 +44,13 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Automated Weekly Background Cron**: Configured `[triggers] crons = ["0 0 * * 0"]` in `wrangler.toml` hooked to native `#[event(scheduled)]` in `src/lib.rs` for automated zero-overhead maintenance.
 - **Admin On-Demand Sync & Upgraded Modal**: Admin route `POST /api/media/sync`, "Sync Bucket" button, real-time debounced filename search, 6-way sorting, and paginated gallery controls in the editor.
 
+### Editor Child Page Guard & Management
+- **Backend Hierarchy Guards**: Enforced backend SQLite deletion guard preventing deletion of parent pages with active children (`entries WHERE parent_id = ?1`), and type-conversion guard blocking conversion of parent pages into posts when subpages exist.
+- **Child Page Querying**: Added `db::find_all_children` in `src/db/entry.rs` to fetch all subpages (draft and published) for parent entries.
+- **In-Editor Subpage Navigation**: Added "Subpages in this section" card in `templates/editor.html` showing direct edit links, paths, status badges, and "+ Add Subpage" button prepopulating `?parent_id=...`.
+- **Guarded Deletion Button**: Delete button is conditionally disabled with tooltip warning (`⚠️ Deletion blocked: page has N subpage(s)`) when child pages exist, and confirms deletion for childless entries.
+- **Frontend Type Guard**: Client-side validation in `public/editor.js` alerting and immediately reverting attempts to change page type to post when subpages exist.
+
 ### Testing Architecture
 - **Two-Tier Test Suite**:
   - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
@@ -55,20 +62,13 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. Editor Child Page Guard & Management
-- **Goal**: Prevent accidental deletion of parent pages with active subpages and provide quick access to edit child pages.
-- **Details**:
-  - In the Editor, retrieve the list of child pages for the current page entry.
-  - Disable the "Delete" option if child pages exist, displaying a helpful tooltip explaining why deletion is blocked.
-  - Render an "In this section / Child pages" panel in the editor displaying the list of child pages with direct links to edit them.
-
-### 2. Scheduled Publishing
+### 1. Scheduled Publishing
 - **Goal**: Allow users to set a future publication date for posts.
 - **Details**: 
   - Add UI in the editor to select a future date and time for `published_at`.
   - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
 
-### 3. Revisions, Version History & Preview System
+### 2. Revisions, Version History & Preview System
 - **Goal**: Provide complete editorial version control, rollback capabilities, and secure tokenized previews for both drafts and historical revisions without prematurely publishing to the live site.
 - **Details**:
   - Create a D1 `entry_revisions` table tracking `id, entry_id, title, description, body_html, body_json, category, tags, preview_token, created_at`.
@@ -76,34 +76,34 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Implement a dedicated preview route `GET /preview/:token` that renders revision snapshots in the public layout with edge caching bypassed (`Cache-Control: no-store`) and an interactive "Preview Mode" top bar.
   - Build a "Version History" drawer/modal in `public/editor.js` allowing authors to browse past revisions, preview any historical state, and restore previous content with one click.
 
-### 5. User Roles & Permissions (RBAC)
+### 3. User Roles & Permissions (RBAC)
 - **Goal**: Support multiple users with distinct permission levels.
 - **Details**:
   - Move beyond the global Auth Gate to role-based access control (e.g., Admin, Editor, Author, Contributor).
   - Map roles to specific database operations (e.g., Authors can only edit their own posts).
 
-### 6. Custom Content Types & Schema Builder
+### 4. Custom Content Types & Schema Builder
 - **Goal**: Enable custom content modeling via the admin UI.
 - **Details**:
   - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
 
-### 7. Full-Text Site Search
+### 5. Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 8. Navigation & Menu Builder
+### 6. Navigation & Menu Builder
 - **Goal**: Manage site menus dynamically from the admin panel.
 - **Details**:
   - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
   - Build a drag-and-drop UI to construct header and footer menus.
 
-### 9. Webhooks & API Integrations
+### 7. Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
-### 10. Analytics Dashboard & Localization
+### 8. Analytics Dashboard & Localization
 - **Goal**: Built-in insights and multi-language support.
 - **Details**:
   - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).

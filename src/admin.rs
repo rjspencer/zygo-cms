@@ -19,10 +19,19 @@ pub fn render_dashboard_html(entries: &[Entry], auth_url: &str) -> worker::Resul
 pub struct EditorTemplate<'a> {
     pub entry: Option<&'a Entry>,
     pub pages: &'a [Entry],
+    pub child_pages: &'a [Entry],
     pub auth_url: &'a str,
 }
 
 impl<'a> EditorTemplate<'a> {
+    pub fn has_children(&self) -> bool {
+        !self.child_pages.is_empty()
+    }
+
+    pub fn child_count(&self) -> usize {
+        self.child_pages.len()
+    }
+
     pub fn action(&self) -> &'static str {
         if self.entry.is_some() {
             "Edit Entry"
@@ -117,11 +126,13 @@ impl<'a> EditorTemplate<'a> {
 pub fn render_editor_html(
     entry: Option<&Entry>,
     pages: &[Entry],
+    child_pages: &[Entry],
     auth_url: &str,
 ) -> worker::Result<String> {
     EditorTemplate {
         entry,
         pages,
+        child_pages,
         auth_url,
     }
     .render()

@@ -201,6 +201,15 @@ pub async fn find_published_children(db: &D1Database, parent_id: i64) -> Result<
     result.results::<Entry>()
 }
 
+pub async fn find_all_children(db: &D1Database, parent_id: i64) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE parent_id = ?1 ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+    );
+    let statement = db.prepare(&query);
+    let result = statement.bind(&[JsValue::from(parent_id as f64)])?.run().await?;
+    result.results::<Entry>()
+}
+
 pub async fn find_page_ancestors(db: &D1Database, entry_id: i64) -> Result<Vec<BreadcrumbItem>> {
     let query = "WITH RECURSIVE ancestors(id, title, path, parent_id, level) AS (
         SELECT id, title, COALESCE(path, '/' || slug) as path, parent_id, 0
@@ -288,6 +297,23 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
     };
 
     let new_type = payload.r#type.as_deref().unwrap_or(&existing.r#type);
+
+    // Guard against converting a page to a post while it has active child pages
+    if existing.r#type == "page" && new_type != "page" {
+        let count_stmt = db.prepare("SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1");
+        let count_res = count_stmt
+            .bind(&[id.into()])?
+            .first::<CountResult>(None)
+            .await?;
+        if let Some(c) = count_res {
+            if c.count > 0 {
+                return Err(worker::Error::RustError(
+                    "Cannot change a page to a post while it has child pages. Please move or delete its child pages first."
+                        .into(),
+                ));
+            }
+        }
+    }
 
     let new_parent_id = match payload.parent_id {
         Some(p) => p,
