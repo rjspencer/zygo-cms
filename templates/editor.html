@@ -153,14 +153,35 @@
             <h3>Media Library</h3>
             <button type="button" class="modal-close" id="modal-close-btn">&times;</button>
         </div>
-        <div class="modal-upload-bar">
-            <input type="file" id="modal-file-input" accept="image/*" style="display:none;">
-            <button type="button" class="btn-secondary" id="modal-upload-btn">+ Upload New</button>
+        <div class="modal-toolbar">
+            <div class="modal-toolbar-actions">
+                <input type="file" id="modal-file-input" accept="image/*" style="display:none;">
+                <button type="button" class="btn-secondary" id="modal-upload-btn">+ Upload New</button>
+                <button type="button" class="btn-secondary" id="modal-sync-btn"
+                    title="Scan R2 bucket and index missing items into database">&#x21bb; Sync Bucket</button>
+            </div>
+            <div class="modal-toolbar-filters">
+                <input type="text" id="media-search-input" class="modal-search-input"
+                    placeholder="Filter by filename..." aria-label="Filter media by filename">
+                <select id="media-sort-select" class="modal-sort-select" aria-label="Sort media">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="name_asc">Name (A-Z)</option>
+                    <option value="name_desc">Name (Z-A)</option>
+                    <option value="size_desc">Size (Largest)</option>
+                    <option value="size_asc">Size (Smallest)</option>
+                </select>
+            </div>
             <span id="modal-status" class="status"></span>
         </div>
         <div class="modal-body">
             <div id="media-grid" class="media-grid">
                 <p class="media-loading">Loading media...</p>
+            </div>
+            <div id="media-pagination" class="media-pagination" style="display:none;">
+                <button type="button" id="media-prev-btn" class="pagination-btn">&larr; Previous</button>
+                <span id="media-page-info" class="pagination-info">Page 1 of 1</span>
+                <button type="button" id="media-next-btn" class="pagination-btn">Next &rarr;</button>
             </div>
         </div>
     </div>

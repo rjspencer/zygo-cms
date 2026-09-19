@@ -36,6 +36,14 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Canonical & SEO Hygiene**: Strictly preserves canonical rules (homepage trailing slash `{origin}/?page=N`, clean page 1 root without query string, page title indicators `(Page N)`).
 - **Configurable Page Size**: Defaults to 10 posts per page, overridable via `POSTS_PER_PAGE` environment variable.
 
+### D1 Media Index, Gallery Modal & Sync
+- **D1 Media Indexing**: Created `media` table tracking `id, key, filename, mime_type, size_bytes, created_at` with indexes on `filename` and `created_at`.
+- **Atomic Upload Rollback**: Image uploads store in R2 and immediately index into D1; if D1 indexing fails, R2 storage automatically rolls back to prevent drift.
+- **R2-to-D1 Reconciliation Engine**: Cursor-paginated bucket scanner (`media::sync_r2_to_d1`) diffing R2 objects against D1 keys and backfilling missing entries with inferred filenames and mime types.
+- **Runtime & Cost Safety Guards**: Hard 25-second wall-clock timeout ceiling, max 10-page / 10,000-item batch cap, and cursor loop detection to prevent execution overages or runaway loops.
+- **Automated Weekly Background Cron**: Configured `[triggers] crons = ["0 0 * * 0"]` in `wrangler.toml` hooked to native `#[event(scheduled)]` in `src/lib.rs` for automated zero-overhead maintenance.
+- **Admin On-Demand Sync & Upgraded Modal**: Admin route `POST /api/media/sync`, "Sync Bucket" button, real-time debounced filename search, 6-way sorting, and paginated gallery controls in the editor.
+
 ### Testing Architecture
 - **Two-Tier Test Suite**:
   - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
@@ -47,31 +55,26 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. D1 Media Index & Gallery Modal (Phase 3)
-- **Goal**: Full asset management and search for uploaded images.
-- **Details**:
-  - Create a `media` table in D1 tracking `id, key, filename, mime_type, size_bytes, created_at`.
-  - Update `src/media.rs` to insert metadata on upload and delete records on removal.
-  - Add filename search and sorting in the media picker modal in `public/editor.js`.
-
-### 2. Editor Child Page Guard & Management
+### 1. Editor Child Page Guard & Management
 - **Goal**: Prevent accidental deletion of parent pages with active subpages and provide quick access to edit child pages.
 - **Details**:
   - In the Editor, retrieve the list of child pages for the current page entry.
   - Disable the "Delete" option if child pages exist, displaying a helpful tooltip explaining why deletion is blocked.
   - Render an "In this section / Child pages" panel in the editor displaying the list of child pages with direct links to edit them.
 
-### 3. Scheduled Publishing
+### 2. Scheduled Publishing
 - **Goal**: Allow users to set a future publication date for posts.
 - **Details**: 
   - Add UI in the editor to select a future date and time for `published_at`.
   - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
 
-### 4. Draft Previews
-- **Goal**: Provide secure, tokenized share links for unpublished drafts.
+### 3. Revisions, Version History & Preview System
+- **Goal**: Provide complete editorial version control, rollback capabilities, and secure tokenized previews for both drafts and historical revisions without prematurely publishing to the live site.
 - **Details**:
-  - Generate a secure, unique preview token for draft entries.
-  - Create a specialized reader route that bypasses standard auth but requires the token to view draft content.
+  - Create a D1 `entry_revisions` table tracking `id, entry_id, title, description, body_html, body_json, category, tags, preview_token, created_at`.
+  - Automatically snapshot content to `entry_revisions` on every editor save, enabling drafting updates on already-published posts without altering live public content.
+  - Implement a dedicated preview route `GET /preview/:token` that renders revision snapshots in the public layout with edge caching bypassed (`Cache-Control: no-store`) and an interactive "Preview Mode" top bar.
+  - Build a "Version History" drawer/modal in `public/editor.js` allowing authors to browse past revisions, preview any historical state, and restore previous content with one click.
 
 ### 5. User Roles & Permissions (RBAC)
 - **Goal**: Support multiple users with distinct permission levels.
@@ -84,29 +87,23 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Details**:
   - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
 
-### 7. Revisions & Version History
-- **Goal**: Track changes over time and support rollbacks.
-- **Details**:
-  - Create a new D1 table `entry_revisions` to snapshot content on each save.
-  - Add a UI in the editor to browse past versions and restore previous content.
-
-### 8. Full-Text Site Search
+### 7. Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 9. Navigation & Menu Builder
+### 8. Navigation & Menu Builder
 - **Goal**: Manage site menus dynamically from the admin panel.
 - **Details**:
   - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
   - Build a drag-and-drop UI to construct header and footer menus.
 
-### 10. Webhooks & API Integrations
+### 9. Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
-### 11. Analytics Dashboard & Localization
+### 10. Analytics Dashboard & Localization
 - **Goal**: Built-in insights and multi-language support.
 - **Details**:
   - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
@@ -121,6 +118,22 @@ A persistent record of architectural decisions, completed enhancements, and prio
   1. **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
   2. **Admin Worker (Writer)**: Handles authentication, PropelAuth validation, media uploads, and heavy authoring libraries (e.g. Ammonia sanitization).
 - **Triggers**: Revisit only if future writer-side features push the compiled Wasm binary or CPU usage toward Cloudflare Worker limits. Currently, the unified worker remains well under 1 MB and well within performance boundaries.
+
+### Headless CMS Content API
+- **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
+- **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
+  - Database entries already store both rendered `body_html` and structured TipTap JSON (`body_json`).
+  - Rust models already derive `serde::Serialize` and `serde_json` is integrated.
+  - Paginated D1 queries and filtering logic (category, tag, status) already exist.
+  - Edge caching infrastructure works seamlessly with JSON responses.
+- **Key Requirements**:
+  - **Public Content Delivery API**:
+    - `GET /api/v1/posts` & `GET /api/v1/pages`: Paginated listing with `?page=`, `?per_page=`, `?tag=`, and `?category=`.
+    - `GET /api/v1/posts/:slug` & `GET /api/v1/pages/*`: Single entry retrieval with full metadata, breadcrumbs, `body_html`, and `body_json`.
+    - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
+  - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
+  - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
+  - **Webhook Triggers**: Dispatch webhooks (from Roadmap #10) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
 
 ---
 

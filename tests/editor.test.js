@@ -119,6 +119,31 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             fireEvent.click(closeBtn);
             expect(modal.style.display).toBe('none');
         });
+
+        it('renders search input, sort selector, sync button, and pagination controls', () => {
+            const searchInput = document.querySelector('#media-search-input');
+            const sortSelect = document.querySelector('#media-sort-select');
+            const syncBtn = document.querySelector('#modal-sync-btn');
+            const pagination = document.querySelector('#media-pagination');
+            const prevBtn = document.querySelector('#media-prev-btn');
+            const nextBtn = document.querySelector('#media-next-btn');
+            const pageInfo = document.querySelector('#media-page-info');
+
+            expect(searchInput).not.toBeNull();
+            expect(sortSelect).not.toBeNull();
+            expect(syncBtn).not.toBeNull();
+            expect(pagination).not.toBeNull();
+            expect(prevBtn).not.toBeNull();
+            expect(nextBtn).not.toBeNull();
+            expect(pageInfo).not.toBeNull();
+
+            // Test interaction with search and sort
+            fireEvent.input(searchInput, { target: { value: 'hero' } });
+            expect(searchInput.value).toBe('hero');
+
+            fireEvent.change(sortSelect, { target: { value: 'name_asc' } });
+            expect(sortSelect.value).toBe('name_asc');
+        });
     });
 
     describe('Toolbar Commands', () => {

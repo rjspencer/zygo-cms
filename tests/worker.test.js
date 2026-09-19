@@ -287,4 +287,83 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(catHtml).toContain('Category: General');
         expect(catHtml).toContain('<ul class="post-list">');
     });
+
+    it('supports media management: upload, D1 indexing, search, sync, and deletion', async () => {
+        const uniqueName = `test-photo-${Date.now()}.png`;
+        const fileContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]); // PNG magic bytes
+
+        // 1. Upload new image
+        const uploadRes = await worker.fetch(`/api/media?filename=${encodeURIComponent(uniqueName)}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer test-token',
+                'Content-Type': 'image/png',
+            },
+            body: fileContent,
+        });
+        expect(uploadRes.status).toBe(200);
+        const uploadData = await uploadRes.json();
+        expect(uploadData.key).toBeDefined();
+        expect(uploadData.url).toContain('/media/');
+        expect(uploadData.filename).toBe(uniqueName);
+        expect(uploadData.mime_type).toBe('image/png');
+        expect(uploadData.size_bytes).toBe(fileContent.length);
+
+        const uploadedKey = uploadData.key;
+
+        // 2. Fetch media list and verify indexed in D1 with pagination
+        const listRes = await worker.fetch('/api/media', {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(listRes.status).toBe(200);
+        const listData = await listRes.json();
+        expect(Array.isArray(listData.media)).toBe(true);
+        expect(listData.pagination).toBeDefined();
+        expect(listData.pagination.total_items).toBeGreaterThanOrEqual(1);
+
+        const found = listData.media.find((m) => m.key === uploadedKey);
+        expect(found).toBeDefined();
+        expect(found.filename).toBe(uniqueName);
+
+        // 3. Test filename search
+        const searchRes = await worker.fetch(`/api/media?search=${encodeURIComponent(uniqueName)}`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(searchRes.status).toBe(200);
+        const searchData = await searchRes.json();
+        expect(searchData.media.length).toBe(1);
+        expect(searchData.media[0].key).toBe(uploadedKey);
+
+        // 4. Test R2-to-D1 Sync endpoint
+        const syncRes = await worker.fetch('/api/media/sync', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(syncRes.status).toBe(200);
+        const syncData = await syncRes.json();
+        expect(syncData.total_r2_objects).toBeGreaterThanOrEqual(1);
+        expect(syncData.already_indexed).toBeGreaterThanOrEqual(1);
+        expect(syncData.truncated).toBe(false);
+
+        // 5. Delete uploaded image
+        const deleteRes = await worker.fetch(`/api/media/${encodeURIComponent(uploadedKey)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(deleteRes.status).toBe(200);
+        const deleteData = await deleteRes.json();
+        expect(deleteData.success).toBe(true);
+
+        // 6. Verify item is removed from D1 list
+        const verifyRes = await worker.fetch(`/api/media?search=${encodeURIComponent(uniqueName)}`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        const verifyData = await verifyRes.json();
+        expect(verifyData.media.length).toBe(0);
+    });
+
+    it('executes scheduled cron trigger for background R2-to-D1 reconciliation', async () => {
+        const cronRes = await worker.fetch('/cdn-cgi/local/scheduled');
+        expect(cronRes.status).toBeLessThan(400);
+    });
 });

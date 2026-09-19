@@ -254,24 +254,51 @@ export async function initEditor(initialContent, authUrl) {
         const modalUploadBtn = document.querySelector('#modal-upload-btn');
         const modalFileInput = document.querySelector('#modal-file-input');
         const modalStatus = document.querySelector('#modal-status');
+        const modalSyncBtn = document.querySelector('#modal-sync-btn');
+        const mediaSearchInput = document.querySelector('#media-search-input');
+        const mediaSortSelect = document.querySelector('#media-sort-select');
+        const mediaPagination = document.querySelector('#media-pagination');
+        const mediaPrevBtn = document.querySelector('#media-prev-btn');
+        const mediaPageInfo = document.querySelector('#media-page-info');
+        const mediaNextBtn = document.querySelector('#media-next-btn');
 
-        async function fetchMediaList() {
+        let currentSearch = '';
+        let currentSort = 'newest';
+        let currentPage = 1;
+        const perPage = 24;
+
+        async function fetchMediaList(page = currentPage) {
             if (!mediaGrid) return;
+            currentPage = page;
             mediaGrid.innerHTML = '<p class="media-loading">Loading media...</p>';
             const token = await getAuthToken();
             const headers = {};
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                per_page: perPage.toString(),
+                sort: currentSort,
+            });
+            if (currentSearch.trim()) {
+                params.set('search', currentSearch.trim());
+            }
+
             try {
-                const res = await fetch('/api/media', { headers });
+                const res = await fetch('/api/media?' + params.toString(), { headers });
                 const data = await res.json();
                 if (!res.ok) {
                     mediaGrid.innerHTML = `<p class="media-error">Error: ${data.error || 'Failed to load media'}</p>`;
+                    if (mediaPagination) mediaPagination.style.display = 'none';
                     return;
                 }
 
                 if (!data.media || data.media.length === 0) {
-                    mediaGrid.innerHTML = '<p class="media-empty">No media uploaded yet. Click "+ Upload New" above!</p>';
+                    const emptyMsg = currentSearch.trim()
+                        ? `No media found matching "${currentSearch.trim()}".`
+                        : 'No media uploaded yet. Click "+ Upload New" above!';
+                    mediaGrid.innerHTML = `<p class="media-empty">${emptyMsg}</p>`;
+                    if (mediaPagination) mediaPagination.style.display = 'none';
                     return;
                 }
 
@@ -279,8 +306,9 @@ export async function initEditor(initialContent, authUrl) {
                 data.media.forEach((item) => {
                     const card = document.createElement('div');
                     card.className = 'media-card';
-                    const displayName = item.key.replace(/^\d+-/, '');
-                    const sizeKb = (item.size / 1024).toFixed(1);
+                    const displayName = item.filename || item.key.replace(/^\d+-/, '');
+                    const sizeBytes = item.size_bytes || item.size || 0;
+                    const sizeKb = (sizeBytes / 1024).toFixed(1);
 
                     card.innerHTML = `
                         <div class="media-thumb-wrapper">
@@ -326,7 +354,7 @@ export async function initEditor(initialContent, authUrl) {
                             if (delRes.ok) {
                                 card.remove();
                                 if (mediaGrid.children.length === 0) {
-                                    mediaGrid.innerHTML = '<p class="media-empty">No media uploaded yet.</p>';
+                                    fetchMediaList(currentPage > 1 ? currentPage - 1 : 1);
                                 }
                             } else {
                                 alert('Failed to delete image');
@@ -338,8 +366,24 @@ export async function initEditor(initialContent, authUrl) {
 
                     mediaGrid.appendChild(card);
                 });
+
+                // Update pagination controls
+                if (mediaPagination && data.pagination) {
+                    const { page: curPage, total_pages: totalPages, total_items: totalItems } = data.pagination;
+                    if (totalPages > 1) {
+                        mediaPagination.style.display = 'flex';
+                        if (mediaPageInfo) mediaPageInfo.textContent = `Page ${curPage} of ${totalPages} (${totalItems} items)`;
+                        if (mediaPrevBtn) mediaPrevBtn.disabled = curPage <= 1;
+                        if (mediaNextBtn) mediaNextBtn.disabled = curPage >= totalPages;
+                    } else {
+                        mediaPagination.style.display = 'none';
+                    }
+                } else if (mediaPagination) {
+                    mediaPagination.style.display = 'none';
+                }
             } catch (err) {
                 mediaGrid.innerHTML = '<p class="media-error">Network error loading media</p>';
+                if (mediaPagination) mediaPagination.style.display = 'none';
             }
         }
 
@@ -347,7 +391,10 @@ export async function initEditor(initialContent, authUrl) {
             if (!modal) return;
             currentPickerCallback = options ? options.onSelect : null;
             modal.style.display = 'flex';
-            fetchMediaList();
+            currentPage = 1;
+            if (mediaSearchInput) mediaSearchInput.value = currentSearch;
+            if (mediaSortSelect) mediaSortSelect.value = currentSort;
+            fetchMediaList(1);
         }
 
         function closeMediaModal() {
@@ -358,6 +405,81 @@ export async function initEditor(initialContent, authUrl) {
         }
 
         if (modalCloseBtn) modalCloseBtn.addEventListener('click', closeMediaModal);
+
+        if (modalSyncBtn) {
+            modalSyncBtn.addEventListener('click', async () => {
+                const curToken = await getAuthToken();
+                if (!curToken) {
+                    alert('Please log in to sync media');
+                    return;
+                }
+                if (modalStatus) {
+                    modalStatus.textContent = 'Syncing bucket...';
+                    modalStatus.style.color = '#555';
+                }
+                modalSyncBtn.disabled = true;
+                try {
+                    const res = await fetch('/api/media/sync', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + curToken },
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        if (modalStatus) {
+                            const count = data.synced || 0;
+                            modalStatus.textContent = `Synced ${count} new item(s) (${data.total_r2_objects || 0} total in R2)`;
+                            modalStatus.style.color = '#2e7d32';
+                        }
+                        currentPage = 1;
+                        await fetchMediaList(1);
+                    } else {
+                        if (modalStatus) {
+                            modalStatus.textContent = `Sync failed: ${data.error || 'Server error'}`;
+                            modalStatus.style.color = '#d32f2f';
+                        }
+                    }
+                } catch {
+                    if (modalStatus) {
+                        modalStatus.textContent = 'Network error during sync';
+                        modalStatus.style.color = '#d32f2f';
+                    }
+                } finally {
+                    modalSyncBtn.disabled = false;
+                }
+            });
+        }
+
+        let searchDebounce = null;
+        if (mediaSearchInput) {
+            mediaSearchInput.addEventListener('input', (e) => {
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(() => {
+                    currentSearch = e.target.value;
+                    currentPage = 1;
+                    fetchMediaList(1);
+                }, 250);
+            });
+        }
+
+        if (mediaSortSelect) {
+            mediaSortSelect.addEventListener('change', (e) => {
+                currentSort = e.target.value;
+                currentPage = 1;
+                fetchMediaList(1);
+            });
+        }
+
+        if (mediaPrevBtn) {
+            mediaPrevBtn.addEventListener('click', () => {
+                if (currentPage > 1) fetchMediaList(currentPage - 1);
+            });
+        }
+
+        if (mediaNextBtn) {
+            mediaNextBtn.addEventListener('click', () => {
+                fetchMediaList(currentPage + 1);
+            });
+        }
         if (modal) {
             modal.addEventListener('click', (e) => {
                 if (e.target === modal) closeMediaModal();

@@ -61,17 +61,25 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Err(err) => err.to_response(),
             }
         })
-        // Upload image to R2
+        // Upload image to R2 and index in D1
         .post_async("/api/media", |req, ctx| async move {
             let _user = auth_required!(&req, ctx);
             media::upload_media(req, &ctx).await
         })
-        // List media from R2
+        // List media with search, sorting, and pagination
         .get_async("/api/media", |req, ctx| async move {
             let _user = auth_required!(&req, ctx);
-            media::list_media(&ctx).await
+            media::list_media(&req, &ctx).await
         })
-        // Delete image from R2
+        // Sync R2 bucket contents into D1 index
+        .post_async("/api/media/sync", |req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+            match media::sync_r2_to_d1(&ctx.env).await {
+                Ok(report) => Response::from_json(&report),
+                Err(err) => Response::error(format!("Media sync failed: {err}"), 500),
+            }
+        })
+        // Delete image from D1 and R2
         .delete_async("/api/media/:key", |req, ctx| async move {
             let _user = auth_required!(&req, ctx);
             let key = match ctx.param("key") {
@@ -472,4 +480,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         })
         .run(req, env)
         .await
+}
+
+#[event(scheduled)]
+async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
+    worker::console_log!("Scheduled cron triggered: {}", event.cron());
+    if let Err(e) = media::sync_r2_to_d1(&env).await {
+        worker::console_error!("Scheduled R2-to-D1 sync error: {e}");
+    }
 }
