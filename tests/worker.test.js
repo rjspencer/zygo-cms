@@ -66,6 +66,23 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(res.status).toBe(401);
     });
 
+    it('POST /entries rejects invalid Personal API Keys with 401', async () => {
+        const res = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer invalid-personal-api-key',
+            },
+            body: JSON.stringify({
+                title: 'Invalid PAK Test',
+                slug: `invalid-pak-test-${Date.now()}`,
+                body_html: '<p>Test</p>',
+                body_json: '{}',
+            }),
+        });
+        expect(res.status).toBe(401);
+    });
+
     it('POST /entries sanitizes malicious HTML before storing and serving via GET /post/:slug', async () => {
         const slug = `sanitized-post-${Date.now()}`;
         const maliciousHtml = '<p>Safe paragraph</p><script>alert("xss")</script><a href="javascript:steal()">Malicious Link</a><img src="/media/pic.jpg" alt="Photo" onerror="alert(1)"><pre><code class="language-rust">fn main() {}</code></pre>';

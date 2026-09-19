@@ -57,7 +57,7 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
         auth_url.trim_end_matches('/')
     );
 
-    // 4. Validate token with PropelAuth at the edge
+    // 4. Validate token with PropelAuth at the edge (Try OAuth Access Token first)
     let headers = Headers::new();
     headers
         .set("Authorization", &format!("Bearer {}", token))
@@ -75,16 +75,56 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
         .await
         .map_err(|e| AppError::Unauthorized(format!("Auth verification failed: {}", e)))?;
 
-    if res.status_code() != 200 {
-        return Err(AppError::Unauthorized(
-            "Invalid or expired authentication token".into(),
-        ));
+    if res.status_code() == 200 {
+        let user = res
+            .json::<PropelAuthUser>()
+            .await
+            .map_err(|_| AppError::Unauthorized("Invalid user response from auth provider".into()))?;
+        return Ok(user);
     }
 
-    let user = res
-        .json::<PropelAuthUser>()
-        .await
-        .map_err(|_| AppError::Unauthorized("Invalid user response from auth provider".into()))?;
+    // 5. If OAuth fails, try Personal API Key validation (if integration key is configured)
+    if let Ok(integration_key) = env.var("PROPELAUTH_API_KEY") {
+        let pak_url = format!(
+            "{}/api/backend/v1/personal_api_keys/validate",
+            auth_url.trim_end_matches('/')
+        );
+        
+        let pak_headers = Headers::new();
+        pak_headers
+            .set("Authorization", &format!("Bearer {}", integration_key.to_string()))
+            .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+        pak_headers
+            .set("Content-Type", "application/json")
+            .map_err(|e| AppError::Unauthorized(e.to_string()))?;
 
-    Ok(user)
+        let mut pak_init = RequestInit::new();
+        pak_init.with_method(Method::Post);
+        pak_init.with_headers(pak_headers);
+        pak_init.with_body(Some(serde_json::json!({ "personal_api_key": token }).to_string().into()));
+
+        let pak_req = Request::new_with_init(&pak_url, &pak_init)
+            .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+
+        let mut pak_res = Fetch::Request(pak_req)
+            .send()
+            .await
+            .map_err(|e| AppError::Unauthorized(format!("API Key verification failed: {}", e)))?;
+
+        if pak_res.status_code() == 200 {
+            #[derive(Deserialize)]
+            struct PakResponse {
+                user: PropelAuthUser,
+            }
+            let data = pak_res
+                .json::<PakResponse>()
+                .await
+                .map_err(|_| AppError::Unauthorized("Invalid PAK response from auth provider".into()))?;
+            return Ok(data.user);
+        }
+    }
+
+    Err(AppError::Unauthorized(
+        "Invalid or expired authentication token / API Key".into(),
+    ))
 }

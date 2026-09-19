@@ -143,6 +143,45 @@ When a site responds to both `www.` and apex domains (`https://www.example.com` 
 
 ---
 
+## Authentication & AI Agents (PropelAuth)
+
+Zygo CMS relies on [PropelAuth](https://www.propelauth.com/) to handle authentication for human editors and AI agents.
+
+### 1. Set Up PropelAuth
+1. Create a free account at PropelAuth.
+2. In your PropelAuth dashboard, find your **Auth URL** and add it to `wrangler.toml` under `PROPELAUTH_AUTH_URL`.
+3. Create a user account for yourself (or your marketing team) to access the Zygo CMS dashboard.
+
+### 2. Enable AI Agent Access (API Keys)
+Zygo CMS natively supports AI agents (like Claude Desktop or Zapier workflows) modifying content. This requires two types of keys: a **Server Key** (for your Cloudflare Worker) and **Personal API Keys** (for your users).
+
+1. **Enable the Feature**: In your PropelAuth dashboard, navigate to **API Keys -> Personal API Keys** and enable the feature for your users.
+2. **Create the Server Key (`PROPELAUTH_API_KEY`)**: 
+   - Navigate to the **API Keys** section in your PropelAuth dashboard (often under Backend Integration).
+   - Click **Create API Key** (name it e.g., "Zygo Cloudflare Worker"). 
+   - *Note: These keys are environment-scoped. You do not need to check granular permission boxes; it acts as a master key for your server to validate user tokens.*
+3. **Secure the Server Key**: Add this key to your Cloudflare Worker's encrypted vault:
+   ```bash
+   npx wrangler secret put PROPELAUTH_API_KEY
+   ```
+4. **End-User Generation**: Your non-technical users (e.g., marketers) can now log into the Zygo CMS dashboard, click the **API Keys** link in the header, and generate their own secure tokens to hand to their AI agents.
+
+### 3. Using the AI MCP Bridge
+To manage the CMS via Claude Desktop or other MCP-compatible AI agents, use the included local bridge. In your Claude Desktop config (`claude_desktop_config.json`), add:
+
+```json
+{
+  "mcpServers": {
+    "zygo_cms": {
+      "command": "node",
+      "args": ["/absolute/path/to/zygo/packages/zygo-mcp/index.mjs", "--url", "https://your-live-site.com", "--token", "PROPELAUTH_PERSONAL_API_KEY"]
+    }
+  }
+}
+```
+
+---
+
 ## Deployment to Production
 
 ### 1. Create Production Resources

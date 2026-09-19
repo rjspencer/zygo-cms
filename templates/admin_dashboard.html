@@ -84,7 +84,7 @@
                 const userBadge = document.createElement('div');
                 userBadge.className = 'user-auth-badge';
                 userBadge.style.fontSize = '0.85rem';
-                userBadge.innerHTML = `Logged in as <strong>${authInfo.user.email}</strong> &bull; <a href="#" id="logout-btn" style="color:#d32f2f;">Log out</a>`;
+                userBadge.innerHTML = `Logged in as <strong>${authInfo.user.email}</strong> &bull; <a href="${authUrl}/account" target="_blank" style="color:#1976d2; margin-right: 8px; margin-left: 8px;">API Keys</a> &bull; <a href="#" id="logout-btn" style="color:#d32f2f;">Log out</a>`;
                 headerEl.appendChild(userBadge);
                 document.querySelector('#logout-btn')?.addEventListener('click', (e) => {
                     e.preventDefault();
