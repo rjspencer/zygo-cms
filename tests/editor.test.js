@@ -217,4 +217,177 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
             expect(typeSelect.value).toBe('page');
         });
     });
+
+    describe('Version History & Draft Saving', () => {
+        it('opens and closes version history modal', async () => {
+            const historyBtn = document.querySelector('#btn-history');
+            const historyModal = document.querySelector('#history-modal');
+            const closeBtn = document.querySelector('#history-close-btn');
+            const postIdInput = document.querySelector('#post-id');
+
+            expect(historyBtn).not.toBeNull();
+            expect(historyModal).not.toBeNull();
+            expect(closeBtn).not.toBeNull();
+
+            // Set an active entry ID
+            postIdInput.value = '42';
+
+            // Mock fetch for revisions
+            global.fetch = async (url) => {
+                if (url.includes('/api/entries/42/revisions')) {
+                    return {
+                        ok: true,
+                        json: async () => [
+                            {
+                                id: 1,
+                                entry_id: 42,
+                                title: 'Older Revision',
+                                description: 'Old description',
+                                category: 'Tech',
+                                tags: 'rust',
+                                preview_token: 'prev-tok-123',
+                                created_at: '2026-09-20 12:00:00',
+                            },
+                        ],
+                    };
+                }
+                return { ok: false, json: async () => ({}) };
+            };
+
+            fireEvent.click(historyBtn);
+            expect(historyModal.style.display).toBe('flex');
+
+            // Wait for mock fetch and render
+            await new Promise((r) => setTimeout(r, 10));
+
+            const revTitle = screen.getByText('Older Revision');
+            expect(revTitle).not.toBeNull();
+
+            // Close modal
+            fireEvent.click(closeBtn);
+            expect(historyModal.style.display).toBe('none');
+        });
+
+        it('restores content when clicking Restore on a revision', async () => {
+            const historyBtn = document.querySelector('#btn-history');
+            const postIdInput = document.querySelector('#post-id');
+            postIdInput.value = '42';
+
+            const titleInput = document.querySelector('#title');
+            const descInput = document.querySelector('#description');
+            const statusMsg = document.querySelector('#status-msg');
+
+            global.fetch = async (url) => {
+                if (url.includes('/api/entries/42/revisions')) {
+                    return {
+                        ok: true,
+                        json: async () => [
+                            {
+                                id: 5,
+                                entry_id: 42,
+                                title: 'Restored Post Title',
+                                description: 'Restored Desc',
+                                category: 'Restored Cat',
+                                tags: 'alpha, beta',
+                                preview_token: 'prev-tok-555',
+                                created_at: '2026-09-20 14:00:00',
+                            },
+                        ],
+                    };
+                }
+                if (url.includes('/api/revisions/5')) {
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            id: 5,
+                            entry_id: 42,
+                            title: 'Restored Post Title',
+                            description: 'Restored Desc',
+                            cover_image: null,
+                            category: 'Restored Cat',
+                            tags: 'alpha, beta',
+                            body_html: '<p>Restored body</p>',
+                            body_json: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', text: 'Restored' }] }),
+                            preview_token: 'prev-tok-555',
+                            created_at: '2026-09-20 14:00:00',
+                        }),
+                    };
+                }
+                return { ok: false, json: async () => ({}) };
+            };
+
+            // Open modal
+            fireEvent.click(historyBtn);
+            await new Promise((r) => setTimeout(r, 10));
+
+            const restoreBtn = screen.getByRole('button', { name: /^Restore$/i });
+            expect(restoreBtn).not.toBeNull();
+
+            fireEvent.click(restoreBtn);
+            await new Promise((r) => setTimeout(r, 10));
+
+            expect(titleInput.value).toBe('Restored Post Title');
+            expect(descInput.value).toBe('Restored Desc');
+            expect(statusMsg.textContent).toContain('Restored revision #5');
+        });
+
+        it('saves draft revision when clicking Save Draft', async () => {
+            const btnSaveDraft = document.querySelector('#btn-save-draft');
+            const postIdInput = document.querySelector('#post-id');
+            const statusMsg = document.querySelector('#status-msg');
+            const previewBtn = document.querySelector('#preview-btn');
+
+            postIdInput.value = '10';
+
+            let capturedPayload = null;
+            global.fetch = async (url, options) => {
+                if (url.includes('/entries/10') && options.method === 'PUT') {
+                    capturedPayload = JSON.parse(options.body);
+                    return {
+                        ok: true,
+                        json: async () => ({
+                            success: true,
+                            id: '10',
+                            preview_token: 'draft-token-999',
+                            draft_only: true,
+                        }),
+                    };
+                }
+                return { ok: false, json: async () => ({}) };
+            };
+
+            fireEvent.click(btnSaveDraft);
+            await new Promise((r) => setTimeout(r, 10));
+
+            expect(capturedPayload).not.toBeNull();
+            expect(capturedPayload.draft_only).toBe(true);
+            expect(statusMsg.textContent).toContain('Draft revision saved');
+            expect(previewBtn.href).toContain('/preview/draft-token-999');
+            expect(previewBtn.style.display).not.toBe('none');
+        });
+
+        it('restores entry when clicking Restore Entry on trash banner', async () => {
+            const btnRestoreEntry = document.querySelector('#btn-restore-entry');
+            const postIdInput = document.querySelector('#post-id');
+            postIdInput.value = '42';
+
+            let restoreCalled = false;
+            global.fetch = async (url, options) => {
+                if (url === '/entries/42/restore' && options.method === 'POST') {
+                    restoreCalled = true;
+                    return {
+                        ok: true,
+                        json: async () => ({ success: true, restored: '42' }),
+                    };
+                }
+                return { ok: false, json: async () => ({}) };
+            };
+
+            expect(btnRestoreEntry).not.toBeNull();
+            fireEvent.click(btnRestoreEntry);
+            await new Promise((r) => setTimeout(r, 10));
+
+            expect(restoreCalled).toBe(true);
+        });
+    });
 });

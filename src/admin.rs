@@ -1,29 +1,49 @@
-use crate::models::Entry;
+use crate::models::{Entry, EntryRevision};
 use askama::Template;
 
 #[derive(Template)]
 #[template(path = "admin_dashboard.html")]
 pub struct AdminDashboardTemplate<'a> {
     pub entries: &'a [Entry],
+    pub deleted_entries: &'a [Entry],
     pub auth_url: &'a str,
 }
 
-pub fn render_dashboard_html(entries: &[Entry], auth_url: &str) -> worker::Result<String> {
-    AdminDashboardTemplate { entries, auth_url }
-        .render()
-        .map_err(|e| worker::Error::RustError(e.to_string()))
+pub fn render_dashboard_html(
+    entries: &[Entry],
+    deleted_entries: &[Entry],
+    auth_url: &str,
+) -> worker::Result<String> {
+    AdminDashboardTemplate {
+        entries,
+        deleted_entries,
+        auth_url,
+    }
+    .render()
+    .map_err(|e| worker::Error::RustError(e.to_string()))
 }
 
 #[derive(Template)]
 #[template(path = "editor.html")]
 pub struct EditorTemplate<'a> {
     pub entry: Option<&'a Entry>,
+    pub latest_revision: Option<&'a EntryRevision>,
     pub pages: &'a [Entry],
     pub child_pages: &'a [Entry],
     pub auth_url: &'a str,
 }
 
 impl<'a> EditorTemplate<'a> {
+    pub fn is_deleted(&self) -> bool {
+        self.entry.map(|e| e.is_deleted()).unwrap_or(false)
+    }
+
+    pub fn deleted_at(&self) -> &str {
+        self.entry
+            .and_then(|e| e.deleted_at.as_deref())
+            .unwrap_or_default()
+    }
+
     pub fn has_children(&self) -> bool {
         !self.child_pages.is_empty()
     }
@@ -65,8 +85,21 @@ impl<'a> EditorTemplate<'a> {
         self.entry.map(|e| e.id != *page_id).unwrap_or(true)
     }
 
+    pub fn latest_preview_token(&self) -> &str {
+        self.latest_revision
+            .map(|r| r.preview_token.as_str())
+            .unwrap_or_default()
+    }
+
+    pub fn has_preview(&self) -> bool {
+        self.latest_revision.is_some()
+    }
+
     pub fn title(&self) -> &str {
-        self.entry.map(|p| p.title.as_str()).unwrap_or_default()
+        self.latest_revision
+            .map(|r| r.title.as_str())
+            .or_else(|| self.entry.map(|p| p.title.as_str()))
+            .unwrap_or_default()
     }
 
     pub fn slug(&self) -> &str {
@@ -74,14 +107,16 @@ impl<'a> EditorTemplate<'a> {
     }
 
     pub fn description(&self) -> &str {
-        self.entry
-            .and_then(|p| p.description.as_deref())
+        self.latest_revision
+            .and_then(|r| r.description.as_deref())
+            .or_else(|| self.entry.and_then(|p| p.description.as_deref()))
             .unwrap_or_default()
     }
 
     pub fn cover_image(&self) -> &str {
-        self.entry
-            .and_then(|p| p.cover_image.as_deref())
+        self.latest_revision
+            .and_then(|r| r.cover_image.as_deref())
+            .or_else(|| self.entry.and_then(|p| p.cover_image.as_deref()))
             .unwrap_or_default()
     }
 
@@ -98,14 +133,16 @@ impl<'a> EditorTemplate<'a> {
     }
 
     pub fn category(&self) -> &str {
-        self.entry
-            .and_then(|p| p.category.as_deref())
+        self.latest_revision
+            .and_then(|r| r.category.as_deref())
+            .or_else(|| self.entry.and_then(|p| p.category.as_deref()))
             .unwrap_or_default()
     }
 
     pub fn tags(&self) -> &str {
-        self.entry
-            .and_then(|p| p.tags.as_deref())
+        self.latest_revision
+            .and_then(|r| r.tags.as_deref())
+            .or_else(|| self.entry.and_then(|p| p.tags.as_deref()))
             .unwrap_or_default()
     }
 
@@ -116,21 +153,28 @@ impl<'a> EditorTemplate<'a> {
     }
 
     pub fn initial_json(&self) -> &str {
-        self.entry
-            .map(|p| p.body_json.as_str())
+        self.latest_revision
+            .map(|r| r.body_json.as_str())
             .filter(|s| !s.is_empty())
+            .or_else(|| {
+                self.entry
+                    .map(|p| p.body_json.as_str())
+                    .filter(|s| !s.is_empty())
+            })
             .unwrap_or(r#"{"type":"doc","content":[{"type":"paragraph"}]}"#)
     }
 }
 
 pub fn render_editor_html(
     entry: Option<&Entry>,
+    latest_revision: Option<&EntryRevision>,
     pages: &[Entry],
     child_pages: &[Entry],
     auth_url: &str,
 ) -> worker::Result<String> {
     EditorTemplate {
         entry,
+        latest_revision,
         pages,
         child_pages,
         auth_url,

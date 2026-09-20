@@ -1,4 +1,4 @@
-use crate::models::{BreadcrumbItem, Entry, Pagination};
+use crate::models::{BreadcrumbItem, Entry, EntryRevision, Pagination};
 use askama::Template;
 
 #[derive(Template)]
@@ -105,6 +105,7 @@ pub fn render_category_index(
 pub struct PostTemplate<'a> {
     pub origin: &'a str,
     pub post: &'a Entry,
+    pub preview: Option<&'a EntryRevision>,
 }
 
 #[derive(Template)]
@@ -114,10 +115,27 @@ pub struct PageTemplate<'a> {
     pub page: &'a Entry,
     pub breadcrumbs: &'a [BreadcrumbItem],
     pub children: &'a [Entry],
+    pub preview: Option<&'a EntryRevision>,
 }
 
 pub fn render_post(post: &Entry, origin: &str) -> worker::Result<String> {
-    render_tmpl(&PostTemplate { origin, post })
+    render_tmpl(&PostTemplate {
+        origin,
+        post,
+        preview: None,
+    })
+}
+
+pub fn render_preview_post(
+    post: &Entry,
+    origin: &str,
+    rev: &EntryRevision,
+) -> worker::Result<String> {
+    render_tmpl(&PostTemplate {
+        origin,
+        post,
+        preview: Some(rev),
+    })
 }
 
 pub fn render_page(
@@ -131,6 +149,23 @@ pub fn render_page(
         page,
         breadcrumbs,
         children,
+        preview: None,
+    })
+}
+
+pub fn render_preview_page(
+    page: &Entry,
+    origin: &str,
+    breadcrumbs: &[BreadcrumbItem],
+    children: &[Entry],
+    rev: &EntryRevision,
+) -> worker::Result<String> {
+    render_tmpl(&PageTemplate {
+        origin,
+        page,
+        breadcrumbs,
+        children,
+        preview: Some(rev),
     })
 }
 

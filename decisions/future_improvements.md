@@ -51,6 +51,13 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Guarded Deletion Button**: Delete button is conditionally disabled with tooltip warning (`⚠️ Deletion blocked: page has N subpage(s)`) when child pages exist, and confirms deletion for childless entries.
 - **Frontend Type Guard**: Client-side validation in `public/editor.js` alerting and immediately reverting attempts to change page type to post when subpages exist.
 
+### Revisions, Version History & Preview System
+- **Decoupled Draft Workflow (Option A)**: Enables saving draft snapshots without prematurely publishing to public pages or purging edge cache.
+- **D1 Revision Tracking**: Created `entry_revisions` table (`0005_create_revisions_table.sql`) snapshotting `title, description, cover_image, body_html, body_json, category, tags, preview_token, created_at` on every create or update.
+- **Tokenized Preview Route**: Dedicated `GET /preview/:token` rendering revision snapshots with edge caching strictly bypassed (`Cache-Control: no-store`) and an interactive "Preview Mode" banner linking back to the editor.
+- **Version History Drawer & One-Click Rollback**: Modal in `templates/editor.html` and `public/editor.js` fetching revision history via `GET /api/entries/:id/revisions`, allowing instant preview and restoring past content directly into TipTap and form inputs.
+- **Cascading Deletion**: Automatic cleanup of all associated revisions when an entry is deleted.
+
 ### Testing Architecture
 - **Two-Tier Test Suite**:
   - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
@@ -62,48 +69,34 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. Scheduled Publishing
-- **Goal**: Allow users to set a future publication date for posts.
-- **Details**: 
-  - Add UI in the editor to select a future date and time for `published_at`.
-  - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
-
-### 2. Revisions, Version History & Preview System
-- **Goal**: Provide complete editorial version control, rollback capabilities, and secure tokenized previews for both drafts and historical revisions without prematurely publishing to the live site.
-- **Details**:
-  - Create a D1 `entry_revisions` table tracking `id, entry_id, title, description, body_html, body_json, category, tags, preview_token, created_at`.
-  - Automatically snapshot content to `entry_revisions` on every editor save, enabling drafting updates on already-published posts without altering live public content.
-  - Implement a dedicated preview route `GET /preview/:token` that renders revision snapshots in the public layout with edge caching bypassed (`Cache-Control: no-store`) and an interactive "Preview Mode" top bar.
-  - Build a "Version History" drawer/modal in `public/editor.js` allowing authors to browse past revisions, preview any historical state, and restore previous content with one click.
-
-### 3. User Roles & Permissions (RBAC)
+### 1. User Roles & Permissions (RBAC)
 - **Goal**: Support multiple users with distinct permission levels.
 - **Details**:
   - Move beyond the global Auth Gate to role-based access control (e.g., Admin, Editor, Author, Contributor).
   - Map roles to specific database operations (e.g., Authors can only edit their own posts).
 
-### 4. Custom Content Types & Schema Builder
+### 2. Custom Content Types & Schema Builder
 - **Goal**: Enable custom content modeling via the admin UI.
 - **Details**:
   - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
 
-### 5. Full-Text Site Search
+### 3. Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 6. Navigation & Menu Builder
+### 4. Navigation & Menu Builder
 - **Goal**: Manage site menus dynamically from the admin panel.
 - **Details**:
   - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
   - Build a drag-and-drop UI to construct header and footer menus.
 
-### 7. Webhooks & API Integrations
+### 5. Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
-### 8. Analytics Dashboard & Localization
+### 6. Analytics Dashboard & Localization
 - **Goal**: Built-in insights and multi-language support.
 - **Details**:
   - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
@@ -112,6 +105,19 @@ A persistent record of architectural decisions, completed enhancements, and prio
 ---
 
 ## 3. Icebox & Long-Term Considerations
+
+### Permanent Deletion & Empty Trash UI
+- **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.
+- **Details**:
+  - Add "Delete Permanently" action in the Trash table and an "Empty Trash" batch action.
+  - Cascade delete associated snapshots in `entry_revisions`.
+  - Intentionally kept in the Icebox to maximize data safety; permanent deletion currently requires direct SQL execution via Wrangler D1.
+
+### Scheduled Publishing
+- **Goal**: Allow users to set a future publication date for posts.
+- **Details**: 
+  - Add UI in the editor to select a future date and time for `published_at`.
+  - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
 
 ### Split Public & Admin Workers
 - **Concept**: Separate Zygo CMS into two independent Cloudflare Workers:
@@ -133,7 +139,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
     - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
   - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
   - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
-  - **Webhook Triggers**: Dispatch webhooks (from Roadmap #10) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
+  - **Webhook Triggers**: Dispatch webhooks (from Roadmap #6) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
 
 ---
 

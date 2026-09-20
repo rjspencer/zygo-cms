@@ -667,3 +667,157 @@ textarea {
     margin-left: 0.5rem;
     font-weight: 500;
 }
+
+/* Version History Modal */
+.history-modal-container {
+    max-width: 600px;
+    width: 90%;
+    max-height: 80vh;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.history-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1rem;
+    background: #fff;
+    border: 1px solid #e1e4e8;
+    border-radius: 6px;
+    gap: 1rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.history-card:hover {
+    border-color: #ccc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.history-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.history-card-title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.history-card-title {
+    font-size: 0.92rem;
+    color: #1a1a1a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.history-card-date {
+    font-size: 0.78rem;
+    color: #666;
+    font-family: var(--font-headline);
+    white-space: nowrap;
+}
+
+.history-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.history-badge {
+    background: #e9ecef;
+    color: #495057;
+    font-size: 0.7rem;
+    font-family: var(--font-headline);
+    font-weight: 600;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+}
+
+.history-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.btn-restore {
+    background: #0066cc;
+    color: white;
+    border: 1px solid #0052a3;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: var(--font-headline);
+    font-size: 0.8rem;
+    padding: 0.3rem 0.65rem;
+    transition: background 0.15s ease;
+}
+
+.btn-restore:hover:not(:disabled) {
+    background: #0052a3;
+}
+
+.btn-restore:disabled {
+    background: #ccc;
+    border-color: #bbb;
+    cursor: not-allowed;
+}
+
+.history-loading,
+.history-empty {
+    font-size: 0.9rem;
+    color: #666;
+    text-align: center;
+    padding: 2rem 1rem;
+    margin: 0;
+}
+
+/* Trash Notice Banner */
+.trash-notice-banner {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-left: 4px solid #856404;
+    border-radius: 4px;
+    padding: 0.85rem 1.25rem;
+    margin: 1rem 0 1.5rem 0;
+}
+
+.trash-notice-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.trash-notice-text {
+    font-size: 0.92rem;
+    color: #856404;
+    line-height: 1.4;
+}
+
+.trash-notice-container .btn-restore {
+    background: #2e7d32;
+    border-color: #1b5e20;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.trash-notice-container .btn-restore:hover:not(:disabled) {
+    background: #1b5e20;
+}

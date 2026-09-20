@@ -9,6 +9,16 @@
 {% block content %}
 <h1 class="brand">Zygo CMS &mdash; {{ action() }}</h1>
 
+{% if is_deleted() %}
+<aside class="trash-notice-banner" id="trash-notice-banner" aria-label="Trash Notice">
+    <div class="trash-notice-container">
+        <span class="trash-notice-text">&#128465; This entry is currently in the <strong>Trash</strong> (deleted on {{
+            deleted_at() }}). It is hidden from public view, but all revisions are preserved.</span>
+        <button type="button" class="btn-restore" id="btn-restore-entry">Restore Entry</button>
+    </div>
+</aside>
+{% endif %}
+
 <form id="post-form" data-auth-url="{{ auth_url }}" data-has-children="{{ has_children() }}"
     data-child-count="{{ child_count() }}">
     <input type="hidden" id="post-id" value="{{ post_id() }}">
@@ -166,8 +176,15 @@
     </div>
 
     <div class="actions">
-        <button type="submit" class="btn-save" id="save-btn">Save Post</button>
-        {% if entry.is_some() %}
+        <button type="submit" class="btn-save" id="save-btn">{% if is_published() && entry.is_some() %}Update Live
+            Post{% else %}Publish Post{% endif %}</button>
+        <button type="button" class="btn-secondary" id="btn-save-draft">Save Draft</button>
+        <a id="preview-btn" href="{% if has_preview() %}/preview/{{ latest_preview_token() }}{% else %}#{% endif %}"
+            target="_blank" class="btn-secondary" {% if !has_preview() %}style="display:none;" {% endif %}>Live Preview
+            &nearr;</a>
+        <button type="button" class="btn-secondary" id="btn-history" {% if entry.is_none() %}style="display:none;" {%
+            endif %}>Version History</button>
+        {% if entry.is_some() && !is_deleted() %}
         {% if has_children() %}
         <button type="button" class="btn-delete btn-delete-disabled" id="delete-btn" disabled
             title="Cannot delete: this page has {{ child_count() }} subpage(s). Move or delete subpages first.">Delete
@@ -217,6 +234,23 @@
                 <button type="button" id="media-prev-btn" class="pagination-btn">&larr; Previous</button>
                 <span id="media-page-info" class="pagination-info">Page 1 of 1</span>
                 <button type="button" id="media-next-btn" class="pagination-btn">Next &rarr;</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Version History Modal -->
+<div id="history-modal" class="modal-overlay" style="display:none;" aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="history-modal-title">
+    <div class="modal-container history-modal-container">
+        <div class="modal-header">
+            <h3 id="history-modal-title">Version History</h3>
+            <button type="button" class="modal-close" id="history-close-btn"
+                aria-label="Close Version History">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div id="history-list" class="history-list">
+                <p class="history-loading">Loading version history...</p>
             </div>
         </div>
     </div>

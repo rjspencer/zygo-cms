@@ -592,7 +592,7 @@ export async function initEditor(initialContent, authUrl) {
                 const currentTitle = document.querySelector('#title')?.value || 'this entry';
                 if (!currentPostId) return;
 
-                const confirmMsg = `Are you sure you want to permanently delete "${currentTitle}"? This cannot be undone.`;
+                const confirmMsg = `Are you sure you want to move "${currentTitle}" to Trash? You can restore it later.`;
                 const isConfirmed = typeof window !== 'undefined' && typeof window.confirm === 'function'
                     ? window.confirm(confirmMsg)
                     : true;
@@ -632,89 +632,372 @@ export async function initEditor(initialContent, authUrl) {
             });
         }
 
-        if (form) {
-            form.addEventListener('submit', async (e) => {
+        // Handle Restore Entry button if in Trash
+        const btnRestoreEntry = document.querySelector('#btn-restore-entry');
+        if (btnRestoreEntry) {
+            btnRestoreEntry.addEventListener('click', async (e) => {
                 e.preventDefault();
+                const currentPostId = postIdInput ? postIdInput.value : '';
+                if (!currentPostId) return;
 
-                // Prevent submission if JSON-LD has errors
-                if (!validateSchema()) {
-                    if (statusEl) statusEl.textContent = 'Cannot save: please fix JSON-LD syntax errors first.';
+                btnRestoreEntry.disabled = true;
+                btnRestoreEntry.textContent = 'Restoring...';
+
+                const token = await getAuthToken();
+                const headers = {};
+                if (token) headers['Authorization'] = 'Bearer ' + token;
+
+                try {
+                    const res = await fetch('/entries/' + currentPostId + '/restore', {
+                        method: 'POST',
+                        headers,
+                    });
+                    if (res.ok) {
+                        isDirty = false;
+                        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                            window.alert('Entry restored from Trash!');
+                        }
+                        window.location.reload();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        const errMsg = data.error || 'Server error';
+                        if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                            window.alert('Failed to restore entry: ' + errMsg);
+                        }
+                        btnRestoreEntry.disabled = false;
+                        btnRestoreEntry.textContent = 'Restore Entry';
+                    }
+                } catch (err) {
+                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                        window.alert('Network error restoring entry');
+                    }
+                    btnRestoreEntry.disabled = false;
+                    btnRestoreEntry.textContent = 'Restore Entry';
+                }
+            });
+        }
+
+        // 4a. Version History Drawer / Modal
+        const historyModal = document.querySelector('#history-modal');
+        const historyCloseBtn = document.querySelector('#history-close-btn');
+        const historyList = document.querySelector('#history-list');
+        const btnHistory = document.querySelector('#btn-history');
+        const previewBtn = document.querySelector('#preview-btn');
+        const btnSaveDraft = document.querySelector('#btn-save-draft');
+
+        function updatePreviewButton(token) {
+            if (!previewBtn) return;
+            if (token) {
+                previewBtn.href = '/preview/' + token;
+                previewBtn.style.display = 'inline-block';
+            }
+        }
+
+        function closeHistoryModal() {
+            if (!historyModal) return;
+            historyModal.style.display = 'none';
+            historyModal.setAttribute('aria-hidden', 'true');
+        }
+
+        async function openHistoryModal() {
+            if (!historyModal || !historyList) return;
+            const currentPostId = postIdEl ? postIdEl.value : '';
+            if (!currentPostId) {
+                if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                    window.alert('Please save this entry first to view version history.');
+                }
+                return;
+            }
+
+            historyModal.style.display = 'flex';
+            historyModal.setAttribute('aria-hidden', 'false');
+            historyList.innerHTML = '<p class="history-loading">Loading version history...</p>';
+
+            const token = await getAuthToken();
+            const headers = {};
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            try {
+                const res = await fetch('/api/entries/' + currentPostId + '/revisions', { headers });
+                if (!res.ok) {
+                    historyList.innerHTML = '<p class="history-empty">Failed to load version history.</p>';
+                    return;
+                }
+                const revisions = await res.json();
+                if (!revisions || revisions.length === 0) {
+                    historyList.innerHTML = '<p class="history-empty">No revisions found for this entry.</p>';
                     return;
                 }
 
-                if (statusEl) statusEl.textContent = 'Saving...';
+                historyList.innerHTML = '';
+                revisions.forEach((rev, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'history-card';
 
-                const token = await getAuthToken();
-                const headers = { 'Content-Type': 'application/json' };
-                if (token) {
-                    headers['Authorization'] = 'Bearer ' + token;
-                }
+                    const dateStr = rev.created_at ? new Date(rev.created_at.replace(' ', 'T') + 'Z').toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                    }) : rev.created_at;
 
-                const title = document.querySelector('#title')?.value || '';
-                const slug = document.querySelector('#slug')?.value || '';
-                const type = document.querySelector('#type')?.value || 'post';
-                const status = document.querySelector('#status')?.value || 'published';
-                const description = document.querySelector('#description')?.value.trim() || null;
-                const cover_image = document.querySelector('#cover-image')?.value.trim() || null;
-                const canonical_url = document.querySelector('#canonical-url')?.value.trim() || null;
-                const schema_json = document.querySelector('#schema-json')?.value.trim() || null;
-                const category = document.querySelector('#category')?.value.trim() || null;
-                const tags = document.querySelector('#tags')?.value.trim() || null;
+                    const catBadge = rev.category ? `<span class="category-badge">${rev.category}</span>` : '';
 
-                let parent_id = null;
-                let sort_order = null;
-                if (type === 'page') {
-                    const parentVal = document.querySelector('#parent-id')?.value;
-                    parent_id = parentVal && parentVal !== '' ? parseInt(parentVal, 10) : null;
-                    const sortVal = document.querySelector('#sort-order')?.value;
-                    sort_order = sortVal && sortVal !== '' ? parseInt(sortVal, 10) : 0;
-                }
+                    card.innerHTML = `
+                        <div class="history-card-header">
+                            <div class="history-card-title-row">
+                                <strong class="history-card-title">${rev.title || 'Untitled'}</strong>
+                                <span class="history-card-date">${dateStr}</span>
+                            </div>
+                            <div class="history-card-meta">
+                                <span class="history-badge">Rev #${rev.id}${idx === 0 ? ' (Latest)' : ''}</span>
+                                ${catBadge}
+                            </div>
+                        </div>
+                        <div class="history-card-actions">
+                            <a href="/preview/${rev.preview_token}" target="_blank" class="btn-secondary btn-small">Preview &nearr;</a>
+                            <button type="button" class="btn-secondary btn-small btn-restore" data-rev-id="${rev.id}">Restore</button>
+                        </div>
+                    `;
 
-                const body_html = editor.getHTML();
-                const body_json = JSON.stringify(editor.getJSON());
+                    const restoreBtn = card.querySelector('.btn-restore');
+                    if (restoreBtn) {
+                        restoreBtn.addEventListener('click', async () => {
+                            const confirmMsg = `Restore version from ${dateStr}? Any unsaved changes in the editor will be replaced.`;
+                            const confirmed = typeof window !== 'undefined' && typeof window.confirm === 'function' ? window.confirm(confirmMsg) : true;
+                            if (!confirmed) return;
 
-                const payload = {
-                    title,
-                    type,
-                    status,
-                    description,
-                    cover_image,
-                    canonical_url,
-                    schema_json,
-                    category,
-                    tags,
-                    parent_id,
-                    sort_order,
-                    body_html,
-                    body_json,
-                };
+                            restoreBtn.disabled = true;
+                            restoreBtn.textContent = 'Restoring...';
 
-                try {
-                    let res;
-                    if (postId) {
-                        res = await fetch('/entries/' + postId, {
-                            method: 'PUT',
-                            headers: headers,
-                            body: JSON.stringify(payload),
-                        });
-                    } else {
-                        res = await fetch('/entries', {
-                            method: 'POST',
-                            headers: headers,
-                            body: JSON.stringify({ slug, ...payload }),
+                            try {
+                                const revRes = await fetch('/api/revisions/' + rev.id, { headers });
+                                if (!revRes.ok) {
+                                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                                        window.alert('Failed to load revision data');
+                                    }
+                                    restoreBtn.disabled = false;
+                                    restoreBtn.textContent = 'Restore';
+                                    return;
+                                }
+                                const fullRev = await revRes.json();
+
+                                const titleInput = document.querySelector('#title');
+                                if (titleInput && fullRev.title) titleInput.value = fullRev.title;
+
+                                const descInput = document.querySelector('#description');
+                                if (descInput) descInput.value = fullRev.description || '';
+
+                                const catInput = document.querySelector('#category');
+                                if (catInput) catInput.value = fullRev.category || '';
+
+                                const tagsInput = document.querySelector('#tags');
+                                if (tagsInput) tagsInput.value = fullRev.tags || '';
+
+                                if (fullRev.cover_image) {
+                                    setCoverImage(fullRev.cover_image);
+                                } else {
+                                    const coverInput = document.querySelector('#cover-image');
+                                    if (coverInput) coverInput.value = '';
+                                    const coverPreviewContainer = document.querySelector('#cover-preview-container');
+                                    const coverDropzone = document.querySelector('#cover-dropzone');
+                                    if (coverPreviewContainer) coverPreviewContainer.style.display = 'none';
+                                    if (coverDropzone) coverDropzone.style.display = 'block';
+                                }
+
+                                if (fullRev.body_json) {
+                                    try {
+                                        const parsedJson = JSON.parse(fullRev.body_json);
+                                        if (editor.commands && typeof editor.commands.setContent === 'function') {
+                                            editor.commands.setContent(parsedJson);
+                                        } else if (typeof editor.setContent === 'function') {
+                                            editor.setContent(parsedJson);
+                                        }
+                                    } catch (_) {
+                                        if (editor.commands && typeof editor.commands.setContent === 'function') {
+                                            editor.commands.setContent(fullRev.body_html || '');
+                                        }
+                                    }
+                                }
+
+                                updatePreviewButton(fullRev.preview_token);
+                                isDirty = true;
+                                closeHistoryModal();
+
+                                if (statusEl) {
+                                    statusEl.textContent = `Restored revision #${fullRev.id} (${dateStr}). Save or update to apply.`;
+                                    statusEl.style.color = '#2e7d32';
+                                }
+                            } catch (err) {
+                                if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+                                    window.alert('Error restoring revision: ' + err.message);
+                                }
+                                restoreBtn.disabled = false;
+                                restoreBtn.textContent = 'Restore';
+                            }
                         });
                     }
 
-                    const data = await res.json();
-                    if (res.ok) {
-                        isDirty = false;
-                        if (statusEl) statusEl.textContent = 'Saved successfully! Slug: ' + (data.slug || slug);
-                    } else {
-                        if (statusEl) statusEl.textContent = 'Error: ' + (data.error || 'Failed to save');
-                    }
-                } catch (err) {
-                    if (statusEl) statusEl.textContent = 'Network error saving entry';
+                    historyList.appendChild(card);
+                });
+            } catch (err) {
+                historyList.innerHTML = '<p class="history-empty">Error fetching revisions.</p>';
+            }
+        }
+
+        if (btnHistory) btnHistory.addEventListener('click', openHistoryModal);
+        if (historyCloseBtn) historyCloseBtn.addEventListener('click', closeHistoryModal);
+        if (historyModal) {
+            historyModal.addEventListener('click', (e) => {
+                if (e.target === historyModal) closeHistoryModal();
+            });
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeMediaModal();
+                closeHistoryModal();
+            }
+        });
+
+        // 4b. Form Submission & Draft Saving
+        async function saveEntry(options = {}) {
+            const isDraftOnly = options.draftOnly === true;
+
+            // Prevent submission if JSON-LD has errors
+            if (!validateSchema()) {
+                if (statusEl) {
+                    statusEl.textContent = 'Cannot save: please fix JSON-LD syntax errors first.';
+                    statusEl.style.color = '#d32f2f';
                 }
+                return;
+            }
+
+            if (statusEl) {
+                statusEl.textContent = isDraftOnly ? 'Saving draft...' : 'Publishing...';
+                statusEl.style.color = '#555';
+            }
+
+            const token = await getAuthToken();
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers['Authorization'] = 'Bearer ' + token;
+            }
+
+            const currentPostId = postIdEl ? postIdEl.value : '';
+            const title = document.querySelector('#title')?.value || '';
+            const slug = document.querySelector('#slug')?.value || '';
+            const type = document.querySelector('#type')?.value || 'post';
+            let status = document.querySelector('#status')?.value || 'published';
+            if (!isDraftOnly && currentPostId) {
+                status = 'published';
+                const statusSelect = document.querySelector('#status');
+                if (statusSelect) statusSelect.value = 'published';
+            }
+            const description = document.querySelector('#description')?.value.trim() || null;
+            const cover_image = document.querySelector('#cover-image')?.value.trim() || null;
+            const canonical_url = document.querySelector('#canonical-url')?.value.trim() || null;
+            const schema_json = document.querySelector('#schema-json')?.value.trim() || null;
+            const category = document.querySelector('#category')?.value.trim() || null;
+            const tags = document.querySelector('#tags')?.value.trim() || null;
+
+            let parent_id = null;
+            let sort_order = null;
+            if (type === 'page') {
+                const parentVal = document.querySelector('#parent-id')?.value;
+                parent_id = parentVal && parentVal !== '' ? parseInt(parentVal, 10) : null;
+                const sortVal = document.querySelector('#sort-order')?.value;
+                sort_order = sortVal && sortVal !== '' ? parseInt(sortVal, 10) : 0;
+            }
+
+            const body_html = editor.getHTML();
+            const body_json = JSON.stringify(editor.getJSON());
+
+            const payload = {
+                title,
+                type,
+                status: isDraftOnly && !currentPostId ? 'draft' : status,
+                description,
+                cover_image,
+                canonical_url,
+                schema_json,
+                category,
+                tags,
+                parent_id,
+                sort_order,
+                body_html,
+                body_json,
+                draft_only: isDraftOnly,
+            };
+
+            try {
+                let res;
+                if (currentPostId) {
+                    res = await fetch('/entries/' + currentPostId, {
+                        method: 'PUT',
+                        headers: headers,
+                        body: JSON.stringify(payload),
+                    });
+                } else {
+                    res = await fetch('/entries', {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify({ slug, ...payload }),
+                    });
+                }
+
+                const data = await res.json();
+                if (res.ok) {
+                    isDirty = false;
+                    if (data.id && postIdEl && !postIdEl.value) {
+                        postIdEl.value = data.id;
+                        if (typeof window !== 'undefined' && window.history && window.history.replaceState) {
+                            window.history.replaceState(null, '', '/admin/editor/' + data.id);
+                        }
+                        if (btnHistory) btnHistory.style.display = 'inline-block';
+                    }
+
+                    if (data.preview_token) {
+                        updatePreviewButton(data.preview_token);
+                    }
+
+                    if (statusEl) {
+                        if (isDraftOnly) {
+                            statusEl.textContent = 'Draft revision saved! Live post remains unchanged.';
+                            statusEl.style.color = '#2e7d32';
+                        } else {
+                            statusEl.textContent = 'Published live successfully!';
+                            statusEl.style.color = '#2e7d32';
+                            const saveBtn = document.querySelector('#save-btn');
+                            if (saveBtn) saveBtn.textContent = 'Update Live Post';
+                        }
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.textContent = 'Error: ' + (data.error || 'Failed to save');
+                        statusEl.style.color = '#d32f2f';
+                    }
+                }
+            } catch (err) {
+                if (statusEl) {
+                    statusEl.textContent = 'Network error saving entry';
+                    statusEl.style.color = '#d32f2f';
+                }
+            }
+        }
+
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveEntry({ draftOnly: false });
+            });
+        }
+
+        if (btnSaveDraft) {
+            btnSaveDraft.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await saveEntry({ draftOnly: true });
             });
         }
 

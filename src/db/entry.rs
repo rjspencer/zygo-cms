@@ -3,8 +3,8 @@ use crate::models::{BreadcrumbItem, CreateEntryRequest, Entry, UpdateEntryReques
 use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
-const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order";
-const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order";
+const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at";
+const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at";
 
 #[derive(serde::Deserialize)]
 struct CountResult {
@@ -12,15 +12,34 @@ struct CountResult {
 }
 
 pub async fn find_all_entries(db: &D1Database) -> Result<Vec<Entry>> {
-    let query = format!("SELECT {LIST_COLUMNS} FROM entries ORDER BY created_at DESC");
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE deleted_at IS NULL ORDER BY created_at DESC"
+    );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
     result.results::<Entry>()
 }
 
+pub async fn find_deleted_entries(db: &D1Database) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC"
+    );
+    let statement = db.prepare(&query);
+    let result = statement.run().await?;
+    result.results::<Entry>()
+}
+
+#[allow(dead_code)]
+pub async fn count_deleted_entries(db: &D1Database) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM entries WHERE deleted_at IS NOT NULL";
+    let statement = db.prepare(query);
+    let count_res = statement.first::<CountResult>(None).await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
 pub async fn find_all_pages(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' AND deleted_at IS NULL ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
     );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
@@ -29,7 +48,7 @@ pub async fn find_all_pages(db: &D1Database) -> Result<Vec<Entry>> {
 
 pub async fn find_published_entries(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE status = 'published' ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
@@ -38,7 +57,7 @@ pub async fn find_published_entries(db: &D1Database) -> Result<Vec<Entry>> {
 
 pub async fn find_published_posts(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.run().await?;
@@ -46,7 +65,7 @@ pub async fn find_published_posts(db: &D1Database) -> Result<Vec<Entry>> {
 }
 
 pub async fn count_published_posts(db: &D1Database) -> Result<i64> {
-    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published'";
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL";
     let statement = db.prepare(query);
     let count_res = statement.first::<CountResult>(None).await?;
     Ok(count_res.map(|c| c.count).unwrap_or(0))
@@ -58,7 +77,7 @@ pub async fn find_published_posts_paginated(
     offset: i64,
 ) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' ORDER BY published_at DESC, created_at DESC LIMIT ?1 OFFSET ?2"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC, created_at DESC LIMIT ?1 OFFSET ?2"
     );
     let statement = db.prepare(&query);
     let result = statement
@@ -71,7 +90,7 @@ pub async fn find_published_posts_paginated(
 #[allow(dead_code)]
 pub async fn find_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.bind(&[tag.trim().into()])?.run().await?;
@@ -79,7 +98,7 @@ pub async fn find_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<V
 }
 
 pub async fn count_published_posts_by_tag(db: &D1Database, tag: &str) -> Result<i64> {
-    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%')";
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%')";
     let statement = db.prepare(query);
     let count_res = statement
         .bind(&[tag.trim().into()])?
@@ -95,7 +114,7 @@ pub async fn find_published_posts_by_tag_paginated(
     offset: i64,
 ) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND (',' || REPLACE(LOWER(tags), ' ', '') || ',') LIKE ('%,' || LOWER(?1) || ',%') ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
     );
     let statement = db.prepare(&query);
     let result = statement
@@ -115,7 +134,7 @@ pub async fn find_published_posts_by_category(
     category: &str,
 ) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND LOWER(TRIM(category)) = LOWER(TRIM(?1)) ORDER BY published_at DESC, created_at DESC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND LOWER(TRIM(category)) = LOWER(TRIM(?1)) ORDER BY published_at DESC, created_at DESC"
     );
     let statement = db.prepare(&query);
     let result = statement.bind(&[category.trim().into()])?.run().await?;
@@ -123,7 +142,7 @@ pub async fn find_published_posts_by_category(
 }
 
 pub async fn count_published_posts_by_category(db: &D1Database, category: &str) -> Result<i64> {
-    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND LOWER(TRIM(category)) = LOWER(TRIM(?1))";
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND LOWER(TRIM(category)) = LOWER(TRIM(?1))";
     let statement = db.prepare(query);
     let count_res = statement
         .bind(&[category.trim().into()])?
@@ -139,7 +158,7 @@ pub async fn find_published_posts_by_category_paginated(
     offset: i64,
 ) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND LOWER(TRIM(category)) = LOWER(TRIM(?1)) ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND LOWER(TRIM(category)) = LOWER(TRIM(?1)) ORDER BY published_at DESC, created_at DESC LIMIT ?2 OFFSET ?3"
     );
     let statement = db.prepare(&query);
     let result = statement
@@ -155,7 +174,7 @@ pub async fn find_published_posts_by_category_paginated(
 
 pub async fn find_published_post_by_slug(db: &D1Database, slug: &str) -> Result<Option<Entry>> {
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND slug = ?1"
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'post' AND status = 'published' AND deleted_at IS NULL AND slug = ?1"
     );
     let statement = db.prepare(&query);
     statement.bind(&[slug.into()])?.first::<Entry>(None).await
@@ -164,7 +183,7 @@ pub async fn find_published_post_by_slug(db: &D1Database, slug: &str) -> Result<
 #[allow(dead_code)]
 pub async fn find_published_page_by_slug(db: &D1Database, slug: &str) -> Result<Option<Entry>> {
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND (slug = ?1 OR path = ?2)"
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND (slug = ?1 OR path = ?2)"
     );
     let path = format!("/{}", slug.trim_start_matches('/'));
     let statement = db.prepare(&query);
@@ -183,7 +202,7 @@ pub async fn find_published_page_by_path(db: &D1Database, path: &str) -> Result<
     let slug = normalized.trim_start_matches('/').to_string();
 
     let query = format!(
-        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND (path = ?1 OR (path IS NULL AND slug = ?2))"
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND (path = ?1 OR (path IS NULL AND slug = ?2))"
     );
     let statement = db.prepare(&query);
     statement
@@ -194,29 +213,36 @@ pub async fn find_published_page_by_path(db: &D1Database, path: &str) -> Result<
 
 pub async fn find_published_children(db: &D1Database, parent_id: i64) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND parent_id = ?1 ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND parent_id = ?1 ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
     );
     let statement = db.prepare(&query);
-    let result = statement.bind(&[JsValue::from(parent_id as f64)])?.run().await?;
+    let result = statement
+        .bind(&[JsValue::from(parent_id as f64)])?
+        .run()
+        .await?;
     result.results::<Entry>()
 }
 
 pub async fn find_all_children(db: &D1Database, parent_id: i64) -> Result<Vec<Entry>> {
     let query = format!(
-        "SELECT {LIST_COLUMNS} FROM entries WHERE parent_id = ?1 ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+        "SELECT {LIST_COLUMNS} FROM entries WHERE parent_id = ?1 AND deleted_at IS NULL ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
     );
     let statement = db.prepare(&query);
-    let result = statement.bind(&[JsValue::from(parent_id as f64)])?.run().await?;
+    let result = statement
+        .bind(&[JsValue::from(parent_id as f64)])?
+        .run()
+        .await?;
     result.results::<Entry>()
 }
 
 pub async fn find_page_ancestors(db: &D1Database, entry_id: i64) -> Result<Vec<BreadcrumbItem>> {
     let query = "WITH RECURSIVE ancestors(id, title, path, parent_id, level) AS (
         SELECT id, title, COALESCE(path, '/' || slug) as path, parent_id, 0
-        FROM entries WHERE id = ?1
+        FROM entries WHERE id = ?1 AND deleted_at IS NULL
         UNION ALL
         SELECT e.id, e.title, COALESCE(e.path, '/' || e.slug) as path, e.parent_id, a.level + 1
         FROM entries e JOIN ancestors a ON e.id = a.parent_id
+        WHERE e.deleted_at IS NULL
     )
     SELECT title, path FROM ancestors WHERE id != ?1 ORDER BY level DESC";
 
@@ -234,7 +260,18 @@ pub async fn find_entry_by_id(db: &D1Database, id: &str) -> Result<Option<Entry>
     statement.bind(&[id.into()])?.first::<Entry>(None).await
 }
 
-pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Result<()> {
+pub async fn find_entry_by_slug(db: &D1Database, slug: &str) -> Result<Option<Entry>> {
+    let query = format!("SELECT {ALL_COLUMNS} FROM entries WHERE slug = ?1");
+    let statement = db.prepare(&query);
+    statement.bind(&[slug.into()])?.first::<Entry>(None).await
+}
+
+#[derive(serde::Deserialize)]
+struct IdResult {
+    id: i64,
+}
+
+pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Result<i64> {
     let entry_type = payload.r#type.as_deref().unwrap_or("post");
     let status = payload.status.as_deref().unwrap_or("published");
 
@@ -248,7 +285,11 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
                     "Parent entry is not a page".into(),
                 ));
             }
-            format!("{}/{}", parent.path().trim_end_matches('/'), payload.slug.trim_start_matches('/'))
+            format!(
+                "{}/{}",
+                parent.path().trim_end_matches('/'),
+                payload.slug.trim_start_matches('/')
+            )
         } else {
             format!("/{}", payload.slug.trim_start_matches('/'))
         }
@@ -266,7 +307,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
          )",
     );
 
-    statement
+    let result = statement
         .bind(&[
             payload.slug.as_str().into(),
             payload.title.as_str().into(),
@@ -287,7 +328,19 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
         .run()
         .await?;
 
-    Ok(())
+    let created_id = match result.meta()?.and_then(|m| m.last_row_id) {
+        Some(rid) if rid > 0 => rid,
+        _ => {
+            let fetch_stmt = db.prepare("SELECT id FROM entries WHERE slug = ?1");
+            let row = fetch_stmt
+                .bind(&[payload.slug.as_str().into()])?
+                .first::<IdResult>(None)
+                .await?;
+            row.map(|r| r.id).unwrap_or(0)
+        }
+    };
+
+    Ok(created_id)
 }
 
 pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryRequest) -> Result<bool> {
@@ -300,7 +353,9 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
 
     // Guard against converting a page to a post while it has active child pages
     if existing.r#type == "page" && new_type != "page" {
-        let count_stmt = db.prepare("SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1");
+        let count_stmt = db.prepare(
+            "SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1 AND deleted_at IS NULL",
+        );
         let count_res = count_stmt
             .bind(&[id.into()])?
             .first::<CountResult>(None)
@@ -434,8 +489,10 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
 }
 
 pub async fn delete_entry(db: &D1Database, id: &str) -> Result<bool> {
-    // Block deletion if any child pages exist
-    let count_stmt = db.prepare("SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1");
+    // Block deletion if any active child pages exist
+    let count_stmt = db.prepare(
+        "SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1 AND deleted_at IS NULL",
+    );
     let count_res = count_stmt
         .bind(&[id.into()])?
         .first::<CountResult>(None)
@@ -449,10 +506,41 @@ pub async fn delete_entry(db: &D1Database, id: &str) -> Result<bool> {
         }
     }
 
-    let statement = db.prepare("DELETE FROM entries WHERE id = ?1");
+    // Soft delete: set deleted_at = CURRENT_TIMESTAMP. Revisions are strictly preserved in entry_revisions.
+    let statement = db.prepare(
+        "UPDATE entries SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?1 AND deleted_at IS NULL",
+    );
     let result = statement.bind(&[id.into()])?.run().await?;
 
     let rows_affected = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
     Ok(rows_affected > 0)
 }
 
+pub async fn restore_entry(db: &D1Database, id: &str) -> Result<bool> {
+    let entry = match find_entry_by_id(db, id).await? {
+        Some(e) => e,
+        None => return Ok(false),
+    };
+
+    if entry.deleted_at.is_none() {
+        return Err(worker::Error::RustError("Entry is not deleted".into()));
+    }
+
+    // Guard: cannot restore if parent page is also in Trash
+    if let Some(pid) = entry.parent_id {
+        if let Some(parent) = find_entry_by_id(db, &pid.to_string()).await? {
+            if parent.deleted_at.is_some() {
+                return Err(worker::Error::RustError(
+                    "Cannot restore this page because its parent page is in the Trash. Please restore the parent page first."
+                        .into(),
+                ));
+            }
+        }
+    }
+
+    let statement = db.prepare("UPDATE entries SET deleted_at = NULL WHERE id = ?1");
+    let result = statement.bind(&[id.into()])?.run().await?;
+
+    let rows_affected = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
+    Ok(rows_affected > 0)
+}

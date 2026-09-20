@@ -227,3 +227,25 @@ npx wrangler deploy
 Once deployment completes, Wrangler will output your live URL:
 `https://zygo-cms.<your-subdomain>.workers.dev`
 
+---
+
+## Soft Deletion & Permanent Deletion
+
+### Soft Deletion & Trash
+When an entry is deleted via the CMS Dashboard or Editor (`DELETE /entries/:id`), Zygo CMS strictly performs a **soft delete** (`deleted_at = CURRENT_TIMESTAMP`):
+- The entry is moved to the **Trash** tab in the Dashboard.
+- Public routes immediately return 404 and edge caches are purged.
+- All historical revisions in `entry_revisions` are fully preserved, allowing authors to inspect past versions and restore the page at any time.
+
+### Manual Permanent Deletion (Direct SQL)
+To prevent accidental data destruction, permanent deletion is intentionally disallowed via the application UI and API. If you need to permanently purge an entry and all its historical revisions, execute the following SQL commands via Wrangler:
+
+```bash
+# Delete associated revision history (replace <ENTRY_ID> with the entry id)
+npx wrangler d1 execute zygo-cms-db --remote --command "DELETE FROM entry_revisions WHERE entry_id = <ENTRY_ID>;"
+
+# Permanently delete the entry record
+npx wrangler d1 execute zygo-cms-db --remote --command "DELETE FROM entries WHERE id = <ENTRY_ID>;"
+```
+*(Use `--local` instead of `--remote` for local development).*
+

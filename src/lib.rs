@@ -22,22 +22,24 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/admin", |_req, ctx| async move {
             let db = ctx.env.d1("DB")?;
             let entries = db::find_all_entries(&db).await?;
+            let deleted_entries = db::find_deleted_entries(&db).await?;
             let auth_url = get_auth_url(&ctx.env);
-            let html = admin::render_dashboard_html(&entries, &auth_url)?;
+            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url)?;
             Response::from_html(html)
         })
         .get_async("/admin/entries", |_req, ctx| async move {
             let db = ctx.env.d1("DB")?;
             let entries = db::find_all_entries(&db).await?;
+            let deleted_entries = db::find_deleted_entries(&db).await?;
             let auth_url = get_auth_url(&ctx.env);
-            let html = admin::render_dashboard_html(&entries, &auth_url)?;
+            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor", |_req, ctx| async move {
             let auth_url = get_auth_url(&ctx.env);
             let db = ctx.env.d1("DB")?;
             let pages = db::find_all_pages(&db).await.unwrap_or_default();
-            let html = admin::render_editor_html(None, &pages, &[], &auth_url)?;
+            let html = admin::render_editor_html(None, None, &pages, &[], &auth_url)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor/:id", |_req, ctx| async move {
@@ -56,8 +58,16 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             match entry {
                 Ok(e) => {
                     let child_pages = db::find_all_children(&db, e.id).await.unwrap_or_default();
-                    let html =
-                        admin::render_editor_html(Some(&e), &pages, &child_pages, &auth_url)?;
+                    let latest_rev = db::find_latest_revision_for_entry(&db, e.id)
+                        .await
+                        .unwrap_or(None);
+                    let html = admin::render_editor_html(
+                        Some(&e),
+                        latest_rev.as_ref(),
+                        &pages,
+                        &child_pages,
+                        &auth_url,
+                    )?;
                     Response::from_html(html)
                 }
                 Err(err) => err.to_response(),
@@ -258,9 +268,15 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             Ok(res)
         })
         // Entries API (also supports /posts as alias)
-        .get_async("/entries", |_req, ctx| async move {
+        .get_async("/entries", |req, ctx| async move {
+            let url = req.url()?;
+            let filter = url.query_pairs().find(|(k, _)| k == "filter").map(|(_, v)| v.to_string());
             let db = ctx.env.d1("DB")?;
-            let entries = db::find_all_entries(&db).await?;
+            let entries = if filter.as_deref() == Some("trash") {
+                db::find_deleted_entries(&db).await?
+            } else {
+                db::find_all_entries(&db).await?
+            };
             Response::from_json(&entries)
         })
         .get_async("/posts", |_req, ctx| async move {
@@ -283,6 +299,22 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             payload.body_html = sanitize::sanitize_html(&payload.body_html);
 
             let db = ctx.env.d1("DB")?;
+
+            // Check slug conflict
+            if let Ok(Some(existing)) = db::find_entry_by_slug(&db, &payload.slug).await {
+                if existing.deleted_at.is_some() {
+                    return AppError::BadRequest(format!(
+                        "An entry with slug '{}' already exists in the Trash. Please restore it or remove it via SQL to reuse this slug.",
+                        payload.slug
+                    )).to_response();
+                } else {
+                    return AppError::BadRequest(format!(
+                        "An entry with slug '{}' already exists.",
+                        payload.slug
+                    )).to_response();
+                }
+            }
+
             let entry_path = if payload.r#type.as_deref() == Some("page") {
                 if let Some(pid) = payload.parent_id {
                     let parent = db::find_entry_by_id(&db, &pid.to_string()).await?;
@@ -302,9 +334,22 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 format!("/post/{}", payload.slug)
             };
 
-            if let Err(e) = db::create_entry(&db, &payload).await {
-                return Response::error(e.to_string(), 400);
-            }
+            let entry_id = match db::create_entry(&db, &payload).await {
+                Ok(id) => id,
+                Err(e) => return Response::error(e.to_string(), 400),
+            };
+
+            let preview_token = utils::generate_preview_token();
+            let rev_params = models::CreateRevisionParams {
+                title: payload.title.clone(),
+                description: payload.description.clone(),
+                cover_image: payload.cover_image.clone(),
+                body_html: payload.body_html.clone(),
+                body_json: payload.body_json.clone(),
+                category: payload.category.clone(),
+                tags: payload.tags.clone(),
+            };
+            let _ = db::create_revision(&db, entry_id, &rev_params, &preview_token).await;
 
             let origin = req.url()?.origin().ascii_serialization();
 
@@ -332,7 +377,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
             cache::purge_urls(&ctx.env, purge_list).await;
 
-            Response::from_json(&json!({ "success": true, "slug": payload.slug }))
+            Response::from_json(&json!({
+                "success": true,
+                "id": entry_id,
+                "slug": payload.slug,
+                "preview_token": preview_token
+            }))
         })
         .put_async("/entries/:id", |mut req, ctx| async move {
             let _user = auth_required!(&req, ctx);
@@ -353,6 +403,39 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
 
             let db = ctx.env.d1("DB")?;
+            let is_draft_only = payload.draft_only.unwrap_or(false);
+            let num_id = match id.parse::<i64>() {
+                Ok(n) => n,
+                Err(_) => return Response::error("Invalid entry id", 400),
+            };
+
+            if is_draft_only {
+                let existing_entry = match db::find_entry_by_id(&db, id).await? {
+                    Some(e) => e,
+                    None => return AppError::NotFound.to_response(),
+                };
+
+                let preview_token = utils::generate_preview_token();
+                let rev_params = models::CreateRevisionParams {
+                    title: payload.title.unwrap_or(existing_entry.title),
+                    description: payload.description.or(existing_entry.description),
+                    cover_image: payload.cover_image.or(existing_entry.cover_image),
+                    body_html: payload.body_html.unwrap_or(existing_entry.body_html),
+                    body_json: payload.body_json.unwrap_or(existing_entry.body_json),
+                    category: payload.category.or(existing_entry.category),
+                    tags: payload.tags.or(existing_entry.tags),
+                };
+                let rev_id = db::create_revision(&db, num_id, &rev_params, &preview_token).await?;
+
+                return Response::from_json(&json!({
+                    "success": true,
+                    "id": id,
+                    "preview_token": preview_token,
+                    "draft_only": true,
+                    "revision_id": rev_id,
+                }));
+            }
+
             let existing_entry = db::find_entry_by_id(&db, id).await?;
             let update_result = db::update_entry(&db, id, &payload).await;
 
@@ -361,6 +444,20 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Ok(false) => return AppError::NotFound.to_response(),
                 Err(e) => return Response::error(e.to_string(), 400),
             };
+
+            let preview_token = utils::generate_preview_token();
+            if let Some(updated_entry) = db::find_entry_by_id(&db, id).await? {
+                let rev_params = models::CreateRevisionParams {
+                    title: updated_entry.title.clone(),
+                    description: updated_entry.description.clone(),
+                    cover_image: updated_entry.cover_image.clone(),
+                    body_html: updated_entry.body_html.clone(),
+                    body_json: updated_entry.body_json.clone(),
+                    category: updated_entry.category.clone(),
+                    tags: updated_entry.tags.clone(),
+                };
+                let _ = db::create_revision(&db, num_id, &rev_params, &preview_token).await;
+            }
 
             // Immediate cache invalidation in the background
             let origin = req.url()?.origin().ascii_serialization();
@@ -402,7 +499,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
             cache::purge_urls(&ctx.env, purge_list).await;
 
-            Response::from_json(&json!({ "success": true, "id": id }))
+            Response::from_json(&json!({
+                "success": true,
+                "id": id,
+                "preview_token": preview_token,
+                "draft_only": false
+            }))
         })
         .delete_async("/entries/:id", |req, ctx| async move {
             let _user = auth_required!(&req, ctx);
@@ -437,7 +539,135 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
             cache::purge_urls(&ctx.env, purge_list).await;
 
-            Response::from_json(&json!({ "success": true, "deleted": id }))
+            Response::from_json(&json!({ "success": true, "deleted": id, "soft_deleted": true }))
+        })
+        .post_async("/entries/:id/restore", |req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+
+            let id = ctx.param("id").map(|s| s.as_str()).unwrap_or("");
+            let db = ctx.env.d1("DB")?;
+            let existing_entry = db::find_entry_by_id(&db, id).await?;
+            let restore_result = db::restore_entry(&db, id).await;
+
+            match restore_result {
+                Ok(true) => {},
+                Ok(false) => return AppError::NotFound.to_response(),
+                Err(e) => return Response::error(e.to_string(), 400),
+            };
+
+            if let Some(ref entry) = existing_entry {
+                if entry.status == "published" {
+                    let origin = req.url()?.origin().ascii_serialization();
+                    let mut purge_list = vec![
+                        format!("{}/", origin),
+                        format!("{}{}", origin, entry.path()),
+                        format!("{}/sitemap.xml", origin),
+                        format!("{}/rss.xml", origin),
+                        format!("{}/feed.xml", origin),
+                    ];
+                    if let Some(ref cat) = entry.category {
+                        purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+                    }
+                    for tag in entry.tag_list() {
+                        purge_list.push(format!("{}/tag/{}", origin, tag));
+                    }
+                    cache::purge_urls(&ctx.env, purge_list).await;
+                }
+            }
+
+            Response::from_json(&json!({ "success": true, "restored": id }))
+        })
+        // Revisions API
+        .get_async("/api/entries/:id/revisions", |req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+            let id = match ctx.param("id") {
+                Some(s) => s,
+                None => return Response::error("Missing id", 400),
+            };
+            let num_id = match id.parse::<i64>() {
+                Ok(n) => n,
+                Err(_) => return Response::error("Invalid id", 400),
+            };
+
+            let db = ctx.env.d1("DB")?;
+            let revisions = db::find_revisions_by_entry_id(&db, num_id).await?;
+            Response::from_json(&revisions)
+        })
+        .get_async("/api/revisions/:id", |req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+            let id = match ctx.param("id") {
+                Some(s) => s,
+                None => return Response::error("Missing id", 400),
+            };
+            let num_id = match id.parse::<i64>() {
+                Ok(n) => n,
+                Err(_) => return Response::error("Invalid id", 400),
+            };
+
+            let db = ctx.env.d1("DB")?;
+            let revision = db::find_revision_by_id(&db, num_id).await?;
+            match revision {
+                Some(r) => Response::from_json(&r),
+                None => AppError::NotFound.to_response(),
+            }
+        })
+        // Tokenized Preview Reader (bypasses cache)
+        .get_async("/preview/:token", |req, ctx| async move {
+            let token = match ctx.param("token") {
+                Some(t) => t,
+                None => return Response::error("Missing token", 400),
+            };
+
+            let db = ctx.env.d1("DB")?;
+            let origin = utils::get_canonical_origin(&req, &ctx.env);
+
+            let revision = db::find_revision_by_token(&db, token).await?;
+            let rev = match revision {
+                Some(r) => r,
+                None => return AppError::NotFound.to_response(),
+            };
+
+            let base_entry = db::find_entry_by_id(&db, &rev.entry_id.to_string()).await?;
+            let entry = match base_entry {
+                Some(e) => e,
+                None => return AppError::NotFound.to_response(),
+            };
+
+            let preview_entry = models::Entry {
+                id: entry.id,
+                slug: entry.slug.clone(),
+                title: rev.title.clone(),
+                r#type: entry.r#type.clone(),
+                status: "preview".to_string(),
+                description: rev.description.clone(),
+                cover_image: rev.cover_image.clone().or_else(|| entry.cover_image.clone()),
+                canonical_url: entry.canonical_url.clone(),
+                schema_json: entry.schema_json.clone(),
+                category: rev.category.clone(),
+                tags: rev.tags.clone(),
+                published_at: Some(rev.created_at.clone()),
+                body_html: rev.body_html.clone(),
+                body_json: rev.body_json.clone(),
+                created_at: rev.created_at.clone(),
+                parent_id: entry.parent_id,
+                path: entry.path.clone(),
+                sort_order: entry.sort_order,
+                deleted_at: None,
+            };
+
+            let html = if preview_entry.r#type == "page" {
+                let breadcrumbs = db::find_page_ancestors(&db, preview_entry.id).await.unwrap_or_default();
+                let children = db::find_published_children(&db, preview_entry.id).await.unwrap_or_default();
+                views::render_preview_page(&preview_entry, &origin, &breadcrumbs, &children, &rev)?
+            } else {
+                views::render_preview_post(&preview_entry, &origin, &rev)?
+            };
+
+            let headers = Headers::new();
+            headers.set("Content-Type", "text/html; charset=utf-8")?;
+            headers.set("Cache-Control", "no-store, no-cache, must-revalidate")?;
+
+            Response::ok(html).map(|res| res.with_headers(headers))
         })
         // Public Page Reader (supports nested hierarchy e.g. /about, /about/team)
         .get_async("/*path", |req, ctx| async move {

@@ -3,6 +3,13 @@ export class Editor {
     constructor(options = {}) {
         this.options = options;
         this.content = options.content || '';
+        this.commands = {
+            setContent: (c) => { this.content = c; return true; },
+        };
+    }
+    setContent(c) {
+        this.content = c;
+        return true;
     }
     chain() {
         return {

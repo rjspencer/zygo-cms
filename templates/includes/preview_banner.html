@@ -1,0 +1,13 @@
+{% if let Some(rev) = preview %}
+<aside class="preview-mode-banner" aria-label="Preview Mode Banner">
+    <div class="preview-banner-container">
+        <div class="preview-banner-left">
+            <span class="preview-badge">&#9679; Preview Mode</span>
+            <span class="preview-info">Snapshot from <strong>{{ rev.created_at }}</strong> (Rev #{{ rev.id }})</span>
+        </div>
+        <div class="preview-banner-right">
+            <a href="/admin/editor/{{ rev.entry_id }}" class="btn-preview-back">&larr; Return to Editor</a>
+        </div>
+    </div>
+</aside>
+{% endif %}

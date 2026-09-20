@@ -11,53 +11,109 @@
     <div class="dashboard-header">
         <div>
             <h1>Dashboard</h1>
-            <p class="subtitle">{{ entries.len() }} total entries</p>
+            <p class="subtitle">{{ entries.len() }} active entries &bull; {{ deleted_entries.len() }} in trash</p>
         </div>
         <a href="/admin/editor" class="btn-primary">+ New Entry</a>
     </div>
 
-    {% if entries.is_empty() %}
-    <p>No entries found. <a href="/admin/editor">Create your first entry</a>.</p>
-    {% else %}
-    <div class="table-container">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th style="text-align: right;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in entries %}
-                <tr id="entry-row-{{ entry.id }}">
-                    <td>
-                        <a href="/admin/editor/{{ entry.id }}" class="table-title">{{ entry.title }}</a>
-                        <span class="table-slug">{{ entry.path() }}</span>
-                    </td>
-                    <td>
-                        <span class="badge badge-type-{{ entry.entry_type() }}">{{ entry.entry_type() }}</span>
-                    </td>
-                    <td>
-                        <span class="badge badge-status-{{ entry.status }}">{{ entry.status }}</span>
-                    </td>
-                    <td class="table-date">{{ entry.display_date() }}</td>
-                    <td class="table-actions">
-                        {% if entry.status == "published" %}
-                        <a href="{{ entry.path() }}" target="_blank" class="action-link">View</a>
-                        {% endif %}
-                        <a href="/admin/editor/{{ entry.id }}" class="action-link">Edit</a>
-                        <button type="button" class="btn-delete" data-id="{{ entry.id }}"
-                            data-title="{{ entry.title }}">Delete</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="dashboard-tabs"
+        style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.5rem;">
+        <button type="button" id="tab-active" class="btn-tab active"
+            style="background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; padding: 0.4rem 0.8rem; border-bottom: 2px solid #000;">
+            All Entries ({{ entries.len() }})
+        </button>
+        <button type="button" id="tab-trash" class="btn-tab"
+            style="background: none; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; padding: 0.4rem 0.8rem; color: #64748b;">
+            Trash ({{ deleted_entries.len() }})
+        </button>
     </div>
-    {% endif %}
+
+    <div id="panel-active">
+        {% if entries.is_empty() %}
+        <p>No entries found. <a href="/admin/editor">Create your first entry</a>.</p>
+        {% else %}
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr id="entry-row-{{ entry.id }}">
+                        <td>
+                            <a href="/admin/editor/{{ entry.id }}" class="table-title">{{ entry.title }}</a>
+                            <span class="table-slug">{{ entry.path() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-type-{{ entry.entry_type() }}">{{ entry.entry_type() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-status-{{ entry.status }}">{{ entry.status }}</span>
+                        </td>
+                        <td class="table-date">{{ entry.display_date() }}</td>
+                        <td class="table-actions">
+                            {% if entry.status == "published" %}
+                            <a href="{{ entry.path() }}" target="_blank" class="action-link">View</a>
+                            {% endif %}
+                            <a href="/admin/editor/{{ entry.id }}" class="action-link">Edit</a>
+                            <button type="button" class="btn-delete" data-id="{{ entry.id }}"
+                                data-title="{{ entry.title }}">Delete</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+
+    <div id="panel-trash" style="display: none;">
+        {% if deleted_entries.is_empty() %}
+        <p>Trash is empty.</p>
+        {% else %}
+        <div class="table-container">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Deleted Date</th>
+                        <th style="text-align: right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in deleted_entries %}
+                    <tr id="trash-row-{{ entry.id }}">
+                        <td>
+                            <a href="/admin/editor/{{ entry.id }}" class="table-title">{{ entry.title }}</a>
+                            <span class="table-slug">{{ entry.path() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-type-{{ entry.entry_type() }}">{{ entry.entry_type() }}</span>
+                        </td>
+                        <td class="table-date">
+                            {% if let Some(del) = entry.deleted_at %}
+                            {{ del }}
+                            {% endif %}
+                        </td>
+                        <td class="table-actions">
+                            <a href="/admin/editor/{{ entry.id }}" class="action-link">Edit / History</a>
+                            <button type="button" class="btn-restore" data-id="{{ entry.id }}"
+                                data-title="{{ entry.title }}">Restore</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <script type="module">
@@ -97,18 +153,44 @@
         document.getElementById('loading-state').style.display = 'none';
         document.getElementById('dashboard-content').style.display = 'block';
 
+        // Tab switching
+        const tabActive = document.getElementById('tab-active');
+        const tabTrash = document.getElementById('tab-trash');
+        const panelActive = document.getElementById('panel-active');
+        const panelTrash = document.getElementById('panel-trash');
+
+        if (tabActive && tabTrash && panelActive && panelTrash) {
+            tabActive.addEventListener('click', () => {
+                panelActive.style.display = 'block';
+                panelTrash.style.display = 'none';
+                tabActive.style.borderBottom = '2px solid #000';
+                tabActive.style.color = '#000';
+                tabTrash.style.borderBottom = 'none';
+                tabTrash.style.color = '#64748b';
+            });
+            tabTrash.addEventListener('click', () => {
+                panelActive.style.display = 'none';
+                panelTrash.style.display = 'block';
+                tabTrash.style.borderBottom = '2px solid #000';
+                tabTrash.style.color = '#000';
+                tabActive.style.borderBottom = 'none';
+                tabActive.style.color = '#64748b';
+            });
+        }
+
         const getAuthToken = async () => {
             if (!authClient) return null;
             const info = await authClient.getAuthenticationInfoOrNull();
             return info ? info.accessToken : null;
         };
 
+        // Soft delete handler
         document.querySelectorAll('.btn-delete').forEach(btn => {
             btn.addEventListener('click', async () => {
                 const id = btn.getAttribute('data-id');
                 const title = btn.getAttribute('data-title');
 
-                if (!confirm(`Are you sure you want to delete "${title}"?`)) {
+                if (!confirm(`Are you sure you want to move "${title}" to Trash? You can restore it later.`)) {
                     return;
                 }
 
@@ -128,8 +210,7 @@
                     });
 
                     if (res.ok) {
-                        const row = document.getElementById('entry-row-' + id);
-                        if (row) row.remove();
+                        window.location.reload();
                     } else {
                         const data = await res.json().catch(() => ({}));
                         alert('Failed to delete: ' + (data.error || 'Server error'));
@@ -140,6 +221,43 @@
                     alert('Network error deleting entry');
                     btn.disabled = false;
                     btn.textContent = 'Delete';
+                }
+            });
+        });
+
+        // Restore handler
+        document.querySelectorAll('.btn-restore').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = btn.getAttribute('data-id');
+                const title = btn.getAttribute('data-title');
+
+                btn.disabled = true;
+                btn.textContent = '...';
+
+                const token = await getAuthToken();
+                const headers = {};
+                if (token) {
+                    headers['Authorization'] = 'Bearer ' + token;
+                }
+
+                try {
+                    const res = await fetch('/entries/' + id + '/restore', {
+                        method: 'POST',
+                        headers: headers,
+                    });
+
+                    if (res.ok) {
+                        window.location.reload();
+                    } else {
+                        const data = await res.json().catch(() => ({}));
+                        alert('Failed to restore: ' + (data.error || 'Server error'));
+                        btn.disabled = false;
+                        btn.textContent = 'Restore';
+                    }
+                } catch (err) {
+                    alert('Network error restoring entry');
+                    btn.disabled = false;
+                    btn.textContent = 'Restore';
                 }
             });
         });

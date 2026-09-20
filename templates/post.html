@@ -22,6 +22,7 @@
 {% endblock %}
 
 {% block content %}
+{% include "includes/preview_banner.html" %}
 <article>
     {% if let Some(img) = post.cover_image %}
     <img class="cover-image" src="{{ img }}" alt="{{ post.title }}">

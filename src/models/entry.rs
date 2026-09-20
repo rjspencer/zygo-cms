@@ -123,9 +123,15 @@ pub struct Entry {
     pub path: Option<String>,
     #[serde(default)]
     pub sort_order: Option<i32>,
+    #[serde(default)]
+    pub deleted_at: Option<String>,
 }
 
 impl Entry {
+    pub fn is_deleted(&self) -> bool {
+        self.deleted_at.is_some()
+    }
+
     pub fn tag_list(&self) -> Vec<&str> {
         self.tags
             .as_deref()
@@ -410,6 +416,7 @@ pub struct UpdateEntryRequest {
     pub sort_order: Option<i32>,
     pub body_html: Option<String>,
     pub body_json: Option<String>,
+    pub draft_only: Option<bool>,
 }
 
 impl UpdateEntryRequest {
@@ -680,6 +687,7 @@ mod tests {
             sort_order: None,
             body_html: None,
             body_json: None,
+            draft_only: None,
         };
         assert!(req.validate().is_err());
     }
@@ -700,6 +708,7 @@ mod tests {
             sort_order: None,
             body_html: None,
             body_json: None,
+            draft_only: None,
         };
         assert!(req.validate().is_ok());
 
@@ -717,6 +726,7 @@ mod tests {
             sort_order: None,
             body_html: None,
             body_json: None,
+            draft_only: None,
         };
         assert!(req_tax.validate().is_ok());
 
@@ -734,6 +744,7 @@ mod tests {
             sort_order: Some(10),
             body_html: None,
             body_json: None,
+            draft_only: None,
         };
         assert!(req_hierarchy.validate().is_ok());
     }
@@ -774,6 +785,7 @@ mod tests {
             parent_id: Some(2),
             path: Some("/about/team".into()),
             sort_order: Some(0),
+            deleted_at: None,
         };
         assert_eq!(entry.path(), "/about/team");
 
@@ -805,6 +817,7 @@ mod tests {
             parent_id: None,
             path: None,
             sort_order: None,
+            deleted_at: None,
         };
         assert_eq!(entry.tag_list(), vec!["rust", "cloudflare", "wasm"]);
 
@@ -833,6 +846,7 @@ mod tests {
             parent_id: None,
             path: None,
             sort_order: None,
+            deleted_at: None,
         };
         assert_eq!(entry.meta_description(), "Custom manual description");
     }
@@ -859,11 +873,41 @@ mod tests {
             parent_id: None,
             path: None,
             sort_order: None,
+            deleted_at: None,
         };
         assert_eq!(
             entry.meta_description(),
             "Hello world! This is a post about Rust."
         );
+    }
+
+    #[test]
+    fn test_entry_soft_delete() {
+        let mut entry = Entry {
+            id: 1,
+            slug: "test".into(),
+            title: "Test".into(),
+            r#type: "post".into(),
+            status: "published".into(),
+            description: None,
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            published_at: None,
+            body_html: "".into(),
+            body_json: "".into(),
+            created_at: "2026-01-01".into(),
+            parent_id: None,
+            path: None,
+            sort_order: None,
+            deleted_at: None,
+        };
+        assert!(!entry.is_deleted());
+
+        entry.deleted_at = Some("2026-09-20 12:00:00".into());
+        assert!(entry.is_deleted());
     }
 
     #[test]

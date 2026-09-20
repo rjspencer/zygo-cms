@@ -406,4 +406,185 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const cronRes = await worker.fetch('/cdn-cgi/local/scheduled');
         expect(cronRes.status).toBeLessThan(400);
     });
+
+    it('supports revisions, draft saving, version history API, and tokenized preview mode', async () => {
+        const slug = `rev-test-${Date.now()}`;
+
+        // 1. Create a published post
+        const createRes = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Initial Title',
+                slug,
+                type: 'post',
+                status: 'published',
+                description: 'Initial description',
+                body_html: '<p>Initial published content</p>',
+                body_json: '{}',
+                category: 'Tech',
+                tags: 'v1',
+            }),
+        });
+        expect(createRes.status).toBe(200);
+        const createJson = await createRes.json();
+        expect(createJson.success).toBe(true);
+        expect(createJson.preview_token).toBeDefined();
+
+        // Fetch entry ID
+        const postsRes = await worker.fetch('/posts');
+        const posts = await postsRes.json();
+        const entry = posts.find((p) => p.slug === slug);
+        expect(entry).toBeDefined();
+
+        // 2. Fetch revision history via GET /api/entries/:id/revisions
+        const revsRes = await worker.fetch(`/api/entries/${entry.id}/revisions`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(revsRes.status).toBe(200);
+        const revs = await revsRes.json();
+        expect(revs.length).toBe(1);
+        expect(revs[0].title).toBe('Initial Title');
+        const rev1Id = revs[0].id;
+
+        // 3. Fetch single revision detail via GET /api/revisions/:id
+        const singleRevRes = await worker.fetch(`/api/revisions/${rev1Id}`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(singleRevRes.status).toBe(200);
+        const singleRev = await singleRevRes.json();
+        expect(singleRev.title).toBe('Initial Title');
+        expect(singleRev.body_html).toBe('<p>Initial published content</p>');
+
+        // 4. Save a draft update (draft_only: true)
+        const draftRes = await worker.fetch(`/entries/${entry.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Draft Title (Unpublished)',
+                body_html: '<p>Unpublished draft changes</p>',
+                draft_only: true,
+            }),
+        });
+        expect(draftRes.status).toBe(200);
+        const draftJson = await draftRes.json();
+        expect(draftJson.preview_token).toBeDefined();
+        const draftToken = draftJson.preview_token;
+
+        // 5. Verify public post STILL shows original published content (Option A decoupling)
+        const publicRes = await worker.fetch(`/post/${slug}`);
+        expect(publicRes.status).toBe(200);
+        const publicHtml = await publicRes.text();
+        expect(publicHtml).toContain('Initial Title');
+        expect(publicHtml).toContain('<p>Initial published content</p>');
+        expect(publicHtml).not.toContain('Draft Title (Unpublished)');
+        expect(publicHtml).not.toContain('Preview Mode');
+
+        // 6. Verify tokenized preview route GET /preview/:token renders draft snapshot with banner and no-store
+        const previewRes = await worker.fetch(`/preview/${draftToken}`);
+        expect(previewRes.status).toBe(200);
+        expect(previewRes.headers.get('cache-control')).toContain('no-store');
+        const previewHtml = await previewRes.text();
+        expect(previewHtml).toContain('Draft Title (Unpublished)');
+        expect(previewHtml).toContain('<p>Unpublished draft changes</p>');
+        expect(previewHtml).toContain('Preview Mode');
+        expect(previewHtml).toContain('Snapshot from');
+        expect(previewHtml).toContain('Return to Editor');
+
+        // 7. Verify revisions list now contains 2 revisions
+        const revsRes2 = await worker.fetch(`/api/entries/${entry.id}/revisions`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        const revs2 = await revsRes2.json();
+        expect(revs2.length).toBe(2);
+
+        // 8. Publish the entry (draft_only: false)
+        const publishRes = await worker.fetch(`/entries/${entry.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Updated Published Title',
+                body_html: '<p>Updated published content</p>',
+                draft_only: false,
+            }),
+        });
+        expect(publishRes.status).toBe(200);
+
+        // 9. Verify public post now renders updated content
+        const updatedPublicRes = await worker.fetch(`/post/${slug}`);
+        expect(updatedPublicRes.status).toBe(200);
+        const updatedPublicHtml = await updatedPublicRes.text();
+        expect(updatedPublicHtml).toContain('Updated Published Title');
+        expect(updatedPublicHtml).toContain('<p>Updated published content</p>');
+
+        // 10. Soft-delete entry
+        const deleteRes = await worker.fetch(`/entries/${entry.id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(deleteRes.status).toBe(200);
+        const deleteJson = await deleteRes.json();
+        expect(deleteJson.soft_deleted).toBe(true);
+
+        // 11. Public route returns 404 after soft-delete
+        const deletedPublicRes = await worker.fetch(`/post/${slug}`);
+        expect(deletedPublicRes.status).toBe(404);
+
+        // 12. Revisions are PRESERVED after soft-delete (Option A rollback guarantee)
+        const revsRes3 = await worker.fetch(`/api/entries/${entry.id}/revisions`, {
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        const revs3 = await revsRes3.json();
+        expect(revs3.length).toBe(3);
+
+        // 13. Deleted entry appears in Trash list
+        const trashRes = await worker.fetch('/entries?filter=trash');
+        expect(trashRes.status).toBe(200);
+        const trashEntries = await trashRes.json();
+        const inTrash = trashEntries.find((e) => e.id === entry.id);
+        expect(inTrash).toBeDefined();
+        expect(inTrash.deleted_at).not.toBeNull();
+
+        // 14. Creating new entry with same slug is rejected with helpful Trash message
+        const duplicateRes = await worker.fetch('/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token',
+            },
+            body: JSON.stringify({
+                title: 'Duplicate Slug Attempt',
+                slug,
+                body_html: '<p>Test</p>',
+                body_json: '{}',
+            }),
+        });
+        expect(duplicateRes.status).toBe(400);
+        const dupText = await duplicateRes.text();
+        expect(dupText).toContain('already exists in the Trash');
+
+        // 15. Restore the entry
+        const restoreRes = await worker.fetch(`/entries/${entry.id}/restore`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer test-token' },
+        });
+        expect(restoreRes.status).toBe(200);
+        const restoreJson = await restoreRes.json();
+        expect(restoreJson.restored).toBe(String(entry.id));
+
+        // 16. Verify public route is restored
+        const restoredPublicRes = await worker.fetch(`/post/${slug}`);
+        expect(restoredPublicRes.status).toBe(200);
+        const restoredPublicHtml = await restoredPublicRes.text();
+        expect(restoredPublicHtml).toContain('Updated Published Title');
+    });
 });
