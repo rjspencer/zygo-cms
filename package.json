@@ -3,14 +3,24 @@
     "version": "0.1.0",
     "type": "module",
     "scripts": {
+        "dev": "concurrently -k -c \"blue,green\" -n \"backend,frontend\" \"wrangler dev\" \"vite\"",
+        "build:css": "tailwindcss -i ./src/style.css -o ./public/style.css --minify",
+        "prebuild": "npm run build:css",
         "test": "vitest run tests/editor.test.js",
         "test:e2e": "vitest run tests/worker.test.js",
         "test:all": "vitest run"
     },
     "devDependencies": {
+        "@tailwindcss/cli": "^4.3.3",
+        "@tailwindcss/vite": "^4.3.3",
         "@testing-library/dom": "^10.4.0",
         "@testing-library/user-event": "^14.6.1",
+        "autoprefixer": "^10.6.1",
+        "concurrently": "^10.0.5",
         "happy-dom": "^17.1.0",
+        "postcss": "^8.5.28",
+        "tailwindcss": "^4.3.3",
+        "vite": "^7.3.6",
         "vitest": "^3.0.7",
         "wrangler": "^4.133.0"
     }
