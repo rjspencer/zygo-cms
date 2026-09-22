@@ -125,6 +125,7 @@ pub struct Entry {
     pub sort_order: Option<i32>,
     #[serde(default)]
     pub deleted_at: Option<String>,
+    pub author_id: Option<i64>,
 }
 
 impl Entry {
@@ -343,6 +344,8 @@ pub struct CreateEntryRequest {
     pub sort_order: Option<i32>,
     pub body_html: String,
     pub body_json: String,
+    #[serde(skip)]
+    pub author_id: Option<i64>,
 }
 
 impl CreateEntryRequest {
@@ -498,6 +501,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>body html</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req.validate().is_ok());
     }
@@ -519,6 +523,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         let result = req.validate();
         assert!(result.is_err());
@@ -543,6 +548,7 @@ mod tests {
                 sort_order: None,
                 body_html: "<p>Hi</p>".into(),
                 body_json: "{}".into(),
+            author_id: None,
             };
             assert!(req.validate().is_err());
         }
@@ -565,6 +571,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Hi</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req.validate().is_err());
     }
@@ -586,6 +593,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req.validate().is_err());
     }
@@ -607,6 +615,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req.validate().is_err());
     }
@@ -628,6 +637,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Hello</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req.validate().is_err());
     }
@@ -649,6 +659,7 @@ mod tests {
             sort_order: Some(2),
             body_html: "<p>Content</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req_valid.validate().is_ok());
 
@@ -667,6 +678,7 @@ mod tests {
             sort_order: None,
             body_html: "<p>Content</p>".into(),
             body_json: "{}".into(),
+            author_id: None,
         };
         assert!(req_invalid.validate().is_err());
     }
@@ -786,6 +798,7 @@ mod tests {
             path: Some("/about/team".into()),
             sort_order: Some(0),
             deleted_at: None,
+            author_id: None,
         };
         assert_eq!(entry.path(), "/about/team");
 
@@ -818,6 +831,7 @@ mod tests {
             path: None,
             sort_order: None,
             deleted_at: None,
+            author_id: None,
         };
         assert_eq!(entry.tag_list(), vec!["rust", "cloudflare", "wasm"]);
 
@@ -847,6 +861,7 @@ mod tests {
             path: None,
             sort_order: None,
             deleted_at: None,
+            author_id: None,
         };
         assert_eq!(entry.meta_description(), "Custom manual description");
     }
@@ -874,6 +889,7 @@ mod tests {
             path: None,
             sort_order: None,
             deleted_at: None,
+            author_id: None,
         };
         assert_eq!(
             entry.meta_description(),
@@ -903,6 +919,7 @@ mod tests {
             path: None,
             sort_order: None,
             deleted_at: None,
+            author_id: None,
         };
         assert!(!entry.is_deleted());
 

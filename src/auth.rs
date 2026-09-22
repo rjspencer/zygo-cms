@@ -1,6 +1,8 @@
 use crate::error::AppError;
+use crate::models::User;
+use crate::db;
 use serde::Deserialize;
-use worker::{Env, Fetch, Headers, Method, Request, RequestInit};
+use worker::{D1Database, Env, Fetch, Headers, Method, Request, RequestInit};
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)]
@@ -12,14 +14,17 @@ pub struct PropelAuthUser {
 #[macro_export]
 macro_rules! auth_required {
     ($req:expr, $ctx:expr) => {
-        match $crate::auth::require_user($req, &$ctx.env).await {
-            Ok(user) => user,
-            Err(err) => return err.to_response(),
+        match $ctx.env.d1("DB") {
+            Ok(db) => match $crate::auth::require_user($req, &$ctx.env, &db).await {
+                Ok(user) => user,
+                Err(err) => return err.to_response(),
+            },
+            Err(err) => return worker::Response::error(err.to_string(), 500),
         }
     };
 }
 
-pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, AppError> {
+pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<User, AppError> {
     // 1. Extract the Authorization header
     let auth_header = req
         .headers()
@@ -40,10 +45,9 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
         .unwrap_or(false)
         && token == "test-token"
     {
-        return Ok(PropelAuthUser {
-            user_id: "test-user-id".into(),
-            email: Some("admin@zygo.dev".into()),
-        });
+        let test_user_id = "test-user-id";
+        let test_email = Some("admin@zygo.dev".to_string());
+        return resolve_local_user(db, test_user_id, test_email).await;
     }
 
     // 3. Read the Auth URL from wrangler environment vars
@@ -80,7 +84,7 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
             .json::<PropelAuthUser>()
             .await
             .map_err(|_| AppError::Unauthorized("Invalid user response from auth provider".into()))?;
-        return Ok(user);
+        return resolve_local_user(db, &user.user_id, user.email).await;
     }
 
     // 5. If OAuth fails, try Personal API Key validation (if integration key is configured)
@@ -120,11 +124,22 @@ pub async fn require_user(req: &Request, env: &Env) -> Result<PropelAuthUser, Ap
                 .json::<PakResponse>()
                 .await
                 .map_err(|_| AppError::Unauthorized("Invalid PAK response from auth provider".into()))?;
-            return Ok(data.user);
+            return resolve_local_user(db, &data.user.user_id, data.user.email).await;
         }
     }
 
     Err(AppError::Unauthorized(
         "Invalid or expired authentication token / API Key".into(),
     ))
+}
+
+async fn resolve_local_user(db: &D1Database, auth_provider_id: &str, email: Option<String>) -> Result<User, AppError> {
+    if let Ok(Some(user)) = db::find_user_by_auth_id(db, auth_provider_id).await {
+        return Ok(user);
+    }
+    
+    // Auto-provision on first login
+    db::create_user(db, auth_provider_id, email)
+        .await
+        .map_err(|e| AppError::ServerError(format!("Failed to auto-provision user: {}", e)))
 }

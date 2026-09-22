@@ -3,8 +3,8 @@ use crate::models::{BreadcrumbItem, CreateEntryRequest, Entry, UpdateEntryReques
 use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
-const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at";
-const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at";
+const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at, author_id";
+const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at, author_id";
 
 #[derive(serde::Deserialize)]
 struct CountResult {
@@ -299,11 +299,11 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
 
     let statement = db.prepare(
         "INSERT INTO entries (
-            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order
+            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id
          ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
             CASE WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
-            ?11, ?12, ?13, ?14, ?15
+            ?11, ?12, ?13, ?14, ?15, ?16
          )",
     );
 
@@ -324,6 +324,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             opt_js_i64(&payload.parent_id),
             computed_path.into(),
             opt_js_i32(&payload.sort_order.or(Some(0))),
+            opt_js_i64(&payload.author_id),
         ])?
         .run()
         .await?;

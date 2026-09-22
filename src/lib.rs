@@ -291,6 +291,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 Ok(p) => p,
                 Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
             };
+            payload.author_id = Some(_user.id);
 
             if let Err(err) = payload.validate() {
                 return err.to_response();
@@ -415,6 +416,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     None => return AppError::NotFound.to_response(),
                 };
 
+                if _user.role == "author" && existing_entry.author_id != Some(_user.id) {
+                    return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+                }
+
                 let preview_token = utils::generate_preview_token();
                 let rev_params = models::CreateRevisionParams {
                     title: payload.title.unwrap_or(existing_entry.title),
@@ -437,6 +442,11 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             }
 
             let existing_entry = db::find_entry_by_id(&db, id).await?;
+            if let Some(ref e) = existing_entry {
+                if _user.role == "author" && e.author_id != Some(_user.id) {
+                    return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+                }
+            }
             let update_result = db::update_entry(&db, id, &payload).await;
 
             let _updated = match update_result {
@@ -512,6 +522,11 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let id = ctx.param("id").map(|s| s.as_str()).unwrap_or("");
             let db = ctx.env.d1("DB")?;
             let existing_entry = db::find_entry_by_id(&db, id).await?;
+            if let Some(ref e) = existing_entry {
+                if _user.role == "author" && e.author_id != Some(_user.id) {
+                    return AppError::Unauthorized("You do not have permission to delete this entry".into()).to_response();
+                }
+            }
             let delete_result = db::delete_entry(&db, id).await;
 
             let _deleted = match delete_result {
@@ -547,6 +562,11 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let id = ctx.param("id").map(|s| s.as_str()).unwrap_or("");
             let db = ctx.env.d1("DB")?;
             let existing_entry = db::find_entry_by_id(&db, id).await?;
+            if let Some(ref e) = existing_entry {
+                if _user.role == "author" && e.author_id != Some(_user.id) {
+                    return AppError::Unauthorized("You do not have permission to restore this entry".into()).to_response();
+                }
+            }
             let restore_result = db::restore_entry(&db, id).await;
 
             match restore_result {
@@ -653,6 +673,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 path: entry.path.clone(),
                 sort_order: entry.sort_order,
                 deleted_at: None,
+                author_id: entry.author_id,
             };
 
             let html = if preview_entry.r#type == "page" {
