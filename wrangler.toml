@@ -6,7 +6,7 @@ compatibility_date = "2024-09-01"
 directory = "public"
 
 [build]
-command = "worker-build --release"
+command = "npm run build:css && worker-build --release"
 
 [[d1_databases]]
 binding = "DB"

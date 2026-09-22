@@ -260,8 +260,11 @@
 </script>
 <script type="module">
     import { initEditor } from '/editor.js';
-    const initialJson = JSON.parse(document.getElementById('initial-json').textContent);
-    const authUrl = document.getElementById('post-form').dataset.authUrl;
-    initEditor(initialJson, authUrl);
+    const jsonEl = document.getElementById('initial-json');
+    if (jsonEl) {
+        const initialJson = JSON.parse(jsonEl.textContent);
+        const authUrl = document.getElementById('post-form').dataset.authUrl;
+        initEditor(initialJson, authUrl);
+    }
 </script>
 {% endblock %}
