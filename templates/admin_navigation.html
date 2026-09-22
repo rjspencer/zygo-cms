@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+
+{% block title %}Navigation &mdash; Zygo CMS{% endblock %}
+
+{% block content %}
+<style>
+    .menu-tab { display: block; width: 100%; text-align: left; padding: 10px; background: none; border: 1px solid #ddd; margin-bottom: 5px; cursor: pointer; border-radius: 4px; }
+    .menu-tab.active { background: #000; color: #fff; border-color: #000; }
+    .menu-item-row { border: 1px solid #e2e8f0; background: #fff; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
+    .menu-item-row input { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
+    .menu-item-children { padding-left: 30px; border-left: 2px dashed #cbd5e1; margin-left: 15px; margin-bottom: 10px; }
+    .btn-icon { background: none; border: none; cursor: pointer; font-size: 1.2rem; padding: 0 5px; }
+    .warning-depth { color: #d97706; font-size: 0.85rem; font-weight: bold; margin-left: 10px; }
+</style>
+
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <div>
+        <h1>Navigation Builder</h1>
+        <p class="subtitle">Manage site menus</p>
+    </div>
+    <a href="/admin" class="btn-primary" style="background: #fff; color: #000; border: 1px solid #ccc;">&larr; Dashboard</a>
+</div>
+
+<div style="display: flex; gap: 2rem; align-items: flex-start;">
+    <div style="width: 250px;">
+        <button class="menu-tab active" data-menu="header">Header Menu</button>
+        <button class="menu-tab" data-menu="footer">Footer Menu</button>
+    </div>
+    
+    <div style="flex: 1; background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 id="current-menu-title" style="margin: 0;">Header Menu</h2>
+            <button id="btn-save" class="btn-primary">Save Changes</button>
+        </div>
+        
+        <div id="menu-tree"></div>
+        <button id="btn-add-root" class="btn-primary" style="margin-top: 1rem; background: #fff; color: #000; border: 1px dashed #94a3b8;">+ Add Root Item</button>
+    </div>
+</div>
+
+<script type="module">
+    import { createClient } from 'https://esm.sh/@propelauth/javascript';
+
+    const authUrl = "{{ auth_url }}";
+    let authClient = null;
+    let token = null;
+
+    let currentMenu = 'header';
+    let menuData = { header: [], footer: [] };
+
+    // Initialize Auth
+    if (authUrl) {
+        authClient = createClient({ authUrl, enableBackgroundTokenRefresh: true });
+        const info = await authClient.getAuthenticationInfoOrNull();
+        if (!info) {
+            authClient.redirectToLoginPage();
+        } else {
+            token = info.accessToken;
+            fetchMenus();
+        }
+    } else {
+        fetchMenus(); // No auth mode
+    }
+
+    async function fetchMenus() {
+        try {
+            const res = await fetch('/api/menus');
+            const data = await res.json();
+            // data is HashMap<String, Menu>
+            if (data.header) menuData.header = JSON.parse(data.header.items_json || '[]');
+            if (data.footer) menuData.footer = JSON.parse(data.footer.items_json || '[]');
+            renderTree();
+        } catch (e) {
+            console.error(e);
+            alert("Failed to load menus.");
+        }
+    }
+
+    document.querySelectorAll('.menu-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.menu-tab').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            currentMenu = e.target.getAttribute('data-menu');
+            document.getElementById('current-menu-title').textContent = currentMenu.charAt(0).toUpperCase() + currentMenu.slice(1) + ' Menu';
+            renderTree();
+        });
+    });
+
+    function renderTree() {
+        const container = document.getElementById('menu-tree');
+        container.innerHTML = '';
+        const items = menuData[currentMenu];
+        
+        if (items.length === 0) {
+            container.innerHTML = '<p style="color: #64748b;">This menu is empty.</p>';
+            return;
+        }
+
+        const buildNode = (itemArray, parentArray, index, depth) => {
+            const item = itemArray[index];
+            const div = document.createElement('div');
+            
+            const row = document.createElement('div');
+            row.className = 'menu-item-row';
+            
+            row.innerHTML = `
+                <span style="color:#94a3b8; cursor:grab;">\u2630</span>
+                <input type="text" placeholder="Label (e.g. Home)" value="${item.title.replace(/"/g, '&quot;')}" class="inp-title">
+                <input type="text" placeholder="URL (e.g. /)" value="${item.url.replace(/"/g, '&quot;')}" class="inp-url">
+                <select class="inp-target">
+                    <option value="_self" ${item.target==='_self'?'selected':''}>Same Tab</option>
+                    <option value="_blank" ${item.target==='_blank'?'selected':''}>New Tab</option>
+                </select>
+            `;
+
+            if (depth > 2) {
+                const warn = document.createElement('span');
+                warn.className = 'warning-depth';
+                warn.textContent = '⚠️ Deep nesting (may render poorly)';
+                row.appendChild(warn);
+            }
+
+            const btnAddChild = document.createElement('button');
+            btnAddChild.className = 'btn-icon';
+            btnAddChild.textContent = '➕';
+            btnAddChild.title = "Add sub-item";
+            btnAddChild.onclick = () => {
+                if (!item.children) item.children = [];
+                item.children.push({ title: 'New Item', url: '/', target: '_self', children: [] });
+                syncInputs(); renderTree();
+            };
+
+            const btnUp = document.createElement('button');
+            btnUp.className = 'btn-icon';
+            btnUp.textContent = '⬆️';
+            btnUp.disabled = index === 0;
+            btnUp.style.opacity = index === 0 ? '0.3' : '1';
+            btnUp.onclick = () => {
+                syncInputs();
+                const temp = itemArray[index-1];
+                itemArray[index-1] = itemArray[index];
+                itemArray[index] = temp;
+                renderTree();
+            };
+
+            const btnDown = document.createElement('button');
+            btnDown.className = 'btn-icon';
+            btnDown.textContent = '⬇️';
+            btnDown.disabled = index === itemArray.length - 1;
+            btnDown.style.opacity = index === itemArray.length - 1 ? '0.3' : '1';
+            btnDown.onclick = () => {
+                syncInputs();
+                const temp = itemArray[index+1];
+                itemArray[index+1] = itemArray[index];
+                itemArray[index] = temp;
+                renderTree();
+            };
+
+            const btnDel = document.createElement('button');
+            btnDel.className = 'btn-icon';
+            btnDel.textContent = '🗑️';
+            btnDel.onclick = () => {
+                if(confirm("Remove this item?")) {
+                    itemArray.splice(index, 1);
+                    syncInputs(); renderTree();
+                }
+            };
+
+            row.appendChild(btnAddChild);
+            row.appendChild(btnUp);
+            row.appendChild(btnDown);
+            row.appendChild(btnDel);
+
+            // Bind inputs to data model immediately
+            row.querySelector('.inp-title').addEventListener('input', e => item.title = e.target.value);
+            row.querySelector('.inp-url').addEventListener('input', e => item.url = e.target.value);
+            row.querySelector('.inp-target').addEventListener('change', e => item.target = e.target.value);
+
+            div.appendChild(row);
+
+            if (item.children && item.children.length > 0) {
+                const childContainer = document.createElement('div');
+                childContainer.className = 'menu-item-children';
+                item.children.forEach((_, i) => {
+                    childContainer.appendChild(buildNode(item.children, itemArray, i, depth + 1));
+                });
+                div.appendChild(childContainer);
+            }
+
+            return div;
+        };
+
+        items.forEach((_, i) => {
+            container.appendChild(buildNode(items, null, i, 1));
+        });
+    }
+
+    // Force all inputs to flush to data model before saving
+    function syncInputs() {
+        // Handled by event listeners, but kept here conceptually if needed.
+    }
+
+    document.getElementById('btn-add-root').addEventListener('click', () => {
+        menuData[currentMenu].push({ title: 'New Item', url: '/', target: '_self', children: [] });
+        renderTree();
+    });
+
+    document.getElementById('btn-save').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-save');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        try {
+            const res = await fetch('/api/menus/' + currentMenu, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ items_json: JSON.stringify(menuData[currentMenu]) })
+            });
+
+            if (res.ok) {
+                btn.textContent = 'Saved!';
+                setTimeout(() => { btn.textContent = 'Save Changes'; btn.disabled = false; }, 2000);
+            } else {
+                const err = await res.json();
+                alert("Error saving: " + err.error);
+                btn.textContent = 'Save Changes'; btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Network error");
+            btn.textContent = 'Save Changes'; btn.disabled = false;
+        }
+    });
+
+</script>
+{% endblock %}

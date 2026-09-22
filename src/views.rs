@@ -1,4 +1,4 @@
-use crate::models::{BreadcrumbItem, Entry, EntryRevision, Pagination};
+use crate::models::{BreadcrumbItem, Entry, EntryRevision, Pagination, MenuItem};
 use askama::Template;
 
 #[derive(Template)]
@@ -9,6 +9,8 @@ pub struct IndexTemplate<'a> {
     pub heading: Option<&'a str>,
     pub canonical_path: Option<&'a str>,
     pub pagination: Option<Pagination>,
+    pub header_menu: &'a [MenuItem],
+    pub footer_menu: &'a [MenuItem],
 }
 
 impl<'a> IndexTemplate<'a> {
@@ -56,6 +58,8 @@ pub fn render_index(
     posts: &[Entry],
     origin: &str,
     pagination: Option<Pagination>,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     render_tmpl(&IndexTemplate {
         origin,
@@ -63,6 +67,8 @@ pub fn render_index(
         heading: None,
         canonical_path: None,
         pagination,
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -71,6 +77,8 @@ pub fn render_tag_index(
     origin: &str,
     tag: &str,
     pagination: Option<Pagination>,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     let heading = format!("Tag: #{tag}");
     let canonical = format!("/tag/{tag}");
@@ -80,6 +88,8 @@ pub fn render_tag_index(
         heading: Some(&heading),
         canonical_path: Some(&canonical),
         pagination,
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -88,6 +98,8 @@ pub fn render_category_index(
     origin: &str,
     category: &str,
     pagination: Option<Pagination>,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     let heading = format!("Category: {category}");
     let canonical = format!("/category/{category}");
@@ -97,6 +109,8 @@ pub fn render_category_index(
         heading: Some(&heading),
         canonical_path: Some(&canonical),
         pagination,
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -106,6 +120,8 @@ pub struct PostTemplate<'a> {
     pub origin: &'a str,
     pub post: &'a Entry,
     pub preview: Option<&'a EntryRevision>,
+    pub header_menu: &'a [MenuItem],
+    pub footer_menu: &'a [MenuItem],
 }
 
 #[derive(Template)]
@@ -116,13 +132,22 @@ pub struct PageTemplate<'a> {
     pub breadcrumbs: &'a [BreadcrumbItem],
     pub children: &'a [Entry],
     pub preview: Option<&'a EntryRevision>,
+    pub header_menu: &'a [MenuItem],
+    pub footer_menu: &'a [MenuItem],
 }
 
-pub fn render_post(post: &Entry, origin: &str) -> worker::Result<String> {
+pub fn render_post(
+    post: &Entry,
+    origin: &str,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
+) -> worker::Result<String> {
     render_tmpl(&PostTemplate {
         origin,
         post,
         preview: None,
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -130,11 +155,15 @@ pub fn render_preview_post(
     post: &Entry,
     origin: &str,
     rev: &EntryRevision,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     render_tmpl(&PostTemplate {
         origin,
         post,
         preview: Some(rev),
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -143,6 +172,8 @@ pub fn render_page(
     origin: &str,
     breadcrumbs: &[BreadcrumbItem],
     children: &[Entry],
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     render_tmpl(&PageTemplate {
         origin,
@@ -150,6 +181,8 @@ pub fn render_page(
         breadcrumbs,
         children,
         preview: None,
+        header_menu,
+        footer_menu,
     })
 }
 
@@ -159,6 +192,8 @@ pub fn render_preview_page(
     breadcrumbs: &[BreadcrumbItem],
     children: &[Entry],
     rev: &EntryRevision,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     render_tmpl(&PageTemplate {
         origin,
@@ -166,6 +201,8 @@ pub fn render_preview_page(
         breadcrumbs,
         children,
         preview: Some(rev),
+        header_menu,
+        footer_menu,
     })
 }
 

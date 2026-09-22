@@ -7,17 +7,23 @@ pub struct AdminDashboardTemplate<'a> {
     pub entries: &'a [Entry],
     pub deleted_entries: &'a [Entry],
     pub auth_url: &'a str,
+    pub header_menu: &'a [crate::models::MenuItem],
+    pub footer_menu: &'a [crate::models::MenuItem],
 }
 
 pub fn render_dashboard_html(
     entries: &[Entry],
     deleted_entries: &[Entry],
     auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
 ) -> worker::Result<String> {
     AdminDashboardTemplate {
         entries,
         deleted_entries,
         auth_url,
+        header_menu,
+        footer_menu,
     }
     .render()
     .map_err(|e| worker::Error::RustError(e.to_string()))
@@ -31,6 +37,8 @@ pub struct EditorTemplate<'a> {
     pub pages: &'a [Entry],
     pub child_pages: &'a [Entry],
     pub auth_url: &'a str,
+    pub header_menu: &'a [crate::models::MenuItem],
+    pub footer_menu: &'a [crate::models::MenuItem],
 }
 
 impl<'a> EditorTemplate<'a> {
@@ -171,6 +179,8 @@ pub fn render_editor_html(
     pages: &[Entry],
     child_pages: &[Entry],
     auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
 ) -> worker::Result<String> {
     EditorTemplate {
         entry,
@@ -178,7 +188,27 @@ pub fn render_editor_html(
         pages,
         child_pages,
         auth_url,
+        header_menu,
+        footer_menu,
     }
     .render()
     .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+#[derive(Template)]
+#[template(path = "admin_navigation.html")]
+pub struct AdminNavigationTemplate<'a> {
+    pub auth_url: &'a str,
+    pub header_menu: &'a [crate::models::MenuItem],
+    pub footer_menu: &'a [crate::models::MenuItem],
+}
+
+pub fn render_navigation_html(
+    auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
+) -> worker::Result<String> {
+    AdminNavigationTemplate { auth_url, header_menu, footer_menu }
+        .render()
+        .map_err(|e| worker::Error::RustError(e.to_string()))
 }

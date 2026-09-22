@@ -1,3 +1,6 @@
 <footer>
+    <nav class="footer-nav">
+        {{ crate::models::menu::render_menu_html(footer_menu, 0)|safe }}
+    </nav>
     <p>&copy; Zygo CMS. All rights reserved.</p>
 </footer>

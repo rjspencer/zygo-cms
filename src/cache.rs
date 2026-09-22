@@ -67,16 +67,18 @@ pub async fn purge_urls(env: &Env, urls: Vec<String>) {
             "https://api.cloudflare.com/client/v4/zones/{}/purge_cache",
             zone_id
         );
-        let headers = Headers::new();
-        let _ = headers.set("Authorization", &format!("Bearer {}", token));
-        let _ = headers.set("Content-Type", "application/json");
-        let body = serde_json::json!({ "files": urls });
-        let mut init = RequestInit::new();
-        init.with_method(Method::Post);
-        init.with_headers(headers);
-        init.with_body(Some(JsValue::from_str(&body.to_string())));
-        if let Ok(req) = Request::new_with_init(&purge_url, &init) {
-            let _ = Fetch::Request(req).send().await;
+        for chunk in urls.chunks(30) {
+            let headers = Headers::new();
+            let _ = headers.set("Authorization", &format!("Bearer {}", token));
+            let _ = headers.set("Content-Type", "application/json");
+            let body = serde_json::json!({ "files": chunk });
+            let mut init = RequestInit::new();
+            init.with_method(Method::Post);
+            init.with_headers(headers);
+            init.with_body(Some(JsValue::from_str(&body.to_string())));
+            if let Ok(req) = Request::new_with_init(&purge_url, &init) {
+                let _ = Fetch::Request(req).send().await;
+            }
         }
     }
 }

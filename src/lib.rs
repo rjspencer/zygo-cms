@@ -24,7 +24,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let entries = db::find_all_entries(&db).await?;
             let deleted_entries = db::find_deleted_entries(&db).await?;
             let auth_url = get_auth_url(&ctx.env);
-            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url)?;
+            
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu)?;
             Response::from_html(html)
         })
         .get_async("/admin/entries", |_req, ctx| async move {
@@ -32,14 +37,24 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let entries = db::find_all_entries(&db).await?;
             let deleted_entries = db::find_deleted_entries(&db).await?;
             let auth_url = get_auth_url(&ctx.env);
-            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url)?;
+            
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor", |_req, ctx| async move {
             let auth_url = get_auth_url(&ctx.env);
             let db = ctx.env.d1("DB")?;
             let pages = db::find_all_pages(&db).await.unwrap_or_default();
-            let html = admin::render_editor_html(None, None, &pages, &[], &auth_url)?;
+            
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu)?;
             Response::from_html(html)
         })
         .get_async("/admin/editor/:id", |_req, ctx| async move {
@@ -61,16 +76,85 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     let latest_rev = db::find_latest_revision_for_entry(&db, e.id)
                         .await
                         .unwrap_or(None);
+                        
+                    let menus = db::menu::get_all_menus(&db).await?;
+                    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+                    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+                    
                     let html = admin::render_editor_html(
                         Some(&e),
                         latest_rev.as_ref(),
                         &pages,
                         &child_pages,
                         &auth_url,
+                        &header_menu,
+                        &footer_menu,
                     )?;
                     Response::from_html(html)
                 }
                 Err(err) => err.to_response(),
+            }
+        })
+        .get_async("/admin/navigation", |_req, ctx| async move {
+            let auth_url = get_auth_url(&ctx.env);
+            let db = ctx.env.d1("DB")?;
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            let html = admin::render_navigation_html(&auth_url, &header_menu, &footer_menu)?;
+            Response::from_html(html)
+        })
+        .get_async("/api/menus", |_req, ctx| async move {
+            let db = ctx.env.d1("DB")?;
+            let menus = db::menu::get_all_menus(&db).await?;
+            Response::from_json(&menus)
+        })
+        .get_async("/api/menus/:name", |req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+            let name = match ctx.param("name") {
+                Some(n) => n,
+                None => return Response::error("Missing menu name", 400),
+            };
+            let db = ctx.env.d1("DB")?;
+            let menu = db::menu::get_menu_by_name(&db, name).await?;
+            match menu {
+                Some(m) => Response::from_json(&m),
+                None => AppError::NotFound.to_response(),
+            }
+        })
+        .put_async("/api/menus/:name", |mut req, ctx| async move {
+            let _user = auth_required!(&req, ctx);
+            if _user.role != "admin" {
+                return AppError::Unauthorized("Only admins can edit menus".into()).to_response();
+            }
+            let name = match ctx.param("name") {
+                Some(n) => n,
+                None => return Response::error("Missing menu name", 400),
+            };
+            
+            let payload = match req.json::<models::UpdateMenuRequest>().await {
+                Ok(p) => p,
+                Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
+            };
+            
+            let db = ctx.env.d1("DB")?;
+            let success = db::menu::update_menu_items(&db, name, &payload.items_json).await?;
+            
+            if success {
+                // Purge all HTML caches
+                cache::purge_urls(&ctx.env, vec![
+                    format!("{}/", req.url()?.origin().ascii_serialization()),
+                    // For full robustness we should purge all, but cloudflare worker cache API
+                    // does not support wildcard purging. Let's just purge home, sitemap, rss
+                    // and rely on EDGE_TTL for deep pages, or implement a tag purge if using Enterprise.
+                    // For now, purge the root and feeds.
+                    format!("{}/sitemap.xml", req.url()?.origin().ascii_serialization()),
+                    format!("{}/rss.xml", req.url()?.origin().ascii_serialization()),
+                ]).await;
+                
+                Response::from_json(&serde_json::json!({ "success": true }))
+            } else {
+                AppError::NotFound.to_response()
             }
         })
         // Upload image to R2 and index in D1
@@ -123,7 +207,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let pagination = models::Pagination::new("/", page, per_page, total_posts);
             let offset = (pagination.page - 1) * per_page;
             let posts = db::find_published_posts_paginated(&db, per_page, offset).await?;
-            let html = views::render_index(&posts, &origin, Some(pagination))?;
+            
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = views::render_index(&posts, &origin, Some(pagination), &header_menu, &footer_menu)?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -190,7 +279,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 
             match post {
                 Ok(p) => {
-                    let html = views::render_post(&p, &origin)?;
+                    let menus = db::menu::get_all_menus(&db).await?;
+                    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+                    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+                    let html = views::render_post(&p, &origin, &header_menu, &footer_menu)?;
                     let mut headers = Headers::new();
                     headers.set("Content-Type", "text/html; charset=utf-8")?;
                     cache::add_cache_headers(&mut headers, &ctx.env)?;
@@ -224,7 +316,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let offset = (pagination.page - 1) * per_page;
             let posts =
                 db::find_published_posts_by_tag_paginated(&db, tag, per_page, offset).await?;
-            let html = views::render_tag_index(&posts, &origin, tag, Some(pagination))?;
+                
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = views::render_tag_index(&posts, &origin, tag, Some(pagination), &header_menu, &footer_menu)?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -257,7 +354,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
             let posts =
                 db::find_published_posts_by_category_paginated(&db, category, per_page, offset)
                     .await?;
-            let html = views::render_category_index(&posts, &origin, category, Some(pagination))?;
+                    
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+            
+            let html = views::render_category_index(&posts, &origin, category, Some(pagination), &header_menu, &footer_menu)?;
 
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -676,12 +778,16 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                 author_id: entry.author_id,
             };
 
+            let menus = db::menu::get_all_menus(&db).await?;
+            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+
             let html = if preview_entry.r#type == "page" {
                 let breadcrumbs = db::find_page_ancestors(&db, preview_entry.id).await.unwrap_or_default();
                 let children = db::find_published_children(&db, preview_entry.id).await.unwrap_or_default();
-                views::render_preview_page(&preview_entry, &origin, &breadcrumbs, &children, &rev)?
+                views::render_preview_page(&preview_entry, &origin, &breadcrumbs, &children, &rev, &header_menu, &footer_menu)?
             } else {
-                views::render_preview_post(&preview_entry, &origin, &rev)?
+                views::render_preview_post(&preview_entry, &origin, &rev, &header_menu, &footer_menu)?
             };
 
             let headers = Headers::new();
@@ -719,7 +825,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
                     let children = db::find_published_children(&db, p.id)
                         .await
                         .unwrap_or_default();
-                    let html = views::render_page(&p, &origin, &breadcrumbs, &children)?;
+                        
+                    let menus = db::menu::get_all_menus(&db).await?;
+                    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+                    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+                    
+                    let html = views::render_page(&p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu)?;
                     let mut headers = Headers::new();
                     headers.set("Content-Type", "text/html; charset=utf-8")?;
                     cache::add_cache_headers(&mut headers, &ctx.env)?;
