@@ -58,6 +58,17 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Version History Drawer & One-Click Rollback**: Modal in `templates/editor.html` and `public/editor.js` fetching revision history via `GET /api/entries/:id/revisions`, allowing instant preview and restoring past content directly into TipTap and form inputs.
 - **Cascading Deletion**: Automatic cleanup of all associated revisions when an entry is deleted.
 
+### User Roles & Permissions (RBAC)
+- **JIT Provisioning & Multi-Tenant Support**: First PropelAuth user mapped is granted `admin`, subsequent users become `author`. Local `users` table created (`0007_create_users_table.sql`) mapping external IDs to internal roles.
+- **Granular Backend Guards**: Enforced strict ownership over drafts and content via SQLite queries (`WHERE author_id = ?1`), ensuring authors can only edit and manage their own work, while admins have global access.
+- **Unified Auth Middleware**: Upgraded `auth_required!` macro to inject the fully-hydrated local `User` struct into the Request context on every protected route.
+
+### Navigation & Menu Builder
+- **Dynamic UI**: Implemented an intuitive, vanilla JS Navigation Builder at `/admin/navigation` allowing admins to visually build out infinitely-nesting JSON tree structures for header and footer menus.
+- **Safe Recursive Templating**: Enforced strict 4-level deep recursion guards in pure Rust `render_menu_html` to prevent template parsing panics, stack overflows, and maliciously deep layouts.
+- **Smart Cloudflare Cache Purging**: When a menu layout is saved, the backend automatically issues an API call to Cloudflare (`cache::purge_urls`), correctly chunking arrays up to 30 URLs per batch, ensuring navigation changes deploy globally instantly without 400 Bad Request API limits.
+- **Robust SQL Updates**: Integrated SQLite `UPSERT` commands to elegantly handle updating menus whether they exist in D1 or not without silent failures.
+
 ### Testing Architecture
 - **Two-Tier Test Suite**:
   - **Level 1 (DOM & Real Templates)**: Vitest + HappyDOM + `@testing-library/dom` loading `templates/editor.html` directly from disk with offline CDN stubs (`tests/mocks/esm.js`).
@@ -69,38 +80,27 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. User Roles & Permissions (RBAC)
-- **Goal**: Support multiple users with distinct permission levels.
-- **Details**:
-  - Move beyond the global Auth Gate to role-based access control (e.g., Admin, Editor, Author, Contributor).
-  - Map roles to specific database operations (e.g., Authors can only edit their own posts).
-
-### 2. Custom Content Types & Schema Builder
+### 1. Custom Content Types & Schema Builder
 - **Goal**: Enable custom content modeling via the admin UI.
 - **Details**:
   - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
 
-### 3. Full-Text Site Search
+### 2. Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 4. Navigation & Menu Builder
-- **Goal**: Manage site menus dynamically from the admin panel.
-- **Details**:
-  - Replace hardcoded template links with a dynamic JSON-backed or D1-backed menu structure.
-  - Build a drag-and-drop UI to construct header and footer menus.
-
-### 5. Webhooks & API Integrations
+### 3. Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
-### 6. Analytics Dashboard & Localization
+### 4. Analytics Dashboard & Localization
 - **Goal**: Built-in insights and multi-language support.
 - **Details**:
   - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
   - Introduce i18n support for pages and posts.
+
 
 ---
 
@@ -164,3 +164,4 @@ cargo check --target wasm32-unknown-unknown
 # Run local worker development server
 npx wrangler dev
 ```
+  - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
