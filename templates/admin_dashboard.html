@@ -14,6 +14,9 @@
             <p class="subtitle">{{ entries.len() }} active entries &bull; {{ deleted_entries.len() }} in trash</p>
         </div>
         <div style="display: flex; gap: 0.5rem;">
+            {% if user.role == "admin" || analytics_enabled %}
+            <a href="/admin/analytics" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Analytics</a>
+            {% endif %}
             <a href="/admin/navigation" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Navigation</a>
             <a href="/admin/content-types" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Content Types</a>
             <a href="/admin/editor" class="btn-primary">+ New Entry</a>

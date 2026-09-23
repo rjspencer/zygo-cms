@@ -461,3 +461,72 @@ pub async fn search_entries_api(req: Request, ctx: RouteContext<()>) -> Result<R
     let results = crate::db::search::search_entries(&db, &query, 5).await?;
     Response::from_json(&results)
 }
+
+#[derive(serde::Deserialize)]
+struct UpdateSettingReq {
+    key: String,
+    value: String,
+}
+
+pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let user = auth_required!(&req, ctx);
+    if user.role != "admin" {
+        return Response::error("Forbidden", 403);
+    }
+
+    let payload: UpdateSettingReq = match req.json().await {
+        Ok(p) => p,
+        Err(_) => return Response::error("Invalid JSON", 400),
+    };
+
+    let db = ctx.env.d1("DB")?;
+    db::setting::set_setting(&db, &payload.key, &payload.value).await?;
+
+    Response::from_json(&json!({ "success": true }))
+}
+
+pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
+    let db = ctx.env.d1("DB")?;
+    
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    if !analytics_enabled {
+        return Response::error("Analytics disabled", 403);
+    }
+
+    let api_token = match ctx.env.secret("CF_API_TOKEN") {
+        Ok(s) => s.to_string(),
+        Err(_) => return Response::error("Missing CF_API_TOKEN", 500),
+    };
+
+    let zone_id = match ctx.env.var("CF_ZONE_ID") {
+        Ok(s) => s.to_string(),
+        Err(_) => return Response::error("Missing CF_ZONE_ID", 500),
+    };
+
+    let gql_query = format!(
+        r#"{{ "query": "query {{ viewer {{ zones(filter: {{ zoneTag: \"{}\" }}) {{ rumPageloadEventsAdaptiveGroups(limit: 10, orderBy: [count_DESC]) {{ count dimensions {{ requestPath clientCountryName }} }} }} }} }}" }}"#,
+        zone_id
+    );
+
+    let mut headers = Headers::new();
+    headers.set("Authorization", &format!("Bearer {}", api_token))?;
+    headers.set("Content-Type", "application/json")?;
+
+    let mut request_init = RequestInit::new();
+    request_init.with_method(Method::Post);
+    request_init.with_headers(headers);
+    request_init.with_body(Some(wasm_bindgen::JsValue::from_str(&gql_query)));
+
+    let cf_req = Request::new_with_init("https://api.cloudflare.com/client/v4/graphql", &request_init)?;
+    let mut response = Fetch::Request(cf_req).send().await?;
+    
+    let text = response.text().await?;
+    Response::ok(text).map(|mut r| {
+        r.headers_mut().set("Content-Type", "application/json").unwrap();
+        r
+    })
+}

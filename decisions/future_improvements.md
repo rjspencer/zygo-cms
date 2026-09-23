@@ -90,21 +90,25 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 3. Webhooks & API Integrations
-- **Goal**: Notify external systems of CMS events.
+### 3. Analytics Dashboard
+- **Goal**: Built-in privacy-first traffic insights.
 - **Details**:
-  - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
+  - Integrate a lightweight, GDPR-compliant analytics view in the admin dashboard (e.g., tracking views, referrers) without requiring a cookie banner.
 
-### 4. Analytics Dashboard & Localization
-- **Goal**: Built-in insights and multi-language support.
+### 4. Localization (i18n) Architecture
+- **Goal**: Multi-language support for global reach.
 - **Details**:
-  - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
-  - Introduce i18n support for pages and posts.
+  - Introduce i18n support for pages, posts, and localized routing.
 
 
 ---
 
 ## 3. Icebox & Long-Term Considerations
+
+### Webhooks & API Integrations
+- **Goal**: Notify external systems of CMS events.
+- **Details**:
+  - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
 ### Permanent Deletion & Empty Trash UI
 - **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.

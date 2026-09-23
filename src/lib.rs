@@ -22,6 +22,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/admin/editor/:id", handlers::admin::editor_id)
         .get_async("/admin/navigation", handlers::admin::navigation)
         .get_async("/admin/content-types", handlers::admin::content_types)
+        .get_async("/admin/analytics", handlers::admin::analytics)
+        .post_async("/api/settings", handlers::api::update_setting)
+        .get_async("/api/analytics", handlers::api::get_analytics)
         
         // API routes - Menus
         .get_async("/api/menus", handlers::api::get_menus)

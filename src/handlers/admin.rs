@@ -2,7 +2,8 @@ use worker::*;
 use crate::{admin, db};
 use crate::utils::get_auth_url;
 
-pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let user = crate::auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;
     let entries = db::find_all_entries(&db).await?;
     let deleted_entries = db::find_deleted_entries(&db).await?;
@@ -12,7 +13,11 @@ pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu)?;
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, &user, analytics_enabled)?;
     Response::from_html(html)
 }
 
@@ -86,5 +91,36 @@ pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
     let html = admin::render_content_types_html(&auth_url, &header_menu, &footer_menu)?;
+    Response::from_html(html)
+}
+
+pub async fn analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let user = crate::auth_required!(&req, ctx);
+    let db = ctx.env.d1("DB")?;
+    
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    // Ensure non-admins don't see it if it's disabled
+    if !analytics_enabled && user.role != "admin" {
+        return Response::redirect(worker::Url::parse("http://localhost/admin").unwrap());
+    }
+
+    let has_cloudflare_tokens = ctx.env.secret("CF_API_TOKEN").is_ok() && ctx.env.var("CF_ZONE_ID").is_ok();
+    
+    let auth_url = get_auth_url(&ctx.env);
+    let menus = db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    
+    let html = admin::render_analytics_html(
+        &user, 
+        analytics_enabled, 
+        has_cloudflare_tokens, 
+        &auth_url, 
+        &header_menu, 
+        &footer_menu
+    )?;
     Response::from_html(html)
 }

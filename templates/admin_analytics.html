@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics &mdash; Zygo CMS{% endblock %}
+
+{% block content %}
+<div class="dashboard-header" style="margin-bottom: 2rem;">
+    <div>
+        <h1>Analytics</h1>
+        <p class="subtitle">Privacy-first web traffic insights</p>
+    </div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="/admin" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">&larr; Dashboard</a>
+        {% if user.role == "admin" %}
+            {% if analytics_enabled %}
+            <button onclick="toggleAnalytics(false)" style="padding: 0.5rem 1rem; border: 1px solid #dc2626; border-radius: 4px; background: #fee2e2; color: #b91c1c; cursor: pointer; font-weight: 600;">Deactivate Analytics</button>
+            {% else %}
+            <button onclick="toggleAnalytics(true)" style="padding: 0.5rem 1rem; border: 1px solid #059669; border-radius: 4px; background: #d1fae5; color: #047857; cursor: pointer; font-weight: 600;">Activate Analytics</button>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="analytics-container" style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 2rem;">
+    {% if !analytics_enabled %}
+        <div style="text-align: center; padding: 3rem 1rem;">
+            <h2 style="margin-bottom: 1rem;">Analytics are currently disabled.</h2>
+            <p style="color: #64748b; max-width: 600px; margin: 0 auto 2rem; line-height: 1.6;">
+                Zygo CMS integrates natively with Cloudflare Web Analytics to provide GDPR-compliant, cookie-free visitor tracking.
+                Before activating, ensure you have enabled Web Analytics for this domain in your Cloudflare dashboard.
+            </p>
+            <a href="https://developers.cloudflare.com/analytics/web-analytics/" target="_blank" style="color: #2563eb; text-decoration: underline;">Read the Cloudflare Web Analytics Docs &rarr;</a>
+        </div>
+    {% else %}
+        {% if !has_cloudflare_tokens %}
+        <div style="background: #fffbeb; border: 1px solid #fcd34d; padding: 1.5rem; border-radius: 6px; margin-bottom: 2rem;">
+            <h3 style="color: #b45309; margin-bottom: 0.5rem;">⚠️ Missing Cloudflare Credentials</h3>
+            <p style="color: #92400e; margin-bottom: 1rem;">
+                Analytics is activated, but Zygo CMS cannot communicate with the Cloudflare GraphQL API because the required tokens are missing.
+            </p>
+            <p style="color: #92400e; font-family: monospace; background: #fef3c7; padding: 0.5rem; border-radius: 4px;">
+                Required: CF_API_TOKEN and CF_ZONE_ID
+            </p>
+            <p style="color: #92400e; margin-top: 1rem; font-size: 0.9rem;">
+                Please update your <code>wrangler.toml</code> or <code>.dev.vars</code> file and restart the worker.
+            </p>
+        </div>
+        {% else %}
+        <!-- Active Dashboard -->
+        <div id="analytics-loading" style="text-align: center; padding: 3rem; color: #64748b;">
+            Loading traffic data from Cloudflare...
+        </div>
+        <div id="analytics-data" style="display: none;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+                <div style="padding: 1.5rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h3 style="font-size: 0.9rem; color: #64748b; margin-bottom: 0.5rem; text-transform: uppercase;">Total Page Views</h3>
+                    <p id="stat-views" style="font-size: 2.5rem; font-weight: 700; margin: 0;">--</p>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div>
+                    <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem;">Top Pages</h3>
+                    <ul id="list-pages" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+                <div>
+                    <h3 style="border-bottom: 2px solid #e2e8f0; padding-bottom: 0.5rem; margin-bottom: 1rem;">Top Countries</h3>
+                    <ul id="list-countries" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <script>
+        async function fetchAnalytics() {
+            try {
+                const res = await fetch('/api/analytics', {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('zygo_token') }
+                });
+                if (!res.ok) throw new Error('Failed to fetch analytics');
+                const data = await res.json();
+                
+                document.getElementById('analytics-loading').style.display = 'none';
+                document.getElementById('analytics-data').style.display = 'block';
+                
+                // Parse GraphQL Response
+                const events = data.data?.viewer?.zones[0]?.rumPageloadEventsAdaptiveGroups || [];
+                
+                let totalViews = 0;
+                let pageMap = {};
+                let countryMap = {};
+                
+                events.forEach(group => {
+                    const count = group.count;
+                    const path = group.dimensions.requestPath;
+                    const country = group.dimensions.clientCountryName;
+                    
+                    totalViews += count;
+                    pageMap[path] = (pageMap[path] || 0) + count;
+                    countryMap[country] = (countryMap[country] || 0) + count;
+                });
+                
+                document.getElementById('stat-views').textContent = totalViews.toLocaleString();
+                
+                // Sort and render pages
+                const sortedPages = Object.entries(pageMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+                const pageList = document.getElementById('list-pages');
+                sortedPages.forEach(([path, count]) => {
+                    const li = document.createElement('li');
+                    li.style.display = 'flex';
+                    li.style.justifyContent = 'space-between';
+                    li.style.padding = '0.5rem 0';
+                    li.style.borderBottom = '1px solid #f1f5f9';
+                    li.innerHTML = `<span><a href="${path}" target="_blank" style="color: #0f172a; text-decoration: none;">${path}</a></span> <span style="font-weight: 600;">${count.toLocaleString()}</span>`;
+                    pageList.appendChild(li);
+                });
+                
+                // Sort and render countries
+                const sortedCountries = Object.entries(countryMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+                const countryList = document.getElementById('list-countries');
+                sortedCountries.forEach(([country, count]) => {
+                    const li = document.createElement('li');
+                    li.style.display = 'flex';
+                    li.style.justifyContent = 'space-between';
+                    li.style.padding = '0.5rem 0';
+                    li.style.borderBottom = '1px solid #f1f5f9';
+                    li.innerHTML = `<span style="color: #0f172a;">${country}</span> <span style="font-weight: 600;">${count.toLocaleString()}</span>`;
+                    countryList.appendChild(li);
+                });
+                
+            } catch (err) {
+                console.error(err);
+                document.getElementById('analytics-loading').textContent = "Error loading analytics data. Check console.";
+            }
+        }
+        
+        fetchAnalytics();
+        </script>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% if user.role == "admin" %}
+<script>
+async function toggleAnalytics(enable) {
+    try {
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('zygo_token')
+            },
+            body: JSON.stringify({
+                key: 'analytics_enabled',
+                value: enable ? 'true' : 'false'
+            })
+        });
+        
+        if (res.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to update setting');
+        }
+    } catch (err) {
+        console.error(err);
+        alert('Network error while updating setting');
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

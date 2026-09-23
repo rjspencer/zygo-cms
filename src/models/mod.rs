@@ -11,3 +11,5 @@ pub use media::*;
 pub use menu::*;
 pub use revision::*;
 pub use user::*;
+pub mod setting;
+pub use setting::*;

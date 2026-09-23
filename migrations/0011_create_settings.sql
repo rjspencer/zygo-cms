@@ -1,0 +1,2 @@
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+INSERT INTO settings (key, value) VALUES ('analytics_enabled', 'false');
