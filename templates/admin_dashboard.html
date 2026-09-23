@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Dashboard &mdash; Zygo CMS{% endblock %}
 
@@ -12,12 +12,6 @@
         <div>
             <h1>Dashboard</h1>
             <p class="subtitle">{{ entries.len() }} active entries &bull; {{ deleted_entries.len() }} in trash</p>
-        </div>
-        <div style="display: flex; gap: 0.5rem;">
-            <a href="/admin/analytics" id="btn-analytics" class="btn-secondary" style="display: none; padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Analytics</a>
-            <a href="/admin/navigation" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Navigation</a>
-            <a href="/admin/content-types" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">Content Types</a>
-            <a href="/admin/editor" class="btn-primary">+ New Entry</a>
         </div>
     </div>
 
@@ -140,19 +134,6 @@
                 return;
             }
             
-            // Unhide Analytics link if Admin or Analytics is enabled
-            try {
-                const meRes = await fetch('/api/me', {
-                    headers: { 'Authorization': 'Bearer ' + authInfo.accessToken }
-                });
-                if (meRes.ok) {
-                    const meData = await meRes.json();
-                    if (meData.role === 'admin' || {{ analytics_enabled }}) {
-                        const btn = document.getElementById('btn-analytics');
-                        if (btn) btn.style.display = 'inline-block';
-                    }
-                }
-            } catch(e) {}
 
             const headerEl = document.querySelector('.dashboard-header');
             if (headerEl) {

@@ -1,11 +1,13 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Navigation &mdash; Zygo CMS{% endblock %}
 
 {% block content %}
 <style>
-    .menu-tab { display: block; width: 100%; text-align: left; padding: 10px; background: none; border: 1px solid #ddd; margin-bottom: 5px; cursor: pointer; border-radius: 4px; }
-    .menu-tab.active { background: #000; color: #fff; border-color: #000; }
+    .menu-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
+    .menu-tab { background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -1px; font-size: 1rem; font-weight: 600; cursor: pointer; padding: 0.4rem 0.8rem; color: #64748b; transition: all 0.2s; }
+    .menu-tab:hover { color: #1e293b; border-bottom-color: #cbd5e1; }
+    .menu-tab.active { color: #000; border-bottom-color: #000; }
     .menu-item-row { border: 1px solid #e2e8f0; background: #fff; padding: 10px; margin-bottom: 5px; border-radius: 4px; display: flex; align-items: center; gap: 10px; }
     .menu-item-row input { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; }
     .menu-item-children { padding-left: 30px; border-left: 2px dashed #cbd5e1; margin-left: 15px; margin-bottom: 10px; }
@@ -18,24 +20,21 @@
         <h1>Navigation Builder</h1>
         <p class="subtitle">Manage site menus</p>
     </div>
-    <a href="/admin" class="btn-primary" style="background: #fff; color: #000; border: 1px solid #ccc;">&larr; Dashboard</a>
 </div>
 
-<div style="display: flex; gap: 2rem; align-items: flex-start;">
-    <div style="width: 250px;">
-        <button class="menu-tab active" data-menu="header">Header Menu</button>
-        <button class="menu-tab" data-menu="footer">Footer Menu</button>
+<div class="menu-tabs">
+    <button type="button" class="menu-tab active" data-menu="header">Header Menu</button>
+    <button type="button" class="menu-tab" data-menu="footer">Footer Menu</button>
+</div>
+
+<div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 id="current-menu-title" style="margin: 0;">Header Menu</h2>
+        <button id="btn-save" class="btn-primary">Save Changes</button>
     </div>
     
-    <div style="flex: 1; background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h2 id="current-menu-title" style="margin: 0;">Header Menu</h2>
-            <button id="btn-save" class="btn-primary">Save Changes</button>
-        </div>
-        
-        <div id="menu-tree"></div>
-        <button id="btn-add-root" class="btn-primary" style="margin-top: 1rem; background: #fff; color: #000; border: 1px dashed #94a3b8;">+ Add Root Item</button>
-    </div>
+    <div id="menu-tree"></div>
+    <button id="btn-add-root" class="btn-primary" style="margin-top: 1rem; background: #fff; color: #000; border: 1px dashed #94a3b8;">+ Add Root Item</button>
 </div>
 
 <script type="module">

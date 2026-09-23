@@ -18,6 +18,11 @@
 - The user writes code and runs terminal commands; provide clean, minimal, and modular code snippets.
 - Focus strictly on requested functionality without introducing unneeded dependencies or extra features.
 
+## Subagent Workflows
+- **Feature Implementation**: When writing code for a new feature, delegate the actual code generation to a subagent (using `invoke_subagent` with `Model: "flash"`). Provide the subagent with highly detailed, clear instructions on what needs to be implemented.
+- **Code Review**: When a feature implementation is complete, always invoke a subagent (using `invoke_subagent` with `Model: "flash"`) to review the code. Provide it with clear, specific instructions about the feature requirements and what to verify.
+- **Visual Review**: If a feature includes major visual or UI components, invoke an additional subagent (with browser tools if available) to open the page in a browser and visually verify the layout and rendering.
+
 ## Cloudflare Workers & `worker-rs` Routing
 - **No `wait_until` on `RouteContext`**: In `worker-rs`, `wait_until` exists only on the top-level `worker::Context`, not on router closures (`RouteContext<D>`).
   - Implement async side-effects (e.g., cache invalidation, webhooks) as `async fn` taking `&worker::Env` and await them directly in route handlers.

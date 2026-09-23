@@ -29,7 +29,8 @@ pub async fn editor(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu)?;
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
+    let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
     Response::from_html(html)
 }
 
@@ -65,6 +66,7 @@ pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response>
                 &auth_url,
                 &header_menu,
                 &footer_menu,
+                db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false),
             )?;
             Response::from_html(html)
         }
@@ -78,7 +80,8 @@ pub async fn navigation(_req: Request, ctx: RouteContext<()>) -> Result<Response
     let menus = db::menu::get_all_menus(&db).await?;
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
-    let html = admin::render_navigation_html(&auth_url, &header_menu, &footer_menu)?;
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
+    let html = admin::render_navigation_html(&auth_url, &header_menu, &footer_menu, analytics_enabled)?;
     Response::from_html(html)
 }
 
@@ -89,7 +92,8 @@ pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = admin::render_content_types_html(&auth_url, &header_menu, &footer_menu)?;
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
+    let html = admin::render_content_types_html(&auth_url, &header_menu, &footer_menu, analytics_enabled)?;
     Response::from_html(html)
 }
 

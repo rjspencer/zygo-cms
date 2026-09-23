@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "admin_base.html" %}
 
 {% block title %}Analytics &mdash; Zygo CMS{% endblock %}
 
@@ -9,7 +9,6 @@
         <p class="subtitle">Privacy-first web traffic insights</p>
     </div>
     <div style="display: flex; gap: 0.5rem;">
-        <a href="/admin" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">&larr; Dashboard</a>
         <div id="admin-actions" style="display: none;">
             {% if analytics_enabled %}
             <button onclick="toggleAnalytics(false)" style="padding: 0.5rem 1rem; border: 1px solid #dc2626; border-radius: 4px; background: #fee2e2; color: #b91c1c; cursor: pointer; font-weight: 600;">Deactivate Analytics</button>

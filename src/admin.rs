@@ -42,6 +42,7 @@ pub struct EditorTemplate<'a> {
     pub auth_url: &'a str,
     pub header_menu: &'a [crate::models::MenuItem],
     pub footer_menu: &'a [crate::models::MenuItem],
+    pub analytics_enabled: bool,
 }
 
 impl<'a> EditorTemplate<'a> {
@@ -188,6 +189,7 @@ pub fn render_editor_html(
     auth_url: &str,
     header_menu: &[crate::models::MenuItem],
     footer_menu: &[crate::models::MenuItem],
+    analytics_enabled: bool,
 ) -> worker::Result<String> {
     EditorTemplate {
         entry,
@@ -197,6 +199,7 @@ pub fn render_editor_html(
         auth_url,
         header_menu,
         footer_menu,
+        analytics_enabled,
     }
     .render()
     .map_err(|e| worker::Error::RustError(e.to_string()))
@@ -208,14 +211,16 @@ pub struct AdminNavigationTemplate<'a> {
     pub auth_url: &'a str,
     pub header_menu: &'a [crate::models::MenuItem],
     pub footer_menu: &'a [crate::models::MenuItem],
+    pub analytics_enabled: bool,
 }
 
 pub fn render_navigation_html(
     auth_url: &str,
     header_menu: &[crate::models::MenuItem],
     footer_menu: &[crate::models::MenuItem],
+    analytics_enabled: bool,
 ) -> worker::Result<String> {
-    AdminNavigationTemplate { auth_url, header_menu, footer_menu }
+    AdminNavigationTemplate { auth_url, header_menu, footer_menu, analytics_enabled }
         .render()
         .map_err(|e| worker::Error::RustError(e.to_string()))
 }
@@ -226,14 +231,16 @@ struct AdminContentTypesTemplate<'a> {
     auth_url: &'a str,
     header_menu: &'a [crate::models::MenuItem],
     footer_menu: &'a [crate::models::MenuItem],
+    analytics_enabled: bool,
 }
 
 pub fn render_content_types_html(
     auth_url: &str,
     header_menu: &[crate::models::MenuItem],
     footer_menu: &[crate::models::MenuItem],
+    analytics_enabled: bool,
 ) -> worker::Result<String> {
-    AdminContentTypesTemplate { auth_url, header_menu, footer_menu }
+    AdminContentTypesTemplate { auth_url, header_menu, footer_menu, analytics_enabled }
         .render()
         .map_err(|e| worker::Error::RustError(e.to_string()))
 }

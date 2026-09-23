@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="admin-layout">
+    <!-- Mobile top bar visible only on mobile -->
+    <header class="admin-mobile-header">
+        <button type="button" id="admin-menu-toggle" class="admin-menu-toggle" aria-label="Toggle navigation drawer" aria-expanded="false" aria-controls="admin-sidebar">
+            <span class="admin-hamburger-icon" aria-hidden="true">&#9776;</span>
+        </button>
+        <a href="/" class="site-title">Zygo CMS</a>
+    </header>
+
+    <!-- Backdrop for mobile drawer -->
+    <div id="admin-drawer-backdrop" class="admin-drawer-backdrop" aria-hidden="true"></div>
+
+    <!-- Sidebar / Drawer -->
+    <aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin Navigation">
+        <div class="admin-sidebar-header">
+            <a href="/" class="site-title">Zygo CMS</a>
+            <button type="button" id="admin-drawer-close" class="admin-drawer-close" aria-label="Close navigation drawer">&times;</button>
+        </div>
+
+        <div class="admin-sidebar-section">
+            <div class="admin-section-label">Admin</div>
+            <nav class="admin-nav" aria-label="Admin Sections">
+                <a href="/admin" class="admin-nav-item">Dashboard</a>
+                <a href="/admin/analytics" class="admin-nav-item" id="nav-analytics" style="display: none;">Analytics</a>
+                <a href="/admin/navigation" class="admin-nav-item">Navigation</a>
+                <a href="/admin/content-types" class="admin-nav-item">Content Types</a>
+                <a href="/admin/editor" class="admin-nav-item admin-nav-new">+ New Entry</a>
+            </nav>
+        </div>
+
+        <div class="admin-sidebar-section">
+            <div class="admin-section-label">Site Menu</div>
+            <nav class="admin-site-nav" aria-label="Site Navigation">
+                {{ crate::models::menu::render_menu_html(header_menu, 0)|safe }}
+            </nav>
+        </div>
+
+        <div class="admin-sidebar-footer">
+            {% include "includes/footer.html" %}
+        </div>
+    </aside>
+
+    <!-- Main content area -->
+    <main class="admin-main">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.getElementById('admin-sidebar');
+    const toggleBtn = document.getElementById('admin-menu-toggle');
+    const closeBtn = document.getElementById('admin-drawer-close');
+    const backdrop = document.getElementById('admin-drawer-backdrop');
+
+    function openDrawer() {
+        if (!sidebar) return;
+        sidebar.classList.add('open');
+        if (backdrop) backdrop.classList.add('open');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('admin-drawer-open');
+    }
+
+    function closeDrawer() {
+        if (!sidebar) return;
+        sidebar.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('open');
+        if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+        document.body.classList.remove('admin-drawer-open');
+    }
+
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            if (sidebar && sidebar.classList.contains('open')) {
+                closeDrawer();
+            } else {
+                openDrawer();
+            }
+        });
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar && sidebar.classList.contains('open')) {
+            closeDrawer();
+        }
+    });
+});
+</script>
+
+<script type="module">
+    import { createClient } from 'https://esm.sh/@propelauth/javascript';
+    const authUrl = "{{ auth_url }}";
+    if (authUrl) {
+        const authClient = createClient({ authUrl: authUrl, enableBackgroundTokenRefresh: true });
+        authClient.getAuthenticationInfoOrNull().then(authInfo => {
+            if (authInfo) {
+                fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + authInfo.accessToken } })
+                    .then(res => res.json())
+                    .then(meData => {
+                        const nav = document.getElementById('nav-analytics');
+                        if (nav) {
+                            if (meData.role === 'admin' || {{ analytics_enabled }}) {
+                                nav.style.display = 'block';
+                            }
+                        }
+                    })
+                    .catch(console.error);
+            }
+        }).catch(console.error);
+    }
+</script>
+{% endblock %}
