@@ -2,8 +2,7 @@ use worker::*;
 use crate::{admin, db};
 use crate::utils::get_auth_url;
 
-pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let user = crate::auth_required!(&req, ctx);
+pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
     let entries = db::find_all_entries(&db).await?;
     let deleted_entries = db::find_deleted_entries(&db).await?;
@@ -17,7 +16,7 @@ pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> 
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, &user, analytics_enabled)?;
+    let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
     Response::from_html(html)
 }
 
@@ -94,18 +93,12 @@ pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     Response::from_html(html)
 }
 
-pub async fn analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let user = crate::auth_required!(&req, ctx);
+pub async fn analytics(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
     
     let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
         .map(|s| s.value == "true")
         .unwrap_or(false);
-
-    // Ensure non-admins don't see it if it's disabled
-    if !analytics_enabled && user.role != "admin" {
-        return Response::redirect(worker::Url::parse("http://localhost/admin").unwrap());
-    }
 
     let has_cloudflare_tokens = ctx.env.secret("CF_API_TOKEN").is_ok() && ctx.env.var("CF_ZONE_ID").is_ok();
     
@@ -115,7 +108,6 @@ pub async fn analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> 
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
     let html = admin::render_analytics_html(
-        &user, 
         analytics_enabled, 
         has_cloudflare_tokens, 
         &auth_url, 

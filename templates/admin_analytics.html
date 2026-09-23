@@ -10,13 +10,13 @@
     </div>
     <div style="display: flex; gap: 0.5rem;">
         <a href="/admin" class="btn-secondary" style="padding: 0.5rem 1rem; border: 1px solid #ccc; border-radius: 4px; text-decoration: none; color: #333;">&larr; Dashboard</a>
-        {% if user.role == "admin" %}
+        <div id="admin-actions" style="display: none;">
             {% if analytics_enabled %}
             <button onclick="toggleAnalytics(false)" style="padding: 0.5rem 1rem; border: 1px solid #dc2626; border-radius: 4px; background: #fee2e2; color: #b91c1c; cursor: pointer; font-weight: 600;">Deactivate Analytics</button>
             {% else %}
             <button onclick="toggleAnalytics(true)" style="padding: 0.5rem 1rem; border: 1px solid #059669; border-radius: 4px; background: #d1fae5; color: #047857; cursor: pointer; font-weight: 600;">Activate Analytics</button>
             {% endif %}
-        {% endif %}
+        </div>
     </div>
 </div>
 
@@ -73,7 +73,7 @@
         async function fetchAnalytics() {
             try {
                 const res = await fetch('/api/analytics', {
-                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('zygo_token') }
+                    headers: { 'Authorization': 'Bearer ' + window.zygo_token }
                 });
                 if (!res.ok) throw new Error('Failed to fetch analytics');
                 const data = await res.json();
@@ -132,21 +132,58 @@
             }
         }
         
-        fetchAnalytics();
+        // Expose function globally
+        window.fetchAnalytics = fetchAnalytics;
         </script>
         {% endif %}
     {% endif %}
 </div>
 
-{% if user.role == "admin" %}
-<script>
+<script type="module">
+    import { createClient } from 'https://esm.sh/@propelauth/javascript';
+
+    const authUrl = "{{ auth_url }}";
+    let authClient = null;
+
+    if (authUrl) {
+        authClient = createClient({
+            authUrl: authUrl,
+            enableBackgroundTokenRefresh: true,
+        });
+
+        authClient.getAuthenticationInfoOrNull().then(authInfo => {
+            if (!authInfo) {
+                authClient.redirectToLoginPage();
+                return;
+            }
+            
+            // Check Zygo roles and permissions
+            fetch('/api/me', {
+                headers: { 'Authorization': 'Bearer ' + authInfo.accessToken }
+            }).then(res => res.json()).then(meData => {
+                if (meData.role === 'admin') {
+                    document.getElementById('admin-actions').style.display = 'block';
+                    window.isAdmin = true;
+                } else if (!{{ analytics_enabled }}) {
+                    window.location.href = '/admin'; // non-admins kicked out if disabled
+                }
+            }).catch(console.error);
+            
+            window.zygo_token = authInfo.accessToken;
+            if ({{ analytics_enabled }}) {
+                fetchAnalytics();
+            }
+        });
+    }
+
 async function toggleAnalytics(enable) {
+    if (!window.isAdmin) return;
     try {
         const res = await fetch('/api/settings', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + localStorage.getItem('zygo_token')
+                'Authorization': 'Bearer ' + window.zygo_token
             },
             body: JSON.stringify({
                 key: 'analytics_enabled',
@@ -164,6 +201,6 @@ async function toggleAnalytics(enable) {
         alert('Network error while updating setting');
     }
 }
+window.toggleAnalytics = toggleAnalytics;
 </script>
-{% endif %}
 {% endblock %}

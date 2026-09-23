@@ -530,3 +530,8 @@ pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Respon
         r
     })
 }
+
+pub async fn get_me(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let user = crate::auth_required!(&req, ctx);
+    Response::from_json(&user)
+}

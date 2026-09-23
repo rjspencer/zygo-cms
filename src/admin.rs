@@ -1,4 +1,4 @@
-use crate::models::{Entry, EntryRevision, User};
+use crate::models::{Entry, EntryRevision};
 use askama::Template;
 
 #[derive(Template)]
@@ -9,7 +9,6 @@ pub struct AdminDashboardTemplate<'a> {
     pub auth_url: &'a str,
     pub header_menu: &'a [crate::models::MenuItem],
     pub footer_menu: &'a [crate::models::MenuItem],
-    pub user: &'a User,
     pub analytics_enabled: bool,
 }
 
@@ -19,7 +18,6 @@ pub fn render_dashboard_html(
     auth_url: &str,
     header_menu: &[crate::models::MenuItem],
     footer_menu: &[crate::models::MenuItem],
-    user: &User,
     analytics_enabled: bool,
 ) -> worker::Result<String> {
     AdminDashboardTemplate {
@@ -28,7 +26,6 @@ pub fn render_dashboard_html(
         auth_url,
         header_menu,
         footer_menu,
-        user,
         analytics_enabled,
     }
     .render()
@@ -253,7 +250,6 @@ impl<'a> EditorTemplate<'a> {
 #[derive(Template)]
 #[template(path = "admin_analytics.html")]
 pub struct AdminAnalyticsTemplate<'a> {
-    pub user: &'a User,
     pub analytics_enabled: bool,
     pub has_cloudflare_tokens: bool,
     pub auth_url: &'a str,
@@ -262,7 +258,6 @@ pub struct AdminAnalyticsTemplate<'a> {
 }
 
 pub fn render_analytics_html(
-    user: &User,
     analytics_enabled: bool,
     has_cloudflare_tokens: bool,
     auth_url: &str,
@@ -270,7 +265,6 @@ pub fn render_analytics_html(
     footer_menu: &[crate::models::MenuItem],
 ) -> worker::Result<String> {
     AdminAnalyticsTemplate {
-        user,
         analytics_enabled,
         has_cloudflare_tokens,
         auth_url,
