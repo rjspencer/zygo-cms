@@ -341,7 +341,7 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
 
             let capturedPayload = null;
             global.fetch = async (url, options) => {
-                if (url.includes('/entries/10') && options.method === 'PUT') {
+                if (url.includes('/api/entries/10') && options.method === 'PUT') {
                     capturedPayload = JSON.parse(options.body);
                     return {
                         ok: true,
@@ -373,7 +373,7 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
 
             let restoreCalled = false;
             global.fetch = async (url, options) => {
-                if (url === '/entries/42/restore' && options.method === 'POST') {
+                if (url === '/api/entries/42/restore' && options.method === 'POST') {
                     restoreCalled = true;
                     return {
                         ok: true,

@@ -606,7 +606,7 @@ export async function initEditor(initialContent, authUrl) {
                 if (token) headers['Authorization'] = 'Bearer ' + token;
 
                 try {
-                    const res = await fetch('/entries/' + currentPostId, {
+                    const res = await fetch('/api/entries/' + currentPostId, {
                         method: 'DELETE',
                         headers,
                     });
@@ -648,7 +648,7 @@ export async function initEditor(initialContent, authUrl) {
                 if (token) headers['Authorization'] = 'Bearer ' + token;
 
                 try {
-                    const res = await fetch('/entries/' + currentPostId + '/restore', {
+                    const res = await fetch('/api/entries/' + currentPostId + '/restore', {
                         method: 'POST',
                         headers,
                     });
@@ -934,13 +934,13 @@ export async function initEditor(initialContent, authUrl) {
             try {
                 let res;
                 if (currentPostId) {
-                    res = await fetch('/entries/' + currentPostId, {
+                    res = await fetch('/api/entries/' + currentPostId, {
                         method: 'PUT',
                         headers: headers,
                         body: JSON.stringify(payload),
                     });
                 } else {
-                    res = await fetch('/entries', {
+                    res = await fetch('/api/entries', {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify({ slug, ...payload }),

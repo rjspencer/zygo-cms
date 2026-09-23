@@ -204,7 +204,7 @@
                 }
 
                 try {
-                    const res = await fetch('/entries/' + id, {
+                    const res = await fetch('/api/entries/' + id, {
                         method: 'DELETE',
                         headers: headers,
                     });
@@ -241,7 +241,7 @@
                 }
 
                 try {
-                    const res = await fetch('/entries/' + id + '/restore', {
+                    const res = await fetch('/api/entries/' + id + '/restore', {
                         method: 'POST',
                         headers: headers,
                     });

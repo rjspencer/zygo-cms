@@ -53,7 +53,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
     });
 
     it('POST /entries rejects unauthenticated requests with 401', async () => {
-        const res = await worker.fetch('/entries', {
+        const res = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -67,7 +67,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
     });
 
     it('POST /entries rejects invalid Personal API Keys with 401', async () => {
-        const res = await worker.fetch('/entries', {
+        const res = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const slug = `sanitized-post-${Date.now()}`;
         const maliciousHtml = '<p>Safe paragraph</p><script>alert("xss")</script><a href="javascript:steal()">Malicious Link</a><img src="/media/pic.jpg" alt="Photo" onerror="alert(1)"><pre><code class="language-rust">fn main() {}</code></pre>';
 
-        const postRes = await worker.fetch('/entries', {
+        const postRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -131,12 +131,12 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(prose).not.toContain('alert(');
 
         // Cleanup created entry from database
-        const postsRes = await worker.fetch('/posts');
+        const postsRes = await worker.fetch('/api/posts');
         if (postsRes.ok) {
             const posts = await postsRes.json();
             const created = posts.find((p) => p.slug === slug);
             if (created) {
-                await worker.fetch(`/entries/${created.id}`, {
+                await worker.fetch(`/api/entries/${created.id}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': 'Bearer test-token' },
                 });
@@ -151,7 +151,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const grandchildSlug = `team-${timestamp}`;
 
         // 1. Create top-level parent page
-        const parentRes = await worker.fetch('/entries', {
+        const parentRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -170,14 +170,14 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(parentRes.status).toBe(200);
 
         // Fetch parent id
-        const entriesRes = await worker.fetch('/entries');
+        const entriesRes = await worker.fetch('/api/entries');
         const entries = await entriesRes.json();
         const parentEntry = entries.find((e) => e.slug === parentSlug);
         expect(parentEntry).toBeDefined();
         expect(parentEntry.path).toBe(`/${parentSlug}`);
 
         // 2. Create child page
-        const childRes = await worker.fetch('/entries', {
+        const childRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -196,14 +196,14 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         });
         expect(childRes.status).toBe(200);
 
-        const entriesRes2 = await worker.fetch('/entries');
+        const entriesRes2 = await worker.fetch('/api/entries');
         const entries2 = await entriesRes2.json();
         const childEntry = entries2.find((e) => e.slug === childSlug);
         expect(childEntry).toBeDefined();
         expect(childEntry.path).toBe(`/${parentSlug}/${childSlug}`);
 
         // 3. Create grandchild page
-        const grandchildRes = await worker.fetch('/entries', {
+        const grandchildRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -244,7 +244,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(parentHtml).toContain('About Corporate');
 
         // 6. Test delete guard: deleting parent while it has active child fails with 400
-        const badDeleteRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+        const badDeleteRes = await worker.fetch(`/api/entries/${parentEntry.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer test-token' },
         });
@@ -253,7 +253,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(badDeleteText).toContain('Cannot delete a page that has child pages');
 
         // 7. Test type-conversion guard: changing page to post while it has children fails with 400
-        const badTypeRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+        const badTypeRes = await worker.fetch(`/api/entries/${parentEntry.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -276,21 +276,21 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(editorHtml).toContain('Deletion blocked');
 
         // 9. Cleanup in leaf-to-root order
-        const allEntriesRes = await worker.fetch('/entries');
+        const allEntriesRes = await worker.fetch('/api/entries');
         const allEntries = await allEntriesRes.json();
         const grandchildEntry = allEntries.find((e) => e.slug === grandchildSlug);
 
         if (grandchildEntry) {
-            await worker.fetch(`/entries/${grandchildEntry.id}`, {
+            await worker.fetch(`/api/entries/${grandchildEntry.id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': 'Bearer test-token' },
             });
         }
-        await worker.fetch(`/entries/${childEntry.id}`, {
+        await worker.fetch(`/api/entries/${childEntry.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer test-token' },
         });
-        const deleteParentRes = await worker.fetch(`/entries/${parentEntry.id}`, {
+        const deleteParentRes = await worker.fetch(`/api/entries/${parentEntry.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer test-token' },
         });
@@ -411,7 +411,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const slug = `rev-test-${Date.now()}`;
 
         // 1. Create a published post
-        const createRes = await worker.fetch('/entries', {
+        const createRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -435,7 +435,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(createJson.preview_token).toBeDefined();
 
         // Fetch entry ID
-        const postsRes = await worker.fetch('/posts');
+        const postsRes = await worker.fetch('/api/posts');
         const posts = await postsRes.json();
         const entry = posts.find((p) => p.slug === slug);
         expect(entry).toBeDefined();
@@ -460,7 +460,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(singleRev.body_html).toBe('<p>Initial published content</p>');
 
         // 4. Save a draft update (draft_only: true)
-        const draftRes = await worker.fetch(`/entries/${entry.id}`, {
+        const draftRes = await worker.fetch(`/api/entries/${entry.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -505,7 +505,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(revs2.length).toBe(2);
 
         // 8. Publish the entry (draft_only: false)
-        const publishRes = await worker.fetch(`/entries/${entry.id}`, {
+        const publishRes = await worker.fetch(`/api/entries/${entry.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -527,7 +527,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(updatedPublicHtml).toContain('<p>Updated published content</p>');
 
         // 10. Soft-delete entry
-        const deleteRes = await worker.fetch(`/entries/${entry.id}`, {
+        const deleteRes = await worker.fetch(`/api/entries/${entry.id}`, {
             method: 'DELETE',
             headers: { 'Authorization': 'Bearer test-token' },
         });
@@ -547,7 +547,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(revs3.length).toBe(3);
 
         // 13. Deleted entry appears in Trash list
-        const trashRes = await worker.fetch('/entries?filter=trash');
+        const trashRes = await worker.fetch('/api/entries?filter=trash');
         expect(trashRes.status).toBe(200);
         const trashEntries = await trashRes.json();
         const inTrash = trashEntries.find((e) => e.id === entry.id);
@@ -555,7 +555,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(inTrash.deleted_at).not.toBeNull();
 
         // 14. Creating new entry with same slug is rejected with helpful Trash message
-        const duplicateRes = await worker.fetch('/entries', {
+        const duplicateRes = await worker.fetch('/api/entries', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -573,7 +573,7 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         expect(dupText).toContain('already exists in the Trash');
 
         // 15. Restore the entry
-        const restoreRes = await worker.fetch(`/entries/${entry.id}/restore`, {
+        const restoreRes = await worker.fetch(`/api/entries/${entry.id}/restore`, {
             method: 'POST',
             headers: { 'Authorization': 'Bearer test-token' },
         });
