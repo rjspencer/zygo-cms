@@ -30,3 +30,16 @@
 ## SEO & Canonical URL Conventions
 - **Domain Normalization**: Always resolve canonical origins using `utils::get_canonical_origin`, which respects `CANONICAL_ORIGIN` or auto-strips `www.` to prevent duplicate content indexing.
 - **Trailing Slash Rules**: Homepage canonical strictly includes a trailing slash (`{origin}/`); post and page canonicals strictly omit trailing slashes (`{origin}/post/:slug`).
+
+## Agent Context Management
+- **Context Monitoring**: Monitor the conversation context and notify the user if the context limit is being approached or if the system begins auto-summarizing previous messages, so the user can start a fresh chat to maintain optimal AI performance.
+
+## Router & API Structure
+- **Modular Handlers**: Never add inline closures to the main `Router` in `src/lib.rs`. All new routes must be implemented as standalone functions in the appropriate `src/handlers/` module (`admin.rs`, `api.rs`, or `public.rs`).
+- **API Prefix**: All JSON-returning API endpoints must be prefixed with `/api/` (e.g. `/api/entries`, not `/entries`).
+
+## Edge Caching
+- **Cache Invalidation**: Whenever content (entries, posts, menus) is created, updated, or deleted, you must invoke `cache::purge_urls` to purge the affected canonical URL, the homepage (`/`), the RSS feed (`/rss.xml`), and the Sitemap (`/sitemap.xml`) to ensure edge caches reflect the latest database state.
+
+## Authentication
+- **Securing API Routes**: Any API route requiring authentication must use the `let _user = auth_required!(&req, ctx);` macro at the very beginning of the handler. This macro automatically handles the early return of `401 Unauthorized` responses.
