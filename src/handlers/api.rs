@@ -160,6 +160,7 @@ pub async fn create_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
         cover_image: payload.cover_image.clone(),
         body_html: payload.body_html.clone(),
         body_json: payload.body_json.clone(),
+        custom_fields_json: payload.custom_fields_json.clone(),
         category: payload.category.clone(),
         tags: payload.tags.clone(),
     };
@@ -240,6 +241,7 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
             cover_image: payload.cover_image.or(existing_entry.cover_image),
             body_html: payload.body_html.unwrap_or(existing_entry.body_html),
             body_json: payload.body_json.unwrap_or(existing_entry.body_json),
+            custom_fields_json: payload.custom_fields_json.or(existing_entry.custom_fields_json),
             category: payload.category.or(existing_entry.category),
             tags: payload.tags.or(existing_entry.tags),
         };
@@ -276,6 +278,7 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
             cover_image: updated_entry.cover_image.clone(),
             body_html: updated_entry.body_html.clone(),
             body_json: updated_entry.body_json.clone(),
+            custom_fields_json: updated_entry.custom_fields_json.clone(),
             category: updated_entry.category.clone(),
             tags: updated_entry.tags.clone(),
         };

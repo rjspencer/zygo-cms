@@ -5,7 +5,7 @@ use worker::{D1Database, Result};
 
 const REVISION_SUMMARY_COLUMNS: &str =
     "id, entry_id, title, description, cover_image, category, tags, preview_token, created_at";
-const REVISION_ALL_COLUMNS: &str = "id, entry_id, title, description, cover_image, body_html, body_json, category, tags, preview_token, created_at";
+const REVISION_ALL_COLUMNS: &str = "id, entry_id, title, description, cover_image, body_html, body_json, custom_fields_json, category, tags, preview_token, created_at";
 
 pub async fn create_revision(
     db: &D1Database,
@@ -15,9 +15,9 @@ pub async fn create_revision(
 ) -> Result<i64> {
     let statement = db.prepare(
         "INSERT INTO entry_revisions (
-            entry_id, title, description, cover_image, body_html, body_json, category, tags, preview_token
+            entry_id, title, description, cover_image, body_html, body_json, custom_fields_json, category, tags, preview_token
          ) VALUES (
-            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9
+            ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10
          )",
     );
 
@@ -29,6 +29,7 @@ pub async fn create_revision(
             opt_js(&params.cover_image),
             params.body_html.as_str().into(),
             params.body_json.as_str().into(),
+            opt_js(&params.custom_fields_json),
             opt_js(&params.category),
             opt_js(&params.tags),
             preview_token.into(),

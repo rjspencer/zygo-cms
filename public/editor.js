@@ -3,7 +3,7 @@ import StarterKit from 'https://esm.sh/@tiptap/starter-kit';
 import Image from 'https://esm.sh/@tiptap/extension-image';
 import { createClient } from 'https://esm.sh/@propelauth/javascript';
 
-export async function initEditor(initialContent, authUrl) {
+export async function initEditor(initialContent, authUrl, initialCustomFields = {}) {
     let isDirty = false;
 
     window.addEventListener('beforeunload', (e) => {
@@ -544,12 +544,131 @@ export async function initEditor(initialContent, authUrl) {
 
         const typeSelect = document.querySelector('#type');
         const pageHierarchyFields = document.querySelector('#page-hierarchy-fields');
+        const dynamicFieldsContainer = document.querySelector('#dynamic-fields-container');
+        const dynamicFieldsContent = document.querySelector('#dynamic-fields-content');
+        let contentTypes = [];
+
+        const renderDynamicFields = () => {
+            if (!dynamicFieldsContainer || !dynamicFieldsContent || !typeSelect) return;
+            const selectedId = typeSelect.value;
+            const ct = contentTypes.find(t => t.id === selectedId);
+            if (!ct || selectedId === 'post' || selectedId === 'page') {
+                dynamicFieldsContainer.style.display = 'none';
+                dynamicFieldsContent.innerHTML = '';
+                return;
+            }
+
+            let schema = [];
+            try {
+                schema = JSON.parse(ct.schema_json);
+            } catch (e) {
+                console.error("Invalid schema JSON for content type", e);
+            }
+
+            if (schema.length === 0) {
+                dynamicFieldsContainer.style.display = 'none';
+                dynamicFieldsContent.innerHTML = '';
+                return;
+            }
+
+            dynamicFieldsContainer.style.display = 'flex';
+            dynamicFieldsContent.innerHTML = '';
+
+            schema.forEach(field => {
+                const wrapper = document.createElement('div');
+                const label = document.createElement('label');
+                label.textContent = field.label + (field.required ? ' *' : '');
+                label.style.display = 'block';
+                label.style.fontWeight = 'bold';
+                label.style.marginBottom = '0.25rem';
+                wrapper.appendChild(label);
+
+                let inp;
+                if (field.type === 'boolean') {
+                    inp = document.createElement('input');
+                    inp.type = 'checkbox';
+                    inp.checked = initialCustomFields[field.name] === true;
+                } else if (field.type === 'number') {
+                    inp = document.createElement('input');
+                    inp.type = 'number';
+                    inp.style.width = '100%';
+                    inp.style.padding = '0.5rem';
+                    inp.style.border = '1px solid #ccc';
+                    inp.style.borderRadius = '4px';
+                    if (initialCustomFields[field.name] !== undefined) {
+                        inp.value = initialCustomFields[field.name];
+                    }
+                } else if (field.type === 'date') {
+                    inp = document.createElement('input');
+                    inp.type = 'date';
+                    inp.style.width = '100%';
+                    inp.style.padding = '0.5rem';
+                    inp.style.border = '1px solid #ccc';
+                    inp.style.borderRadius = '4px';
+                    if (initialCustomFields[field.name] !== undefined) {
+                        inp.value = initialCustomFields[field.name];
+                    }
+                } else {
+                    inp = document.createElement('input');
+                    inp.type = 'text';
+                    inp.style.width = '100%';
+                    inp.style.padding = '0.5rem';
+                    inp.style.border = '1px solid #ccc';
+                    inp.style.borderRadius = '4px';
+                    if (initialCustomFields[field.name] !== undefined) {
+                        inp.value = initialCustomFields[field.name];
+                    }
+                }
+
+                inp.className = 'dynamic-custom-field';
+                inp.dataset.key = field.name;
+                if (field.required) inp.required = true;
+
+                inp.addEventListener('input', () => { isDirty = true; });
+                inp.addEventListener('change', () => { isDirty = true; });
+
+                wrapper.appendChild(inp);
+                dynamicFieldsContent.appendChild(wrapper);
+            });
+        };
+
         const updateHierarchyVisibility = () => {
             if (pageHierarchyFields && typeSelect) {
                 pageHierarchyFields.style.display = typeSelect.value === 'page' ? 'block' : 'none';
             }
+            renderDynamicFields();
         };
+
         if (typeSelect) {
+            fetch('/api/content-types')
+                .then(res => res.json())
+                .then(data => {
+                    contentTypes = data;
+                    
+                    // See if the template's initial type is not in the hardcoded list
+                    let initialType = typeSelect.getAttribute('data-initial-type');
+                    
+                    data.forEach(ct => {
+                        if (ct.id !== 'post' && ct.id !== 'page') {
+                            const opt = document.createElement('option');
+                            opt.value = ct.id;
+                            opt.textContent = ct.name;
+                            typeSelect.appendChild(opt);
+                        }
+                    });
+
+                    // Set the selected value after appending options, 
+                    // this requires that we actually know the initial type. 
+                    // If it's a new post, it's 'post'. If it's an existing post, 
+                    // we need to set the select value to whatever was loaded.
+                    if (initialType) {
+                        typeSelect.value = initialType;
+                    }
+                    
+                    renderDynamicFields();
+                })
+                .catch(err => console.error("Failed to load content types", err));
+
             typeSelect.addEventListener('change', (e) => {
                 if (form && form.dataset.hasChildren === 'true' && typeSelect.value !== 'page') {
                     const count = form.dataset.childCount || '1';
@@ -914,6 +1033,23 @@ export async function initEditor(initialContent, authUrl) {
             const body_html = editor.getHTML();
             const body_json = JSON.stringify(editor.getJSON());
 
+            let custom_fields_json = null;
+            const customFieldsInputs = document.querySelectorAll('.dynamic-custom-field');
+            if (customFieldsInputs.length > 0) {
+                const customFieldsData = {};
+                customFieldsInputs.forEach(inp => {
+                    const key = inp.dataset.key;
+                    if (inp.type === 'checkbox') {
+                        customFieldsData[key] = inp.checked;
+                    } else if (inp.type === 'number') {
+                        customFieldsData[key] = inp.value ? Number(inp.value) : null;
+                    } else {
+                        customFieldsData[key] = inp.value;
+                    }
+                });
+                custom_fields_json = JSON.stringify(customFieldsData);
+            }
+
             const payload = {
                 title,
                 type,
@@ -929,6 +1065,7 @@ export async function initEditor(initialContent, authUrl) {
                 body_html,
                 body_json,
                 draft_only: isDraftOnly,
+                custom_fields_json,
             };
 
             try {

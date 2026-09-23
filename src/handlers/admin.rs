@@ -77,3 +77,14 @@ pub async fn navigation(_req: Request, ctx: RouteContext<()>) -> Result<Response
     let html = admin::render_navigation_html(&auth_url, &header_menu, &footer_menu)?;
     Response::from_html(html)
 }
+
+pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let auth_url = get_auth_url(&ctx.env);
+    let db = ctx.env.d1("DB")?;
+    let menus = db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    
+    let html = admin::render_content_types_html(&auth_url, &header_menu, &footer_menu)?;
+    Response::from_html(html)
+}

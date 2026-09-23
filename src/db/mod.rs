@@ -1,3 +1,4 @@
+pub mod content_type;
 pub mod entry;
 pub mod media;
 pub mod revision;

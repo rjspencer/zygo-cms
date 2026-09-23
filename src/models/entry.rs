@@ -118,6 +118,7 @@ pub struct Entry {
     pub body_html: String,
     #[serde(default)]
     pub body_json: String,
+    pub custom_fields_json: Option<String>,
     pub search_text: Option<String>,
     pub created_at: String,
     pub parent_id: Option<i64>,
@@ -351,6 +352,7 @@ pub struct CreateEntryRequest {
     pub sort_order: Option<i32>,
     pub body_html: String,
     pub body_json: String,
+    pub custom_fields_json: Option<String>,
     
     #[serde(skip)]
     pub author_id: Option<i64>,
@@ -385,13 +387,7 @@ impl CreateEntryRequest {
             )));
         }
 
-        if let Some(ref t) = self.r#type {
-            if t != "post" && t != "page" {
-                return Err(AppError::BadRequest(
-                    "Type must be either 'post' or 'page'".into(),
-                ));
-            }
-        }
+
 
         if self.parent_id.is_some() && self.r#type.as_deref() != Some("page") {
             return Err(AppError::BadRequest(
@@ -427,6 +423,7 @@ pub struct UpdateEntryRequest {
     pub sort_order: Option<i32>,
     pub body_html: Option<String>,
     pub body_json: Option<String>,
+    pub custom_fields_json: Option<String>,
     pub draft_only: Option<bool>,
 }
 
@@ -458,13 +455,7 @@ impl UpdateEntryRequest {
             }
         }
 
-        if let Some(ref t) = self.r#type {
-            if t != "post" && t != "page" {
-                return Err(AppError::BadRequest(
-                    "Type must be either 'post' or 'page'".into(),
-                ));
-            }
-        }
+
 
         if let Some(Some(_)) = self.parent_id {
             if let Some(ref t) = self.r#type {

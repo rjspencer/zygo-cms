@@ -210,6 +210,7 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         published_at: Some(rev.created_at.clone()),
         body_html: rev.body_html.clone(),
         body_json: rev.body_json.clone(),
+        custom_fields_json: rev.custom_fields_json.clone(),
         created_at: rev.created_at.clone(),
         parent_id: entry.parent_id,
         path: entry.path.clone(),

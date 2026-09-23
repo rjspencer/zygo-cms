@@ -22,6 +22,7 @@ pub struct EntryRevision {
     pub cover_image: Option<String>,
     pub body_html: String,
     pub body_json: String,
+    pub custom_fields_json: Option<String>,
     pub category: Option<String>,
     pub tags: Option<String>,
     pub preview_token: String,
@@ -35,6 +36,7 @@ pub struct CreateRevisionParams {
     pub cover_image: Option<String>,
     pub body_html: String,
     pub body_json: String,
+    pub custom_fields_json: Option<String>,
     pub category: Option<String>,
     pub tags: Option<String>,
 }
@@ -53,6 +55,7 @@ mod tests {
             cover_image: None,
             body_html: "<p>Text</p>".into(),
             body_json: "{}".into(),
+            custom_fields_json: None,
             category: Some("Tech".into()),
             tags: Some("rust, wasm".into()),
             preview_token: "tok-12345".into(),

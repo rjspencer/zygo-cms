@@ -21,11 +21,19 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/admin/editor", handlers::admin::editor)
         .get_async("/admin/editor/:id", handlers::admin::editor_id)
         .get_async("/admin/navigation", handlers::admin::navigation)
+        .get_async("/admin/content-types", handlers::admin::content_types)
         
         // API routes - Menus
         .get_async("/api/menus", handlers::api::get_menus)
         .get_async("/api/menus/:name", handlers::api::get_menu)
         .put_async("/api/menus/:name", handlers::api::put_menu)
+        
+        // API routes - Content Types
+        .get_async("/api/content-types", handlers::content_type::list_content_types)
+        .get_async("/api/content-types/:id", handlers::content_type::get_content_type)
+        .post_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
+        .put_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
+        .delete_async("/api/content-types/:id", handlers::content_type::delete_content_type)
         
         // API routes - Media
         .post_async("/api/media", handlers::api::upload_media)

@@ -3,8 +3,8 @@ use crate::models::{BreadcrumbItem, CreateEntryRequest, Entry, UpdateEntryReques
 use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
-const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at, author_id";
-const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at, author_id, search_text";
+const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at, author_id, custom_fields_json";
+const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at, author_id, custom_fields_json, search_text";
 
 #[derive(serde::Deserialize)]
 struct CountResult {
@@ -301,11 +301,11 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
 
     let statement = db.prepare(
         "INSERT INTO entries (
-            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id, search_text
+            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id, search_text, custom_fields_json
          ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
             CASE WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
-            ?11, ?12, ?13, ?14, ?15, ?16, ?17
+            ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18
          )",
     );
 
@@ -328,6 +328,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             opt_js_i32(&payload.sort_order.or(Some(0))),
             opt_js_i64(&payload.author_id),
             search_text.into(),
+            opt_js(&payload.custom_fields_json),
         ])?
         .run()
         .await?;
@@ -463,6 +464,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
              path = ?14,
              sort_order = COALESCE(?15, sort_order),
              search_text = ?17,
+             custom_fields_json = COALESCE(?18, custom_fields_json),
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?16",
     );
@@ -489,6 +491,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
             opt_js_i32(&payload.sort_order),
             id.into(),
             new_search_text.into(),
+            opt_js(&payload.custom_fields_json),
         ])?
         .run()
         .await?;

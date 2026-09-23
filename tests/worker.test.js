@@ -587,4 +587,61 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
         const restoredPublicHtml = await restoredPublicRes.text();
         expect(restoredPublicHtml).toContain('Updated Published Title');
     });
+    it('creates a content type, creates an entry with it, and fetches it', async () => {
+
+        // 1. Create content type
+        const ctPayload = {
+            name: "Book Review",
+            description: "A review of a book",
+            schema_json: JSON.stringify([
+                { name: "rating", type: "number", label: "Rating", required: true },
+                { name: "author", type: "text", label: "Author", required: false }
+            ])
+        };
+        const ctRes = await worker.fetch(`http://127.0.0.1:8787/api/content-types/book-review`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token'
+            },
+            body: JSON.stringify(ctPayload)
+        });
+        expect(ctRes.status).toBe(200);
+
+        // 2. Create entry with custom_fields_json
+        const entryPayload = {
+            slug: `book-review-${Date.now()}`,
+            title: "Dune",
+            type: "book-review",
+            status: "published",
+            body_html: "<p>Great book.</p>",
+            body_json: '{"type":"doc","content":[{"type":"paragraph"}]}',
+            custom_fields_json: JSON.stringify({
+                rating: 5,
+                author: "Frank Herbert"
+            })
+        };
+        const entryRes = await worker.fetch('http://127.0.0.1:8787/api/entries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer test-token'
+            },
+            body: JSON.stringify(entryPayload)
+        });
+        expect(entryRes.status).toBe(200);
+        const createdEntry = await entryRes.json();
+        
+        // 3. Fetch entry and verify custom fields
+        const fetchRes = await worker.fetch(`http://127.0.0.1:8787/api/entries`, {
+            headers: { 'Authorization': 'Bearer test-token' }
+        });
+        const entries = await fetchRes.json();
+        const fetchedEntry = entries.find(e => e.id === createdEntry.id);
+        expect(fetchedEntry.type).toBe("book-review");
+        
+        const customFields = JSON.parse(fetchedEntry.custom_fields_json);
+        expect(customFields.rating).toBe(5);
+        expect(customFields.author).toBe("Frank Herbert");
+    });
 });

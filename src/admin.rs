@@ -72,6 +72,10 @@ impl<'a> EditorTemplate<'a> {
         self.entry.map(|p| p.id.to_string()).unwrap_or_default()
     }
 
+    pub fn entry_type(&self) -> &str {
+        self.entry.map(|e| e.r#type.as_str()).unwrap_or("post")
+    }
+
     pub fn is_page(&self) -> bool {
         self.entry
             .map(|e| e.r#type.as_str() == "page")
@@ -211,4 +215,31 @@ pub fn render_navigation_html(
     AdminNavigationTemplate { auth_url, header_menu, footer_menu }
         .render()
         .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+#[derive(Template)]
+#[template(path = "admin_content_types.html")]
+struct AdminContentTypesTemplate<'a> {
+    auth_url: &'a str,
+    header_menu: &'a [crate::models::MenuItem],
+    footer_menu: &'a [crate::models::MenuItem],
+}
+
+pub fn render_content_types_html(
+    auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
+) -> worker::Result<String> {
+    AdminContentTypesTemplate { auth_url, header_menu, footer_menu }
+        .render()
+        .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+impl<'a> EditorTemplate<'a> {
+    pub fn custom_fields_json(&self) -> String {
+        self.latest_revision
+            .and_then(|r| r.custom_fields_json.clone())
+            .or_else(|| self.entry.and_then(|p| p.custom_fields_json.clone()))
+            .unwrap_or_else(|| "{}".to_string())
+    }
 }
