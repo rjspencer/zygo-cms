@@ -34,6 +34,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .delete_async("/api/media/:key", handlers::api::delete_media)
         
         // API routes - Entries
+        .get_async("/api/search", handlers::api::search_entries_api)
+
         .get_async("/api/entries", handlers::api::get_entries)
         .get_async("/api/posts", handlers::api::get_posts)
         .post_async("/api/entries", handlers::api::create_entry)
@@ -49,6 +51,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/media/:key", handlers::public::stream_media)
         
         // Public routes - Blog/Pages
+        .get_async("/search", handlers::public::search_page)
+
         .get_async("/", handlers::public::index)
         .get_async("/sitemap.xml", handlers::public::sitemap)
         .get_async("/rss.xml", handlers::public::rss)

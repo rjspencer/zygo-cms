@@ -445,3 +445,16 @@ pub async fn get_revision(req: Request, ctx: RouteContext<()>) -> Result<Respons
         None => AppError::NotFound.to_response(),
     }
 }
+
+pub async fn search_entries_api(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let url = req.url()?;
+    let query = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+    
+    if query.trim().is_empty() {
+        return Response::from_json(&serde_json::json!([]));
+    }
+
+    let db = ctx.env.d1("DB")?;
+    let results = crate::db::search::search_entries(&db, &query, 5).await?;
+    Response::from_json(&results)
+}

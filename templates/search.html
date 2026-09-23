@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Search{% endblock %}
+
+{% block content %}
+<div class="taxonomy-header">
+    <h1 class="taxonomy-title">Search</h1>
+    <form action="/search" method="GET" class="search-form" style="margin-top: 1rem;">
+        <input 
+            type="search" 
+            name="q" 
+            value="{{ query }}" 
+            placeholder="Search posts and pages..." 
+            style="width: 100%; max-width: 400px; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"
+        >
+        <button type="submit" style="padding: 0.5rem 1rem; border: 1px solid #1a1a1a; background: #1a1a1a; color: white; border-radius: 4px; font-family: var(--font-headline); font-weight: bold;">Search</button>
+    </form>
+</div>
+
+{% if !query.is_empty() %}
+    <p style="color: #666; margin-bottom: 2rem; font-family: var(--font-headline); font-size: 0.85rem;">
+        Found {{ posts.len() }} result{% if posts.len() != 1 %}s{% endif %} for "<strong>{{ query }}</strong>"
+    </p>
+    
+    {% if posts.is_empty() %}
+        <p style="color: #888; font-style: italic;">No matching content found.</p>
+    {% else %}
+        {% include "includes/post_list.html" %}
+    {% endif %}
+{% else %}
+    <p style="color: #888; font-style: italic;">Enter a keyword above to search the site.</p>
+{% endif %}
+{% endblock %}

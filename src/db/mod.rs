@@ -27,3 +27,4 @@ pub(crate) fn opt_js_i32(val: &Option<i32>) -> JsValue {
         .unwrap_or_else(JsValue::null)
 }
 
+pub mod search;

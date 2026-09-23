@@ -4,7 +4,7 @@ use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
 const LIST_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, created_at, parent_id, path, sort_order, deleted_at, author_id";
-const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at, author_id";
+const ALL_COLUMNS: &str = "id, slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, created_at, parent_id, path, sort_order, deleted_at, author_id, search_text";
 
 #[derive(serde::Deserialize)]
 struct CountResult {
@@ -297,13 +297,15 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
         format!("/post/{}", payload.slug.trim_start_matches('/'))
     };
 
+    let search_text = crate::models::entry::strip_html_for_search(&payload.body_html, &payload.title, usize::MAX);
+
     let statement = db.prepare(
         "INSERT INTO entries (
-            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id
+            slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id, search_text
          ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
             CASE WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
-            ?11, ?12, ?13, ?14, ?15, ?16
+            ?11, ?12, ?13, ?14, ?15, ?16, ?17
          )",
     );
 
@@ -325,6 +327,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             computed_path.into(),
             opt_js_i32(&payload.sort_order.or(Some(0))),
             opt_js_i64(&payload.author_id),
+            search_text.into(),
         ])?
         .run()
         .await?;
@@ -434,6 +437,9 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
             .run()
             .await?;
     }
+    let new_body_html = payload.body_html.as_deref().unwrap_or(&existing.body_html);
+    let new_title = payload.title.as_deref().unwrap_or(&existing.title);
+    let new_search_text = crate::models::entry::strip_html_for_search(new_body_html, new_title, usize::MAX);
 
     let statement = db.prepare(
         "UPDATE entries
@@ -456,6 +462,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
              parent_id = CASE WHEN ?12 THEN ?13 ELSE parent_id END,
              path = ?14,
              sort_order = COALESCE(?15, sort_order),
+             search_text = ?17,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = ?16",
     );
@@ -481,6 +488,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
             new_path.into(),
             opt_js_i32(&payload.sort_order),
             id.into(),
+            new_search_text.into(),
         ])?
         .run()
         .await?;

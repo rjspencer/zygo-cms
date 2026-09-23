@@ -118,6 +118,7 @@ pub struct Entry {
     pub body_html: String,
     #[serde(default)]
     pub body_json: String,
+    pub search_text: Option<String>,
     pub created_at: String,
     pub parent_id: Option<i64>,
     pub path: Option<String>,
@@ -226,13 +227,20 @@ impl Entry {
         self.excerpt(160)
     }
 
+    /// Generates a plain-text version of the body for the search index.
+
     /// Strips HTML tags and collapses whitespace, truncating cleanly at a word boundary within max_chars.
     pub fn excerpt(&self, max_chars: usize) -> String {
-        let mut clean = String::with_capacity(self.body_html.len());
+        strip_html_for_search(&self.body_html, &self.title, max_chars)
+    }
+}
+
+pub fn strip_html_for_search(body_html: &str, title: &str, max_chars: usize) -> String {
+    let mut clean = String::with_capacity(body_html.len());
         let mut in_tag = false;
         let mut tag_name = String::new();
 
-        for c in self.body_html.chars() {
+        for c in body_html.chars() {
             match c {
                 '<' => {
                     in_tag = true;
@@ -287,7 +295,7 @@ impl Entry {
 
         if full_text.chars().count() <= max_chars {
             if full_text.is_empty() {
-                return self.title.clone();
+                return title.to_string();
             }
             return full_text;
         }
@@ -318,7 +326,6 @@ impl Entry {
             format!("{}...", result)
         }
     }
-}
 
 fn deserialize_some_opt<'de, D, T>(deserializer: D) -> std::result::Result<Option<Option<T>>, D::Error>
 where
@@ -344,6 +351,7 @@ pub struct CreateEntryRequest {
     pub sort_order: Option<i32>,
     pub body_html: String,
     pub body_json: String,
+    
     #[serde(skip)]
     pub author_id: Option<i64>,
 }

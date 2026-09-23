@@ -216,6 +216,8 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         sort_order: entry.sort_order,
         deleted_at: None,
         author_id: entry.author_id,
+        search_text: None,
+
     };
 
     let menus = db::menu::get_all_menus(&db).await?;
@@ -274,4 +276,31 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
         }
         Err(err) => err.to_response(),
     }
+}
+
+
+pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let url = req.url()?;
+    let query = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+    let db = ctx.env.d1("DB")?;
+    
+    let entries = if query.trim().is_empty() {
+        vec![]
+    } else {
+        crate::db::search::search_entries(&db, &query, 50).await?
+    };
+
+    let menus = crate::db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    let canonical_origin = crate::utils::get_canonical_origin(&req, &ctx.env);
+    
+    let html = crate::views::render_search_html(
+        &canonical_origin,
+        &query,
+        &entries,
+        &header_menu,
+        &footer_menu,
+    )?;
+    Response::from_html(html)
 }
