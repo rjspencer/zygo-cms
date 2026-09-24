@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ContentTypeField {
     pub name: String,
     pub r#type: String, // "text", "number", "boolean", "date", etc.

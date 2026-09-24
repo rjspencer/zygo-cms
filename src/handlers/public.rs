@@ -294,10 +294,8 @@ pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response
     let menus = crate::db::menu::get_all_menus(&db).await?;
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
-    let canonical_origin = crate::utils::get_canonical_origin(&req, &ctx.env);
     
     let html = crate::views::render_search_html(
-        &canonical_origin,
         &query,
         &entries,
         &header_menu,
