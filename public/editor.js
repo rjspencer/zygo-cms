@@ -2,6 +2,7 @@ import { Editor } from 'https://esm.sh/@tiptap/core';
 import StarterKit from 'https://esm.sh/@tiptap/starter-kit';
 import Image from 'https://esm.sh/@tiptap/extension-image';
 import { createClient } from 'https://esm.sh/@propelauth/javascript';
+import { initPageBuilder, getPageBuilderJSON, getPageBuilderHTML } from './page-builder.js';
 
 export async function initEditor(initialContent, authUrl, initialCustomFields = {}) {
     let isDirty = false;
@@ -1030,8 +1031,8 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 sort_order = sortVal && sortVal !== '' ? parseInt(sortVal, 10) : 0;
             }
 
-            const body_html = editor.getHTML();
-            const body_json = JSON.stringify(editor.getJSON());
+            const body_html = type === 'page' ? getPageBuilderHTML() : editor.getHTML();
+            const body_json = type === 'page' ? JSON.stringify(getPageBuilderJSON()) : JSON.stringify(editor.getJSON());
 
             let custom_fields_json = null;
             const customFieldsInputs = document.querySelectorAll('.dynamic-custom-field');
