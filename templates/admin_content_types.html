@@ -23,15 +23,13 @@
         <div id="no-selection-msg">Select a content type or create a new one.</div>
         
         <div id="editor-form" style="display: none; flex-direction: column; gap: 1rem;">
-            <div style="display: flex; gap: 1rem;">
-                <div style="flex: 1;">
-                    <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Type ID (e.g. 'product')</label>
-                    <input type="text" id="inp-id" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;" disabled>
-                </div>
-                <div style="flex: 1;">
-                    <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Display Name</label>
-                    <input type="text" id="inp-name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-                </div>
+            <div>
+                <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Type ID (e.g. 'product')</label>
+                <input type="text" id="inp-id" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;" disabled>
+            </div>
+            <div>
+                <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Display Name</label>
+                <input type="text" id="inp-name" style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
             </div>
             <div>
                 <label style="display: block; font-weight: bold; margin-bottom: 0.25rem;">Description</label>
@@ -78,7 +76,9 @@
 
     async function fetchTypes() {
         try {
-            const res = await fetch('/api/content-types');
+            const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
+            const res = await fetch('/api/content-types', { headers });
+            if (!res.ok) throw new Error("HTTP error " + res.status);
             types = await res.json();
             renderSidebar();
         } catch (e) {

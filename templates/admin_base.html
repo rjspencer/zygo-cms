@@ -15,6 +15,11 @@
 
     <!-- Sidebar / Drawer -->
     <aside id="admin-sidebar" class="admin-sidebar" aria-label="Admin Navigation">
+        <script>
+            if (localStorage.getItem('zygo_role') === 'admin') {
+                document.write('<style>#nav-analytics { display: block !important; }</style>');
+            }
+        </script>
         <div class="admin-sidebar-header">
             <a href="/" class="site-title">Zygo CMS</a>
             <button type="button" id="admin-drawer-close" class="admin-drawer-close" aria-label="Close navigation drawer">&times;</button>
@@ -103,10 +108,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + authInfo.accessToken } })
                     .then(res => res.json())
                     .then(meData => {
+                        localStorage.setItem('zygo_role', meData.role);
                         const nav = document.getElementById('nav-analytics');
                         if (nav) {
                             if (meData.role === 'admin' || {{ analytics_enabled }}) {
                                 nav.style.display = 'block';
+                            } else {
+                                nav.style.display = 'none';
                             }
                         }
                     })
