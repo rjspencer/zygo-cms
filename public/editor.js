@@ -686,20 +686,33 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
             updateHierarchyVisibility();
         }
 
-        // Prepopulate parent page if navigated via ?parent_id=...
+        // Prepopulate parent page or type if navigated via query params
         const urlParams = new URLSearchParams(window.location.search);
         const preselectedParent = urlParams.get('parent_id');
+        const preselectedType = urlParams.get('type');
         const postIdInput = document.querySelector('#post-id');
-        if (preselectedParent && (!postIdInput || !postIdInput.value)) {
-            if (typeSelect) {
-                typeSelect.value = 'page';
+        
+        const typeGroup = document.querySelector('#type-group');
+        
+        if (!postIdInput || !postIdInput.value) {
+            if (preselectedType && typeSelect) {
+                typeSelect.value = preselectedType;
                 updateHierarchyVisibility();
             }
-            const parentSelect = document.querySelector('#parent-id');
-            if (parentSelect) {
-                parentSelect.value = preselectedParent;
+            if (preselectedParent) {
+                if (typeSelect) {
+                    typeSelect.value = 'page';
+                    updateHierarchyVisibility();
+                }
+                const parentSelect = document.querySelector('#parent-id');
+                if (parentSelect) {
+                    parentSelect.value = preselectedParent;
+                }
             }
         }
+        
+        // Hide type selector since it is implied by context (from 'Add new' or existing entry)
+        if (typeGroup) typeGroup.style.display = 'none';
 
         // Handle Delete button if present
         const deleteBtn = document.querySelector('#delete-btn');
