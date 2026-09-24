@@ -1050,6 +1050,19 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 custom_fields_json = JSON.stringify(customFieldsData);
             }
 
+            
+            let published_at = null;
+            if (status === 'scheduled' || document.getElementById('published_at')?.value) {
+                const rawDate = document.getElementById('published_at')?.value;
+                if (rawDate) {
+                    // Convert HTML datetime-local (YYYY-MM-DDTHH:MM) to SQLite (YYYY-MM-DD HH:MM:00)
+                    published_at = rawDate.replace('T', ' ');
+                    if (published_at.length === 16) {
+                        published_at += ':00';
+                    }
+                }
+            }
+
             const payload = {
                 title,
                 type,
@@ -1060,6 +1073,7 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 schema_json,
                 category,
                 tags,
+                published_at,
                 parent_id,
                 sort_order,
                 body_html,

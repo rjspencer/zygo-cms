@@ -353,6 +353,7 @@ pub struct CreateEntryRequest {
     pub body_html: String,
     pub body_json: String,
     pub custom_fields_json: Option<String>,
+    pub published_at: Option<String>,
     
     #[serde(skip)]
     pub author_id: Option<i64>,
@@ -425,6 +426,7 @@ pub struct UpdateEntryRequest {
     pub body_json: Option<String>,
     pub custom_fields_json: Option<String>,
     pub draft_only: Option<bool>,
+    pub published_at: Option<String>,
 }
 
 impl UpdateEntryRequest {

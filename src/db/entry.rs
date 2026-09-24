@@ -311,7 +311,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             slug, title, type, status, description, cover_image, canonical_url, schema_json, category, tags, published_at, body_html, body_json, parent_id, path, sort_order, author_id, search_text, custom_fields_json
          ) VALUES (
             ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10,
-            CASE WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
+            CASE WHEN ?19 IS NOT NULL THEN ?19 WHEN ?4 = 'published' THEN CURRENT_TIMESTAMP ELSE NULL END,
             ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18
          )",
     );
@@ -336,6 +336,7 @@ pub async fn create_entry(db: &D1Database, payload: &CreateEntryRequest) -> Resu
             opt_js_i64(&payload.author_id),
             search_text.into(),
             opt_js(&payload.custom_fields_json),
+            opt_js(&payload.published_at),
         ])?
         .run()
         .await?;
@@ -461,6 +462,8 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
              category = COALESCE(?8, category),
              tags = COALESCE(?9, tags),
              published_at = CASE
+                 WHEN ?19 IS NOT NULL THEN ?19
+                 WHEN COALESCE(?3, status) = 'scheduled' THEN published_at
                  WHEN COALESCE(?3, status) = 'published' AND published_at IS NULL THEN CURRENT_TIMESTAMP
                  WHEN COALESCE(?3, status) = 'draft' THEN NULL
                  ELSE published_at
@@ -499,6 +502,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
             id.into(),
             new_search_text.into(),
             opt_js(&payload.custom_fields_json),
+            opt_js(&payload.published_at),
         ])?
         .run()
         .await?;
@@ -562,4 +566,12 @@ pub async fn restore_entry(db: &D1Database, id: &str) -> Result<bool> {
 
     let rows_affected = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
     Ok(rows_affected > 0)
+}
+
+pub async fn publish_scheduled_entries(db: &D1Database) -> Result<Vec<Entry>> {
+    let statement = db.prepare(
+        "UPDATE entries SET status = 'published' WHERE status = 'scheduled' AND published_at <= CURRENT_TIMESTAMP RETURNING *"
+    );
+    let result = statement.run().await?;
+    result.results::<Entry>()
 }
