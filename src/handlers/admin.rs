@@ -4,8 +4,11 @@ use crate::utils::get_auth_url;
 
 pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
-    let entries = db::find_all_entries(&db).await?;
-    let deleted_entries = db::find_deleted_entries(&db).await?;
+    
+    let page_count = db::count_entries_by_type(&db, "page").await?;
+    let post_count = db::count_entries_by_type(&db, "post").await?;
+    let author_count = db::count_users(&db).await?;
+    
     let auth_url = get_auth_url(&ctx.env);
     
     let menus = db::menu::get_all_menus(&db).await?;
@@ -16,7 +19,53 @@ pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response>
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let html = admin::render_dashboard_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
+    let html = admin::render_dashboard_html(page_count, post_count, author_count, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
+    Response::from_html(html)
+}
+
+pub async fn pages(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let db = ctx.env.d1("DB")?;
+    let entries = db::find_all_pages(&db).await?;
+    // We don't have find_deleted_pages, but we can reuse find_deleted_entries and filter in UI or create a db method. Let's just create find_deleted_pages.
+    // Actually, find_deleted_entries returns all deleted entries. We can filter in Rust.
+    let all_deleted = db::find_deleted_entries(&db).await?;
+    let deleted_entries = all_deleted.into_iter().filter(|e| e.r#type == "page").collect::<Vec<_>>();
+    
+    let auth_url = get_auth_url(&ctx.env);
+    
+    let menus = db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    let html = admin::render_pages_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
+    Response::from_html(html)
+}
+
+pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let db = ctx.env.d1("DB")?;
+    // Wait, find_all_posts doesn't exist? There's find_published_posts, but admin needs all.
+    // Let's look at what we have for fetching entries. We have find_all_entries. Let's filter it.
+    let all_entries = db::find_all_entries(&db).await?;
+    let entries = all_entries.into_iter().filter(|e| e.r#type == "post").collect::<Vec<_>>();
+    
+    let all_deleted = db::find_deleted_entries(&db).await?;
+    let deleted_entries = all_deleted.into_iter().filter(|e| e.r#type == "post").collect::<Vec<_>>();
+    
+    let auth_url = get_auth_url(&ctx.env);
+    
+    let menus = db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    let html = admin::render_posts_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
     Response::from_html(html)
 }
 

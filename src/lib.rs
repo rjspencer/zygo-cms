@@ -17,7 +17,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     Router::new()
         // Admin routes
         .get_async("/admin", handlers::admin::dashboard)
-        .get_async("/admin/entries", handlers::admin::dashboard)
+        .get_async("/admin/pages", handlers::admin::pages)
+        .get_async("/admin/posts", handlers::admin::posts)
         .get_async("/admin/editor", handlers::admin::editor)
         .get_async("/admin/editor/:id", handlers::admin::editor_id)
         .get_async("/admin/navigation", handlers::admin::navigation)

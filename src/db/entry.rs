@@ -71,6 +71,13 @@ pub async fn count_published_posts(db: &D1Database) -> Result<i64> {
     Ok(count_res.map(|c| c.count).unwrap_or(0))
 }
 
+pub async fn count_entries_by_type(db: &D1Database, entry_type: &str) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM entries WHERE type = ?1 AND deleted_at IS NULL";
+    let statement = db.prepare(query);
+    let count_res = statement.bind(&[entry_type.into()])?.first::<CountResult>(None).await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
 pub async fn find_published_posts_paginated(
     db: &D1Database,
     limit: i64,

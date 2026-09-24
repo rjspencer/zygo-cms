@@ -4,6 +4,40 @@ use askama::Template;
 #[derive(Template)]
 #[template(path = "admin_dashboard.html")]
 pub struct AdminDashboardTemplate<'a> {
+    pub page_count: i64,
+    pub post_count: i64,
+    pub author_count: i64,
+    pub auth_url: &'a str,
+    pub header_menu: &'a [crate::models::MenuItem],
+    pub footer_menu: &'a [crate::models::MenuItem],
+    pub analytics_enabled: bool,
+}
+
+pub fn render_dashboard_html(
+    page_count: i64,
+    post_count: i64,
+    author_count: i64,
+    auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
+    analytics_enabled: bool,
+) -> worker::Result<String> {
+    AdminDashboardTemplate {
+        page_count,
+        post_count,
+        author_count,
+        auth_url,
+        header_menu,
+        footer_menu,
+        analytics_enabled,
+    }
+    .render()
+    .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+#[derive(Template)]
+#[template(path = "admin_pages.html")]
+pub struct AdminPagesTemplate<'a> {
     pub entries: &'a [Entry],
     pub deleted_entries: &'a [Entry],
     pub auth_url: &'a str,
@@ -12,7 +46,7 @@ pub struct AdminDashboardTemplate<'a> {
     pub analytics_enabled: bool,
 }
 
-pub fn render_dashboard_html(
+pub fn render_pages_html(
     entries: &[Entry],
     deleted_entries: &[Entry],
     auth_url: &str,
@@ -20,7 +54,38 @@ pub fn render_dashboard_html(
     footer_menu: &[crate::models::MenuItem],
     analytics_enabled: bool,
 ) -> worker::Result<String> {
-    AdminDashboardTemplate {
+    AdminPagesTemplate {
+        entries,
+        deleted_entries,
+        auth_url,
+        header_menu,
+        footer_menu,
+        analytics_enabled,
+    }
+    .render()
+    .map_err(|e| worker::Error::RustError(e.to_string()))
+}
+
+#[derive(Template)]
+#[template(path = "admin_posts.html")]
+pub struct AdminPostsTemplate<'a> {
+    pub entries: &'a [Entry],
+    pub deleted_entries: &'a [Entry],
+    pub auth_url: &'a str,
+    pub header_menu: &'a [crate::models::MenuItem],
+    pub footer_menu: &'a [crate::models::MenuItem],
+    pub analytics_enabled: bool,
+}
+
+pub fn render_posts_html(
+    entries: &[Entry],
+    deleted_entries: &[Entry],
+    auth_url: &str,
+    header_menu: &[crate::models::MenuItem],
+    footer_menu: &[crate::models::MenuItem],
+    analytics_enabled: bool,
+) -> worker::Result<String> {
+    AdminPostsTemplate {
         entries,
         deleted_entries,
         auth_url,

@@ -13,6 +13,13 @@ struct CountResult {
     count: i64,
 }
 
+pub async fn count_users(db: &D1Database) -> Result<i64> {
+    let query = "SELECT COUNT(*) as count FROM users";
+    let statement = db.prepare(query);
+    let count_res = statement.first::<CountResult>(None).await?;
+    Ok(count_res.map(|c| c.count).unwrap_or(0))
+}
+
 pub async fn create_user(db: &D1Database, auth_provider_id: &str, email: Option<String>) -> Result<User> {
     // Check if this is the first user
     let count_stmt = db.prepare("SELECT COUNT(*) as count FROM users");
