@@ -48,3 +48,5 @@
 
 ## Authentication
 - **Securing API Routes**: Any API route requiring authentication must use the `let _user = auth_required!(&req, ctx);` macro at the very beginning of the handler. This macro automatically handles the early return of `401 Unauthorized` responses.
+
+- **Build Verification**: Always run `cargo check` or `cargo build` and verify the project compiles without errors before committing any code.
