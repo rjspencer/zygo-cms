@@ -96,6 +96,58 @@ const blockTemplates = {
         name: 'Image Gallery',
         defaultData: { images: [] },
         renderForm: (data, id) => `
+            <label class="pb-label">Images</label>
+            <div id="pb-gal-list-${id}" class="pb-gallery-list"></div>
+            <button type="button" class="pb-media-picker-btn" id="pb-gal-add-${id}" style="margin-top:0.5rem;">Add Image</button>
+        `,
+        initForm: (data, id, updateData) => {
+            const addBtn = document.querySelector(`#pb-gal-add-${id}`);
+            const listEl = document.querySelector(`#pb-gal-list-${id}`);
+            
+            const reRenderList = () => {
+                listEl.innerHTML = data.images.map((url, i) => `
+                    <div class="pb-gal-item" data-index="${i}" style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                        <img src="${url}" style="height:40px; width:40px; object-fit:cover; border-radius:4px;">
+                        <input type="text" class="pb-input pb-gal-input" value="${url}" readonly style="flex:1;">
+                        <button type="button" class="pb-delete-btn pb-gal-del" data-index="${i}" style="color:red; background:none; border:none; cursor:pointer; font-size:1.2rem;">&times;</button>
+                    </div>
+                `).join('');
+                
+                listEl.querySelectorAll('.pb-gal-del').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+                        data.images.splice(idx, 1);
+                        updateData({ images: data.images });
+                        reRenderList();
+                    });
+                });
+            };
+            
+            reRenderList();
+            
+            addBtn.addEventListener('click', () => {
+                if (window.openMediaPicker) {
+                    window.openMediaPicker({ onSelect: (url) => { 
+                        data.images.push(url);
+                        updateData({ images: data.images });
+                        reRenderList();
+                    } });
+                }
+            });
+        },
+        renderHTML: (data) => `
+            <div class="gallery-block">
+                <div class="gallery-grid">
+                    ${data.images.map(url => `
+                        <div class="gallery-item">
+                            <img src="${url}" alt="">
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `
+    },,
+        renderForm: (data, id) => `
             <p>Coming soon: array of images</p>
         `,
         initForm: (data, id, updateData) => {},
@@ -104,6 +156,54 @@ const blockTemplates = {
     'image-text': {
         name: 'Image Left / Text Right',
         defaultData: { headline: '', text: '', imageUrl: '', reverse: false },
+        renderForm: (data, id) => `
+            <label class="pb-label">Headline</label>
+            <input type="text" class="pb-input" id="pb-it-hl-${id}" value="${data.headline || ''}">
+            
+            <label class="pb-label">Text</label>
+            <textarea class="pb-input" id="pb-it-txt-${id}" rows="5">${data.text || ''}</textarea>
+            
+            <label class="pb-label">Image</label>
+            <button type="button" class="pb-media-picker-btn" id="pb-it-img-btn-${id}">Select Image</button>
+            <input type="text" class="pb-input" id="pb-it-img-${id}" value="${data.imageUrl || ''}" placeholder="Image URL">
+            
+            <label class="pb-label" style="display:flex; align-items:center; gap:0.5rem; margin-top:1rem;">
+                <input type="checkbox" id="pb-it-rev-${id}" ${data.reverse ? 'checked' : ''}>
+                Reverse (Image on Right)
+            </label>
+        `,
+        initForm: (data, id, updateData) => {
+            const hl = document.querySelector(`#pb-it-hl-${id}`);
+            const txt = document.querySelector(`#pb-it-txt-${id}`);
+            const img = document.querySelector(`#pb-it-img-${id}`);
+            const imgBtn = document.querySelector(`#pb-it-img-btn-${id}`);
+            const rev = document.querySelector(`#pb-it-rev-${id}`);
+
+            const onChange = () => updateData({
+                headline: hl.value, text: txt.value, imageUrl: img.value, reverse: rev.checked
+            });
+
+            [hl, txt, img, rev].forEach(el => el.addEventListener('change', onChange));
+            [hl, txt, img].forEach(el => el.addEventListener('input', onChange));
+            
+            imgBtn.addEventListener('click', () => {
+                if (window.openMediaPicker) {
+                    window.openMediaPicker({ onSelect: (url) => { img.value = url; onChange(); } });
+                }
+            });
+        },
+        renderHTML: (data) => `
+            <div class="image-text-block ${data.reverse ? 'reversed' : ''}">
+                <div class="it-image-wrapper">
+                    ${data.imageUrl ? `<img src="${data.imageUrl}" class="it-image" alt="">` : ''}
+                </div>
+                <div class="it-content">
+                    ${data.headline ? `<h2 class="it-headline">${data.headline}</h2>` : ''}
+                    ${data.text ? `<p class="it-text">${data.text}</p>` : ''}
+                </div>
+            </div>
+        `
+    },
         renderForm: (data, id) => `
             <p>Coming soon</p>
         `,
