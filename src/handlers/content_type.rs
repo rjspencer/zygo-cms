@@ -1,9 +1,9 @@
 use crate::db;
-use crate::models::{ContentTypePayload, User};
+use crate::models::ContentTypePayload;
 use crate::auth_required;
 use crate::error::AppError;
 use serde_json::json;
-use worker::{Context, Request, Response, Result, RouteContext};
+use worker::{Request, Response, Result, RouteContext};
 
 pub async fn list_content_types(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);

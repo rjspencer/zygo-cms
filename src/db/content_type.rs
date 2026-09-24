@@ -1,6 +1,5 @@
 use super::opt_js;
 use crate::models::{ContentType, ContentTypePayload};
-use worker::wasm_bindgen::JsValue;
 use worker::{D1Database, Result};
 
 pub async fn get_all(db: &D1Database) -> Result<Vec<ContentType>> {

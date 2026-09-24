@@ -30,4 +30,3 @@ pub(crate) fn opt_js_i32(val: &Option<i32>) -> JsValue {
 
 pub mod search;
 pub mod setting;
-pub use setting::*;

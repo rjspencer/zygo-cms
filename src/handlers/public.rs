@@ -233,7 +233,7 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         views::render_preview_post(&preview_entry, &origin, &rev, &header_menu, &footer_menu)?
     };
 
-    let mut headers = Headers::new();
+    let headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
     headers.set("Cache-Control", "no-store, no-cache, must-revalidate")?;
 

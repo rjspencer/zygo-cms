@@ -512,7 +512,7 @@ pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Respon
         zone_id
     );
 
-    let mut headers = Headers::new();
+    let headers = Headers::new();
     headers.set("Authorization", &format!("Bearer {}", api_token))?;
     headers.set("Content-Type", "application/json")?;
 

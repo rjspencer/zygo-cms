@@ -233,6 +233,18 @@ impl<'a> EditorTemplate<'a> {
             .unwrap_or(true)
     }
 
+    pub fn is_draft(&self) -> bool {
+        self.entry
+            .map(|p| p.status.as_str() == "draft")
+            .unwrap_or(false)
+    }
+
+    pub fn is_scheduled(&self) -> bool {
+        self.entry
+            .map(|p| p.status.as_str() == "scheduled")
+            .unwrap_or(false)
+    }
+
     pub fn initial_json(&self) -> &str {
         self.latest_revision
             .map(|r| r.body_json.as_str())
