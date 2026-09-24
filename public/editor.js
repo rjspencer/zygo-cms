@@ -637,6 +637,28 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
             if (pageHierarchyFields && typeSelect) {
                 pageHierarchyFields.style.display = typeSelect.value === 'page' ? 'block' : 'none';
             }
+            
+            const pbWrapper = document.getElementById('page-builder-wrapper');
+            const ttWrapper = document.getElementById('post-editor-wrapper');
+            if (pbWrapper && ttWrapper && typeSelect) {
+                if (typeSelect.value === 'page') {
+                    pbWrapper.style.display = 'block';
+                    ttWrapper.style.display = 'none';
+                    if (!window.__pb_initialized) {
+                        try {
+                            const parsed = typeof initialContent === 'string' ? JSON.parse(initialContent) : initialContent;
+                            initPageBuilder(parsed, () => { isDirty = true; });
+                        } catch (e) {
+                            initPageBuilder([], () => { isDirty = true; });
+                        }
+                        window.__pb_initialized = true;
+                    }
+                } else {
+                    pbWrapper.style.display = 'none';
+                    ttWrapper.style.display = 'block';
+                }
+            }
+            
             renderDynamicFields();
         };
 
