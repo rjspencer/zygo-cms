@@ -224,13 +224,13 @@ pub struct RssTemplate<'a> {
 pub fn render_sitemap(
     origin: &str,
     posts: &[Entry],
-    env: &worker::Env,
+    env: &worker::Env, req: &worker::Request,
 ) -> worker::Result<worker::Response> {
     let body = render_tmpl(&SitemapTemplate { origin, entries: posts })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/xml; charset=utf-8")?;
-    crate::cache::add_cache_headers(&mut headers, env)?;
+    crate::cache::add_cache_headers(&mut headers, env, req)?;
 
     worker::Response::ok(body).map(|res| res.with_headers(headers))
 }
@@ -238,13 +238,13 @@ pub fn render_sitemap(
 pub fn render_rss(
     origin: &str,
     posts: &[Entry],
-    env: &worker::Env,
+    env: &worker::Env, req: &worker::Request,
 ) -> worker::Result<worker::Response> {
     let body = render_tmpl(&RssTemplate { origin, posts })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/rss+xml; charset=utf-8")?;
-    crate::cache::add_cache_headers(&mut headers, env)?;
+    crate::cache::add_cache_headers(&mut headers, env, req)?;
 
     worker::Response::ok(body).map(|res| res.with_headers(headers))
 }

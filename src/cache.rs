@@ -11,6 +11,15 @@ pub fn edge_ttl(env: &Env) -> u32 {
         .unwrap_or(DEFAULT_EDGE_TTL_SECONDS)
 }
 
+pub fn is_localhost(req: &Request) -> bool {
+    if let Ok(url) = req.url() {
+        if let Some(host) = url.host_str() {
+            return host == "localhost" || host == "127.0.0.1";
+        }
+    }
+    false
+}
+
 /// Adds Cloudflare CDN edge caching directives with a custom TTL
 pub fn add_cache_headers_with_ttl(headers: &mut Headers, s_maxage: u32) -> Result<()> {
     headers.set(
@@ -24,12 +33,17 @@ pub fn add_cache_headers_with_ttl(headers: &mut Headers, s_maxage: u32) -> Resul
 }
 
 /// Adds Cloudflare CDN edge caching directives (reads EDGE_TTL_SECONDS from env, default 3600s)
-pub fn add_cache_headers(headers: &mut Headers, env: &Env) -> Result<()> {
+pub fn add_cache_headers(headers: &mut Headers, env: &Env, req: &Request) -> Result<()> {
+    if is_localhost(req) {
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate")?;
+        return Ok(());
+    }
     add_cache_headers_with_ttl(headers, edge_ttl(env))
 }
 
 /// Retrieve a response from the worker's local edge cache, bypassing if ?preview=true
 pub async fn get_cached(req: &Request) -> Option<Response> {
+    if is_localhost(req) { return None; }
     if let Ok(url) = req.url() {
         if url.query().map(|q| q.contains("preview")).unwrap_or(false) {
             return None;
@@ -44,6 +58,7 @@ pub async fn get_cached(req: &Request) -> Option<Response> {
 
 /// Store a response in the worker's local edge cache
 pub async fn put_cached(req: &Request, res: &mut Response) {
+    if is_localhost(req) { return; }
     if let Ok(url) = req.url() {
         if let Ok(cloned) = res.cloned() {
             let cache = Cache::default();
