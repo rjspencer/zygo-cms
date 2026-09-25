@@ -7,6 +7,29 @@ import { initPageBuilder, getPageBuilderJSON, getPageBuilderHTML } from './page-
 export async function initEditor(initialContent, authUrl, initialCustomFields = {}) {
     let isDirty = false;
 
+    // Editor Tabs Logic
+    const tabBtns = document.querySelectorAll('.editor-tab');
+    const tabContents = document.querySelectorAll('.editor-tab-content');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = btn.getAttribute('data-tab');
+            
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tabContents.forEach(c => c.style.display = '');
+            
+            btn.classList.add('active');
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                targetContent.style.display = '';
+            }
+        });
+    });
+
+
     window.addEventListener('beforeunload', (e) => {
         if (isDirty) {
             e.preventDefault();
@@ -636,6 +659,15 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
         const updateHierarchyVisibility = () => {
             if (pageHierarchyFields && typeSelect) {
                 pageHierarchyFields.style.display = typeSelect.value === 'page' ? 'block' : 'none';
+            }
+            const postMetaFields = document.getElementById('post-metadata-fields');
+            if (postMetaFields && typeSelect) {
+                postMetaFields.style.display = typeSelect.value === 'page' ? 'none' : 'block';
+            }
+            
+            const tabBtnDetails = document.getElementById('tab-btn-details');
+            if (tabBtnDetails && typeSelect) {
+                tabBtnDetails.textContent = typeSelect.value === 'page' ? 'Page Attributes' : 'Post Details';
             }
             
             const pbWrapper = document.getElementById('page-builder-wrapper');

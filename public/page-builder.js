@@ -146,12 +146,6 @@ const blockTemplates = {
                 </div>
             </div>
         `
-    },,
-        renderForm: (data, id) => `
-            <p>Coming soon: array of images</p>
-        `,
-        initForm: (data, id, updateData) => {},
-        renderHTML: (data) => `<div class="gallery-block">Gallery Placeholder</div>`
     },
     'image-text': {
         name: 'Image Left / Text Right',
@@ -203,12 +197,6 @@ const blockTemplates = {
                 </div>
             </div>
         `
-    },
-        renderForm: (data, id) => `
-            <p>Coming soon</p>
-        `,
-        initForm: (data, id, updateData) => {},
-        renderHTML: (data) => `<div class="image-text-block">Image/Text Placeholder</div>`
     }
 };
 

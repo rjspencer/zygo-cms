@@ -828,3 +828,35 @@ body.admin-drawer-open {
 .it-text {
     line-height: 1.6;
 }
+
+/* Editor Tabs */
+.editor-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.editor-tab {
+    background: transparent;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--text-color);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+    border-radius: 4px 4px 0 0;
+}
+.editor-tab:hover {
+    background: var(--bg-hover);
+}
+.editor-tab.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+}
+.editor-tab-content {
+    display: none;
+}
+.editor-tab-content.active {
+    display: block;
+}

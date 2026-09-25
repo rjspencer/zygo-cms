@@ -23,7 +23,17 @@
     data-child-count="{{ child_count() }}">
     <input type="hidden" id="post-id" value="{{ post_id() }}">
 
-    <div class="form-group">
+    
+    <!-- Tabs Header -->
+    <div class="editor-tabs">
+        <button type="button" class="editor-tab active" data-tab="tab-content">Content</button>
+        <button type="button" class="editor-tab" data-tab="tab-metadata">Metadata</button>
+        <button type="button" class="editor-tab" id="tab-btn-details" data-tab="tab-details">Details</button>
+    </div>
+
+    <!-- TAB: CONTENT -->
+    <div class="editor-tab-content active" id="tab-content">
+        <div class="form-group">
         <label for="title">Title</label>
         <input type="text" id="title" value="{{ title() }}" placeholder="Post Title" required>
     </div>
@@ -35,7 +45,60 @@
 
     <input type="hidden" id="type" data-initial-type="{{ entry_type() }}" value="{{ entry_type() }}">
 
-    <div id="page-hierarchy-fields" {% if !is_page() %}style="display:none;" {% endif %}>
+    
+<div class="form-group" id="content-container">
+        <label id="content-label">Content</label>
+        
+        <!-- Post Editor (TipTap) -->
+        <div id="post-editor-wrapper">
+            <div class="toolbar" id="toolbar">
+                <button type="button" data-cmd="bold">Bold</button>
+                <button type="button" data-cmd="italic">Italic</button>
+                <button type="button" data-cmd="h1">H1</button>
+                <button type="button" data-cmd="h2">H2</button>
+                <button type="button" data-cmd="bullet">List</button>
+                <button type="button" data-cmd="quote">Quote</button>
+                <button type="button" data-cmd="code-block">&lt;/&gt; Code Block</button>
+                <button type="button" id="btn-image">+ Image</button>
+                <button type="button" id="btn-gallery">Browse Library</button>
+                <input type="file" id="image-input" accept="image/*" style="display:none">
+            </div>
+            <div id="editor"></div>
+        </div>
+
+        <!-- Page Builder (Blocks) -->
+        <div id="page-builder-wrapper" style="display: none;">
+            <div class="pb-layout">
+                <div class="pb-left">
+                    <div id="pb-block-list"></div>
+                    <div class="pb-add-block">
+                        <select id="pb-add-select">
+                            <option value="">+ Add Content Block</option>
+                            <option value="blank">Blank (Rich Text)</option>
+                            <option value="hero">Hero Section</option>
+                            <option value="gallery">Image Gallery</option>
+                            <option value="image-text">Image Left / Text Right</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="pb-right" id="pb-editor-panel" style="display: none;">
+                    <div class="pb-panel-header">
+                        <h4 id="pb-panel-title">Edit Block</h4>
+                        <button type="button" id="pb-close-panel" title="Close Panel">&times;</button>
+                    </div>
+                    <div id="pb-panel-content">
+                        <p class="pb-empty-state">Select a block to edit its contents.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </div>
+    <div class="actions"></div>
+    <!-- TAB: DETAILS -->
+    <div class="editor-tab-content" id="tab-details">
+        <div id="page-hierarchy-fields" {% if !is_page() %}style="display:none;" {% endif %}>
         <div class="form-group">
             <label for="parent-id">Parent Page (Optional)</label>
             <select id="parent-id">
@@ -78,7 +141,22 @@
         {% endif %}
     </div>
 
-    <div class="form-group">
+    
+    <div id="post-metadata-fields" {% if is_page() %}style="display:none;" {% endif %}>
+        <div class="form-group">
+            <label for="category">Category (Optional)</label>
+            <input type="text" id="category" value="{{ category() }}" placeholder="e.g. Engineering">
+        </div>
+
+        <div class="form-group">
+            <label for="tags">Tags (Optional, comma-separated)</label>
+            <input type="text" id="tags" value="{{ tags() }}" placeholder="e.g. rust, wasm, cloudflare">
+        </div>
+    </div>
+</div>
+    <!-- TAB: METADATA -->
+    <div class="editor-tab-content" id="tab-metadata">
+        <div class="form-group">
         <label for="status">Publishing Status</label>
         <select id="status">
             <option value="published" {% if is_published() %} selected{% endif %}>Published</option>
@@ -134,16 +212,7 @@
             placeholder="https://myblog.com/original-article">
     </div>
 
-    <div class="form-group">
-        <label for="category">Category (Optional)</label>
-        <input type="text" id="category" value="{{ category() }}" placeholder="e.g. Engineering">
-    </div>
-
-    <div class="form-group">
-        <label for="tags">Tags (Optional, comma-separated)</label>
-        <input type="text" id="tags" value="{{ tags() }}" placeholder="e.g. rust, wasm, cloudflare">
-    </div>
-
+    
     <div class="form-group">
         <div class="json-header">
             <label for="schema-json">Schema JSON-LD (Optional)</label>
@@ -164,55 +233,9 @@
         <div id="dynamic-fields-content" style="display: flex; flex-direction: column; gap: 1rem;"></div>
     </div>
 
-    <div class="form-group" id="content-container">
-        <label id="content-label">Content</label>
-        
-        <!-- Post Editor (TipTap) -->
-        <div id="post-editor-wrapper">
-            <div class="toolbar" id="toolbar">
-                <button type="button" data-cmd="bold">Bold</button>
-                <button type="button" data-cmd="italic">Italic</button>
-                <button type="button" data-cmd="h1">H1</button>
-                <button type="button" data-cmd="h2">H2</button>
-                <button type="button" data-cmd="bullet">List</button>
-                <button type="button" data-cmd="quote">Quote</button>
-                <button type="button" data-cmd="code-block">&lt;/&gt; Code Block</button>
-                <button type="button" id="btn-image">+ Image</button>
-                <button type="button" id="btn-gallery">Browse Library</button>
-                <input type="file" id="image-input" accept="image/*" style="display:none">
-            </div>
-            <div id="editor"></div>
-        </div>
-
-        <!-- Page Builder (Blocks) -->
-        <div id="page-builder-wrapper" style="display: none;">
-            <div class="pb-layout">
-                <div class="pb-left">
-                    <div id="pb-block-list"></div>
-                    <div class="pb-add-block">
-                        <select id="pb-add-select">
-                            <option value="">+ Add Content Block</option>
-                            <option value="blank">Blank (Rich Text)</option>
-                            <option value="hero">Hero Section</option>
-                            <option value="gallery">Image Gallery</option>
-                            <option value="image-text">Image Left / Text Right</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="pb-right" id="pb-editor-panel" style="display: none;">
-                    <div class="pb-panel-header">
-                        <h4 id="pb-panel-title">Edit Block</h4>
-                        <button type="button" id="pb-close-panel" title="Close Panel">&times;</button>
-                    </div>
-                    <div id="pb-panel-content">
-                        <p class="pb-empty-state">Select a block to edit its contents.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+    
     </div>
-
-    <div class="actions">
+    <div class="actions">  <div class="actions">
         <button type="submit" class="btn-save" id="save-btn">{% if is_published() && entry.is_some() %}Update Live
             Post{% else %}Publish Post{% endif %}</button>
         <button type="button" class="btn-secondary" id="btn-save-draft">Save Draft</button>

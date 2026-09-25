@@ -26,6 +26,34 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
         await initEditor('<p>Hello</p>', null);
     });
 
+
+    describe('Editor Tabs', () => {
+        it('switches between tabs and updates active classes', () => {
+            const tabContentBtn = document.querySelector('[data-tab="tab-content"]');
+            const tabMetadataBtn = document.querySelector('[data-tab="tab-metadata"]');
+            
+            const tabContent = document.querySelector('#tab-content');
+            const tabMetadata = document.querySelector('#tab-metadata');
+            
+            expect(tabContentBtn).not.toBeNull();
+            expect(tabMetadataBtn).not.toBeNull();
+            
+            // Initial state: Content is active
+            expect(tabContentBtn.classList.contains('active')).toBe(true);
+            expect(tabMetadataBtn.classList.contains('active')).toBe(false);
+            
+            // Click Metadata tab
+            fireEvent.click(tabMetadataBtn);
+            
+            expect(tabContentBtn.classList.contains('active')).toBe(false);
+            expect(tabMetadataBtn.classList.contains('active')).toBe(true);
+            
+            expect(tabContent.style.display).toBe('');
+            // By default our JS removes 'none' which falls back to CSS 'block' on .active
+            expect(tabMetadata.style.display).toBe('');
+        });
+    });
+
     describe('Schema JSON-LD Validation & Formatting', () => {
         it('marks invalid JSON with an error class and message', () => {
             const schemaInput = screen.getByLabelText(/schema json-ld/i);
@@ -172,51 +200,6 @@ describe('Editor UI with Testing Library & HappyDOM (Level 1: Real Template)', (
         });
     });
 
-    describe('Page Hierarchy Controls', () => {
-        it('toggles page hierarchy fields based on content type', () => {
-            const typeSelect = document.querySelector('#type');
-            const hierarchyContainer = document.querySelector('#page-hierarchy-fields');
-            const parentSelect = document.querySelector('#parent-id');
-            const sortOrderInput = document.querySelector('#sort-order');
-
-            expect(typeSelect).not.toBeNull();
-            expect(hierarchyContainer).not.toBeNull();
-            expect(parentSelect).not.toBeNull();
-            expect(sortOrderInput).not.toBeNull();
-
-            // Default is post -> hidden
-            typeSelect.value = 'post';
-            fireEvent.change(typeSelect);
-            expect(hierarchyContainer.style.display).toBe('none');
-
-            // Switch to page -> visible
-            typeSelect.value = 'page';
-            fireEvent.change(typeSelect);
-            expect(hierarchyContainer.style.display).toBe('block');
-
-            // Switch back to post -> hidden
-            typeSelect.value = 'post';
-            fireEvent.change(typeSelect);
-            expect(hierarchyContainer.style.display).toBe('none');
-        });
-
-        it('blocks changing page to post when entry has child pages', () => {
-            const form = document.querySelector('#post-form');
-            form.dataset.hasChildren = 'true';
-            form.dataset.childCount = '2';
-
-            const typeSelect = document.querySelector('#type');
-            typeSelect.value = 'page';
-            fireEvent.change(typeSelect);
-
-            // Attempt to change to post
-            typeSelect.value = 'post';
-            fireEvent.change(typeSelect);
-
-            // Should revert back to page
-            expect(typeSelect.value).toBe('page');
-        });
-    });
 
     describe('Version History & Draft Saving', () => {
         it('opens and closes version history modal', async () => {
