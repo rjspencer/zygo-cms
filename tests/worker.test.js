@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { unstable_dev } from 'wrangler';
+import { Window } from 'happy-dom';
 
 describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
     let worker;
@@ -27,6 +28,40 @@ describe('Cloudflare Worker Integration (Level 2: Real Worker)', () => {
 
         const html = await res.text();
         expect(html).toContain('<link rel="canonical"');
+    });
+
+    it('simulates HappyDOM browser navigation from homepage to a post', async () => {
+        // 1. Fetch the homepage HTML
+        const res1 = await worker.fetch('/');
+        expect(res1.status).toBe(200);
+        const homeHtml = await res1.text();
+
+        // 2. Load the homepage into a headless HappyDOM browser environment
+        const window = new Window();
+        const document = window.document;
+        document.body.innerHTML = homeHtml;
+
+        // 3. Find the first post link using standard DOM selectors
+        const firstPostLink = document.querySelector('ul.post-list a.post-link');
+        
+        // Assert we actually found a post on the homepage
+        expect(firstPostLink).not.toBeNull();
+        
+        const href = firstPostLink.getAttribute('href');
+        const linkText = firstPostLink.textContent.trim();
+
+        // 4. Simulate the browser clicking the link and navigating to the new URL
+        const res2 = await worker.fetch(href);
+        expect(res2.status).toBe(200);
+        const postHtml = await res2.text();
+
+        // 5. Load the new post page into the DOM
+        document.body.innerHTML = postHtml;
+
+        // 6. Verify the post successfully loaded and matches the link we clicked
+        const postTitleEl = document.querySelector('article h1');
+        expect(postTitleEl).not.toBeNull();
+        expect(postTitleEl.textContent.trim()).toBe(linkText);
     });
 
     it('GET /sitemap.xml responds with 200 and valid XML', async () => {
