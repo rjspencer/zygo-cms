@@ -671,40 +671,32 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                     // See if the template's initial type is not in the hardcoded list
                     let initialType = typeSelect.getAttribute('data-initial-type');
                     
-                    data.forEach(ct => {
-                        if (ct.id !== 'post' && ct.id !== 'page') {
-                            const opt = document.createElement('option');
-                            opt.value = ct.id;
-                            opt.textContent = ct.name;
-                            typeSelect.appendChild(opt);
-                        }
-                    });
+                    // Content types loaded
 
                     // Set the selected value after appending options, 
                     // this requires that we actually know the initial type. 
                     // If it's a new post, it's 'post'. If it's an existing post, 
                     // we need to set the select value to whatever was loaded.
                     if (initialType) {
-                        typeSelect.value = initialType;
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const preselectedType = urlParams.get('type');
+                        const postIdInput = document.querySelector('#post-id');
+                        if (!postIdInput || !postIdInput.value) {
+                            typeSelect.value = preselectedType || initialType;
+                        } else {
+                            typeSelect.value = initialType;
+                        }
+                    }
+                    // MUST update visibility again since we might have just set the value!
+                    if (typeof updateHierarchyVisibility === 'function') {
+                        updateHierarchyVisibility();
                     }
                     
                     renderDynamicFields();
                 })
                 .catch(err => console.error("Failed to load content types", err));
 
-            typeSelect.addEventListener('change', (e) => {
-                if (form && form.dataset.hasChildren === 'true' && typeSelect.value !== 'page') {
-                    const count = form.dataset.childCount || '1';
-                    const msg = `Cannot change this page to a post because it has ${count} active subpage(s). Move or delete its subpages first.`;
-                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-                        window.alert(msg);
-                    }
-                    typeSelect.value = 'page';
-                    updateHierarchyVisibility();
-                    return;
-                }
-                updateHierarchyVisibility();
-            });
+
             updateHierarchyVisibility();
         }
 
