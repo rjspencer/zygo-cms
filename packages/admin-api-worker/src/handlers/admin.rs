@@ -1,7 +1,7 @@
 use worker::*;
-use crate::admin;
 use zygo_core::db;
 use crate::utils::get_auth_url;
+use serde_json::json;
 
 pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
@@ -20,15 +20,21 @@ pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response>
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let html = admin::render_dashboard_html(page_count, post_count, author_count, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "page_count": page_count,
+        "post_count": post_count,
+        "author_count": author_count,
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
 }
 
 pub async fn pages(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
     let entries = db::find_all_pages(&db).await?;
-    // We don't have find_deleted_pages, but we can reuse find_deleted_entries and filter in UI or create a db method. Let's just create find_deleted_pages.
-    // Actually, find_deleted_entries returns all deleted entries. We can filter in Rust.
+    
     let all_deleted = db::find_deleted_entries(&db).await?;
     let deleted_entries = all_deleted.into_iter().filter(|e| e.r#type == "page").collect::<Vec<_>>();
     
@@ -42,14 +48,19 @@ pub async fn pages(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let html = admin::render_pages_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "entries": entries,
+        "deleted_entries": deleted_entries,
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
 }
 
 pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let db = ctx.env.d1("DB")?;
-    // Wait, find_all_posts doesn't exist? There's find_published_posts, but admin needs all.
-    // Let's look at what we have for fetching entries. We have find_all_entries. Let's filter it.
+    
     let all_entries = db::find_all_entries(&db).await?;
     let entries = all_entries.into_iter().filter(|e| e.r#type == "post").collect::<Vec<_>>();
     
@@ -66,8 +77,14 @@ pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let html = admin::render_posts_html(&entries, &deleted_entries, &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "entries": entries,
+        "deleted_entries": deleted_entries,
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
 }
 
 pub async fn editor(req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -89,8 +106,17 @@ pub async fn editor(req: Request, ctx: RouteContext<()>) -> Result<Response> {
             }
         }
     }
-    let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu, analytics_enabled, initial_type)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "entry": null,
+        "latest_revision": null,
+        "pages": pages,
+        "child_pages": [],
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled,
+        "initial_type": initial_type
+    }))
 }
 
 pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -117,18 +143,18 @@ pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response>
             let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
             let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
             
-            let html = admin::render_editor_html(
-                Some(&e),
-                latest_rev.as_ref(),
-                &pages,
-                &child_pages,
-                &auth_url,
-                &header_menu,
-                &footer_menu,
-                db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false),
-                None,
-            )?;
-            Response::from_html(html)
+            let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
+            
+            Response::from_json(&json!({
+                "entry": e,
+                "latest_revision": latest_rev,
+                "pages": pages,
+                "child_pages": child_pages,
+                "auth_url": auth_url,
+                "header_menu": header_menu,
+                "footer_menu": footer_menu,
+                "analytics_enabled": analytics_enabled
+            }))
         }
         Err(err) => err.to_response(),
     }
@@ -141,8 +167,12 @@ pub async fn navigation(_req: Request, ctx: RouteContext<()>) -> Result<Response
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
-    let html = admin::render_navigation_html(&auth_url, &header_menu, &footer_menu, analytics_enabled)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
 }
 
 pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -153,8 +183,12 @@ pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
     let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
-    let html = admin::render_content_types_html(&auth_url, &header_menu, &footer_menu, analytics_enabled)?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
 }
 
 pub async fn analytics(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -171,12 +205,11 @@ pub async fn analytics(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = admin::render_analytics_html(
-        analytics_enabled, 
-        has_cloudflare_tokens, 
-        &auth_url, 
-        &header_menu, 
-        &footer_menu
-    )?;
-    Response::from_html(html)
+    Response::from_json(&json!({
+        "analytics_enabled": analytics_enabled,
+        "has_cloudflare_tokens": has_cloudflare_tokens,
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu
+    }))
 }

@@ -1,4 +1,3 @@
-mod admin;
 mod auth;
 mod cache;
 mod media;
@@ -12,50 +11,7 @@ use worker::*;
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     Router::new()
-        // Admin routes
-        .get_async("/admin", handlers::admin::dashboard)
-        .get_async("/admin/pages", handlers::admin::pages)
-        .get_async("/admin/posts", handlers::admin::posts)
-        .get_async("/admin/editor", handlers::admin::editor)
-        .get_async("/admin/editor/:id", handlers::admin::editor_id)
-        .get_async("/admin/navigation", handlers::admin::navigation)
-        .get_async("/admin/content-types", handlers::admin::content_types)
-        .get_async("/admin/analytics", handlers::admin::analytics)
-        .post_async("/api/settings", handlers::api::update_setting)
-        .get_async("/api/analytics", handlers::api::get_analytics)
-        .get_async("/api/me", handlers::api::get_me)
-        
-        // API routes - Menus
-        .get_async("/api/menus", handlers::api::get_menus)
-        .get_async("/api/menus/:name", handlers::api::get_menu)
-        .put_async("/api/menus/:name", handlers::api::put_menu)
-        
-        // API routes - Content Types
-        .get_async("/api/content-types", handlers::content_type::list_content_types)
-        .get_async("/api/content-types/:id", handlers::content_type::get_content_type)
-        .post_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
-        .put_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
-        .delete_async("/api/content-types/:id", handlers::content_type::delete_content_type)
-        
-        // API routes - Media
-        .post_async("/api/media", handlers::api::upload_media)
-        .get_async("/api/media", handlers::api::list_media)
-        .post_async("/api/media/sync", handlers::api::sync_media)
-        .delete_async("/api/media/:key", handlers::api::delete_media)
-        
-        // API routes - Entries
-        .get_async("/api/search", handlers::api::search_entries_api)
 
-        .get_async("/api/entries", handlers::api::get_entries)
-        .get_async("/api/posts", handlers::api::get_posts)
-        .post_async("/api/entries", handlers::api::create_entry)
-        .put_async("/api/entries/:id", handlers::api::update_entry)
-        .delete_async("/api/entries/:id", handlers::api::delete_entry)
-        .post_async("/api/entries/:id/restore", handlers::api::restore_entry)
-        
-        // API routes - Revisions
-        .get_async("/api/entries/:id/revisions", handlers::api::get_revisions)
-        .get_async("/api/revisions/:id", handlers::api::get_revision)
         
         // Public routes - Media stream
         .get_async("/media/:key", handlers::public::stream_media)

@@ -1,4 +1,3 @@
-mod admin;
 mod auth;
 mod cache;
 mod media;
@@ -13,14 +12,14 @@ use worker::*;
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     Router::new()
         // Admin routes
-        .get_async("/admin", handlers::admin::dashboard)
-        .get_async("/admin/pages", handlers::admin::pages)
-        .get_async("/admin/posts", handlers::admin::posts)
-        .get_async("/admin/editor", handlers::admin::editor)
-        .get_async("/admin/editor/:id", handlers::admin::editor_id)
-        .get_async("/admin/navigation", handlers::admin::navigation)
-        .get_async("/admin/content-types", handlers::admin::content_types)
-        .get_async("/admin/analytics", handlers::admin::analytics)
+        .get_async("/api/admin/dashboard", handlers::admin::dashboard)
+        .get_async("/api/admin/pages", handlers::admin::pages)
+        .get_async("/api/admin/posts", handlers::admin::posts)
+        .get_async("/api/admin/editor", handlers::admin::editor)
+        .get_async("/api/admin/editor/:id", handlers::admin::editor_id)
+        .get_async("/api/admin/navigation", handlers::admin::navigation)
+        .get_async("/api/admin/content-types", handlers::admin::content_types)
+        .get_async("/api/admin/analytics", handlers::admin::analytics)
         .post_async("/api/settings", handlers::api::update_setting)
         .get_async("/api/analytics", handlers::api::get_analytics)
         .get_async("/api/me", handlers::api::get_me)
@@ -57,25 +56,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/entries/:id/revisions", handlers::api::get_revisions)
         .get_async("/api/revisions/:id", handlers::api::get_revision)
         
-        // Public routes - Media stream
-        .get_async("/media/:key", handlers::public::stream_media)
-        
-        // Public routes - Blog/Pages
-        .get_async("/search", handlers::public::search_page)
 
-        .get_async("/", handlers::public::index)
-        .get_async("/sitemap.xml", handlers::public::sitemap)
-        .get_async("/rss.xml", handlers::public::rss)
-        .get_async("/feed.xml", handlers::public::rss)
-        .get_async("/post/:slug", handlers::public::post_reader)
-        .get_async("/tag/:tag", handlers::public::tag_archive)
-        .get_async("/category/:category", handlers::public::category_archive)
-        
-        // Preview
-        .get_async("/preview/:token", handlers::public::preview)
-        
-        // Catch-all Page Reader
-        .get_async("/*path", handlers::public::page_reader)
         
         .run(req, env)
         .await

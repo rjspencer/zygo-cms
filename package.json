@@ -7,7 +7,7 @@
         "build:css": "tailwindcss -i ./src/style.css -o ./public/style.css --minify",
         "prebuild": "npm run build:css",
         "test": "vitest run tests/editor.test.js",
-        "test:e2e": "vitest run tests/worker.test.js",
+        "test:e2e": "vitest run --no-file-parallelism tests/",
         "test:all": "vitest run"
     },
     "devDependencies": {

@@ -15,3 +15,4 @@ askama = "0.16.1"
 ammonia = "4"
 base64 = "0.22"
 jsonwebtoken = "9"
+ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
