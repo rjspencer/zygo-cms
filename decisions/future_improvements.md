@@ -95,11 +95,6 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
-### 1. Localization (i18n) Architecture
-- **Goal**: Multi-language support for global reach.
-- **Details**:
-  - Introduce i18n support for pages, posts, and localized routing.
-
 
 ---
 

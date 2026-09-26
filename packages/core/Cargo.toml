@@ -1,0 +1,10 @@
+[package]
+name = "zygo-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+worker = { version = "0.8", features = ["d1"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "1.0"

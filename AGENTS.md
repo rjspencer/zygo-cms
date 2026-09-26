@@ -50,3 +50,9 @@
 - **Securing API Routes**: Any API route requiring authentication must use the `let _user = auth_required!(&req, ctx);` macro at the very beginning of the handler. This macro automatically handles the early return of `401 Unauthorized` responses.
 
 - **Build Verification**: Always run `cargo check` or `cargo build` and verify the project compiles without errors before committing any code.
+
+## Two-Worker Architecture AI Directives
+1. **Strictly Forbid `SELECT *`:** Explicitly require all database queries to define exact column names (e.g., `SELECT id, title FROM...`) to support Expand/Contract schema migrations across decoupled workers.
+2. **Serde Resilience:** Mandate that all shared structs in `zygo-core` use `#[serde(default)]` and `#[serde(skip_unknown_fields)]` so older workers do not panic when encountering new database columns.
+3. **Local Dev Auth Mocking:** Mandate that any auth middleware checks `env.var("ENVIRONMENT")` and bypasses Cloudflare Access verification with a mocked admin JWT when running in `dev` mode.
+4. **Service Token Rate Limiting:** Require any endpoint accepting Service Tokens (for MCP/AI usage) to implement strict rate limiting to protect D1 from concurrency spikes.
