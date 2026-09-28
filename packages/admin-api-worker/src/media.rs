@@ -1,7 +1,7 @@
 use zygo_core::db;
 use zygo_core::error::AppError;
 use zygo_core::models::{MediaSyncReport, guess_mime_type, parse_filename_from_key};
-use worker::{Date, Headers, HttpMetadata, Request, Response, Result, RouteContext};
+use worker::{Date, HttpMetadata, Request, Response, Result, RouteContext};
 
 /// Upload an image to R2 and index it in D1 with atomic rollback on failure
 pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Response> {
@@ -77,33 +77,6 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
     }))
 }
 
-/// Serve an image from R2 with caching headers
-pub async fn get_media(key: &str, ctx: &RouteContext<()>) -> Result<Response> {
-    let bucket = ctx.env.bucket("MEDIA")?;
-    let object = bucket.get(key).execute().await?.ok_or(AppError::NotFound);
-
-    match object {
-        Ok(obj) => {
-            let headers = Headers::new();
-
-            // Set Content-Type from R2 metadata if available
-            if let Some(ct) = obj.http_metadata().content_type {
-                headers.set("Content-Type", &ct)?;
-            }
-
-            // Cache images in browser for 1 year (since filenames have unique timestamps)
-            headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
-
-            let Some(body) = obj.body() else {
-                return AppError::NotFound.to_response();
-            };
-            let bytes = body.bytes().await?;
-
-            Response::from_bytes(bytes).map(|res| res.with_headers(headers))
-        }
-        Err(err) => err.to_response(),
-    }
-}
 
 /// List uploaded images from D1 with search, sorting, and pagination
 pub async fn list_media(req: &Request, ctx: &RouteContext<()>) -> Result<Response> {

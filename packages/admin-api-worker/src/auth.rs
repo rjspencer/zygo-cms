@@ -31,7 +31,7 @@ pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<U
 
     if is_dev {
         // Local Dev Auth Mocking
-        return resolve_local_user(env, db, "mock-admin-uuid", Some("admin@dev.local".to_string())).await;
+        return resolve_local_user(env, db, "mock-admin-uuid", Some("admin@localhost".to_string())).await;
     }
 
     // Extract the Cloudflare Access JWT Assertion header
@@ -69,9 +69,23 @@ async fn resolve_local_user(env: &Env, db: &D1Database, auth_provider_id: &str, 
     }
     
     // Auto-provision on first login
-    let mut user = db::create_user(db, auth_provider_id, email)
-        .await
-        .map_err(|e| AppError::ServerError(format!("Failed to auto-provision user: {}", e)))?;
+    let mut user = match db::create_user(db, auth_provider_id, email.clone()).await {
+        Ok(u) => u,
+        Err(e) => {
+            if is_dev && auth_provider_id == "mock-admin-uuid" {
+                return Ok(User {
+                    id: 1,
+                    auth_provider_id: auth_provider_id.to_string(),
+                    email,
+                    display_name: Some("Local Admin".to_string()),
+                    role: "admin".to_string(),
+                    created_at: "1970-01-01T00:00:00Z".to_string(),
+                    updated_at: "1970-01-01T00:00:00Z".to_string(),
+                });
+            }
+            return Err(AppError::ServerError(format!("Failed to auto-provision user: {}", e)));
+        }
+    };
         
     if is_dev && auth_provider_id == "mock-admin-uuid" {
         user.role = "admin".into();

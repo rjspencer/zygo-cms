@@ -26,4 +26,5 @@ target/
 
 # Rust compiler informative error/AST files
 *.rice
-*.lock
+*.lock.env.production
+.env.production

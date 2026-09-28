@@ -30,12 +30,31 @@ interface PageItem {
 export const PagesList: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [pages] = useState<PageItem[]>([
-    { id: 101, title: 'Home', slug: '/', status: 'published', updatedAt: '2026-09-24' },
-    { id: 102, title: 'About Us', slug: '/about', status: 'published', updatedAt: '2026-09-22' },
-    { id: 103, title: 'Contact & Inquiry', slug: '/contact', status: 'published', updatedAt: '2026-09-18' },
-    { id: 104, title: 'Privacy Policy', slug: '/privacy', status: 'published', updatedAt: '2026-09-10' },
-  ]);
+  const [pages, setPages] = useState<PageItem[]>([]);
+
+  React.useEffect(() => {
+    const fetchPages = async () => {
+      try {
+        const res = await fetch('/api/entries');
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data
+            .filter((e: any) => e.type === 'page')
+            .map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              slug: e.path || `/${e.slug}`,
+              status: e.status,
+              updatedAt: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
+            }));
+          setPages(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to fetch pages', err);
+      }
+    };
+    fetchPages();
+  }, []);
 
   const filteredPages = pages.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -109,7 +128,7 @@ export const PagesList: React.FC = () => {
                       size="1"
                       variant="ghost"
                       color="gray"
-                      onClick={() => window.open(page.slug, '_blank')}
+                      onClick={() => window.open(`${import.meta.env.VITE_PUBLIC_SITE_URL || ''}${page.slug.startsWith('/') ? '' : '/'}${page.slug}`, '_blank')}
                       title="View Public Page"
                     >
                       <ExternalLinkIcon width="16" height="16" />

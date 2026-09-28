@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Flex,
@@ -24,19 +24,49 @@ import {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
+  const [entries, setEntries] = useState<any[]>([]);
+  const [metricsData, setMetricsData] = useState<any>({});
+  const [, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const [entriesRes, metricsRes] = await Promise.all([
+          fetch('/api/entries'),
+          fetch('/api/admin/dashboard')
+        ]);
+        if (entriesRes.ok && metricsRes.ok) {
+          const entriesData = await entriesRes.json();
+          const mData = await metricsRes.json();
+          setEntries(entriesData);
+          setMetricsData(mData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDashboard();
+  }, []);
+
+  const totalPosts = metricsData.post_count || 0;
+  const totalPages = metricsData.page_count || 0;
+  
   const metrics = [
-    { title: 'Total Posts', value: '18', icon: <FileTextIcon width="20" height="20" />, color: 'iris' as const },
-    { title: 'Total Pages', value: '6', icon: <LayersIcon width="20" height="20" />, color: 'blue' as const },
-    { title: 'Media Files', value: '34', icon: <ImageIcon width="20" height="20" />, color: 'amber' as const },
+    { title: 'Total Posts', value: totalPosts.toString(), icon: <FileTextIcon width="20" height="20" />, color: 'iris' as const },
+    { title: 'Total Pages', value: totalPages.toString(), icon: <LayersIcon width="20" height="20" />, color: 'blue' as const },
+    { title: 'Media Files', value: 'N/A', icon: <ImageIcon width="20" height="20" />, color: 'amber' as const },
     { title: 'Edge Status', value: 'Operational', icon: <ActivityLogIcon width="20" height="20" />, color: 'green' as const },
   ];
 
-  const recentEntries = [
-    { id: 1, title: 'Getting Started with Zygo CMS', type: 'post', status: 'published', date: '2026-09-24' },
-    { id: 2, title: 'About Us', type: 'page', status: 'published', date: '2026-09-22' },
-    { id: 3, title: 'Architecture of Cloudflare Workers & D1', type: 'post', status: 'draft', date: '2026-09-20' },
-    { id: 4, title: 'Contact & Support', type: 'page', status: 'published', date: '2026-09-18' },
-  ];
+  const recentEntries = entries.slice(0, 5).map((e: any) => ({
+    id: e.id,
+    title: e.title,
+    type: e.type,
+    status: e.status,
+    date: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
+  }));
 
   return (
     <Box style={{ maxWidth: '1200px', margin: '0 auto' }}>

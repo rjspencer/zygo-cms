@@ -40,6 +40,9 @@ jobs:
       - name: Run Browser / DOM Test Suite
         run: npm test
 
+      - name: Build All Packages
+        run: npm run build
+
       - name: Apply D1 Database Migrations
         uses: cloudflare/wrangler-action@v3
         with:
@@ -47,8 +50,23 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: d1 migrations apply zygo-cms-db --remote
 
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy Public Worker
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/public-worker
+
+      - name: Deploy Admin API Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/admin-api-worker
+
+      - name: Deploy Admin UI
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/admin-ui

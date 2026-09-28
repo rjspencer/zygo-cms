@@ -32,22 +32,54 @@ interface PostItem {
 export const Posts: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [posts, setPosts] = useState<PostItem[]>([
-    { id: 1, title: 'Getting Started with Zygo CMS', slug: 'getting-started-with-zygo-cms', status: 'published', date: '2026-09-24' },
-    { id: 2, title: 'Architecture of Cloudflare Workers & D1', slug: 'cloudflare-workers-d1-architecture', status: 'draft', date: '2026-09-20' },
-    { id: 3, title: 'Deploying Modern SPAs to Cloudflare Pages', slug: 'deploying-modern-spas-cloudflare-pages', status: 'published', date: '2026-09-15' },
-    { id: 4, title: 'Next Generation Edge Rendering', slug: 'next-gen-edge-rendering', status: 'scheduled', date: '2026-10-01' },
-  ]);
+  const [posts, setPosts] = useState<PostItem[]>([]);
   const [postToDelete, setPostToDelete] = useState<PostItem | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const res = await fetch('/api/entries');
+        if (res.ok) {
+          const data = await res.json();
+          const mapped = data
+            .filter((e: any) => e.type === 'post')
+            .map((e: any) => ({
+              id: e.id,
+              title: e.title,
+              slug: e.slug,
+              status: e.status,
+              date: (e.published_at || e.created_at || '').split(/[ T]/)[0] || (e.published_at || e.created_at || ''),
+            }));
+          setPosts(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to fetch posts', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPosts();
+  }, []);
 
   const filteredPosts = posts.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
     p.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = (id: number) => {
-    setPosts((prev) => prev.filter((p) => p.id !== id));
-    setPostToDelete(null);
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setPosts((prev) => prev.filter((p) => p.id !== id));
+      } else {
+        console.error('Delete failed', await res.text());
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPostToDelete(null);
+    }
   };
 
   const getStatusColor = (status: PostItem['status']) => {
@@ -104,7 +136,13 @@ export const Posts: React.FC = () => {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {filteredPosts.length === 0 ? (
+            {loading ? (
+              <Table.Row>
+                <Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>
+                  <Text color="gray">Loading posts...</Text>
+                </Table.Cell>
+              </Table.Row>
+            ) : filteredPosts.length === 0 ? (
               <Table.Row>
                 <Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>
                   <Text color="gray">No posts found</Text>
@@ -135,7 +173,7 @@ export const Posts: React.FC = () => {
                         size="1"
                         variant="ghost"
                         color="gray"
-                        onClick={() => window.open(`/post/${post.slug}`, '_blank')}
+                        onClick={() => window.open(`${import.meta.env.VITE_PUBLIC_SITE_URL || ''}/post/${post.slug}`, '_blank')}
                         title="View Public Post"
                       >
                         <ExternalLinkIcon width="16" height="16" />

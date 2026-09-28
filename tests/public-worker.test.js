@@ -6,9 +6,14 @@ describe('Public Worker Integration', () => {
     let worker;
 
     beforeAll(async () => {
+        const { execSync } = require('child_process');
+        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/public-test');
+        execSync(`CI=true npx wrangler d1 execute zygo-cms-db --local --persist-to=./.wrangler/state/public-test --command="INSERT OR REPLACE INTO entry_revisions (id, entry_id, title, body_html, body_json, preview_token) VALUES (999, 1, 'Preview Test Post', '<p>Preview Body</p>', '{}', 'test-valid-preview-token');"`);
+        
         worker = await unstable_dev('packages/public-worker/build/index.js', {
             config: "wrangler.toml",
             vars: { ENVIRONMENT: "dev" },
+            persistTo: './.wrangler/state/public-test',
             experimental: { disableExperimentalWarning: true },
         });
     }, 30000);
@@ -69,6 +74,20 @@ describe('Public Worker Integration', () => {
 
     it('GET /non-existent-page responds with 404', async () => {
         const res = await worker.fetch('/non-existent-page-slug-12345');
+        expect(res.status).toBe(404);
+    });
+
+    it('GET /preview/:token responds with 200, HTML, and preview banner', async () => {
+        const res = await worker.fetch('/preview/test-valid-preview-token');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+        const html = await res.text();
+        expect(html).toContain('Preview Test Post');
+        expect(html).toContain('Preview Mode');
+    });
+
+    it('GET /preview/invalid-token-xyz responds with 404', async () => {
+        const res = await worker.fetch('/preview/invalid-token-xyz');
         expect(res.status).toBe(404);
     });
 });

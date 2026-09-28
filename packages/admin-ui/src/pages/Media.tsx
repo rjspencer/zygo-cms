@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Flex,
   Box,
@@ -12,13 +12,14 @@ import {
   IconButton,
 } from '@radix-ui/themes';
 import {
-  PlusIcon,
   MagnifyingGlassIcon,
-  ImageIcon,
   TrashIcon,
   ClipboardCopyIcon,
   CheckIcon,
+  UploadIcon,
+  ReloadIcon,
 } from '@radix-ui/react-icons';
+import { MediaThumbnail } from '../components/MediaThumbnail';
 
 interface MediaItem {
   id: string;
@@ -29,14 +30,148 @@ interface MediaItem {
   uploadedAt: string;
 }
 
+const getAuthHeaders = (): Record<string, string> => {
+  const headers: Record<string, string> = {};
+  try {
+    const storage =
+      typeof window !== 'undefined' && window.localStorage
+        ? window.localStorage
+        : typeof localStorage !== 'undefined'
+        ? localStorage
+        : undefined;
+    const session =
+      typeof window !== 'undefined' && window.sessionStorage
+        ? window.sessionStorage
+        : typeof sessionStorage !== 'undefined'
+        ? sessionStorage
+        : undefined;
+
+    const token =
+      storage?.getItem?.('token') ||
+      storage?.getItem?.('auth_token') ||
+      session?.getItem?.('token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  } catch {
+    // Ignore storage access errors
+  }
+  return headers;
+};
+
 export const Media: React.FC = () => {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [items, setItems] = useState<MediaItem[]>([
-    { id: '1', name: 'hero-banner.jpg', size: '245 KB', type: 'image/jpeg', url: '/media/hero-banner.jpg', uploadedAt: '2026-09-24' },
-    { id: '2', name: 'zygo-logo.png', size: '48 KB', type: 'image/png', url: '/media/zygo-logo.png', uploadedAt: '2026-09-22' },
-    { id: '3', name: 'architecture-diagram.svg', size: '12 KB', type: 'image/svg+xml', url: '/media/architecture-diagram.svg', uploadedAt: '2026-09-15' },
-  ]);
+  const [items, setItems] = useState<MediaItem[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchMedia = useCallback(async () => {
+    try {
+      const authHeaders = getAuthHeaders();
+      const res = await fetch('/api/media', {
+        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const mediaList = Array.isArray(data.media) ? data.media : [];
+        const mapped = mediaList.map((item: any) => ({
+          id: item.key,
+          name: item.filename,
+          size:
+            item.size < 1024 * 1024
+              ? `${Math.round(item.size / 1024)} KB`
+              : `${(item.size / (1024 * 1024)).toFixed(2)} MB`,
+          type: item.mime_type,
+          url: item.url,
+          uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
+        }));
+        setItems(mapped);
+      }
+    } catch (err) {
+      console.error('Failed to fetch media', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMedia();
+  }, [fetchMedia]);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setSyncError(null);
+
+    try {
+      const filename = encodeURIComponent(file.name);
+      const authHeaders = getAuthHeaders();
+      const headers: Record<string, string> = {
+        'Content-Type': file.type || 'application/octet-stream',
+        ...authHeaders,
+      };
+
+      const res = await fetch(`/api/media?filename=${filename}`, {
+        method: 'POST',
+        headers,
+        body: file,
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || `Upload failed (${res.status})`);
+      }
+
+      setSearch('');
+      await fetchMedia();
+    } catch (err: any) {
+      console.error('Failed to upload media', err);
+      setUploadError(err.message || 'Failed to upload image');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncError(null);
+    setUploadError(null);
+
+    try {
+      const authHeaders = getAuthHeaders();
+      const res = await fetch('/api/media/sync', {
+        method: 'POST',
+        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        let errMessage = text;
+        try {
+          const json = JSON.parse(text);
+          errMessage = json.error || json.message || text;
+        } catch {
+          // Keep raw text
+        }
+        throw new Error(errMessage || `Sync failed (${res.status})`);
+      }
+
+      await fetchMedia();
+    } catch (err: any) {
+      console.error('Failed to sync media', err);
+      setSyncError(err.message || 'Failed to sync media');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(search.toLowerCase())
@@ -48,8 +183,21 @@ export const Media: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDelete = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      const authHeaders = getAuthHeaders();
+      const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
+      });
+      if (res.ok) {
+        setItems((prev) => prev.filter((item) => item.id !== id));
+      } else {
+        console.error('Delete failed', await res.text());
+      }
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   return (
@@ -63,11 +211,57 @@ export const Media: React.FC = () => {
             Upload and manage assets stored in Cloudflare R2 / KV
           </Text>
         </Box>
-        <Button variant="solid" color="iris">
-          <PlusIcon width="16" height="16" />
-          Upload Media
-        </Button>
+        <Flex gap="2">
+          {Boolean(import.meta.env.DEV && (import.meta.env.DEV as any) !== 'false') && (
+            <Button
+              variant="outline"
+              onClick={handleSync}
+              disabled={isSyncing || isUploading}
+              loading={isSyncing}
+              aria-label="Sync"
+            >
+              <ReloadIcon width="16" height="16" />
+              Sync
+            </Button>
+          )}
+          <Button
+            variant="solid"
+            color="iris"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading || isSyncing}
+            loading={isUploading}
+            aria-label="Upload Image"
+          >
+            <UploadIcon width="16" height="16" />
+            Upload Image
+          </Button>
+        </Flex>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/*"
+          style={{ display: 'none' }}
+          aria-label="Upload Image Input"
+          data-testid="media-file-input"
+        />
       </Flex>
+
+      {uploadError && (
+        <Box mb="4">
+          <Text color="red" size="2">
+            {uploadError}
+          </Text>
+        </Box>
+      )}
+
+      {syncError && (
+        <Box mb="4">
+          <Text color="red" size="2">
+            {syncError}
+          </Text>
+        </Box>
+      )}
 
       <Card size="2" mb="4">
         <TextField.Root
@@ -85,23 +279,36 @@ export const Media: React.FC = () => {
         {filteredItems.map((item) => (
           <Card key={item.id} size="2">
             <Flex
-              direction="column"
               align="center"
               justify="center"
-              p="4"
               mb="3"
               style={{
                 borderRadius: 'var(--radius-3)',
                 backgroundColor: 'var(--gray-a3)',
                 height: '140px',
+                overflow: 'hidden',
               }}
             >
-              <ImageIcon width="36" height="36" color="var(--gray-9)" />
+              <MediaThumbnail
+                src={item.url}
+                alt={item.name}
+                type={item.type}
+                height="140px"
+              />
             </Flex>
 
             <Flex justify="between" align="start" mb="2">
               <Box style={{ overflow: 'hidden' }}>
-                <Text weight="bold" size="2" style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', display: 'block' }}>
+                <Text
+                  weight="bold"
+                  size="2"
+                  style={{
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    display: 'block',
+                  }}
+                >
                   {item.name}
                 </Text>
                 <Text size="1" color="gray">
@@ -125,7 +332,11 @@ export const Media: React.FC = () => {
                   onClick={() => handleCopy(item.id, item.url)}
                   title="Copy URL"
                 >
-                  {copiedId === item.id ? <CheckIcon color="green" /> : <ClipboardCopyIcon />}
+                  {copiedId === item.id ? (
+                    <CheckIcon color="green" />
+                  ) : (
+                    <ClipboardCopyIcon />
+                  )}
                 </IconButton>
                 <IconButton
                   size="1"

@@ -2,9 +2,6 @@ name = "admin-api-worker"
 main = "build/index.js"
 compatibility_date = "2024-09-01"
 
-[assets]
-directory = "../../public"
-
 
 [[d1_databases]]
 binding = "DB"
@@ -17,8 +14,10 @@ binding = "MEDIA"
 bucket_name = "zygo-cms-media"
 
 [vars]
+ENVIRONMENT = "dev"
 PROPELAUTH_AUTH_URL = "https://97543635.propelauthtest.com"
 EDGE_TTL_SECONDS = "86400"
 
 [triggers]
-crons = ["0 0 * * SUN", "0 * * * *"]
+crons = ["0 0 * * SUN", "0 * * * *"]custom_domains = ["api.zygodactylstudios.com"]
+custom_domains = ["api.zygodactylstudios.com"]

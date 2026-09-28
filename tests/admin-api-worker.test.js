@@ -5,9 +5,13 @@ describe('Admin API Worker Integration', () => {
     let worker;
 
     beforeAll(async () => {
+        const { execSync } = require('child_process');
+        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/admin-test');
+        
         worker = await unstable_dev('packages/admin-api-worker/build/index.js', {
             config: 'wrangler.toml',
             vars: { ENVIRONMENT: 'test' },
+            persistTo: './.wrangler/state/admin-test',
             experimental: { disableExperimentalWarning: true },
         });
     }, 30000);
@@ -68,6 +72,8 @@ describe('Admin API Worker Integration', () => {
         expect(createRes.status).toBe(200);
         const createJson = await createRes.json();
         expect(createJson.success).toBe(true);
+        expect(typeof createJson.preview_token).toBe('string');
+        expect(createJson.preview_token).toBeDefined();
 
         // 2. Read (from API)
         const getRes = await worker.fetch('/api/entries', { headers: getHeaders() });
@@ -76,13 +82,58 @@ describe('Admin API Worker Integration', () => {
         const created = getJson.find((p) => p.slug === slug);
         expect(created).toBeDefined();
 
-        // 3. Delete
+        // 3. Update
+        if (created) {
+            const updateRes = await worker.fetch(`/api/entries/${created.id}`, {
+                method: 'PUT',
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    title: 'CRUD Test Post Updated',
+                    slug,
+                    type: 'post',
+                    status: 'published',
+                    description: 'Test post updated',
+                    body_html: '<p>CRUD Updated</p>',
+                    body_json: '{}',
+                }),
+            });
+            expect(updateRes.status).toBe(200);
+            const updateJson = await updateRes.json();
+            expect(updateJson.success).toBe(true);
+            expect(updateJson).toMatchObject({
+                preview_token: expect.any(String),
+            });
+        }
+
+        // 4. Delete
         if (created) {
             const delRes = await worker.fetch(`/api/entries/${created.id}`, {
                 method: 'DELETE',
                 headers: getHeaders()
             });
             expect(delRes.status).toBe(200);
+        }
+    });
+
+    it('bypasses Cloudflare Access verification and returns mock admin in dev mode', async () => {
+        const devWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
+            config: 'wrangler.toml',
+            vars: { ENVIRONMENT: 'dev' },
+            persistTo: './.wrangler/state/admin-test',
+            experimental: { disableExperimentalWarning: true },
+        });
+
+        try {
+            const res = await devWorker.fetch('/api/entries');
+            expect(res.status).toBe(200);
+
+            const meRes = await devWorker.fetch('/api/me');
+            expect(meRes.status).toBe(200);
+            const meJson = await meRes.json();
+            expect(meJson.email).toBe('admin@localhost');
+            expect(meJson.role).toBe('admin');
+        } finally {
+            await devWorker.stop();
         }
     });
 });
