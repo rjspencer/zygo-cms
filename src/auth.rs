@@ -47,7 +47,7 @@ pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<U
     {
         let test_user_id = "test-user-id";
         let test_email = Some("admin@zygo.dev".to_string());
-        return resolve_local_user(db, test_user_id, test_email).await;
+        return resolve_local_user(env, db, test_user_id, test_email).await;
     }
 
     // 3. Read the Auth URL from wrangler environment vars
@@ -84,7 +84,7 @@ pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<U
             .json::<PropelAuthUser>()
             .await
             .map_err(|_| AppError::Unauthorized("Invalid user response from auth provider".into()))?;
-        return resolve_local_user(db, &user.user_id, user.email).await;
+        return resolve_local_user(env, db, &user.user_id, user.email).await;
     }
 
     // 5. If OAuth fails, try Personal API Key validation (if integration key is configured)
@@ -124,7 +124,7 @@ pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<U
                 .json::<PakResponse>()
                 .await
                 .map_err(|_| AppError::Unauthorized("Invalid PAK response from auth provider".into()))?;
-            return resolve_local_user(db, &data.user.user_id, data.user.email).await;
+            return resolve_local_user(env, db, &data.user.user_id, data.user.email).await;
         }
     }
 
@@ -133,13 +133,23 @@ pub async fn require_user(req: &Request, env: &Env, db: &D1Database) -> Result<U
     ))
 }
 
-async fn resolve_local_user(db: &D1Database, auth_provider_id: &str, email: Option<String>) -> Result<User, AppError> {
-    if let Ok(Some(user)) = db::find_user_by_auth_id(db, auth_provider_id).await {
+async fn resolve_local_user(env: &Env, db: &D1Database, auth_provider_id: &str, email: Option<String>) -> Result<User, AppError> {
+    let is_test = env.var("TEST_AUTH_BYPASS").ok().map(|v| v.to_string() == "true").unwrap_or(false);
+
+    if let Ok(Some(mut user)) = db::find_user_by_auth_id(db, auth_provider_id).await {
+        if is_test && auth_provider_id == "test-user-id" {
+            user.role = "admin".into();
+        }
         return Ok(user);
     }
     
     // Auto-provision on first login
-    db::create_user(db, auth_provider_id, email)
+    let mut user = db::create_user(db, auth_provider_id, email)
         .await
-        .map_err(|e| AppError::ServerError(format!("Failed to auto-provision user: {}", e)))
+        .map_err(|e| AppError::ServerError(format!("Failed to auto-provision user: {}", e)))?;
+        
+    if is_test && auth_provider_id == "test-user-id" {
+        user.role = "admin".into();
+    }
+    Ok(user)
 }

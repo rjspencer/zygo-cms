@@ -3,11 +3,16 @@
     "version": "0.1.0",
     "type": "module",
     "scripts": {
-        "dev": "concurrently -k -c \"blue,green\" -n \"backend,frontend\" \"wrangler dev\" \"vite\"",
-        "build:css": "tailwindcss -i ./src/style.css -o ./public/style.css --minify",
-        "prebuild": "npm run build:css",
-        "test": "vitest run tests/editor.test.js",
-        "test:e2e": "vitest run tests/worker.test.js",
+        "dev": "concurrently -k -c \"blue,green,magenta\" -n \"api,public,ui\" \"npm run dev:api\" \"npm run dev:public\" \"npm run dev:ui\"",
+        "dev:api": "wrangler dev packages/admin-api-worker/build/index.js -c wrangler.toml --port 8787",
+        "dev:public": "sleep 3 && wrangler dev packages/public-worker/build/index.js -c wrangler.toml --port 8788",
+        "dev:ui": "npm --prefix packages/admin-ui run dev",
+        "build": "npm run build:api && npm run build:public && npm run build:ui",
+        "build:api": "cd packages/admin-api-worker && worker-build --release",
+        "build:public": "cd packages/public-worker && worker-build --release",
+        "build:ui": "npm --prefix packages/admin-ui run build",
+        "test": "vitest run packages/admin-ui/src/__tests__/Editor.test.tsx",
+        "test:e2e": "vitest run --no-file-parallelism tests/",
         "test:all": "vitest run"
     },
     "devDependencies": {

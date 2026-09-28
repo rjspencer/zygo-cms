@@ -224,13 +224,13 @@ pub struct RssTemplate<'a> {
 pub fn render_sitemap(
     origin: &str,
     posts: &[Entry],
-    env: &worker::Env,
+    env: &worker::Env, req: &worker::Request,
 ) -> worker::Result<worker::Response> {
     let body = render_tmpl(&SitemapTemplate { origin, entries: posts })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/xml; charset=utf-8")?;
-    crate::cache::add_cache_headers(&mut headers, env)?;
+    crate::cache::add_cache_headers(&mut headers, env, req)?;
 
     worker::Response::ok(body).map(|res| res.with_headers(headers))
 }
@@ -238,13 +238,13 @@ pub fn render_sitemap(
 pub fn render_rss(
     origin: &str,
     posts: &[Entry],
-    env: &worker::Env,
+    env: &worker::Env, req: &worker::Request,
 ) -> worker::Result<worker::Response> {
     let body = render_tmpl(&RssTemplate { origin, posts })?;
 
     let mut headers = worker::Headers::new();
     headers.set("Content-Type", "application/rss+xml; charset=utf-8")?;
-    crate::cache::add_cache_headers(&mut headers, env)?;
+    crate::cache::add_cache_headers(&mut headers, env, req)?;
 
     worker::Response::ok(body).map(|res| res.with_headers(headers))
 }
@@ -252,30 +252,25 @@ pub fn render_rss(
 #[derive(Template)]
 #[template(path = "search.html")]
 pub struct SearchTemplate<'a> {
-    pub origin: &'a str,
     pub query: &'a str,
     pub posts: &'a [Entry],
     pub pagination: Option<Pagination>,
 
-    pub canonical_path: &'a str,
     pub header_menu: &'a [MenuItem],
     pub footer_menu: &'a [MenuItem],
 }
 
 pub fn render_search_html(
-    origin: &str,
     query: &str,
     posts: &[Entry],
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
 ) -> worker::Result<String> {
     render_tmpl(&SearchTemplate {
-        origin,
         query,
         posts,
         pagination: None,
 
-        canonical_path: "/search",
         header_menu,
         footer_menu,
     })

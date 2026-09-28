@@ -32,7 +32,7 @@ pub async fn index(req: Request, ctx: RouteContext<()>) -> Result<Response> {
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
-    cache::add_cache_headers(&mut headers, &ctx.env)?;
+    cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
     let mut res = Response::ok(html)?.with_headers(headers);
     cache::put_cached(&req, &mut res).await;
@@ -47,7 +47,7 @@ pub async fn sitemap(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
     let entries = db::find_published_entries(&db).await?;
-    let mut res = views::render_sitemap(&origin, &entries, &ctx.env)?;
+    let mut res = views::render_sitemap(&origin, &entries, &ctx.env, &req)?;
     cache::put_cached(&req, &mut res).await;
     Ok(res)
 }
@@ -60,7 +60,7 @@ pub async fn rss(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
     let posts = db::find_published_posts(&db).await?;
-    let mut res = views::render_rss(&origin, &posts, &ctx.env)?;
+    let mut res = views::render_rss(&origin, &posts, &ctx.env, &req)?;
     cache::put_cached(&req, &mut res).await;
     Ok(res)
 }
@@ -89,7 +89,7 @@ pub async fn post_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
             let html = views::render_post(&p, &origin, &header_menu, &footer_menu)?;
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
-            cache::add_cache_headers(&mut headers, &ctx.env)?;
+            cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
             let mut res = Response::ok(html)?.with_headers(headers);
             cache::put_cached(&req, &mut res).await;
@@ -129,7 +129,7 @@ pub async fn tag_archive(req: Request, ctx: RouteContext<()>) -> Result<Response
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
-    cache::add_cache_headers(&mut headers, &ctx.env)?;
+    cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
     let mut res = Response::ok(html)?.with_headers(headers);
     cache::put_cached(&req, &mut res).await;
@@ -167,7 +167,7 @@ pub async fn category_archive(req: Request, ctx: RouteContext<()>) -> Result<Res
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
-    cache::add_cache_headers(&mut headers, &ctx.env)?;
+    cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
     let mut res = Response::ok(html)?.with_headers(headers);
     cache::put_cached(&req, &mut res).await;
@@ -233,7 +233,7 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
         views::render_preview_post(&preview_entry, &origin, &rev, &header_menu, &footer_menu)?
     };
 
-    let mut headers = Headers::new();
+    let headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
     headers.set("Cache-Control", "no-store, no-cache, must-revalidate")?;
 
@@ -269,7 +269,7 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
             let html = views::render_page(&p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu)?;
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
-            cache::add_cache_headers(&mut headers, &ctx.env)?;
+            cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
             let mut res = Response::ok(html)?.with_headers(headers);
             cache::put_cached(&req, &mut res).await;
@@ -294,10 +294,8 @@ pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response
     let menus = crate::db::menu::get_all_menus(&db).await?;
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
-    let canonical_origin = crate::utils::get_canonical_origin(&req, &ctx.env);
     
     let html = crate::views::render_search_html(
-        &canonical_origin,
         &query,
         &entries,
         &header_menu,

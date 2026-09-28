@@ -76,34 +76,29 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - **Unit Tests**: `cargo test --lib` covering models, excerpt generation, validation, and metadata logic.
 - **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/deploy.yml`) with automated caching, linting, tests, remote D1 migrations, and release deployment.
 
----
-
-## 2. Prioritized Roadmap & Future Work
-
-### 1. Custom Content Types & Schema Builder
-- **Goal**: Enable custom content modeling via the admin UI.
-- **Details**:
-  - Provide an interface to define custom entities (e.g., `Product`, `Event`) and custom fields dynamically, shifting away from hardcoded schemas in Rust.
-
-### 2. Full-Text Site Search
+### Full-Text Site Search
 - **Goal**: Allow users to search across all published content.
 - **Details**:
   - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
 
-### 3. Analytics Dashboard
+### Analytics Dashboard
 - **Goal**: Built-in privacy-first traffic insights.
 - **Details**:
   - Integrate a lightweight, GDPR-compliant analytics view in the admin dashboard (e.g., tracking views, referrers) without requiring a cookie banner.
 
-### 4. Localization (i18n) Architecture
-- **Goal**: Multi-language support for global reach.
-- **Details**:
-  - Introduce i18n support for pages, posts, and localized routing.
+### Custom Content Types & Schema Builder
+- **Schema Builder**: Interface at `/admin/content-types` to define custom entities (e.g., `Product`, `Event`) and construct dynamic JSON schemas with field types (text, number, boolean, date).
+- **Editor Integration**: Dynamically renders custom form inputs in the editor sidebar based on the selected content type.
+- **JSON Storage**: Safely persists structured data into the `custom_fields_json` D1 column.
+
+---
+
+## 2. Prioritized Roadmap & Future Work
 
 
 ---
 
-## 3. Icebox & Long-Term Considerations
+## 3\. Icebox & Long-Term Considerations
 
 ### Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.

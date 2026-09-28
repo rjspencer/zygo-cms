@@ -69,7 +69,7 @@ pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     Response::from_html(html)
 }
 
-pub async fn editor(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn editor(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let auth_url = get_auth_url(&ctx.env);
     let db = ctx.env.d1("DB")?;
     let pages = db::find_all_pages(&db).await.unwrap_or_default();
@@ -79,7 +79,16 @@ pub async fn editor(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
     let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false);
-    let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu, analytics_enabled)?;
+    let mut initial_type = None;
+    if let Ok(url) = req.url() {
+        for (k, v) in url.query_pairs() {
+            if k == "type" {
+                initial_type = Some(v.into_owned());
+                break;
+            }
+        }
+    }
+    let html = admin::render_editor_html(None, None, &pages, &[], &auth_url, &header_menu, &footer_menu, analytics_enabled, initial_type)?;
     Response::from_html(html)
 }
 
@@ -116,6 +125,7 @@ pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response>
                 &header_menu,
                 &footer_menu,
                 db::setting::get_setting(&db, "analytics_enabled").await?.map(|s| s.value == "true").unwrap_or(false),
+                None,
             )?;
             Response::from_html(html)
         }

@@ -87,7 +87,31 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
 #[event(scheduled)]
 async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     worker::console_log!("Scheduled cron triggered: {}", event.cron());
-    if let Err(e) = media::sync_r2_to_d1(&env).await {
-        worker::console_error!("Scheduled R2-to-D1 sync error: {e}");
+    
+    // Offset by 1 second as requested
+    worker::Delay::from(std::time::Duration::from_secs(1)).await;
+    
+    // Handle Scheduled Publishing
+    if let Ok(db) = env.d1("DB") {
+        match db::entry::publish_scheduled_entries(&db).await {
+            Ok(published) => {
+                if !published.is_empty() {
+                    worker::console_log!("Published {} scheduled entries.", published.len());
+                    let mut urls_to_purge = vec!["/".to_string(), "/rss.xml".to_string(), "/sitemap.xml".to_string()];
+                    for entry in published {
+                        urls_to_purge.push(entry.path());
+                    }
+                    cache::purge_urls(&env, urls_to_purge).await;
+                }
+            }
+            Err(e) => worker::console_error!("Failed to check scheduled entries: {e}"),
+        }
+    }
+
+    // Handle Media Sync
+    if event.cron() == "0 0 * * 0" {
+        if let Err(e) = media::sync_r2_to_d1(&env).await {
+            worker::console_error!("Scheduled R2-to-D1 sync error: {e}");
+        }
     }
 }

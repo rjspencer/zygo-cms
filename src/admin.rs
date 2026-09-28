@@ -100,6 +100,7 @@ pub fn render_posts_html(
 #[derive(Template)]
 #[template(path = "editor.html")]
 pub struct EditorTemplate<'a> {
+    pub preselected_type: Option<String>,
     pub entry: Option<&'a Entry>,
     pub latest_revision: Option<&'a EntryRevision>,
     pub pages: &'a [Entry],
@@ -142,13 +143,17 @@ impl<'a> EditorTemplate<'a> {
     }
 
     pub fn entry_type(&self) -> &str {
-        self.entry.map(|e| e.r#type.as_str()).unwrap_or("post")
+        if let Some(e) = self.entry {
+            return e.r#type.as_str();
+        }
+        if let Some(ref t) = self.preselected_type {
+            return t.as_str();
+        }
+        "post"
     }
 
     pub fn is_page(&self) -> bool {
-        self.entry
-            .map(|e| e.r#type.as_str() == "page")
-            .unwrap_or(false)
+        self.entry_type() == "page"
     }
 
     pub fn is_parent(&self, page_id: &i64) -> bool {
@@ -233,6 +238,18 @@ impl<'a> EditorTemplate<'a> {
             .unwrap_or(true)
     }
 
+    pub fn is_draft(&self) -> bool {
+        self.entry
+            .map(|p| p.status.as_str() == "draft")
+            .unwrap_or(false)
+    }
+
+    pub fn is_scheduled(&self) -> bool {
+        self.entry
+            .map(|p| p.status.as_str() == "scheduled")
+            .unwrap_or(false)
+    }
+
     pub fn initial_json(&self) -> &str {
         self.latest_revision
             .map(|r| r.body_json.as_str())
@@ -255,8 +272,10 @@ pub fn render_editor_html(
     header_menu: &[crate::models::MenuItem],
     footer_menu: &[crate::models::MenuItem],
     analytics_enabled: bool,
+    preselected_type: Option<String>,
 ) -> worker::Result<String> {
     EditorTemplate {
+        preselected_type,
         entry,
         latest_revision,
         pages,

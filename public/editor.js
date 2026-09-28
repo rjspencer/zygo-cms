@@ -2,9 +2,33 @@ import { Editor } from 'https://esm.sh/@tiptap/core';
 import StarterKit from 'https://esm.sh/@tiptap/starter-kit';
 import Image from 'https://esm.sh/@tiptap/extension-image';
 import { createClient } from 'https://esm.sh/@propelauth/javascript';
+import { initPageBuilder, getPageBuilderJSON, getPageBuilderHTML } from './page-builder.js';
 
 export async function initEditor(initialContent, authUrl, initialCustomFields = {}) {
     let isDirty = false;
+
+    // Editor Tabs Logic
+    const tabBtns = document.querySelectorAll('.editor-tab');
+    const tabContents = document.querySelectorAll('.editor-tab-content');
+    
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = btn.getAttribute('data-tab');
+            
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tabContents.forEach(c => c.style.display = '');
+            
+            btn.classList.add('active');
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                targetContent.style.display = '';
+            }
+        });
+    });
+
 
     window.addEventListener('beforeunload', (e) => {
         if (isDirty) {
@@ -636,6 +660,37 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
             if (pageHierarchyFields && typeSelect) {
                 pageHierarchyFields.style.display = typeSelect.value === 'page' ? 'block' : 'none';
             }
+            const postMetaFields = document.getElementById('post-metadata-fields');
+            if (postMetaFields && typeSelect) {
+                postMetaFields.style.display = typeSelect.value === 'page' ? 'none' : 'block';
+            }
+            
+            const tabBtnDetails = document.getElementById('tab-btn-details');
+            if (tabBtnDetails && typeSelect) {
+                tabBtnDetails.textContent = typeSelect.value === 'page' ? 'Page Attributes' : 'Post Details';
+            }
+            
+            const pbWrapper = document.getElementById('page-builder-wrapper');
+            const ttWrapper = document.getElementById('post-editor-wrapper');
+            if (pbWrapper && ttWrapper && typeSelect) {
+                if (typeSelect.value === 'page') {
+                    pbWrapper.style.display = 'block';
+                    ttWrapper.style.display = 'none';
+                    if (!window.__pb_initialized) {
+                        try {
+                            const parsed = typeof initialContent === 'string' ? JSON.parse(initialContent) : initialContent;
+                            initPageBuilder(parsed, () => { isDirty = true; });
+                        } catch (e) {
+                            initPageBuilder([], () => { isDirty = true; });
+                        }
+                        window.__pb_initialized = true;
+                    }
+                } else {
+                    pbWrapper.style.display = 'none';
+                    ttWrapper.style.display = 'block';
+                }
+            }
+            
             renderDynamicFields();
         };
 
@@ -648,57 +703,62 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                     // See if the template's initial type is not in the hardcoded list
                     let initialType = typeSelect.getAttribute('data-initial-type');
                     
-                    data.forEach(ct => {
-                        if (ct.id !== 'post' && ct.id !== 'page') {
-                            const opt = document.createElement('option');
-                            opt.value = ct.id;
-                            opt.textContent = ct.name;
-                            typeSelect.appendChild(opt);
-                        }
-                    });
+                    // Content types loaded
 
                     // Set the selected value after appending options, 
                     // this requires that we actually know the initial type. 
                     // If it's a new post, it's 'post'. If it's an existing post, 
                     // we need to set the select value to whatever was loaded.
                     if (initialType) {
-                        typeSelect.value = initialType;
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const preselectedType = urlParams.get('type');
+                        const postIdInput = document.querySelector('#post-id');
+                        if (!postIdInput || !postIdInput.value) {
+                            typeSelect.value = preselectedType || initialType;
+                        } else {
+                            typeSelect.value = initialType;
+                        }
+                    }
+                    // MUST update visibility again since we might have just set the value!
+                    if (typeof updateHierarchyVisibility === 'function') {
+                        updateHierarchyVisibility();
                     }
                     
                     renderDynamicFields();
                 })
                 .catch(err => console.error("Failed to load content types", err));
 
-            typeSelect.addEventListener('change', (e) => {
-                if (form && form.dataset.hasChildren === 'true' && typeSelect.value !== 'page') {
-                    const count = form.dataset.childCount || '1';
-                    const msg = `Cannot change this page to a post because it has ${count} active subpage(s). Move or delete its subpages first.`;
-                    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
-                        window.alert(msg);
-                    }
-                    typeSelect.value = 'page';
-                    updateHierarchyVisibility();
-                    return;
-                }
-                updateHierarchyVisibility();
-            });
+
             updateHierarchyVisibility();
         }
 
-        // Prepopulate parent page if navigated via ?parent_id=...
+        // Prepopulate parent page or type if navigated via query params
         const urlParams = new URLSearchParams(window.location.search);
         const preselectedParent = urlParams.get('parent_id');
+        const preselectedType = urlParams.get('type');
         const postIdInput = document.querySelector('#post-id');
-        if (preselectedParent && (!postIdInput || !postIdInput.value)) {
-            if (typeSelect) {
-                typeSelect.value = 'page';
+        
+        const typeGroup = document.querySelector('#type-group');
+        
+        if (!postIdInput || !postIdInput.value) {
+            if (preselectedType && typeSelect) {
+                typeSelect.value = preselectedType;
                 updateHierarchyVisibility();
             }
-            const parentSelect = document.querySelector('#parent-id');
-            if (parentSelect) {
-                parentSelect.value = preselectedParent;
+            if (preselectedParent) {
+                if (typeSelect) {
+                    typeSelect.value = 'page';
+                    updateHierarchyVisibility();
+                }
+                const parentSelect = document.querySelector('#parent-id');
+                if (parentSelect) {
+                    parentSelect.value = preselectedParent;
+                }
             }
         }
+        
+        // Hide type selector since it is implied by context (from 'Add new' or existing entry)
+        if (typeGroup) typeGroup.style.display = 'none';
 
         // Handle Delete button if present
         const deleteBtn = document.querySelector('#delete-btn');
@@ -1030,8 +1090,8 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 sort_order = sortVal && sortVal !== '' ? parseInt(sortVal, 10) : 0;
             }
 
-            const body_html = editor.getHTML();
-            const body_json = JSON.stringify(editor.getJSON());
+            const body_html = type === 'page' ? getPageBuilderHTML() : editor.getHTML();
+            const body_json = type === 'page' ? JSON.stringify(getPageBuilderJSON()) : JSON.stringify(editor.getJSON());
 
             let custom_fields_json = null;
             const customFieldsInputs = document.querySelectorAll('.dynamic-custom-field');
@@ -1050,6 +1110,19 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 custom_fields_json = JSON.stringify(customFieldsData);
             }
 
+            
+            let published_at = null;
+            if (status === 'scheduled' || document.getElementById('published_at')?.value) {
+                const rawDate = document.getElementById('published_at')?.value;
+                if (rawDate) {
+                    // Convert HTML datetime-local (YYYY-MM-DDTHH:MM) to SQLite (YYYY-MM-DD HH:MM:00)
+                    published_at = rawDate.replace('T', ' ');
+                    if (published_at.length === 16) {
+                        published_at += ':00';
+                    }
+                }
+            }
+
             const payload = {
                 title,
                 type,
@@ -1060,6 +1133,7 @@ export async function initEditor(initialContent, authUrl, initialCustomFields = 
                 schema_json,
                 category,
                 tags,
+                published_at,
                 parent_id,
                 sort_order,
                 body_html,
