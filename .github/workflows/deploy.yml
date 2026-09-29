@@ -78,11 +78,20 @@ jobs:
       - name: Build All Packages
         run: npm run build
 
+      - name: Create D1 Database (if not exists)
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 create zygo-cms-db
+        continue-on-error: true  # Succeeds even if DB already exists
+
       - name: Apply D1 Database Migrations
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/public-worker
           command: d1 migrations apply zygo-cms-db --remote
 
       - name: Deploy Public Worker
