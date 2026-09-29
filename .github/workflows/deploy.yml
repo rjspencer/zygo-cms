@@ -37,7 +37,9 @@ jobs:
           node-version: 22
 
       - name: Install JS Dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix packages/admin-ui
 
       - name: Run Browser / DOM Test Suite
         run: npm test
@@ -69,7 +71,9 @@ jobs:
           node-version: 22
 
       - name: Install JS Dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix packages/admin-ui
 
       - name: Build All Packages
         run: npm run build
