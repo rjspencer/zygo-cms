@@ -1,28 +1,26 @@
-name = "zygo-cms"
-main = "build/index.js"
-compatibility_date = "2024-09-01"
-
-[assets]
-directory = "public"
-
-#[build]
-#command = "npm run build:css && worker-build --release"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "zygo-cms-db"
-database_id = "1ab6229f-73a6-4760-bff2-8ea41dfecce5"
-migrations_dir = "migrations"
-
-[[r2_buckets]]
-binding = "MEDIA"
-bucket_name = "zygo-cms-media"
-
-[vars]
-ENVIRONMENT = "dev"
-PROPELAUTH_AUTH_URL = "https://97543635.propelauthtest.com"
-EDGE_TTL_SECONDS = "86400"
-PUBLIC_SITE_URL = "https://www.zygodactylstudios.com"
-
-[triggers]
-crons = ["0 0 * * SUN", "0 * * * *"]
+# Zygo CMS — Multi-Worker Architecture
+#
+# This project uses THREE separate Cloudflare Workers.
+# Each has its own wrangler.toml in its package directory.
+#
+# Worker               | Config                                       | Domain (prod)
+# ---------------------|----------------------------------------------|----------------------------------
+# public-worker        | packages/public-worker/wrangler.toml         | zygodactylstudios.com
+# admin-api-worker     | packages/admin-api-worker/wrangler.toml      | api.zygodactylstudios.com
+# admin-ui-worker      | packages/admin-ui/wrangler.toml              | admin.zygodactylstudios.com
+#
+# All workers share:
+#   - D1 database:  zygo-cms-db  (id: 1ab6229f-73a6-4760-bff2-8ea41dfecce5)
+#   - R2 bucket:    zygo-cms-media
+#
+# Development:
+#   npm run dev        — starts all three workers concurrently
+#   npm run build      — builds all three workers
+#
+# Deployment (run from each package directory):
+#   cd packages/public-worker    && wrangler deploy
+#   cd packages/admin-api-worker && wrangler deploy
+#   cd packages/admin-ui         && wrangler deploy
+#
+# Migrations (run once against the shared D1 db):
+#   npx wrangler d1 migrations apply zygo-cms-db --remote

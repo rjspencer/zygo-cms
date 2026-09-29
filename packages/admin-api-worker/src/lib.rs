@@ -3,7 +3,6 @@ mod cache;
 mod media;
 mod sanitize;
 mod utils;
-mod views;
 mod handlers;
 
 use worker::*;

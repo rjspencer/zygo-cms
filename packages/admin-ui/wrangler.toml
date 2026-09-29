@@ -3,5 +3,6 @@ compatibility_date = "2024-09-01"
 
 [assets]
 directory = "dist"
-custom_domains = ["admin.zygodactylstudios.com"]
+
+[route]
 custom_domains = ["admin.zygodactylstudios.com"]
