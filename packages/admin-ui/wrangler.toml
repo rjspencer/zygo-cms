@@ -1,8 +1,7 @@
 name = "admin-ui-worker"
 compatibility_date = "2024-09-01"
 
+custom_domains = ["admin.zygodactylstudios.com"]
+
 [assets]
 directory = "dist"
-
-[route]
-custom_domains = ["admin.zygodactylstudios.com"]
