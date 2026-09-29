@@ -555,7 +555,6 @@ mod tests {
         }
     }
 
-    
     #[test]
     fn test_empty_title_fails() {
         let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
