@@ -4,13 +4,15 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
 
 jobs:
-  deploy:
-    name: Build, Test & Deploy
+  test:
+    name: Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,10 +37,43 @@ jobs:
           node-version: 22
 
       - name: Install JS Dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm ci --prefix packages/admin-ui
 
       - name: Run Browser / DOM Test Suite
         run: npm test
+
+  deploy:
+    name: Build & Deploy
+    needs: test
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install worker-build
+        run: cargo install worker-build --locked
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install JS Dependencies
+        run: |
+          npm ci
+          npm ci --prefix packages/admin-ui
 
       - name: Build All Packages
         run: npm run build
