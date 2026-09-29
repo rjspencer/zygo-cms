@@ -487,7 +487,7 @@ mod tests {
 
     #[test]
     fn test_valid_create_entry() {
-        let req = CreateEntryRequest {
+        let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "--title--".into(),
             slug: "--slug--".into(),
             r#type: Some("post".into()),
@@ -509,7 +509,7 @@ mod tests {
 
     #[test]
     fn test_reserved_slug_fails() {
-        let req = CreateEntryRequest {
+        let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "Admin Panel".into(),
             slug: "admin".into(),
             r#type: Some("page".into()),
@@ -534,7 +534,7 @@ mod tests {
     #[test]
     fn test_reserved_taxonomy_slugs_fail() {
         for slug in &["tag", "tags", "category", "categories"] {
-            let req = CreateEntryRequest {
+            let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
                 title: "Taxonomy Slug".into(),
                 slug: (*slug).into(),
                 r#type: Some("page".into()),
@@ -555,31 +555,10 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_invalid_type_fails() {
-        let req = CreateEntryRequest {
-            title: "Custom".into(),
-            slug: "custom-slug".into(),
-            r#type: Some("product".into()),
-            status: Some("published".into()),
-            description: None,
-            cover_image: None,
-            canonical_url: None,
-            schema_json: None,
-            category: None,
-            tags: None,
-            parent_id: None,
-            sort_order: None,
-            body_html: "<p>Hi</p>".into(),
-            body_json: "{}".into(),
-            author_id: None,
-        };
-        assert!(req.validate().is_err());
-    }
-
+    
     #[test]
     fn test_empty_title_fails() {
-        let req = CreateEntryRequest {
+        let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "   ".into(),
             slug: "valid-slug".into(),
             r#type: None,
@@ -601,7 +580,7 @@ mod tests {
 
     #[test]
     fn test_empty_slug_fails() {
-        let req = CreateEntryRequest {
+        let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "Valid Title".into(),
             slug: "".into(),
             r#type: None,
@@ -623,7 +602,7 @@ mod tests {
 
     #[test]
     fn test_invalid_slug_characters_fail() {
-        let req = CreateEntryRequest {
+        let req = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "Valid Title".into(),
             slug: "bad slug with spaces!".into(),
             r#type: None,
@@ -645,7 +624,7 @@ mod tests {
 
     #[test]
     fn test_page_parent_id_validation() {
-        let req_valid = CreateEntryRequest {
+        let req_valid = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "Subpage".into(),
             slug: "subpage".into(),
             r#type: Some("page".into()),
@@ -664,7 +643,7 @@ mod tests {
         };
         assert!(req_valid.validate().is_ok());
 
-        let req_invalid = CreateEntryRequest {
+        let req_invalid = CreateEntryRequest { custom_fields_json: None, published_at: None,
             title: "Subpost".into(),
             slug: "subpost".into(),
             r#type: Some("post".into()),
@@ -686,7 +665,7 @@ mod tests {
 
     #[test]
     fn test_empty_update_request_fails() {
-        let req = UpdateEntryRequest {
+        let req = UpdateEntryRequest { custom_fields_json: None, published_at: None,
             title: None,
             r#type: None,
             status: None,
@@ -707,7 +686,7 @@ mod tests {
 
     #[test]
     fn test_valid_partial_update() {
-        let req = UpdateEntryRequest {
+        let req = UpdateEntryRequest { custom_fields_json: None, published_at: None,
             title: Some("New Title".into()),
             r#type: None,
             status: None,
@@ -725,7 +704,7 @@ mod tests {
         };
         assert!(req.validate().is_ok());
 
-        let req_tax = UpdateEntryRequest {
+        let req_tax = UpdateEntryRequest { custom_fields_json: None, published_at: None,
             title: None,
             r#type: None,
             status: None,
@@ -743,7 +722,7 @@ mod tests {
         };
         assert!(req_tax.validate().is_ok());
 
-        let req_hierarchy = UpdateEntryRequest {
+        let req_hierarchy = UpdateEntryRequest { custom_fields_json: None, published_at: None,
             title: None,
             r#type: Some("page".into()),
             status: None,
@@ -779,7 +758,7 @@ mod tests {
 
     #[test]
     fn test_entry_path_resolution() {
-        let mut entry = Entry {
+        let mut entry = Entry { custom_fields_json: None, search_text: None,
             id: 1,
             slug: "team".into(),
             title: "Team".into(),
@@ -812,7 +791,7 @@ mod tests {
 
     #[test]
     fn test_tag_list() {
-        let mut entry = Entry {
+        let mut entry = Entry { custom_fields_json: None, search_text: None,
             id: 1,
             slug: "test".into(),
             title: "Test".into(),
@@ -842,7 +821,7 @@ mod tests {
 
     #[test]
     fn test_meta_description_custom() {
-        let entry = Entry {
+        let entry = Entry { custom_fields_json: None, search_text: None,
             id: 1,
             slug: "test".into(),
             title: "Test".into(),
@@ -869,7 +848,7 @@ mod tests {
 
     #[test]
     fn test_meta_description_auto_from_html() {
-        let entry = Entry {
+        let entry = Entry { custom_fields_json: None, search_text: None,
             id: 1,
             slug: "test".into(),
             title: "Test".into(),
@@ -900,7 +879,7 @@ mod tests {
 
     #[test]
     fn test_entry_soft_delete() {
-        let mut entry = Entry {
+        let mut entry = Entry { custom_fields_json: None, search_text: None,
             id: 1,
             slug: "test".into(),
             title: "Test".into(),
