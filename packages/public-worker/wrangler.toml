@@ -2,7 +2,10 @@ name = "public-worker"
 main = "build/index.js"
 compatibility_date = "2024-09-01"
 
-custom_domains = ["zygodactylstudios.com", "www.zygodactylstudios.com"]
+routes = [
+  { pattern = "zygodactylstudios.com", custom_domain = true },
+  { pattern = "www.zygodactylstudios.com", custom_domain = true }
+]
 
 [assets]
 directory = "../../public"

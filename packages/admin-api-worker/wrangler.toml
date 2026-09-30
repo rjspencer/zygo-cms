@@ -2,7 +2,9 @@ name = "admin-api-worker"
 main = "build/index.js"
 compatibility_date = "2024-09-01"
 
-custom_domains = ["api.zygodactylstudios.com"]
+routes = [
+  { pattern = "api.zygodactylstudios.com", custom_domain = true }
+]
 
 [[d1_databases]]
 binding = "DB"
