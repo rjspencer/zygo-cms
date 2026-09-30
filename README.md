@@ -184,6 +184,8 @@ To manage the CMS via Claude Desktop or other MCP-compatible AI agents, use the 
 
 ## Deployment to Production
 
+For setting up your own custom domain, subdomains, and DNS routing for the 3-worker architecture, see the [Custom Domain & DNS Setup Guide](./docs/domain-and-dns-setup.md).
+
 ### 1. Create Production Resources
 
 Create the live D1 database and R2 bucket in your Cloudflare account:
