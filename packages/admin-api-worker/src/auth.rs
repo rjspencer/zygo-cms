@@ -208,6 +208,9 @@ async fn resolve_local_user(env: &Env, db: &D1Database, auth_provider_id: &str, 
     let is_admin_override = (is_dev && auth_provider_id == "mock-admin-uuid") || auth_provider_id.starts_with("service-token:");
 
     if let Ok(Some(mut user)) = db::find_user_by_auth_id(db, auth_provider_id).await {
+        if user.deleted_at.is_some() && !is_admin_override {
+            return Err(AppError::Unauthorized("User account is suspended".into()));
+        }
         if is_admin_override {
             user.role = "admin".into();
         }
@@ -231,6 +234,7 @@ async fn resolve_local_user(env: &Env, db: &D1Database, auth_provider_id: &str, 
                     role: "admin".to_string(),
                     created_at: "1970-01-01T00:00:00Z".to_string(),
                     updated_at: "1970-01-01T00:00:00Z".to_string(),
+                    ..Default::default()
                 });
             }
             return Err(AppError::ServerError(format!("Failed to auto-provision user: {}", e)));

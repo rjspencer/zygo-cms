@@ -23,6 +23,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/analytics", handlers::api::get_analytics)
         .get_async("/api/me", handlers::api::get_me)
         
+        // Admin API routes - Users
+        .get_async("/api/admin/users", handlers::users::list_users)
+        .post_async("/api/admin/users", handlers::users::create_user)
+        .put_async("/api/admin/users/:id", handlers::users::update_user)
+        .delete_async("/api/admin/users/:id", handlers::users::delete_user)
+        
         // API routes - Menus
         .get_async("/api/menus", handlers::api::get_menus)
         .get_async("/api/menus/:name", handlers::api::get_menu)

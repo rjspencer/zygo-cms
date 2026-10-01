@@ -14,6 +14,7 @@ import {
 import { CheckIcon } from '@radix-ui/react-icons';
 
 export const Settings: React.FC = () => {
+  // TODO: Implement fetching and saving of site settings from the backend
   const [siteTitle, setSiteTitle] = useState('Zygo CMS');
   const [canonicalOrigin, setCanonicalOrigin] = useState('https://zygodactyl.io');
   const [description, setDescription] = useState('Fast, modern edge CMS running on Cloudflare Workers and D1');

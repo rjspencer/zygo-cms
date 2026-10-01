@@ -4,6 +4,10 @@ pub fn get_auth_url(_env: &Env) -> String {
     "/cdn-cgi/access/logout".to_string()
 }
 
+pub fn json_response<T: serde::Serialize>(data: &T) -> Result<Response> {
+    Response::from_json(data)
+}
+
 /// Resolves the canonical site origin.
 
 #[cfg(target_arch = "wasm32")]

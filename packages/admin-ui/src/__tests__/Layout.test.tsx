@@ -93,6 +93,7 @@ describe('Layout Component', () => {
     expect(screen.getByText('Posts')).toBeDefined();
     expect(screen.getByText('Pages')).toBeDefined();
     expect(screen.getByText('Media Library')).toBeDefined();
+    expect(screen.getByText('Users')).toBeDefined();
   });
 
   it('fetches user info and updates user email and logout link', async () => {

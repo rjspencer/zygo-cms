@@ -117,6 +117,85 @@ describe('Admin API Worker Integration', () => {
         }
     });
 
+    it('manages users via admin API (list, create, update, soft-delete)', async () => {
+        // 1. Unauthenticated request to /api/admin/users should be rejected with 401
+        const unauthRes = await worker.fetch('/api/admin/users', {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        expect(unauthRes.status).toBe(401);
+
+        // 2. List users (authenticated)
+        const listRes = await worker.fetch('/api/admin/users', {
+            method: 'GET',
+            headers: getHeaders(),
+        });
+        expect(listRes.status).toBe(200);
+        const usersList = await listRes.json();
+        expect(Array.isArray(usersList)).toBe(true);
+
+        // 3. Create a new user
+        const uniqueEmail = `testuser-${Date.now()}@example.com`;
+        const createRes = await worker.fetch('/api/admin/users', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                email: uniqueEmail,
+                display_name: 'Test Member',
+                role: 'author',
+            }),
+        });
+        expect(createRes.status).toBe(200);
+        const createdUser = await createRes.json();
+        expect(createdUser.id).toBeDefined();
+        expect(createdUser.email).toBe(uniqueEmail);
+        expect(createdUser.display_name).toBe('Test Member');
+        expect(createdUser.role).toBe('author');
+        expect(createdUser.deleted_at).toBeNull();
+
+        const userId = createdUser.id;
+
+        // 4. Update the user
+        const updateRes = await worker.fetch(`/api/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                role: 'editor',
+                display_name: 'Updated Member',
+                bio: 'Tech enthusiast',
+                website: 'https://example.com',
+                avatar_url: 'https://example.com/avatar.png',
+            }),
+        });
+        expect(updateRes.status).toBe(200);
+        const updatedUser = await updateRes.json();
+        expect(updatedUser.id).toBe(userId);
+        expect(updatedUser.role).toBe('editor');
+        expect(updatedUser.display_name).toBe('Updated Member');
+        expect(updatedUser.bio).toBe('Tech enthusiast');
+        expect(updatedUser.website).toBe('https://example.com');
+        expect(updatedUser.avatar_url).toBe('https://example.com/avatar.png');
+
+        // 5. Soft delete the user
+        const deleteRes = await worker.fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+        });
+        expect(deleteRes.status).toBe(200);
+        const deleteResult = await deleteRes.json();
+        expect(deleteResult.success).toBe(true);
+
+        // 6. Verify user is soft-deleted
+        const listAfterDelete = await worker.fetch('/api/admin/users', {
+            method: 'GET',
+            headers: getHeaders(),
+        });
+        const usersAfterDelete = await listAfterDelete.json();
+        const deletedUserInList = usersAfterDelete.find(u => u.id === userId);
+        expect(deletedUserInList).toBeDefined();
+        expect(deletedUserInList.deleted_at).toBeTruthy();
+    });
+
     it('bypasses Cloudflare Access verification and returns mock admin in dev mode', async () => {
         const devWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
             config: 'packages/admin-api-worker/wrangler.toml',
