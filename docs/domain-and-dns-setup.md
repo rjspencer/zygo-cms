@@ -105,7 +105,7 @@ Error: An externally managed DNS record already exists for this domain
 Do not delete unrelated DNS records:
 - **MX Records:** Keep your mail exchange records intact so your email service continues working uninterrupted.
 - **TXT Records:** Keep verification and security records (such as SPF, DKIM, DMARC, or site ownership tags).
-- **Third-Party Subdomains:** Keep records for external services (e.g., `auth.example.com` pointing to PropelAuth or another identity provider).
+- **Third-Party Subdomains:** Keep records for external services (e.g., `auth.example.com` pointing to Cloudflare Access or another identity provider).
 
 ---
 

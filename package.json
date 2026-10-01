@@ -11,6 +11,11 @@
         "build:api": "cd packages/admin-api-worker && worker-build --release",
         "build:public": "cd packages/public-worker && worker-build --release",
         "build:ui": "npm --prefix packages/admin-ui run build",
+        "deploy": "npm run deploy:public && npm run deploy:api && npm run deploy:ui",
+        "deploy:public": "wrangler deploy -c packages/public-worker/wrangler.toml",
+        "deploy:api": "wrangler deploy -c packages/admin-api-worker/wrangler.toml",
+        "deploy:ui": "wrangler deploy -c packages/admin-ui/wrangler.toml",
+        "setup": "node scripts/setup.mjs",
         "test": "vitest run packages/admin-ui/src/__tests__/Editor.test.tsx",
         "test:e2e": "vitest run --no-file-parallelism tests/",
         "test:all": "vitest run"

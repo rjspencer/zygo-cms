@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 import {
   Flex,
   Box,
@@ -32,8 +33,8 @@ export const Dashboard: React.FC = () => {
     const fetchDashboard = async () => {
       try {
         const [entriesRes, metricsRes] = await Promise.all([
-          fetch('/api/entries'),
-          fetch('/api/admin/dashboard')
+          apiFetch('/api/entries'),
+          apiFetch('/api/admin/dashboard')
         ]);
         if (entriesRes.ok && metricsRes.ok) {
           const entriesData = await entriesRes.json();

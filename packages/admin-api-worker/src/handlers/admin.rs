@@ -1,9 +1,10 @@
 use worker::*;
 use zygo_core::db;
-use crate::utils::get_auth_url;
+use crate::{auth_required, utils::get_auth_url};
 use serde_json::json;
 
-pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;
     
     let page_count = db::count_entries_by_type(&db, "page").await?;
@@ -31,7 +32,8 @@ pub async fn dashboard(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     }))
 }
 
-pub async fn pages(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn pages(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;
     let entries = db::find_all_pages(&db).await?;
     
@@ -58,7 +60,8 @@ pub async fn pages(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     }))
 }
 
-pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn posts(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;
     
     let all_entries = db::find_all_entries(&db).await?;
@@ -88,6 +91,7 @@ pub async fn posts(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
 }
 
 pub async fn editor(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let auth_url = get_auth_url(&ctx.env);
     let db = ctx.env.d1("DB")?;
     let pages = db::find_all_pages(&db).await.unwrap_or_default();
@@ -119,7 +123,8 @@ pub async fn editor(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     }))
 }
 
-pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn editor_id(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let id = match ctx.param("id") {
         Some(s) => s,
         None => return Response::error("Missing id", 400),
@@ -160,7 +165,8 @@ pub async fn editor_id(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     }
 }
 
-pub async fn navigation(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn navigation(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let auth_url = get_auth_url(&ctx.env);
     let db = ctx.env.d1("DB")?;
     let menus = db::menu::get_all_menus(&db).await?;
@@ -175,7 +181,8 @@ pub async fn navigation(_req: Request, ctx: RouteContext<()>) -> Result<Response
     }))
 }
 
-pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn content_types(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let auth_url = get_auth_url(&ctx.env);
     let db = ctx.env.d1("DB")?;
     let menus = db::menu::get_all_menus(&db).await?;
@@ -191,7 +198,8 @@ pub async fn content_types(_req: Request, ctx: RouteContext<()>) -> Result<Respo
     }))
 }
 
-pub async fn analytics(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;
     
     let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?

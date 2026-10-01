@@ -1,4 +1,4 @@
-// Lightweight mocks for browser CDN packages (TipTap & PropelAuth)
+// Lightweight mocks for browser CDN packages (TipTap)
 export class Editor {
     constructor(options = {}) {
         this.options = options;
@@ -38,14 +38,3 @@ export class Editor {
 }
 
 export default {};
-
-export function createClient() {
-    return {
-        getAuthenticationInfoOrNull: async () => ({
-            accessToken: 'test-token',
-            user: { email: 'admin@zygo.dev' },
-        }),
-        redirectToLoginPage: () => { },
-        logout: () => { },
-    };
-}

@@ -20,6 +20,7 @@ import {
   Pencil1Icon,
 } from '@radix-ui/react-icons';
 import { MediaPickerModal } from '../components/MediaPickerModal';
+import { apiFetch } from '../utils/api';
 
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -66,7 +67,7 @@ export const Editor: React.FC = () => {
     if (!isEditing) return;
     const loadEntry = async () => {
       try {
-        const res = await fetch(`/api/admin/editor/${id}`);
+        const res = await apiFetch(`/api/admin/editor/${id}`);
         if (!res || !res.ok) return;
         const data = await res.json();
         if (data?.entry) {
@@ -161,7 +162,7 @@ export const Editor: React.FC = () => {
     try {
       const url = isEditing ? `/api/entries/${id}` : `/api/entries`;
       const method = isEditing ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

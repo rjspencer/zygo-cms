@@ -27,14 +27,14 @@ The current `README.md` is an excellent technical summary, but it needs to be br
 
 - **Zero-to-Hero Quickstart:** 
   A 5-step guide front-and-center in the README to get the site running locally within minutes.
-- **PropelAuth Setup Guide (`docs/auth.md`):** 
-  PropelAuth is the biggest external dependency. Provide a dedicated guide with screenshots detailing exactly how to create an account, find the Auth URL, and generate Server API keys.
+- **Cloudflare Access Setup Guide (`docs/auth.md`):** 
+  Cloudflare Access is the biggest external dependency. Provide a dedicated guide with screenshots detailing exactly how to create an account, find the Auth URL, and generate Server API keys.
 - **Theming & Customization (`docs/theming.md`):** 
   Explain how Askama (`templates/`) interfaces with the Rust backend. Show users how to modify Tailwind configurations (`src/style.css`), add custom fonts, and adjust the UI.
 - **Deployment & CI/CD (`docs/deployment.md`):**
   While `wrangler deploy` works locally, production projects should use GitHub Actions. Provide a `.github/workflows/deploy.yml` template and document the necessary GitHub Secrets (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`).
 - **Architecture Diagram:**
-  A visual diagram (e.g., Mermaid.js) showing the request lifecycle: Request -> Edge Worker -> PropelAuth (if admin) -> D1 SQLite -> Askama Render -> Response.
+  A visual diagram (e.g., Mermaid.js) showing the request lifecycle: Request -> Cloudflare Access (if admin) -> Edge Worker -> D1 SQLite -> Askama Render -> Response.
 
 ---
 
@@ -56,7 +56,7 @@ To make setup effortless, we should encapsulate complex Wrangler and Cargo comma
 ### Key Scripts to Write
 
 1. **`scripts/setup.js` (or `create-zygo` npx package):**
-   An interactive initialization script that prompts the user for their Project Name and PropelAuth URL. It automatically rewrites `wrangler.toml`, `Cargo.toml`, and `package.json` with the new project name, copies `.dev.vars.example` to `.dev.vars`, and runs `npm run db:init`.
+   An interactive initialization script that prompts the user for their Project Name and Cloudflare Team domain. It automatically rewrites `wrangler.toml`, `Cargo.toml`, and `package.json` with the new project name, copies `.dev.vars.example` to `.dev.vars`, and runs `npm run db:init`.
 2. **`scripts/create-cf-resources.js`:**
    A helper script that runs `wrangler d1 create <name>` and `wrangler r2 bucket create <name>`, parses the JSON output to extract the new `database_id`, and automatically injects it back into `wrangler.toml` so the user doesn't have to copy-paste IDs.
 
@@ -69,7 +69,7 @@ Zygo is already positioned well with the `packages/zygo-mcp` bridge. We can go f
 - **Native AI Tooling (`.cursorrules` / `.windsurfrules`):**
   Add root-level configuration files for popular AI IDEs (Cursor, Windsurf, Antigravity). These files should point directly to `AGENTS.md`, ensuring that any AI assisting the user immediately understands the Rust + Cloudflare + Askama stack and the SQLite D1 limitations.
 - **AI Setup Assistant Prompt (`docs/AI_SETUP_INSTRUCTIONS.md`):**
-  Provide a copy-paste prompt that users can drop into ChatGPT or Claude to have the AI guide them through the Cloudflare and PropelAuth setup process step-by-step.
+  Provide a copy-paste prompt that users can drop into ChatGPT or Claude to have the AI guide them through the Cloudflare Access setup process step-by-step.
 - **Expand the MCP Server:**
   Currently, the MCP bridge allows AIs to read and write content. Expand this to allow AIs to read database schemas, trigger database backups, or even scaffold new Askama templates and Tailwind components directly onto the live site.
 - **Automated Content Generation:**

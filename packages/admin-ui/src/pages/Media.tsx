@@ -20,6 +20,7 @@ import {
   ReloadIcon,
 } from '@radix-ui/react-icons';
 import { MediaThumbnail } from '../components/MediaThumbnail';
+import { apiFetch } from '../utils/api';
 
 interface MediaItem {
   id: string;
@@ -29,35 +30,6 @@ interface MediaItem {
   url: string;
   uploadedAt: string;
 }
-
-const getAuthHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = {};
-  try {
-    const storage =
-      typeof window !== 'undefined' && window.localStorage
-        ? window.localStorage
-        : typeof localStorage !== 'undefined'
-        ? localStorage
-        : undefined;
-    const session =
-      typeof window !== 'undefined' && window.sessionStorage
-        ? window.sessionStorage
-        : typeof sessionStorage !== 'undefined'
-        ? sessionStorage
-        : undefined;
-
-    const token =
-      storage?.getItem?.('token') ||
-      storage?.getItem?.('auth_token') ||
-      session?.getItem?.('token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-  } catch {
-    // Ignore storage access errors
-  }
-  return headers;
-};
 
 export const Media: React.FC = () => {
   const [search, setSearch] = useState('');
@@ -71,10 +43,7 @@ export const Media: React.FC = () => {
 
   const fetchMedia = useCallback(async () => {
     try {
-      const authHeaders = getAuthHeaders();
-      const res = await fetch('/api/media', {
-        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
-      });
+      const res = await apiFetch('/api/media');
       if (res.ok) {
         const data = await res.json();
         const mediaList = Array.isArray(data.media) ? data.media : [];
@@ -110,15 +79,11 @@ export const Media: React.FC = () => {
 
     try {
       const filename = encodeURIComponent(file.name);
-      const authHeaders = getAuthHeaders();
-      const headers: Record<string, string> = {
-        'Content-Type': file.type || 'application/octet-stream',
-        ...authHeaders,
-      };
-
-      const res = await fetch(`/api/media?filename=${filename}`, {
+      const res = await apiFetch(`/api/media?filename=${filename}`, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+        },
         body: file,
       });
 
@@ -146,10 +111,8 @@ export const Media: React.FC = () => {
     setUploadError(null);
 
     try {
-      const authHeaders = getAuthHeaders();
-      const res = await fetch('/api/media/sync', {
+      const res = await apiFetch('/api/media/sync', {
         method: 'POST',
-        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
       });
 
       if (!res.ok) {
@@ -185,10 +148,8 @@ export const Media: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      const authHeaders = getAuthHeaders();
-      const res = await fetch(`/api/media/${encodeURIComponent(id)}`, {
+      const res = await apiFetch(`/api/media/${encodeURIComponent(id)}`, {
         method: 'DELETE',
-        headers: Object.keys(authHeaders).length > 0 ? authHeaders : undefined,
       });
       if (res.ok) {
         setItems((prev) => prev.filter((item) => item.id !== id));

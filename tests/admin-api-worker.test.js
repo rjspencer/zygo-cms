@@ -6,10 +6,10 @@ describe('Admin API Worker Integration', () => {
 
     beforeAll(async () => {
         const { execSync } = require('child_process');
-        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/admin-test');
+        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/admin-test -c packages/admin-api-worker/wrangler.toml');
         
         worker = await unstable_dev('packages/admin-api-worker/build/index.js', {
-            config: 'wrangler.toml',
+            config: 'packages/admin-api-worker/wrangler.toml',
             vars: { ENVIRONMENT: 'test' },
             persistTo: './.wrangler/state/admin-test',
             experimental: { disableExperimentalWarning: true },
@@ -117,7 +117,7 @@ describe('Admin API Worker Integration', () => {
 
     it('bypasses Cloudflare Access verification and returns mock admin in dev mode', async () => {
         const devWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
-            config: 'wrangler.toml',
+            config: 'packages/admin-api-worker/wrangler.toml',
             vars: { ENVIRONMENT: 'dev' },
             persistTo: './.wrangler/state/admin-test',
             experimental: { disableExperimentalWarning: true },

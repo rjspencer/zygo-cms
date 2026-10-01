@@ -7,6 +7,7 @@ pub enum AppError {
     NotFound,
     Unauthorized(String),
     ServerError(String),
+    TooManyRequests(String),
 }
 
 impl From<worker::Error> for AppError {
@@ -30,6 +31,7 @@ impl AppError {
                 worker::console_log!("Server error: {}", msg);
                 (500, "Internal Server Error".to_string())
             }
+            AppError::TooManyRequests(msg) => (429, msg.clone()),
         };
 
         Response::from_json(&serde_json::json!({

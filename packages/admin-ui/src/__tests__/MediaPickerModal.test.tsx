@@ -264,7 +264,7 @@ describe('MediaPickerModal Component', () => {
       );
     });
 
-    it('sends Authorization header when token is present in localStorage', async () => {
+    it('sends credentials: "include" and does not send Authorization header', async () => {
       const mockStorage = {
         getItem: vi.fn((key: string) => (key === 'token' ? 'test-jwt-bearer-token' : null)),
         setItem: vi.fn(),
@@ -308,7 +308,8 @@ describe('MediaPickerModal Component', () => {
         expect(postOptions).not.toBeNull();
       });
 
-      expect(postOptions.headers['Authorization']).toBe('Bearer test-jwt-bearer-token');
+      expect(postOptions.credentials).toBe('include');
+      expect(postOptions.headers?.['Authorization']).toBeUndefined();
     });
 
     it('shows loading state on the Upload button while upload is in progress', async () => {

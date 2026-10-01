@@ -1,0 +1,1 @@
+This folder should be used to store documentation for the product which will eventually become a docs site.

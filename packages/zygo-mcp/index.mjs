@@ -7,17 +7,19 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 // Parse CLI arguments
 const args = process.argv.slice(2);
 let url = "http://localhost:8787";
-let token = "";
+let clientId = process.env.CF_ACCESS_CLIENT_ID || "";
+let clientSecret = process.env.CF_ACCESS_CLIENT_SECRET || "";
 
 for (let i = 0; i < args.length; i++) {
     if (args[i] === "--url" && args[i + 1]) url = args[++i];
-    if (args[i] === "--token" && args[i + 1]) token = args[++i];
+    if (args[i] === "--client-id" && args[i + 1]) clientId = args[++i];
+    if (args[i] === "--client-secret" && args[i + 1]) clientSecret = args[++i];
 }
 
 url = url.replace(/\/$/, ""); // Remove trailing slash
 
-if (!token) {
-    console.error("Error: --token is required. Provide your PropelAuth Personal API Key.");
+if (!clientId || !clientSecret) {
+    console.error("Error: Both --client-id and --client-secret are required. Provide your Cloudflare Access Service Token credentials.");
     process.exit(1);
 }
 
@@ -28,7 +30,8 @@ const server = new Server(
 
 // Define standard headers
 const getHeaders = () => ({
-    "Authorization": `Bearer ${token}`,
+    "CF-Access-Client-Id": clientId,
+    "CF-Access-Client-Secret": clientSecret,
     "Content-Type": "application/json"
 });
 

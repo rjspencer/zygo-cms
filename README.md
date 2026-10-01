@@ -15,7 +15,7 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 - **Integrated R2 Media Pipeline**: Authenticated image uploads with streaming public delivery and caching headers.
 - **Publishing Lifecycle**: Draft vs. Published status management with automatic `published_at` timestamping.
 - **SEO & Social Metadata**: Automatic Open Graph, Twitter Cards, canonical URLs, and Schema JSON-LD injection.
-- **Secure Authentication**: Edge-level JWT/Bearer verification via **PropelAuth**.
+- **Secure Authentication**: Edge-level zero-trust authentication via **Cloudflare Access** with automatic role assignment.
 
 ---
 
@@ -33,31 +33,18 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 ## Project Structure
 
 ```text
-├── Cargo.toml              # Rust crate dependencies and build configuration
-├── wrangler.toml           # Cloudflare Worker, D1, R2, and asset bindings
-├── migrations/             # D1 SQLite SQL migration scripts
-│   ├── 0001_create_posts.sql
-│   └── 0002_post_metadata.sql
-├── templates/              # Askama HTML templates (Jinja/Twig syntax)
-│   ├── base.html           # Shared layout shell and navigation
-│   ├── index.html          # Public post list
-│   ├── post.html           # Public post reader with SEO tags
-│   └── editor.html         # TipTap rich text admin interface
-├── public/                 # Static assets served directly at the edge
-│   ├── style.css           # Minimalist typography & layout styles
-│   ├── editor.css          # TipTap editor styling
-│   └── editor.js           # TipTap initialization & media upload script
-├── src/
-│   ├── lib.rs              # Worker entrypoint and route handlers
-│   ├── models.rs           # Data structs, validation, and unit tests
-│   ├── db.rs               # D1 database queries and CRUD repository
-│   ├── views.rs            # Askama template rendering for public views
-│   ├── admin.rs            # Askama template rendering for editor UI
-│   ├── auth.rs             # PropelAuth token verification & auth_required! macro
-│   ├── media.rs            # R2 binary image upload and streaming
-│   ├── error.rs            # AppError enum and HTTP response mapping
-│   └── utils.rs            # Environment and config helpers
-└── decisions/              # Design choices and future roadmap
+├── packages/
+│   ├── public-worker/         # Public-facing SSR worker (Askama + D1 edge cache)
+│   ├── admin-api-worker/      # Authenticated REST API worker (Cloudflare Access + D1)
+│   ├── admin-ui/              # Modern React + Vite SPA admin dashboard
+│   ├── core/                  # Shared Rust data models and sanitization (zygo-core)
+│   └── zygo-mcp/              # MCP server bridge for AI agents
+├── migrations/                # D1 SQLite SQL migration scripts
+├── scripts/                   # CLI automation scripts
+│   └── setup.mjs              # Interactive setup & deployment wizard
+├── templates/                 # Shared Askama HTML templates
+├── public/                    # Shared static assets served at edge
+└── decisions/                 # Architectural decision records
 ```
 
 ---
@@ -83,53 +70,57 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 Initialize the local D1 SQLite database:
 
 ```bash
-npx wrangler d1 migrations apply zygo-cms-db --local
+npx wrangler d1 migrations apply zygo-cms-db --local -c packages/public-worker/wrangler.toml
 ```
 
 ### 3. Run Automated Tests
 
-Run the model and validation unit tests:
+Run the test suite:
 
 ```bash
-cargo test --lib
+npm run test:all
+cargo test
 ```
 
 ### 4. Start the Dev Server
 
-Start the local Cloudflare Worker development environment:
+Start all three workers concurrently in development mode:
 
 ```bash
-npx wrangler dev
+npm run dev
 ```
 
-The application will be accessible at `http://localhost:8787`:
-- **Public Blog Index**: `http://localhost:8787/`
-- **Post Reader**: `http://localhost:8787/post/<slug>`
-- **CMS Editor**: `http://localhost:8787/admin/editor`
+The services will be accessible locally:
+- **Public Site**: `http://localhost:8788/`
+- **Admin REST API**: `http://localhost:8787/api`
+- **Admin UI Dashboard**: `http://localhost:3000/`
 
 ---
 
 ## Configuration & Environment Variables
 
-Non-sensitive configuration is declared in `wrangler.toml`:
+Non-sensitive configuration is declared in each worker's `wrangler.toml` under `[vars]`:
 
 ```toml
 [vars]
-PROPELAUTH_AUTH_URL = "https://your-tenant.propelauth.com"
+ENVIRONMENT = "production"
+EDGE_TTL_SECONDS = "86400"
 ```
 
 ### Local Overrides (`.dev.vars`)
-To override variables locally without modifying `wrangler.toml`, create a `.dev.vars` file in the root (ignored by git):
+To override variables locally without modifying `wrangler.toml`, create a `.dev.vars` file in the package directory or root (ignored by git):
 
 ```ini
-PROPELAUTH_AUTH_URL=https://your-dev-tenant.propelauthtest.com
+ENVIRONMENT=dev
+EDGE_TTL_SECONDS=3600
 ```
+
 ### Environment Variables (`wrangler.toml` or `.dev.vars`)
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `PROPELAUTH_AUTH_URL` | Yes | — | PropelAuth authentication base URL |
-| `EDGE_TTL_SECONDS` | No | `3600` | Cloudflare edge cache duration (`s-maxage`) in seconds |
+| `ENVIRONMENT` | No | `production` | Set to `dev` locally to bypass Cloudflare Access verification with a mocked admin user |
+| `EDGE_TTL_SECONDS` | No | `86400` | Cloudflare edge cache duration (`s-maxage`) in seconds |
 | `CANONICAL_ORIGIN` | No | Auto (strips `www.`) | Preferred primary origin (e.g. `https://example.com`) for canonicals, sitemap, and RSS |
 | `CF_API_TOKEN` | No | — | Optional Cloudflare API token for global CDN cache purge on edits |
 | `CF_ZONE_ID` | No | — | Optional Cloudflare Zone ID for global CDN cache purge on edits |
@@ -143,91 +134,106 @@ When a site responds to both `www.` and apex domains (`https://www.example.com` 
 
 ---
 
-## Authentication & AI Agents (PropelAuth)
+## Authentication & Cloudflare Access (Zero Trust)
 
-Zygo CMS relies on [PropelAuth](https://www.propelauth.com/) to handle authentication for human editors and AI agents.
+Zygo CMS relies on [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/applications/) (part of Cloudflare Zero Trust) to protect administrative endpoints and provide seamless, identity-aware access control for authors and administrators.
 
-### 1. Set Up PropelAuth
-1. Create a free account at PropelAuth.
-2. In your PropelAuth dashboard, find your **Auth URL** and add it to `wrangler.toml` under `PROPELAUTH_AUTH_URL`.
-3. Create a user account for yourself (or your marketing team) to access the Zygo CMS dashboard.
+### 1. Zero Trust Architecture
+- **Edge Identity Verification**: In production, Cloudflare Access guards `admin.<your-domain>` (the Admin UI) and `api.<your-domain>` (the Admin API). Unauthenticated requests are challenged with your configured identity provider (Google, GitHub, One-time PIN, etc.) before ever hitting worker code.
+- **Cryptographic Assertion**: Cloudflare Access injects a signed JWT header (`Cf-Access-Jwt-Assertion`) into validated requests. The `admin-api-worker` decodes and verifies this assertion to identify the user.
+- **Automated Role Provisioning**: When an authenticated user visits for the first time, Zygo CMS automatically records their identity in the D1 `users` table. The first user to log in is automatically granted the `admin` role; subsequent users receive the `author` role.
+- **Frictionless Local Dev**: When `ENVIRONMENT = "dev"`, Cloudflare Access verification is automatically bypassed and mocked with a local administrator (`admin@localhost`), allowing offline and local development without needing an active internet connection or Access setup.
 
-### 2. Enable AI Agent Access (API Keys)
-Zygo CMS natively supports AI agents (like Claude Desktop or Zapier workflows) modifying content. This requires two types of keys: a **Server Key** (for your Cloudflare Worker) and **Personal API Keys** (for your users).
-
-1. **Enable the Feature**: In your PropelAuth dashboard, navigate to **API Keys -> Personal API Keys** and enable the feature for your users.
-2. **Create the Server Key (`PROPELAUTH_API_KEY`)**: 
-   - Navigate to the **API Keys** section in your PropelAuth dashboard (often under Backend Integration).
-   - Click **Create API Key** (name it e.g., "Zygo Cloudflare Worker"). 
-   - *Note: These keys are environment-scoped. You do not need to check granular permission boxes; it acts as a master key for your server to validate user tokens.*
-3. **Secure the Server Key**: Add this key to your Cloudflare Worker's encrypted vault:
-   ```bash
-   npx wrangler secret put PROPELAUTH_API_KEY
-   ```
-4. **End-User Generation**: Your non-technical users (e.g., marketers) can now log into the Zygo CMS dashboard, click the **API Keys** link in the header, and generate their own secure tokens to hand to their AI agents.
-
-### 3. Using the AI MCP Bridge
-To manage the CMS via Claude Desktop or other MCP-compatible AI agents, use the included local bridge. In your Claude Desktop config (`claude_desktop_config.json`), add:
-
-```json
-{
-  "mcpServers": {
-    "zygo_cms": {
-      "command": "node",
-      "args": ["/absolute/path/to/zygo/packages/zygo-mcp/index.mjs", "--url", "https://your-live-site.com", "--token", "PROPELAUTH_PERSONAL_API_KEY"]
-    }
-  }
-}
-```
+### 2. AI Agents & MCP Bridge
+Zygo CMS supports AI agents (such as Claude Desktop or custom automated workflows) managing content via the Model Context Protocol (MCP):
+- **MCP Bridge**: The local bridge package is located at `packages/zygo-mcp/index.mjs`.
+- **Service Tokens**: When connecting external AI agents or CI/CD pipelines to a protected Cloudflare Access domain, generate a **Service Token** in the Cloudflare Zero Trust dashboard and include `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers in automated requests.
 
 ---
 
 ## Deployment to Production
 
-For setting up your own custom domain, subdomains, and DNS routing for the 3-worker architecture, see the [Custom Domain & DNS Setup Guide](./docs/domain-and-dns-setup.md).
+Zygo CMS is deployed across 3 decoupled Cloudflare Workers:
+1. `public-worker`: Serves `example.com` and `www.example.com`
+2. `admin-api-worker`: Serves `api.example.com`
+3. `admin-ui`: Serves `admin.example.com`
 
-### 1. Create Production Resources
+For complete DNS and Cloudflare Custom Domain routing prerequisites, see the [Custom Domain & DNS Setup Guide](./docs/domain-and-dns-setup.md).
 
-Create the live D1 database and R2 bucket in your Cloudflare account:
+### Quick Start: Automated Setup Wizard (Recommended)
+
+The fastest and most seamless way to onboard, configure custom domains, provision resources, and deploy Zygo CMS is with the interactive setup wizard:
 
 ```bash
-# 1. Create D1 database
+npm run setup
+```
+
+The setup wizard handles the entire onboarding flow out of the box:
+- Prompts for and validates your custom apex domain (e.g. `example.com`).
+- Automatically detects your Cloudflare Account ID and prompts for a Cloudflare API Token.
+- Provisions the Cloudflare D1 database (`zygo-cms-db`) and binds its UUID across your worker configs.
+- Provisions the Cloudflare R2 media storage bucket (`zygo-cms-media`).
+- Updates Custom Domain routes in `wrangler.toml` for `packages/public-worker`, `packages/admin-api-worker`, and `packages/admin-ui`.
+- Applies remote D1 SQLite schema migrations automatically.
+- Automates Cloudflare Access application and admin user policy setup via the Cloudflare REST API.
+- Prompts to build and deploy all workers to Cloudflare immediately.
+
+---
+
+### Manual Deployment (CI/CD & Advanced)
+
+If you prefer to configure resources manually or want to run steps within a CI/CD pipeline:
+
+#### 1. Provision Cloudflare Resources
+
+```bash
+# Create D1 database
 npx wrangler d1 create zygo-cms-db
 
-# 2. Create R2 storage bucket
+# Create R2 storage bucket
 npx wrangler r2 bucket create zygo-cms-media
 ```
 
-### 2. Update `wrangler.toml`
+#### 2. Update Database ID & Routes
 
-Copy the `database_id` output from step 1 and update [`wrangler.toml`](./wrangler.toml):
+Copy the generated `database_id` into `packages/public-worker/wrangler.toml` and `packages/admin-api-worker/wrangler.toml`:
 
 ```toml
 [[d1_databases]]
 binding = "DB"
 database_name = "zygo-cms-db"
-database_id = "your-database-id-from-step-1"
-migrations_dir = "migrations"
+database_id = "your-database-uuid"
+migrations_dir = "../../migrations"
 ```
 
-### 3. Apply Remote Migrations
+Configure your custom domain routes in each package's `wrangler.toml`.
+
+#### 3. Apply Remote Migrations
 
 Run database migrations against the production D1 database:
 
 ```bash
-npx wrangler d1 migrations apply zygo-cms-db --remote
+npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/public-worker/wrangler.toml
 ```
 
-### 4. Deploy the Worker
+#### 4. Build and Deploy All Workers
 
-Compile the release Wasm binary, package static assets, and deploy to Cloudflare:
+Compile the Rust WebAssembly binaries, build the Admin UI SPA, and deploy to Cloudflare:
 
 ```bash
-npx wrangler deploy
+# Build all 3 packages
+npm run build
+
+# Deploy all 3 workers
+npm run deploy
 ```
 
-Once deployment completes, Wrangler will output your live URL:
-`https://zygo-cms.<your-subdomain>.workers.dev`
+You can also deploy individual workers:
+```bash
+npm run deploy:public   # packages/public-worker
+npm run deploy:api      # packages/admin-api-worker
+npm run deploy:ui       # packages/admin-ui
+```
 
 ---
 

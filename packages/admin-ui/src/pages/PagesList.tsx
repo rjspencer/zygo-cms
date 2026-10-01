@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 import {
   Flex,
   Box,
@@ -35,7 +36,7 @@ export const PagesList: React.FC = () => {
   React.useEffect(() => {
     const fetchPages = async () => {
       try {
-        const res = await fetch('/api/entries');
+        const res = await apiFetch('/api/entries');
         if (res.ok) {
           const data = await res.json();
           const mapped = data
