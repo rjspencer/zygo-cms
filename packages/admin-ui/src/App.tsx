@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Posts from './pages/Posts';
@@ -26,6 +26,7 @@ export const App: React.FC = () => {
         <Route path="content-types" element={<ContentTypes />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="admin" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
