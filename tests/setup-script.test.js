@@ -9,6 +9,7 @@ import {
   updatePublicWrangler,
   updateAdminApiWrangler,
   updateAdminUiWrangler,
+  updateAdminUiEnv,
   configureCloudflareAccess,
   ensureOneTimePinProvider,
   configureGoogleProvider,
@@ -155,6 +156,46 @@ describe('Setup Script Helpers', () => {
       const updated = fs.readFileSync(mockUiPath, 'utf8');
       expect(updated).toContain('pattern = "admin.mytestdomain.com"');
     });
+
+    it('updates public-worker/wrangler.toml with custom public subdomain', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-custom.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'db-uuid-333', 'web', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('pattern = "mytestdomain.com"');
+      expect(updated).toContain('pattern = "web.mytestdomain.com"');
+    });
+
+    it('updates admin-api-worker/wrangler.toml with custom api subdomain', () => {
+      const mockApiPath = path.join(testDir, 'admin-api-worker-custom.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updateAdminApiWrangler('mytestdomain.com', 'db-uuid-444', 'custom-api', mockApiPath);
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('pattern = "custom-api.mytestdomain.com"');
+    });
+
+    it('updates admin-ui/wrangler.toml with custom ui subdomain', () => {
+      const mockUiPath = path.join(testDir, 'admin-ui-custom.toml');
+      fs.writeFileSync(
+        mockUiPath,
+        'name = "admin-ui-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updateAdminUiWrangler('mytestdomain.com', 'dashboard', mockUiPath);
+      const updated = fs.readFileSync(mockUiPath, 'utf8');
+      expect(updated).toContain('pattern = "dashboard.mytestdomain.com"');
+    });
   });
 
   describe('configureCloudflareAccess', () => {
@@ -169,6 +210,11 @@ describe('Setup Script Helpers', () => {
           ok: true,
           json: async () => ({ success: true, result: { id: 'mock-ui-app-id' } })
         })
+        // Admin UI Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
         // Admin UI Policy creation response
         .mockResolvedValueOnce({
           ok: true,
@@ -178,6 +224,11 @@ describe('Setup Script Helpers', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ success: true, result: { id: 'mock-api-app-id' } })
+        })
+        // Admin API Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
         })
         // Admin API Policy creation response
         .mockResolvedValueOnce({
@@ -189,7 +240,7 @@ describe('Setup Script Helpers', () => {
 
       await configureCloudflareAccess('mock-account', 'mock-token', 'example.com', 'admin@example.com');
 
-      expect(fetchMock).toHaveBeenCalledTimes(4);
+      expect(fetchMock).toHaveBeenCalledTimes(6);
       // First app: Admin UI
       expect(fetchMock.mock.calls[0][0]).toContain('/access/apps');
       const uiAppBody = JSON.parse(fetchMock.mock.calls[0][1].body);
@@ -199,19 +250,19 @@ describe('Setup Script Helpers', () => {
       expect(uiAppBody.cors_headers.allowed_origins).toContain('https://api.example.com');
 
       // First policy: Admin UI policy
-      expect(fetchMock.mock.calls[1][0]).toContain('/access/apps/mock-ui-app-id/policies');
-      const uiPolicyBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(fetchMock.mock.calls[2][0]).toContain('/access/apps/mock-ui-app-id/policies');
+      const uiPolicyBody = JSON.parse(fetchMock.mock.calls[2][1].body);
       expect(uiPolicyBody.name).toBe('Admin Access Policy');
       expect(uiPolicyBody.include[0].email.email).toBe('admin@example.com');
 
       // Second app: Admin API
-      expect(fetchMock.mock.calls[2][0]).toContain('/access/apps');
-      const apiAppBody = JSON.parse(fetchMock.mock.calls[2][1].body);
+      expect(fetchMock.mock.calls[3][0]).toContain('/access/apps');
+      const apiAppBody = JSON.parse(fetchMock.mock.calls[3][1].body);
       expect(apiAppBody.name).toBe('Zygo CMS Admin API');
       expect(apiAppBody.domain).toBe('api.example.com');
 
       // Second policy: Admin API policy
-      expect(fetchMock.mock.calls[3][0]).toContain('/access/apps/mock-api-app-id/policies');
+      expect(fetchMock.mock.calls[5][0]).toContain('/access/apps/mock-api-app-id/policies');
     });
 
     it('gracefully handles api errors without throwing', async () => {
@@ -222,6 +273,122 @@ describe('Setup Script Helpers', () => {
       await expect(
         configureCloudflareAccess('mock-account', 'invalid-token', 'example.com', 'admin@example.com')
       ).resolves.not.toThrow();
+    });
+
+    it('creates access apps and policies using custom ui and api subdomains', async () => {
+      const fetchMock = vi.fn()
+        // Admin UI App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-app-id' } })
+        })
+        // Admin UI Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin UI Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-policy-id' } })
+        })
+        // Admin API App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-app-id' } })
+        })
+        // Admin API Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin API Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-policy-id' } })
+        });
+
+      global.fetch = fetchMock;
+
+      await configureCloudflareAccess('mock-account', 'mock-token', 'example.com', 'admin@example.com', 'dash', 'backend-api');
+
+      expect(fetchMock).toHaveBeenCalledTimes(6);
+      // Admin UI App with custom subdomain
+      const uiAppBody = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(uiAppBody.domain).toBe('dash.example.com');
+      expect(uiAppBody.cors_headers.allowed_origins).toContain('https://dash.example.com');
+      expect(uiAppBody.cors_headers.allowed_origins).toContain('https://backend-api.example.com');
+
+      // Admin API App with custom subdomain
+      const apiAppBody = JSON.parse(fetchMock.mock.calls[3][1].body);
+      expect(apiAppBody.domain).toBe('backend-api.example.com');
+    });
+  });
+
+  describe('updateAdminUiEnv', () => {
+    const testDir = path.resolve('tests/mocks/env-test');
+
+    beforeEach(() => {
+      fs.mkdirSync(testDir, { recursive: true });
+    });
+
+    afterAll(() => {
+      fs.rmSync(testDir, { recursive: true, force: true });
+    });
+
+    it('creates .env.production when file does not exist', () => {
+      const mockEnvPath = path.join(testDir, '.env.production-new');
+      if (fs.existsSync(mockEnvPath)) fs.unlinkSync(mockEnvPath);
+
+      updateAdminUiEnv('example.com', 'api', mockEnvPath);
+
+      expect(fs.existsSync(mockEnvPath)).toBe(true);
+      const content = fs.readFileSync(mockEnvPath, 'utf8');
+      expect(content).toBe('VITE_API_BASE_URL=https://api.example.com\n');
+    });
+
+    it('updates VITE_API_BASE_URL and preserves existing keys and comments', () => {
+      const mockEnvPath = path.join(testDir, '.env.production-update');
+      fs.writeFileSync(
+        mockEnvPath,
+        '# Production Config\nVITE_OTHER_KEY=foobar\nVITE_API_BASE_URL=https://old-api.com\nANOTHER_VAR=123\n',
+        'utf8'
+      );
+
+      updateAdminUiEnv('example.com', 'custom-api', mockEnvPath);
+
+      const content = fs.readFileSync(mockEnvPath, 'utf8');
+      expect(content).toContain('# Production Config\n');
+      expect(content).toContain('VITE_OTHER_KEY=foobar\n');
+      expect(content).toContain('VITE_API_BASE_URL=https://custom-api.example.com\n');
+      expect(content).toContain('ANOTHER_VAR=123\n');
+      expect(content.match(/VITE_API_BASE_URL=/g)).toHaveLength(1);
+    });
+
+    it('deduplicates VITE_API_BASE_URL when multiple occurrences exist', () => {
+      const mockEnvPath = path.join(testDir, '.env.production-dedup');
+      fs.writeFileSync(
+        mockEnvPath,
+        'VITE_API_BASE_URL=https://first.com\nSOME_KEY=abc\nVITE_API_BASE_URL=https://second.com\nVITE_API_BASE_URL=https://third.com\n',
+        'utf8'
+      );
+
+      updateAdminUiEnv('example.com', 'api', mockEnvPath);
+
+      const content = fs.readFileSync(mockEnvPath, 'utf8');
+      expect(content).toBe('VITE_API_BASE_URL=https://api.example.com\nSOME_KEY=abc\n');
+      expect(content.match(/VITE_API_BASE_URL=/g)).toHaveLength(1);
+    });
+
+    it('appends VITE_API_BASE_URL when not previously present in existing file', () => {
+      const mockEnvPath = path.join(testDir, '.env.production-append');
+      fs.writeFileSync(mockEnvPath, 'SOME_KEY=abc\nANOTHER_KEY=xyz\n', 'utf8');
+
+      updateAdminUiEnv('example.com', 'api', mockEnvPath);
+
+      const content = fs.readFileSync(mockEnvPath, 'utf8');
+      expect(content).toBe('SOME_KEY=abc\nANOTHER_KEY=xyz\nVITE_API_BASE_URL=https://api.example.com\n');
+      expect(content.match(/VITE_API_BASE_URL=/g)).toHaveLength(1);
     });
   });
 

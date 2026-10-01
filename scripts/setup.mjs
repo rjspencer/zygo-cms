@@ -90,13 +90,18 @@ function replaceOrInsertRoutes(content, routesStr) {
   return `${routesStr}\n\n${content}`;
 }
 
-function updatePublicWrangler(domain, databaseId, customFilePath = null) {
+function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', customFilePath = null) {
+  if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
+    customFilePath = publicSubdomain;
+    publicSubdomain = 'www';
+  }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
 
-  const routesStr = `routes = [\n  { pattern = "${domain}", custom_domain = true },\n  { pattern = "www.${domain}", custom_domain = true }\n]`;
+  const sub = publicSubdomain || 'www';
+  const routesStr = `routes = [\n  { pattern = "${domain}", custom_domain = true },\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
   content = replaceOrInsertRoutes(content, routesStr);
 
   content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
@@ -104,13 +109,18 @@ function updatePublicWrangler(domain, databaseId, customFilePath = null) {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function updateAdminApiWrangler(domain, databaseId, customFilePath = null) {
+function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', customFilePath = null) {
+  if (typeof apiSubdomain === 'string' && (apiSubdomain.endsWith('.toml') || apiSubdomain.includes('/') || apiSubdomain.includes('\\'))) {
+    customFilePath = apiSubdomain;
+    apiSubdomain = 'api';
+  }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
 
-  const routesStr = `routes = [\n  { pattern = "api.${domain}", custom_domain = true }\n]`;
+  const sub = apiSubdomain || 'api';
+  const routesStr = `routes = [\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
   content = replaceOrInsertRoutes(content, routesStr);
 
   content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
@@ -118,15 +128,79 @@ function updateAdminApiWrangler(domain, databaseId, customFilePath = null) {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function updateAdminUiWrangler(domain, customFilePath = null) {
+function updateAdminUiWrangler(domain, uiSubdomain = 'admin', customFilePath = null) {
+  if (typeof uiSubdomain === 'string' && (uiSubdomain.endsWith('.toml') || uiSubdomain.includes('/') || uiSubdomain.includes('\\'))) {
+    customFilePath = uiSubdomain;
+    uiSubdomain = 'admin';
+  }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-ui/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
-  const routesStr = `routes = [\n  { pattern = "admin.${domain}", custom_domain = true }\n]`;
+  const sub = uiSubdomain || 'admin';
+  const routesStr = `routes = [\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
   content = replaceOrInsertRoutes(content, routesStr);
 
   fs.writeFileSync(filePath, content, 'utf8');
 }
+
+function updateAdminUiEnv(domain, apiSubdomain = 'api', customEnvPath = null) {
+  if (typeof apiSubdomain === 'string' && (apiSubdomain.endsWith('.env') || apiSubdomain.includes('.env.') || apiSubdomain.includes('/') || apiSubdomain.includes('\\'))) {
+    customEnvPath = apiSubdomain;
+    apiSubdomain = 'api';
+  }
+  const envPath = customEnvPath || path.resolve(ROOT_DIR, 'packages/admin-ui/.env.production');
+  const sub = apiSubdomain || 'api';
+  const targetUrl = `https://${sub}.${domain}`;
+  const targetLine = `VITE_API_BASE_URL=${targetUrl}`;
+
+  if (!fs.existsSync(envPath)) {
+    fs.mkdirSync(path.dirname(envPath), { recursive: true });
+    fs.writeFileSync(envPath, `${targetLine}\n`, 'utf8');
+    return;
+  }
+
+  const raw = fs.readFileSync(envPath, 'utf8');
+  const lines = raw.split(/\r?\n/);
+  const resultLines = [];
+  let updated = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      resultLines.push(line);
+      continue;
+    }
+
+    const eqIdx = line.indexOf('=');
+    if (eqIdx !== -1) {
+      const key = line.slice(0, eqIdx).trim();
+      if (key === 'VITE_API_BASE_URL') {
+        if (!updated) {
+          resultLines.push(targetLine);
+          updated = true;
+        }
+        // Deduplicate: ignore subsequent occurrences
+        continue;
+      }
+    }
+    resultLines.push(line);
+  }
+
+  if (!updated) {
+    if (resultLines.length > 0 && resultLines[resultLines.length - 1] === '') {
+      resultLines.splice(resultLines.length - 1, 0, targetLine);
+    } else {
+      resultLines.push(targetLine);
+    }
+  }
+
+  let finalContent = resultLines.join('\n');
+  if (!finalContent.endsWith('\n')) {
+    finalContent += '\n';
+  }
+  fs.writeFileSync(envPath, finalContent, 'utf8');
+}
+
 
 function provisionD1Database() {
   console.log('\n[1/5] Provisioning Cloudflare D1 Database (zygo-cms-db)...');
@@ -197,7 +271,9 @@ function applyRemoteMigrations() {
   }
 }
 
-function printManualAccessInstructions(domain, adminEmail) {
+function printManualAccessInstructions(domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api') {
+  const uiHost = `${uiSubdomain || 'admin'}.${domain}`;
+  const apiHost = `${apiSubdomain || 'api'}.${domain}`;
   console.log('\n------------------------------------------------------------');
   console.log('MANUAL CLOUDFLARE ACCESS (ZERO TRUST) SETUP INSTRUCTIONS:');
   console.log('------------------------------------------------------------');
@@ -205,10 +281,10 @@ function printManualAccessInstructions(domain, adminEmail) {
   console.log('2. Navigate to Access -> Applications, then click "Add an application".');
   console.log('3. Select "Self-hosted":');
   console.log('   - Application name: Zygo CMS Admin');
-  console.log(`   - Application domain: admin.${domain}`);
+  console.log(`   - Application domain: ${uiHost}`);
   console.log('   - Session Duration: 24 hours');
   console.log('   - Under CORS settings, configure:');
-  console.log(`     * Allowed Origins: https://admin.${domain}, https://api.${domain}`);
+  console.log(`     * Allowed Origins: https://${uiHost}, https://${apiHost}`);
   console.log('     * Allowed Methods: GET, POST, PUT, DELETE, OPTIONS, HEAD');
   console.log('     * Allowed Headers: *');
   console.log('     * Allow All Headers: Enabled');
@@ -458,19 +534,27 @@ async function configureGoogleProvider(accountId, apiToken, clientId, clientSecr
   }
 }
 
-async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail) {
-  const allowedOrigins = [`https://admin.${domain}`, `https://api.${domain}`];
+async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api') {
+  if (typeof uiSubdomain === 'object' && uiSubdomain !== null) {
+    apiSubdomain = uiSubdomain.apiSubdomain || 'api';
+    uiSubdomain = uiSubdomain.uiSubdomain || 'admin';
+  }
+  const uiSub = uiSubdomain || 'admin';
+  const apiSub = apiSubdomain || 'api';
+  const uiHost = `${uiSub}.${domain}`;
+  const apiHost = `${apiSub}.${domain}`;
+  const allowedOrigins = [`https://${uiHost}`, `https://${apiHost}`];
 
   try {
-    const uiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin UI', `admin.${domain}`, allowedOrigins, adminEmail);
-    const apiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin API', `api.${domain}`, allowedOrigins, adminEmail);
+    const uiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin UI', uiHost, allowedOrigins, adminEmail);
+    const apiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin API', apiHost, allowedOrigins, adminEmail);
 
     if (!uiSuccess || !apiSuccess) {
-      printManualAccessInstructions(domain, adminEmail);
+      printManualAccessInstructions(domain, adminEmail, uiSub, apiSub);
     }
   } catch (err) {
     console.warn(`⚠️  Could not configure Cloudflare Access via REST API: ${err.message}`);
-    printManualAccessInstructions(domain, adminEmail);
+    printManualAccessInstructions(domain, adminEmail, uiSub, apiSub);
   }
 }
 
@@ -561,6 +645,9 @@ async function main() {
 
   const config = {
     domain: '',
+    publicSubdomain: 'www',
+    adminUiSubdomain: 'admin',
+    adminApiSubdomain: 'api',
     accountId: '',
     apiToken: '',
     adminEmail: '',
@@ -581,6 +668,42 @@ async function main() {
   });
   if (isCancel(domainAns)) { cancel('Setup cancelled'); return process.exit(0); }
   config.domain = domainAns.trim();
+
+  const publicSubAns = await text({
+    message: 'Public Subdomain',
+    initialValue: 'www',
+    defaultValue: 'www',
+    placeholder: 'www',
+    validate(value) {
+      if (!value || !value.trim()) return 'Value is required';
+    }
+  });
+  if (isCancel(publicSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+  config.publicSubdomain = publicSubAns.trim();
+
+  const adminUiSubAns = await text({
+    message: 'Admin UI Subdomain',
+    initialValue: 'admin',
+    defaultValue: 'admin',
+    placeholder: 'admin',
+    validate(value) {
+      if (!value || !value.trim()) return 'Value is required';
+    }
+  });
+  if (isCancel(adminUiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+  config.adminUiSubdomain = adminUiSubAns.trim();
+
+  const adminApiSubAns = await text({
+    message: 'Admin API Subdomain',
+    initialValue: 'api',
+    defaultValue: 'api',
+    placeholder: 'api',
+    validate(value) {
+      if (!value || !value.trim()) return 'Value is required';
+    }
+  });
+  if (isCancel(adminApiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+  config.adminApiSubdomain = adminApiSubAns.trim();
 
   const accountAns = await text({
     message: 'Cloudflare Account ID',
@@ -696,9 +819,9 @@ async function main() {
     s.stop('✓ Provisioned R2 Bucket');
 
     s.start('Updating wrangler.toml configurations');
-    updatePublicWrangler(config.domain, databaseId);
-    updateAdminApiWrangler(config.domain, databaseId);
-    updateAdminUiWrangler(config.domain);
+    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain);
+    updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain);
+    updateAdminUiWrangler(config.domain, config.adminUiSubdomain);
     s.stop('✓ Updated wrangler configurations');
 
     s.start('Applying remote migrations');
@@ -710,7 +833,14 @@ async function main() {
     if (config.enableGoogle) {
       await configureGoogleProvider(config.accountId, config.apiToken, config.googleClientId, config.googleClientSecret);
     }
-    await configureCloudflareAccess(config.accountId, config.apiToken, config.domain, config.adminEmail);
+    await configureCloudflareAccess(
+      config.accountId,
+      config.apiToken,
+      config.domain,
+      config.adminEmail,
+      config.adminUiSubdomain,
+      config.adminApiSubdomain
+    );
     s.stop('✓ Cloudflare Access configured');
 
     s.start('Applying Cloudflare Zone Settings');
@@ -740,6 +870,7 @@ async function main() {
     try {
       // Need real-time output for build/deploy
       s.stop('Building Zygo CMS...');
+      updateAdminUiEnv(config.domain, config.adminApiSubdomain);
       execSync('npm run build', { stdio: 'inherit' });
       console.log(pc.green('✓ Build completed'));
 
@@ -755,11 +886,11 @@ async function main() {
   outro(pc.green('🎉 Zygo CMS Setup Complete!\n') +
     'Configured URLs:\n' +
     `  • Public Site:   https://${config.domain}\n` +
-    `  • Admin UI:      https://admin.${config.domain}\n` +
-    `  • Admin API:     https://api.${config.domain}\n\n` +
+    `  • Admin UI:      https://${config.adminUiSubdomain}.${config.domain}\n` +
+    `  • Admin API:     https://${config.adminApiSubdomain}.${config.domain}\n\n` +
     'Next Steps:\n' +
-    `  1. Ensure DNS records for ${config.domain}, www, admin, and api are managed by Cloudflare.\n` +
-    `  2. Login at https://admin.${config.domain} with ${config.adminEmail}`);
+    `  1. Ensure DNS records for ${config.domain}, ${config.publicSubdomain}, ${config.adminUiSubdomain}, and ${config.adminApiSubdomain} are managed by Cloudflare.\n` +
+    `  2. Login at https://${config.adminUiSubdomain}.${config.domain} with ${config.adminEmail}`);
 }
 
 // If executed directly, run main()
@@ -776,6 +907,7 @@ export {
   updatePublicWrangler,
   updateAdminApiWrangler,
   updateAdminUiWrangler,
+  updateAdminUiEnv,
   provisionD1Database,
   provisionR2Bucket,
   createAccessAppAndPolicy,
