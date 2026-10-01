@@ -25,7 +25,9 @@ describe('Admin API Worker Integration', () => {
     const createDummyJwt = () => {
         const payload = {
             email: 'admin@test.local',
-            sub: 'test-admin-uuid'
+            sub: 'test-admin-uuid',
+            aud: 'test-aud',
+            exp: Math.floor(Date.now() / 1000) + 3600
         };
         const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
         return `header.${encodedPayload}.signature`;
