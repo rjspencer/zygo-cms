@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../utils/api';
 import {
   Flex,
   Box,
@@ -39,7 +40,7 @@ export const Posts: React.FC = () => {
   React.useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const res = await fetch('/api/entries');
+        const res = await apiFetch('/api/entries');
         if (res.ok) {
           const data = await res.json();
           const mapped = data
@@ -69,7 +70,7 @@ export const Posts: React.FC = () => {
 
   const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`/api/entries/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== id));
       } else {

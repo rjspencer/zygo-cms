@@ -21,12 +21,15 @@ pub fn generate_preview_token() -> String {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub fn generate_preview_token() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    format!("prev{:x}", nanos)
+    let count = COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("prev{:x}{:x}", nanos, count)
 }
 
 #[cfg(test)]

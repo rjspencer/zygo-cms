@@ -21,7 +21,6 @@ binding = "MEDIA"
 bucket_name = "zygo-cms-media"
 
 [vars]
-PROPELAUTH_AUTH_URL = "https://97543635.propelauthtest.com"
 EDGE_TTL_SECONDS = "86400"
 
 [triggers]

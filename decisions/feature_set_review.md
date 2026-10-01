@@ -15,8 +15,8 @@ Zygo CMS is an edge-native content management system built with Rust and Cloudfl
   - **Media Management**: Integrated R2 media pipeline for authenticated streaming and uploads.
   - **Navigation**: Dynamic JSON-backed menus (header, footer).
   - **SEO & Metadata**: Automatic generation of Open Graph tags, Twitter Cards, canonical URLs, and Schema JSON-LD.
-- **Authentication & Users**: Role-based user mapping backed by PropelAuth (JWT/Bearer verification).
-- **AI-Native**: First-class support for AI agents through PropelAuth Personal API Keys and an MCP (Model Context Protocol) bridge.
+- **Authentication & Users**: Role-based user mapping backed by Cloudflare Access (JWT verification).
+- **AI-Native**: First-class support for AI agents through Cloudflare Access Service Tokens and an MCP (Model Context Protocol) bridge.
 
 ---
 

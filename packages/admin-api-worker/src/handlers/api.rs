@@ -82,6 +82,7 @@ pub async fn delete_media(req: Request, ctx: RouteContext<()>) -> Result<Respons
 }
 
 pub async fn get_entries(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
     let url = req.url()?;
     let filter = url.query_pairs().find(|(k, _)| k == "filter").map(|(_, v)| v.to_string());
     let db = ctx.env.d1("DB")?;

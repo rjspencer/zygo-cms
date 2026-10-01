@@ -425,7 +425,10 @@ describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     expect(iframe.getAttribute('src')).toBe('/preview/mock-preview-token-123');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/editor/42');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/editor/42',
+        expect.objectContaining({ credentials: 'include' })
+      );
     });
   });
 
@@ -433,7 +436,10 @@ describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     renderEditor('/editor/42');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/editor/42');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/editor/42',
+        expect.objectContaining({ credentials: 'include' })
+      );
     });
 
     const previewTab = screen.getByRole('tab', { name: /preview/i });
@@ -497,7 +503,10 @@ describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     renderEditor('/editor/42');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/editor/42');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/editor/42',
+        expect.objectContaining({ credentials: 'include' })
+      );
     });
 
     const previewTab = screen.getByRole('tab', { name: /preview/i });
@@ -556,7 +565,10 @@ describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     renderEditor('/editor/42');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/editor/42');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/editor/42',
+        expect.objectContaining({ credentials: 'include' })
+      );
     });
 
     const previewTab = screen.getByRole('tab', { name: /preview/i });
@@ -582,7 +594,10 @@ describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     expect(style).toContain('height: 100%');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/admin/editor/42');
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/editor/42',
+        expect.objectContaining({ credentials: 'include' })
+      );
     });
   });
 

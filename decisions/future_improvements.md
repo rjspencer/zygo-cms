@@ -22,7 +22,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
 ### Reliability, Security & Edge Performance
 - **Server-Side HTML Sanitization**: Integrated the `ammonia` crate (backed by Mozilla's HTML5 parser `html5ever`) with custom tag and attribute whitelisting for TipTap content, stripping scripts, iframes, inline event handlers, and pseudo-protocols before persisting to D1.
 - **D1 List Query Optimization**: Separated queries into `LIST_COLUMNS` and `ALL_COLUMNS` in `src/db/entry.rs`, omitting heavy `body_html` and `body_json` from dashboard, sitemap, and RSS listings to keep memory well under Cloudflare Worker limits.
-- **Admin Dashboard Auth Gate**: Client-side PropelAuth verification in `templates/admin_dashboard.html` with default-hidden content and loading state to prevent unauthorized viewing of draft titles.
+- **Admin Dashboard Auth Gate**: Cloudflare Access verification at the edge with default-hidden content and loading state to prevent unauthorized viewing of draft titles.
 - **Editor Unsaved Changes Guard**: Dirty state tracking and `beforeunload` event listener in `public/editor.js` to protect authors against accidental data loss.
 - **Askama Template Rendering Hygiene**: Clean `render_tmpl` helper eliminating repetitive error mapping closures.
 
@@ -59,7 +59,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Cascading Deletion**: Automatic cleanup of all associated revisions when an entry is deleted.
 
 ### User Roles & Permissions (RBAC)
-- **JIT Provisioning & Multi-Tenant Support**: First PropelAuth user mapped is granted `admin`, subsequent users become `author`. Local `users` table created (`0007_create_users_table.sql`) mapping external IDs to internal roles.
+- **JIT Provisioning & Multi-Tenant Support**: First user authenticated via Cloudflare Access is granted `admin`, subsequent users become `author`. Local `users` table created (`0007_create_users_table.sql`) mapping external IDs to internal roles.
 - **Granular Backend Guards**: Enforced strict ownership over drafts and content via SQLite queries (`WHERE author_id = ?1`), ensuring authors can only edit and manage their own work, while admins have global access.
 - **Unified Auth Middleware**: Upgraded `auth_required!` macro to inject the fully-hydrated local `User` struct into the Request context on every protected route.
 
@@ -121,7 +121,7 @@ A persistent record of architectural decisions, completed enhancements, and prio
 ### Split Public & Admin Workers
 - **Concept**: Separate Zygo CMS into two independent Cloudflare Workers:
   1. **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
-  2. **Admin Worker (Writer)**: Handles authentication, PropelAuth validation, media uploads, and heavy authoring libraries (e.g. Ammonia sanitization).
+  2. **Admin Worker (Writer)**: Handles authentication, Cloudflare Access JWT validation, media uploads, and heavy authoring libraries (e.g. Ammonia sanitization).
 - **Triggers**: Revisit only if future writer-side features push the compiled Wasm binary or CPU usage toward Cloudflare Worker limits. Currently, the unified worker remains well under 1 MB and well within performance boundaries.
 
 ### Headless CMS Content API

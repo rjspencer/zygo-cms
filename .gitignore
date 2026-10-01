@@ -28,3 +28,7 @@ target/
 *.rice
 *.lock.env.production
 .env.production
+
+# Agent detritus
+fix_*
+*.log

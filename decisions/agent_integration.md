@@ -25,7 +25,7 @@ Currently, the `upsert_post` MCP tool requires `body_html` and optionally `body_
 MCP is great for desktop agents (Claude Desktop, Cursor), but cloud-based agent platforms (like ChatGPT Custom Actions or LangChain applications) often rely on OpenAPI.
 
 * **Serve `openapi.json`:** Generate and serve an OpenAPI 3.0 specification from the Cloudflare Worker detailing the `/posts` and `/entries` endpoints.
-* **API Key Auth:** Clearly document the PropelAuth Bearer token requirement within the OpenAPI security schemas so agents know how to authenticate.
+* **API Key Auth:** Clearly document the Cloudflare Access Service Token requirement within the OpenAPI security schemas so agents know how to authenticate.
 
 ## 5. Standardize IDE Rules (`.cursorrules`)
 For users explicitly developing *on* the Zygo CMS codebase (not just managing content):

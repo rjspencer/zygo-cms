@@ -7,11 +7,11 @@ describe('Public Worker Integration', () => {
 
     beforeAll(async () => {
         const { execSync } = require('child_process');
-        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/public-test');
-        execSync(`CI=true npx wrangler d1 execute zygo-cms-db --local --persist-to=./.wrangler/state/public-test --command="INSERT OR REPLACE INTO entry_revisions (id, entry_id, title, body_html, body_json, preview_token) VALUES (999, 1, 'Preview Test Post', '<p>Preview Body</p>', '{}', 'test-valid-preview-token');"`);
+        execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/public-test -c packages/public-worker/wrangler.toml');
+        execSync(`CI=true npx wrangler d1 execute zygo-cms-db --local --persist-to=./.wrangler/state/public-test -c packages/public-worker/wrangler.toml --command="INSERT OR REPLACE INTO entry_revisions (id, entry_id, title, body_html, body_json, preview_token) VALUES (999, 1, 'Preview Test Post', '<p>Preview Body</p>', '{}', 'test-valid-preview-token');"`);
         
         worker = await unstable_dev('packages/public-worker/build/index.js', {
-            config: "wrangler.toml",
+            config: "packages/public-worker/wrangler.toml",
             vars: { ENVIRONMENT: "dev" },
             persistTo: './.wrangler/state/public-test',
             experimental: { disableExperimentalWarning: true },

@@ -25,8 +25,10 @@ import {
   ExternalLinkIcon,
   SunIcon,
   MoonIcon,
+  ExitIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
+import { apiFetch } from '../utils/api';
 
 interface NavItemProps {
   to: string;
@@ -67,6 +69,48 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false }) => 
 export const Layout: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
+  const [userEmail, setUserEmail] = React.useState('Admin User');
+  const [logoutUrl, setLogoutUrl] = React.useState('/cdn-cgi/access/logout');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const fetchUserData = async () => {
+      try {
+        const [dashRes, meRes] = await Promise.all([
+          apiFetch('/api/admin/dashboard').catch(() => null),
+          apiFetch('/api/me').catch(() => null),
+        ]);
+
+        if (!isMounted) return;
+
+        if (dashRes && dashRes.ok) {
+          const dashData = await dashRes.json().catch(() => ({}));
+          if (dashData.auth_url) {
+            setLogoutUrl(dashData.auth_url);
+          }
+          if (dashData.email) {
+            setUserEmail(dashData.email);
+          }
+        }
+
+        if (meRes && meRes.ok) {
+          const meData = await meRes.json().catch(() => ({}));
+          if (meData.email) {
+            setUserEmail(meData.email);
+          } else if (meData.display_name) {
+            setUserEmail(meData.display_name);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load user info', err);
+      }
+    };
+
+    fetchUserData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const navItems = [
     { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
@@ -168,26 +212,66 @@ export const Layout: React.FC = () => {
         <Box>
           <Separator size="4" my="3" />
           <Flex align="center" justify="between" px="2">
-            <Flex align="center" gap="2">
-              <Avatar size="1" fallback="AD" radius="full" color="iris" />
-              <Box>
-                <Text size="1" weight="medium" style={{ display: 'block', lineHeight: 1.2 }}>
-                  Admin User
+            <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1, marginRight: '8px' }}>
+              <Avatar
+                size="1"
+                fallback={userEmail && userEmail !== 'Admin User' ? userEmail.slice(0, 2).toUpperCase() : 'AD'}
+                radius="full"
+                color="iris"
+              />
+              <Box style={{ minWidth: 0, overflow: 'hidden' }}>
+                <Text
+                  size="1"
+                  weight="medium"
+                  title={userEmail}
+                  style={{
+                    display: 'block',
+                    lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {userEmail}
                 </Text>
                 <Text size="1" color="gray" style={{ display: 'block', fontSize: '11px' }}>
                   Cloudflare Access
                 </Text>
               </Box>
             </Flex>
-            <IconButton
-              size="1"
-              variant="ghost"
-              color="gray"
-              onClick={toggleTheme}
-              title="Toggle Dark / Light Mode"
-            >
-              {mode === 'dark' ? <SunIcon width="16" height="16" /> : <MoonIcon width="16" height="16" />}
-            </IconButton>
+            <Flex align="center" gap="1">
+              <IconButton
+                size="1"
+                variant="ghost"
+                color="gray"
+                onClick={toggleTheme}
+                title="Toggle Dark / Light Mode"
+                aria-label="Toggle Dark / Light Mode"
+              >
+                {mode === 'dark' ? <SunIcon width="16" height="16" /> : <MoonIcon width="16" height="16" />}
+              </IconButton>
+              <a
+                href={logoutUrl}
+                data-testid="logout-link"
+                style={{ textDecoration: 'none', display: 'inline-flex' }}
+                onClick={() => {
+                  if (logoutUrl) {
+                    window.location.href = logoutUrl;
+                  }
+                }}
+              >
+                <IconButton
+                  size="1"
+                  variant="ghost"
+                  color="gray"
+                  type="button"
+                  title="Logout"
+                  aria-label="Logout"
+                >
+                  <ExitIcon width="16" height="16" />
+                </IconButton>
+              </a>
+            </Flex>
           </Flex>
         </Box>
       </Box>
