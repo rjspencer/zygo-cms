@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiFetch, getApiUrl } from '../utils/api';
+import { apiFetch, getApiUrl, getPublicSiteUrl } from '../utils/api';
 
 describe('api fetch helper', () => {
 
@@ -11,6 +11,7 @@ describe('api fetch helper', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     import.meta.env.VITE_API_BASE_URL = '';
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
   });
 
   describe('getApiUrl', () => {
@@ -41,6 +42,80 @@ describe('api fetch helper', () => {
       import.meta.env.VITE_API_BASE_URL = 'https://api.zygodactylstudios.com';
       expect(getApiUrl('https://other.com/api')).toBe('https://other.com/api');
       expect(getApiUrl('http://localhost:8787/api')).toBe('http://localhost:8787/api');
+    });
+  });
+
+  describe('getPublicSiteUrl', () => {
+    describe('when VITE_PUBLIC_SITE_URL is not set or empty', () => {
+      beforeEach(() => {
+        import.meta.env.VITE_PUBLIC_SITE_URL = '';
+      });
+
+      it('returns "/" when called with no arguments', () => {
+        expect(getPublicSiteUrl()).toBe('/');
+      });
+
+      it('returns "/" when called with empty string or "/"', () => {
+        expect(getPublicSiteUrl('')).toBe('/');
+        expect(getPublicSiteUrl('/')).toBe('/');
+      });
+
+      it('returns normalized relative path when path has leading slash', () => {
+        expect(getPublicSiteUrl('/about')).toBe('/about');
+        expect(getPublicSiteUrl('/post/my-post')).toBe('/post/my-post');
+      });
+
+      it('returns normalized relative path when path does not have leading slash', () => {
+        expect(getPublicSiteUrl('about')).toBe('/about');
+        expect(getPublicSiteUrl('post/my-post')).toBe('/post/my-post');
+      });
+    });
+
+    describe('when VITE_PUBLIC_SITE_URL is set without trailing slash', () => {
+      beforeEach(() => {
+        import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+      });
+
+      it('returns base URL with trailing slash when called with no arguments, empty string, or "/"', () => {
+        expect(getPublicSiteUrl()).toBe('https://zygodactylstudios.com/');
+        expect(getPublicSiteUrl('')).toBe('https://zygodactylstudios.com/');
+        expect(getPublicSiteUrl('/')).toBe('https://zygodactylstudios.com/');
+      });
+
+      it('appends path without double slashes when path has leading slash', () => {
+        expect(getPublicSiteUrl('/about')).toBe('https://zygodactylstudios.com/about');
+        expect(getPublicSiteUrl('/post/my-post')).toBe('https://zygodactylstudios.com/post/my-post');
+      });
+
+      it('appends path without double slashes when path does not have leading slash', () => {
+        expect(getPublicSiteUrl('about')).toBe('https://zygodactylstudios.com/about');
+        expect(getPublicSiteUrl('post/my-post')).toBe('https://zygodactylstudios.com/post/my-post');
+      });
+    });
+
+    describe('when VITE_PUBLIC_SITE_URL is set with trailing slash', () => {
+      beforeEach(() => {
+        import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com/';
+      });
+
+      it('returns base URL with single trailing slash when called with no arguments, empty string, or "/"', () => {
+        expect(getPublicSiteUrl()).toBe('https://zygodactylstudios.com/');
+        expect(getPublicSiteUrl('')).toBe('https://zygodactylstudios.com/');
+        expect(getPublicSiteUrl('/')).toBe('https://zygodactylstudios.com/');
+      });
+
+      it('handles trailing slash on base URL cleanly without duplicate slashes', () => {
+        expect(getPublicSiteUrl('/about')).toBe('https://zygodactylstudios.com/about');
+        expect(getPublicSiteUrl('about')).toBe('https://zygodactylstudios.com/about');
+        expect(getPublicSiteUrl('/post/my-post')).toBe('https://zygodactylstudios.com/post/my-post');
+      });
+
+      it('handles multiple trailing slashes on base URL', () => {
+        import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com///';
+        expect(getPublicSiteUrl()).toBe('https://zygodactylstudios.com/');
+        expect(getPublicSiteUrl('/about')).toBe('https://zygodactylstudios.com/about');
+        expect(getPublicSiteUrl('about')).toBe('https://zygodactylstudios.com/about');
+      });
     });
   });
 

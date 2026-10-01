@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../utils/api';
 import {
   Flex,
   Box,
@@ -174,7 +174,7 @@ export const Posts: React.FC = () => {
                         size="1"
                         variant="ghost"
                         color="gray"
-                        onClick={() => window.open(`${import.meta.env.VITE_PUBLIC_SITE_URL || ''}/post/${post.slug}`, '_blank')}
+                        onClick={() => window.open(getPublicSiteUrl(`/post/${post.slug}`), '_blank')}
                         title="View Public Post"
                       >
                         <ExternalLinkIcon width="16" height="16" />

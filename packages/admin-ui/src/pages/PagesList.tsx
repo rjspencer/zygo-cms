@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../utils/api';
 import {
   Flex,
   Box,
@@ -129,7 +129,7 @@ export const PagesList: React.FC = () => {
                       size="1"
                       variant="ghost"
                       color="gray"
-                      onClick={() => window.open(`${import.meta.env.VITE_PUBLIC_SITE_URL || ''}${page.slug.startsWith('/') ? '' : '/'}${page.slug}`, '_blank')}
+                      onClick={() => window.open(getPublicSiteUrl(page.slug), '_blank')}
                       title="View Public Page"
                     >
                       <ExternalLinkIcon width="16" height="16" />
