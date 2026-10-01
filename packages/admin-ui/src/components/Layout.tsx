@@ -29,7 +29,7 @@ import {
   PersonIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../utils/api';
 
 interface NavItemProps {
   to: string;
@@ -299,7 +299,8 @@ export const Layout: React.FC = () => {
 
           <Flex align="center" gap="3">
             <a
-              href="/"
+              href={getPublicSiteUrl()}
+              data-testid="view-live-site-link"
               target="_blank"
               rel="noopener noreferrer"
               style={{ textDecoration: 'none' }}

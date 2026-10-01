@@ -72,6 +72,7 @@ describe('Layout Component', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
   });
 
   const renderLayout = () => {
@@ -131,5 +132,23 @@ describe('Layout Component', () => {
 
     renderLayout();
     expect(await screen.findByText('Admin User')).toBeDefined();
+  });
+
+  it('renders "View Live Site" link with default "/" when VITE_PUBLIC_SITE_URL is not set', () => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
+    renderLayout();
+    const liveSiteLink = screen.getByTestId('view-live-site-link');
+    expect(liveSiteLink).toBeDefined();
+    expect(liveSiteLink.getAttribute('href')).toBe('/');
+    expect(liveSiteLink.getAttribute('target')).toBe('_blank');
+  });
+
+  it('renders "View Live Site" link pointing to public site URL when VITE_PUBLIC_SITE_URL is configured', () => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+    renderLayout();
+    const liveSiteLink = screen.getByTestId('view-live-site-link');
+    expect(liveSiteLink).toBeDefined();
+    expect(liveSiteLink.getAttribute('href')).toBe('https://zygodactylstudios.com/');
+    expect(liveSiteLink.getAttribute('target')).toBe('_blank');
   });
 });

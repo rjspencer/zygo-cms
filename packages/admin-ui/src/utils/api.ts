@@ -14,6 +14,18 @@ export function getApiUrl(path: string): string {
   return `${cleanBase}${cleanPath}`;
 }
 
+export function getPublicSiteUrl(path: string = ''): string {
+  const baseUrl = import.meta.env.VITE_PUBLIC_SITE_URL || '';
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const cleanPath = path.replace(/^\/+/, '');
+
+  if (!cleanPath) {
+    return cleanBase ? `${cleanBase}/` : '/';
+  }
+
+  return cleanBase ? `${cleanBase}/${cleanPath}` : `/${cleanPath}`;
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const url = getApiUrl(path);
 
