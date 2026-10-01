@@ -90,18 +90,29 @@ function replaceOrInsertRoutes(content, routesStr) {
   return `${routesStr}\n\n${content}`;
 }
 
-function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', customFilePath = null) {
+function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', customFilePath = null) {
   if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
     customFilePath = publicSubdomain;
     publicSubdomain = 'www';
+    apexHandling = 'redirect_to_sub';
+  }
+  if (typeof apexHandling === 'string' && (apexHandling.endsWith('.toml') || apexHandling.includes('/') || apexHandling.includes('\\'))) {
+    customFilePath = apexHandling;
+    apexHandling = 'redirect_to_sub';
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
 
-  const sub = publicSubdomain || 'www';
-  const routesStr = `routes = [\n  { pattern = "${domain}", custom_domain = true },\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
+  let routesStr;
+  if (apexHandling === 'do_nothing') {
+    const host = publicSubdomain ? `${publicSubdomain}.${domain}` : domain;
+    routesStr = `routes = [\n  { pattern = "${host}", custom_domain = true }\n]`;
+  } else {
+    const sub = publicSubdomain || 'www';
+    routesStr = `routes = [\n  { pattern = "${domain}", custom_domain = true },\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
+  }
   content = replaceOrInsertRoutes(content, routesStr);
 
   content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
@@ -594,6 +605,88 @@ async function applyBotFightMode(zoneId, apiToken, state) {
   }
 }
 
+async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostname) {
+  const headers = {
+    'Authorization': `Bearer ${apiToken}`,
+    'Content-Type': 'application/json',
+    'User-Agent': 'zygo-cms-setup/0.1.0'
+  };
+
+  const newRule = {
+    description: `Redirect ${fromHostname} to ${toHostname}`,
+    expression: `(http.host eq "${fromHostname}")`,
+    action: 'redirect',
+    action_parameters: {
+      from_value: {
+        status_code: 301,
+        target_url: {
+          expression: `concat("https://${toHostname}", http.request.uri.path)`
+        },
+        preserve_query_string: true
+      }
+    }
+  };
+
+  try {
+    const getRes = await fetch(
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets/phases/http_request_dynamic_redirect/entrypoint`,
+      { headers }
+    );
+
+    if (getRes.status === 404) {
+      const postRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: 'Redirect Rules',
+          kind: 'zone',
+          phase: 'http_request_dynamic_redirect',
+          rules: [newRule]
+        })
+      });
+      const postData = await postRes.json();
+      if (postRes.ok && postData.success) {
+        return true;
+      }
+      console.warn(`⚠️  Failed to create redirect ruleset: ${JSON.stringify(postData?.errors || postData)}`);
+      return false;
+    }
+
+    if (!getRes.ok) {
+      const errorData = await getRes.json().catch(() => ({}));
+      console.warn(`⚠️  Failed to fetch redirect ruleset: ${JSON.stringify(errorData?.errors || errorData)}`);
+      return false;
+    }
+
+    const getData = await getRes.json();
+    const rulesetId = getData?.result?.id;
+    if (!rulesetId) {
+      console.warn('⚠️  Could not find ruleset ID in entrypoint response');
+      return false;
+    }
+
+    const existingRules = Array.isArray(getData.result?.rules) ? getData.result.rules : [];
+    const filteredRules = existingRules.filter((r) => r.expression !== newRule.expression);
+    const updatedRules = [...filteredRules, newRule];
+
+    const putRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets/${rulesetId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ rules: updatedRules })
+    });
+
+    const putData = await putRes.json();
+    if (putRes.ok && putData.success) {
+      return true;
+    }
+    console.warn(`⚠️  Failed to update redirect ruleset: ${JSON.stringify(putData?.errors || putData)}`);
+    return false;
+  } catch (err) {
+    console.warn(`⚠️  Failed to apply redirect: ${err.message}`);
+    return false;
+  }
+}
+
 async function promptInput(rl, query, validator, defaultValue = null) {
   while (true) {
     const promptText = defaultValue ? `${query} [${defaultValue}]: ` : `${query}: `;
@@ -646,6 +739,7 @@ async function main() {
   const config = {
     domain: '',
     publicSubdomain: 'www',
+    apexHandling: 'redirect_to_sub',
     adminUiSubdomain: 'admin',
     adminApiSubdomain: 'api',
     accountId: '',
@@ -680,6 +774,20 @@ async function main() {
   });
   if (isCancel(publicSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
   config.publicSubdomain = publicSubAns.trim();
+
+  const sub = config.publicSubdomain || 'www';
+  const apexAns = await select({
+    message: 'How should we handle the Apex/Root domain?',
+    options: [
+      { value: 'redirect_to_sub', label: `Redirect Apex to Subdomain (${config.domain} -> ${sub}.${config.domain})` },
+      { value: 'redirect_to_apex', label: `Redirect Subdomain to Apex (${sub}.${config.domain} -> ${config.domain})` },
+      { value: 'serve_both', label: 'Serve CMS on both (No redirect)' },
+      { value: 'do_nothing', label: 'Do nothing (Leave Apex untouched, it is used for something else)' }
+    ],
+    initialValue: 'redirect_to_sub'
+  });
+  if (isCancel(apexAns)) { cancel('Setup cancelled'); return process.exit(0); }
+  config.apexHandling = apexAns;
 
   const adminUiSubAns = await text({
     message: 'Admin UI Subdomain',
@@ -819,7 +927,7 @@ async function main() {
     s.stop('✓ Provisioned R2 Bucket');
 
     s.start('Updating wrangler.toml configurations');
-    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain);
+    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling);
     updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain);
     updateAdminUiWrangler(config.domain, config.adminUiSubdomain);
     s.stop('✓ Updated wrangler configurations');
@@ -851,6 +959,25 @@ async function main() {
       await applyZoneSettings(zoneId, config.apiToken, settingsPayload);
       await applyBotFightMode(zoneId, config.apiToken, config.botFightMode ? 'on' : 'off');
       s.stop('✓ Zone Settings applied');
+
+      const sub = config.publicSubdomain || 'www';
+      if (config.apexHandling === 'redirect_to_sub') {
+        s.start('Configuring SEO Redirect Rule (Apex -> Subdomain)');
+        const ok = await applyCloudflareRedirect(zoneId, config.apiToken, config.domain, sub + '.' + config.domain);
+        if (ok) {
+          s.stop('✓ SEO Redirect Rule configured');
+        } else {
+          s.stop('⚠️ Failed to configure SEO Redirect Rule');
+        }
+      } else if (config.apexHandling === 'redirect_to_apex') {
+        s.start('Configuring SEO Redirect Rule (Subdomain -> Apex)');
+        const ok = await applyCloudflareRedirect(zoneId, config.apiToken, sub + '.' + config.domain, config.domain);
+        if (ok) {
+          s.stop('✓ SEO Redirect Rule configured');
+        } else {
+          s.stop('⚠️ Failed to configure SEO Redirect Rule');
+        }
+      }
     } else {
       s.stop('⚠️ Could not fetch Zone ID to apply settings. Skipping.');
     }
@@ -915,4 +1042,5 @@ export {
   ensureOneTimePinProvider,
   configureGoogleProvider,
   getZeroTrustOrgDomain,
+  applyCloudflareRedirect,
 };

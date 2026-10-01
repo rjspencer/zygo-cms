@@ -13,7 +13,8 @@ import {
   configureCloudflareAccess,
   ensureOneTimePinProvider,
   configureGoogleProvider,
-  getZeroTrustOrgDomain
+  getZeroTrustOrgDomain,
+  applyCloudflareRedirect
 } from '../scripts/setup.mjs';
 
 describe('Setup Script Helpers', () => {
@@ -169,6 +170,62 @@ describe('Setup Script Helpers', () => {
       const updated = fs.readFileSync(mockPublicPath, 'utf8');
       expect(updated).toContain('pattern = "mytestdomain.com"');
       expect(updated).toContain('pattern = "web.mytestdomain.com"');
+    });
+
+    it('updates public-worker/wrangler.toml with apexHandling = "do_nothing"', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-do-nothing.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'db-uuid-555', 'www', 'do_nothing', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('pattern = "www.mytestdomain.com"');
+      expect(updated).not.toContain('pattern = "mytestdomain.com"');
+    });
+
+    it('updates public-worker/wrangler.toml with apexHandling = "do_nothing" and empty subdomain', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-do-nothing-empty.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'db-uuid-666', '', 'do_nothing', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('pattern = "mytestdomain.com"');
+      expect(updated).not.toContain('pattern = "www.mytestdomain.com"');
+    });
+
+    it('updates public-worker/wrangler.toml with apexHandling = "redirect_to_apex"', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-redirect-apex.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'db-uuid-777', 'www', 'redirect_to_apex', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('pattern = "mytestdomain.com"');
+      expect(updated).toContain('pattern = "www.mytestdomain.com"');
+    });
+
+    it('updates public-worker/wrangler.toml with apexHandling = "serve_both"', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-serve-both.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'db-uuid-888', 'www', 'serve_both', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('pattern = "mytestdomain.com"');
+      expect(updated).toContain('pattern = "www.mytestdomain.com"');
     });
 
     it('updates admin-api-worker/wrangler.toml with custom api subdomain', () => {
@@ -603,6 +660,165 @@ describe('Setup Script Helpers', () => {
       global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
 
       const result = await configureGoogleProvider('mock-account', 'mock-token', 'client-id', 'secret');
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('applyCloudflareRedirect', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('creates redirect ruleset via POST when entrypoint returns 404', async () => {
+      const fetchMock = vi.fn()
+        // GET entrypoint returns 404
+        .mockResolvedValueOnce({
+          status: 404,
+          ok: false,
+          json: async () => ({ success: false, errors: [{ code: 10001, message: 'not found' }] })
+        })
+        // POST creates ruleset
+        .mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'new-ruleset-id' } })
+        });
+
+      global.fetch = fetchMock;
+
+      const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'example.com', 'www.example.com');
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Verify GET call
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.cloudflare.com/client/v4/zones/zone-123/rulesets/phases/http_request_dynamic_redirect/entrypoint'
+      );
+
+      // Verify POST call
+      expect(fetchMock.mock.calls[1][0]).toBe('https://api.cloudflare.com/client/v4/zones/zone-123/rulesets');
+      expect(fetchMock.mock.calls[1][1].method).toBe('POST');
+      const postBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(postBody.phase).toBe('http_request_dynamic_redirect');
+      expect(postBody.rules).toHaveLength(1);
+      expect(postBody.rules[0]).toEqual({
+        description: 'Redirect example.com to www.example.com',
+        expression: '(http.host eq "example.com")',
+        action: 'redirect',
+        action_parameters: {
+          from_value: {
+            status_code: 301,
+            target_url: {
+              expression: 'concat("https://www.example.com", http.request.uri.path)'
+            },
+            preserve_query_string: true
+          }
+        }
+      });
+    });
+
+    it('appends redirect rule via PUT when entrypoint ruleset already exists', async () => {
+      const fetchMock = vi.fn()
+        // GET entrypoint returns existing ruleset
+        .mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            success: true,
+            result: {
+              id: 'existing-ruleset-id',
+              rules: [
+                {
+                  expression: '(http.host eq "other.example.com")',
+                  action: 'redirect'
+                }
+              ]
+            }
+          })
+        })
+        // PUT updates ruleset
+        .mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'existing-ruleset-id' } })
+        });
+
+      global.fetch = fetchMock;
+
+      const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'www.example.com', 'example.com');
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      // Verify PUT call
+      expect(fetchMock.mock.calls[1][0]).toBe(
+        'https://api.cloudflare.com/client/v4/zones/zone-123/rulesets/existing-ruleset-id'
+      );
+      expect(fetchMock.mock.calls[1][1].method).toBe('PUT');
+      const putBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(putBody.rules).toHaveLength(2);
+      expect(putBody.rules[0].expression).toBe('(http.host eq "other.example.com")');
+      expect(putBody.rules[1].expression).toBe('(http.host eq "www.example.com")');
+      expect(putBody.rules[1].action_parameters.from_value.target_url.expression).toBe(
+        'concat("https://example.com", http.request.uri.path)'
+      );
+    });
+
+    it('deduplicates rule if the same expression already exists in ruleset', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({
+            success: true,
+            result: {
+              id: 'existing-ruleset-id',
+              rules: [
+                {
+                  expression: '(http.host eq "example.com")',
+                  action: 'redirect',
+                  action_parameters: { from_value: { status_code: 302 } }
+                }
+              ]
+            }
+          })
+        })
+        .mockResolvedValueOnce({
+          status: 200,
+          ok: true,
+          json: async () => ({ success: true })
+        });
+
+      global.fetch = fetchMock;
+
+      const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'example.com', 'www.example.com');
+      expect(result).toBe(true);
+
+      const putBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(putBody.rules).toHaveLength(1);
+      expect(putBody.rules[0].action_parameters.from_value.status_code).toBe(301);
+    });
+
+    it('gracefully handles network error without throwing', async () => {
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
+
+      const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'example.com', 'www.example.com');
+      expect(result).toBe(false);
+    });
+
+    it('gracefully handles API errors during POST and PUT without throwing', async () => {
+      global.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          status: 404,
+          ok: false,
+          json: async () => ({})
+        })
+        .mockResolvedValueOnce({
+          status: 400,
+          ok: false,
+          json: async () => ({ success: false, errors: [{ message: 'Bad request' }] })
+        });
+
+      const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'example.com', 'www.example.com');
       expect(result).toBe(false);
     });
   });
