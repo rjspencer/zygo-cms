@@ -80,6 +80,28 @@ export const mockMedia = [
   },
 ];
 
+export const mockContentTypes = [
+  { id: 'post', name: 'Post', description: 'Blog post', schema_json: '{}' },
+  { id: 'page', name: 'Page', description: 'Static page', schema_json: '{}' },
+];
+
+export const mockMenus = {
+  header: {
+    id: '1',
+    name: 'header',
+    items_json: '[{"title":"Home","url":"/","target":"_self","children":[]},{"title":"Blog","url":"/posts","target":"_self","children":[]}]',
+    created_at: '2026-10-01 10:00:00',
+    updated_at: '2026-10-01 10:00:00',
+  },
+  footer: {
+    id: '2',
+    name: 'footer',
+    items_json: '[{"title":"Privacy Policy","url":"/privacy","target":"_self","children":[]}]',
+    created_at: '2026-10-01 10:00:00',
+    updated_at: '2026-10-01 10:00:00',
+  }
+};
+
 export const handlers = [
   // Dashboard metrics
   http.get('*/api/admin/dashboard', () => {
@@ -104,5 +126,45 @@ export const handlers = [
   // Media
   http.get('*/api/media', () => {
     return HttpResponse.json(mockMedia);
+  }),
+
+  // Content Types
+  http.get('*/api/content-types', () => {
+    return HttpResponse.json(mockContentTypes);
+  }),
+  http.post('*/api/content-types/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+  http.put('*/api/content-types/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+  http.delete('*/api/content-types/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  // Menus
+  http.get('*/api/menus', () => {
+    return HttpResponse.json(mockMenus);
+  }),
+  http.put('*/api/menus/:name', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  // Analytics
+  http.get('*/api/analytics', () => {
+    return HttpResponse.json({
+      data: {
+        viewer: {
+          zones: [
+            {
+              rumPageloadEventsAdaptiveGroups: [
+                { count: 142800, dimensions: { requestPath: "/", clientCountryName: "US" } },
+                { count: 8400, dimensions: { requestPath: "/about", clientCountryName: "UK" } }
+              ]
+            }
+          ]
+        }
+      }
+    });
   }),
 ];
