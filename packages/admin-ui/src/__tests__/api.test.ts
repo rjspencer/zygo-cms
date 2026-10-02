@@ -43,6 +43,22 @@ describe('api fetch helper', () => {
       expect(getApiUrl('https://other.com/api')).toBe('https://other.com/api');
       expect(getApiUrl('http://localhost:8787/api')).toBe('http://localhost:8787/api');
     });
+
+    it('falls back to api.* subdomain when running on admin.* and VITE_API_BASE_URL is not set', () => {
+      import.meta.env.VITE_API_BASE_URL = '';
+      const originalLocation = window.location;
+      try {
+        delete (window as any).location;
+        (window as any).location = {
+          protocol: 'https:',
+          host: 'admin.zygodactylstudios.com',
+          hostname: 'admin.zygodactylstudios.com',
+        };
+        expect(getApiUrl('/api/entries')).toBe('https://api.zygodactylstudios.com/api/entries');
+      } finally {
+        (window as any).location = originalLocation;
+      }
+    });
   });
 
   describe('getPublicSiteUrl', () => {

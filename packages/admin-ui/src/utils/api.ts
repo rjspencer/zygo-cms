@@ -5,7 +5,16 @@
  */
 
 export function getApiUrl(path: string): string {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+  let baseUrl = import.meta.env.VITE_API_BASE_URL || '';
+
+  // If VITE_API_BASE_URL is not set but the app is running on an admin.* subdomain,
+  // route to the corresponding api.* subdomain to avoid relative requests hitting the admin UI worker.
+  if (!baseUrl && typeof window !== 'undefined' && window.location?.hostname?.startsWith('admin.')) {
+    const protocol = window.location.protocol || 'https:';
+    const apiHost = window.location.host.replace(/^admin\./, 'api.');
+    baseUrl = `${protocol}//${apiHost}`;
+  }
+
   if (!baseUrl || path.startsWith('http://') || path.startsWith('https://')) {
     return path;
   }

@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { Theme } from '@radix-ui/themes';
-import { ThemeProvider } from '../context/ThemeModeContext';
+import { screen } from '@testing-library/react';
+import { render } from '../test/test-utils';
 import { Layout } from '../components/Layout';
 
 describe('Layout Component', () => {
@@ -76,15 +74,7 @@ describe('Layout Component', () => {
   });
 
   const renderLayout = () => {
-    return render(
-      <MemoryRouter>
-        <ThemeProvider>
-          <Theme>
-            <Layout />
-          </Theme>
-        </ThemeProvider>
-      </MemoryRouter>
-    );
+    return render(<Layout />);
   };
 
   it('renders sidebar navigation and brand', () => {

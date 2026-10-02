@@ -1,7 +1,12 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Theme } from '@radix-ui/themes';
 import { MediaPickerModal } from '../components/MediaPickerModal';
+
+const createTestQueryClient = () => new QueryClient({
+  defaultOptions: { queries: { retry: false } }
+});
 
 describe('MediaPickerModal Component', () => {
   const mockMediaResponse = {
@@ -72,11 +77,14 @@ describe('MediaPickerModal Component', () => {
       onSelect: vi.fn(),
       ...props,
     };
+    const testQueryClient = createTestQueryClient();
     return {
       ...render(
-        <Theme>
-          <MediaPickerModal {...defaultProps} />
-        </Theme>
+        <QueryClientProvider client={testQueryClient}>
+          <Theme>
+            <MediaPickerModal {...defaultProps} />
+          </Theme>
+        </QueryClientProvider>
       ),
       props: defaultProps,
     };

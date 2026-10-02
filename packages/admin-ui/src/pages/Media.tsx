@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Flex,
   Box,
@@ -21,6 +21,7 @@ import {
 } from '@radix-ui/react-icons';
 import { MediaThumbnail } from '../components/MediaThumbnail';
 import { apiFetch } from '../utils/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface MediaItem {
   id: string;
@@ -34,50 +35,32 @@ interface MediaItem {
 export const Media: React.FC = () => {
   const [search, setSearch] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
-  const fetchMedia = useCallback(async () => {
-    try {
+  const { data: items = [] } = useQuery({
+    queryKey: ['media'],
+    queryFn: async (): Promise<MediaItem[]> => {
       const res = await apiFetch('/api/media');
-      if (res.ok) {
-        const data = await res.json();
-        const mediaList = Array.isArray(data.media) ? data.media : [];
-        const mapped = mediaList.map((item: any) => ({
-          id: item.key,
-          name: item.filename,
-          size:
-            item.size < 1024 * 1024
-              ? `${Math.round(item.size / 1024)} KB`
-              : `${(item.size / (1024 * 1024)).toFixed(2)} MB`,
-          type: item.mime_type,
-          url: item.url,
-          uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
-        }));
-        setItems(mapped);
-      }
-    } catch (err) {
-      console.error('Failed to fetch media', err);
-    }
-  }, []);
+      if (!res.ok) throw new Error('Failed to fetch media');
+      const data = await res.json();
+      const mediaList = Array.isArray(data.media) ? data.media : [];
+      return mediaList.map((item: any) => ({
+        id: item.key,
+        name: item.filename,
+        size:
+          item.size < 1024 * 1024
+            ? `${Math.round(item.size / 1024)} KB`
+            : `${(item.size / (1024 * 1024)).toFixed(2)} MB`,
+        type: item.mime_type,
+        url: item.url,
+        uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
+      }));
+    },
+  });
 
-  useEffect(() => {
-    fetchMedia();
-  }, [fetchMedia]);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-    setSyncError(null);
-
-    try {
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
       const filename = encodeURIComponent(file.name);
       const res = await apiFetch(`/api/media?filename=${filename}`, {
         method: 'POST',
@@ -91,26 +74,21 @@ export const Media: React.FC = () => {
         const errText = await res.text().catch(() => '');
         throw new Error(errText || `Upload failed (${res.status})`);
       }
-
+      return res;
+    },
+    onSuccess: () => {
       setSearch('');
-      await fetchMedia();
-    } catch (err: any) {
-      console.error('Failed to upload media', err);
-      setUploadError(err.message || 'Failed to upload image');
-    } finally {
-      setIsUploading(false);
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+    onSettled: () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }
-  };
+    },
+  });
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    setSyncError(null);
-    setUploadError(null);
-
-    try {
+  const syncMutation = useMutation({
+    mutationFn: async () => {
       const res = await apiFetch('/api/media/sync', {
         method: 'POST',
       });
@@ -126,14 +104,37 @@ export const Media: React.FC = () => {
         }
         throw new Error(errMessage || `Sync failed (${res.status})`);
       }
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+  });
 
-      await fetchMedia();
-    } catch (err: any) {
-      console.error('Failed to sync media', err);
-      setSyncError(err.message || 'Failed to sync media');
-    } finally {
-      setIsSyncing(false);
-    }
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch(`/api/media/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Delete failed');
+      }
+      return id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadMutation.mutate(file);
+  };
+
+  const handleSync = () => {
+    syncMutation.mutate();
   };
 
   const filteredItems = items.filter((item) =>
@@ -146,19 +147,8 @@ export const Media: React.FC = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      const res = await apiFetch(`/api/media/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setItems((prev) => prev.filter((item) => item.id !== id));
-      } else {
-        console.error('Delete failed', await res.text());
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id);
   };
 
   return (
@@ -177,8 +167,8 @@ export const Media: React.FC = () => {
             <Button
               variant="outline"
               onClick={handleSync}
-              disabled={isSyncing || isUploading}
-              loading={isSyncing}
+              disabled={syncMutation.isPending || uploadMutation.isPending}
+              loading={syncMutation.isPending}
               aria-label="Sync"
             >
               <ReloadIcon width="16" height="16" />
@@ -189,8 +179,8 @@ export const Media: React.FC = () => {
             variant="solid"
             color="iris"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || isSyncing}
-            loading={isUploading}
+            disabled={uploadMutation.isPending || syncMutation.isPending}
+            loading={uploadMutation.isPending}
             aria-label="Upload Image"
           >
             <UploadIcon width="16" height="16" />
@@ -208,18 +198,26 @@ export const Media: React.FC = () => {
         />
       </Flex>
 
-      {uploadError && (
+      {uploadMutation.isError && (
         <Box mb="4">
           <Text color="red" size="2">
-            {uploadError}
+            {uploadMutation.error?.message || 'Failed to upload image'}
           </Text>
         </Box>
       )}
 
-      {syncError && (
+      {syncMutation.isError && (
         <Box mb="4">
           <Text color="red" size="2">
-            {syncError}
+            {syncMutation.error?.message || 'Failed to sync media'}
+          </Text>
+        </Box>
+      )}
+
+      {deleteMutation.isError && (
+        <Box mb="4">
+          <Text color="red" size="2">
+            {deleteMutation.error?.message || 'Failed to delete media'}
           </Text>
         </Box>
       )}
@@ -305,6 +303,7 @@ export const Media: React.FC = () => {
                   color="red"
                   onClick={() => handleDelete(item.id)}
                   title="Delete"
+                  disabled={deleteMutation.isPending}
                 >
                   <TrashIcon />
                 </IconButton>
