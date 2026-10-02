@@ -26,6 +26,7 @@ import {
   SunIcon,
   MoonIcon,
   ExitIcon,
+  PersonIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
@@ -117,6 +118,7 @@ export const Layout: React.FC = () => {
     { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
     { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
     { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
+    { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Navigation' },
     { to: '/content-types', icon: <Component1Icon width="18" height="18" />, label: 'Content Types' },
     { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },

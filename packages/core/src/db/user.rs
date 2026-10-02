@@ -3,7 +3,7 @@ use worker::{D1Database, Result};
 use super::opt_js;
 
 pub async fn find_user_by_auth_id(db: &D1Database, auth_provider_id: &str) -> Result<Option<User>> {
-    let query = "SELECT id, auth_provider_id, email, display_name, role, created_at, updated_at FROM users WHERE auth_provider_id = ?1";
+    let query = "SELECT id, auth_provider_id, email, display_name, role, created_at, updated_at, deleted_at, bio, website, avatar_url FROM users WHERE auth_provider_id = ?1";
     let statement = db.prepare(query);
     statement.bind(&[auth_provider_id.into()])?.first::<User>(None).await
 }
@@ -30,7 +30,7 @@ pub async fn create_user(db: &D1Database, auth_provider_id: &str, email: Option<
     let display_name = email.as_ref().map(|e| e.split('@').next().unwrap_or("").to_string());
 
     let statement = db.prepare(
-        "INSERT INTO users (auth_provider_id, email, display_name, role) VALUES (?1, ?2, ?3, ?4) RETURNING id, auth_provider_id, email, display_name, role, created_at, updated_at"
+        "INSERT INTO users (auth_provider_id, email, display_name, role) VALUES (?1, ?2, ?3, ?4) RETURNING id, auth_provider_id, email, display_name, role, created_at, updated_at, deleted_at, bio, website, avatar_url"
     );
 
     let result = statement

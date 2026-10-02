@@ -31,4 +31,4 @@ target/
 
 # Agent detritus
 fix_*
-*.log
+*.logcoverage/

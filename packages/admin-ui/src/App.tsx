@@ -6,6 +6,7 @@ import Posts from './pages/Posts';
 import PagesList from './pages/PagesList';
 import Editor from './pages/Editor';
 import Media from './pages/Media';
+import Users from './pages/Users';
 import Navigation from './pages/Navigation';
 import ContentTypes from './pages/ContentTypes';
 import Analytics from './pages/Analytics';
@@ -22,6 +23,7 @@ export const App: React.FC = () => {
         <Route path="editor" element={<Editor />} />
         <Route path="editor/:id" element={<Editor />} />
         <Route path="media" element={<Media />} />
+        <Route path="users" element={<Users />} />
         <Route path="navigation" element={<Navigation />} />
         <Route path="content-types" element={<ContentTypes />} />
         <Route path="analytics" element={<Analytics />} />
