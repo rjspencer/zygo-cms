@@ -15,3 +15,8 @@ pub async fn set_setting(db: &D1Database, key: &str, value: &str) -> worker::Res
     stmt.run().await?;
     Ok(())
 }
+
+pub async fn get_all_settings(db: &D1Database) -> worker::Result<Vec<Setting>> {
+    let stmt = db.prepare("SELECT * FROM settings");
+    stmt.all::<Setting>().await.map(|r| r.results::<Setting>().unwrap_or_default())
+}
