@@ -41,9 +41,22 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   const mergedOptions: RequestInit = {
     credentials: 'include',
     ...options,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      ...options.headers,
+    },
   };
 
-  return fetch(url, mergedOptions);
+  const response = await fetch(url, mergedOptions);
+
+  // If Cloudflare Access or the backend returns 401 (due to expired session),
+  // or if the XHR transparently followed a 302 redirect and failed with 400 at the OAuth callback,
+  // reload the page to trigger a top-level Cloudflare Access login redirect.
+  if ((response.status === 401 || (response.status === 400 && response.url && response.url.includes('/cdn-cgi/access/'))) && typeof window !== 'undefined') {
+    window.location.reload();
+  }
+
+  return response;
 }
 
 export default apiFetch;

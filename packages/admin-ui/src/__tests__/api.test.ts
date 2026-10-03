@@ -142,6 +142,9 @@ describe('api fetch helper', () => {
 
       expect(fetch).toHaveBeenCalledWith('/api/entries', {
         credentials: 'include',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        }
       });
     });
 
@@ -151,6 +154,9 @@ describe('api fetch helper', () => {
 
       expect(fetch).toHaveBeenCalledWith('https://api.zygodactylstudios.com/api/entries', {
         credentials: 'include',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        }
       });
     });
 
@@ -165,7 +171,7 @@ describe('api fetch helper', () => {
       expect(fetch).toHaveBeenCalledWith('/api/entries', {
         credentials: 'include',
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         body: JSON.stringify({ title: 'Test' }),
       });
     });
