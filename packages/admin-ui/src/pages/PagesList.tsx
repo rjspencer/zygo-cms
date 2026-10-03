@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
+import { useQuery } from '@tanstack/react-query';
 import {
   Flex,
   Box,
@@ -31,31 +32,24 @@ interface PageItem {
 export const PagesList: React.FC = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
-  const [pages, setPages] = useState<PageItem[]>([]);
 
-  React.useEffect(() => {
-    const fetchPages = async () => {
-      try {
-        const res = await apiFetch('/api/entries');
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data
-            .filter((e: any) => e.type === 'page')
-            .map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              slug: e.path || `/${e.slug}`,
-              status: e.status,
-              updatedAt: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
-            }));
-          setPages(mapped);
-        }
-      } catch (err) {
-        console.error('Failed to fetch pages', err);
-      }
-    };
-    fetchPages();
-  }, []);
+  const { data: pages = [] } = useQuery<PageItem[]>({
+    queryKey: ['entries', 'pages'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/entries');
+      if (!res.ok) throw new Error('Failed to fetch pages');
+      const data = await res.json();
+      return data
+        .filter((e: any) => e.type === 'page')
+        .map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          slug: e.path || `/${e.slug}`,
+          status: e.status,
+          updatedAt: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
+        }));
+    },
+  });
 
   const filteredPages = pages.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||

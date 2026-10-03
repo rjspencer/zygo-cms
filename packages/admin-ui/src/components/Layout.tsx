@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import {
   Flex,
   Box,
@@ -70,48 +71,35 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false }) => 
 export const Layout: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
   const navigate = useNavigate();
-  const [userEmail, setUserEmail] = React.useState('Admin User');
-  const [logoutUrl, setLogoutUrl] = React.useState('/cdn-cgi/access/logout');
+  const { data: dashData } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/admin/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard');
+      return res.json();
+    },
+    retry: false,
+  });
 
-  React.useEffect(() => {
-    let isMounted = true;
-    const fetchUserData = async () => {
-      try {
-        const [dashRes, meRes] = await Promise.all([
-          apiFetch('/api/admin/dashboard').catch(() => null),
-          apiFetch('/api/me').catch(() => null),
-        ]);
+  const { data: meData } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/me');
+      if (!res.ok) throw new Error('Failed to fetch me');
+      return res.json();
+    },
+    retry: false,
+  });
 
-        if (!isMounted) return;
-
-        if (dashRes && dashRes.ok) {
-          const dashData = await dashRes.json().catch(() => ({}));
-          if (dashData.auth_url) {
-            setLogoutUrl(dashData.auth_url);
-          }
-          if (dashData.email) {
-            setUserEmail(dashData.email);
-          }
-        }
-
-        if (meRes && meRes.ok) {
-          const meData = await meRes.json().catch(() => ({}));
-          if (meData.email) {
-            setUserEmail(meData.email);
-          } else if (meData.display_name) {
-            setUserEmail(meData.display_name);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load user info', err);
-      }
-    };
-
-    fetchUserData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const logoutUrl = dashData?.auth_url || '/cdn-cgi/access/logout';
+  let userEmail = 'Admin User';
+  if (meData?.email) {
+    userEmail = meData.email;
+  } else if (meData?.display_name) {
+    userEmail = meData.display_name;
+  } else if (dashData?.email) {
+    userEmail = dashData.email;
+  }
 
   const navItems = [
     { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },

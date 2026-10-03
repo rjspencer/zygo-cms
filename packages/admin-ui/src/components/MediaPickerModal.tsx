@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Dialog,
   Flex,
@@ -17,6 +17,7 @@ import {
 } from '@radix-ui/react-icons';
 import { MediaThumbnail } from './MediaThumbnail';
 import { apiFetch } from '../utils/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export interface MediaPickerModalProps {
   open: boolean;
@@ -39,51 +40,36 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   onSelect,
 }) => {
   const [search, setSearch] = useState('');
-  const [items, setItems] = useState<MediaItem[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
-  const fetchMedia = useCallback(async () => {
-    try {
+  const { data: items = [] } = useQuery({
+    queryKey: ['media'],
+    queryFn: async (): Promise<MediaItem[]> => {
       const res = await apiFetch('/api/media');
-      if (res.ok) {
-        const data = await res.json();
-        const mediaList = Array.isArray(data.media) ? data.media : [];
-        const mapped = mediaList.map((item: any) => {
-          const itemSize = item.size ?? item.size_bytes ?? 0;
-          return {
-            id: String(item.key || item.id || Math.random()),
-            name: item.filename || item.key || 'Untitled',
-            size:
-              itemSize < 1024 * 1024
-                ? `${Math.round(itemSize / 1024)} KB`
-                : `${(itemSize / (1024 * 1024)).toFixed(2)} MB`,
-            type: item.mime_type || '',
-            url: item.url || `/media/${item.key}`,
-            uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
-          };
-        });
-        setItems(mapped);
-      }
-    } catch (err) {
-      console.error('Failed to fetch media', err);
-    }
-  }, []);
+      if (!res.ok) throw new Error('Failed to fetch media');
+      const data = await res.json();
+      const mediaList = Array.isArray(data.media) ? data.media : [];
+      return mediaList.map((item: any) => {
+        const itemSize = item.size ?? item.size_bytes ?? 0;
+        return {
+          id: String(item.key || item.id || Math.random()),
+          name: item.filename || item.key || 'Untitled',
+          size:
+            itemSize < 1024 * 1024
+              ? `${Math.round(itemSize / 1024)} KB`
+              : `${(itemSize / (1024 * 1024)).toFixed(2)} MB`,
+          type: item.mime_type || '',
+          url: item.url || `/media/${item.key}`,
+          uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
+        };
+      });
+    },
+    enabled: open,
+  });
 
-  useEffect(() => {
-    if (!open) return;
-    fetchMedia();
-  }, [open, fetchMedia]);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    setUploadError(null);
-
-    try {
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
       const filename = encodeURIComponent(file.name);
       const res = await apiFetch(`/api/media?filename=${filename}`, {
         method: 'POST',
@@ -97,18 +83,23 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
         const errText = await res.text().catch(() => '');
         throw new Error(errText || `Upload failed (${res.status})`);
       }
-
+      return res;
+    },
+    onSuccess: () => {
       setSearch('');
-      await fetchMedia();
-    } catch (err: any) {
-      console.error('Failed to upload media', err);
-      setUploadError(err.message || 'Failed to upload image');
-    } finally {
-      setIsUploading(false);
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+    onSettled: () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }
+    },
+  });
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    uploadMutation.mutate(file);
   };
 
   const filteredItems = items.filter((item) =>
@@ -160,8 +151,8 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
             variant="solid"
             color="iris"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            loading={isUploading}
+            disabled={uploadMutation.isPending}
+            loading={uploadMutation.isPending}
             aria-label="Upload Image"
           >
             <UploadIcon width="16" height="16" />
@@ -178,10 +169,10 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
           />
         </Flex>
 
-        {uploadError && (
+        {uploadMutation.isError && (
           <Box mb="3">
             <Text color="red" size="2">
-              {uploadError}
+              {uploadMutation.error?.message || 'Failed to upload image'}
             </Text>
           </Box>
         )}

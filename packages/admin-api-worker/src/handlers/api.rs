@@ -537,3 +537,20 @@ pub async fn get_me(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let user = crate::auth_required!(&req, ctx);
     Response::from_json(&user)
 }
+
+pub async fn get_settings(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let user = auth_required!(&req, ctx);
+    if user.role != "admin" {
+        return Response::error("Forbidden", 403);
+    }
+
+    let db = ctx.env.d1("DB")?;
+    let settings = db::setting::get_all_settings(&db).await?;
+    
+    let mut map = serde_json::Map::new();
+    for setting in settings {
+        map.insert(setting.key, serde_json::Value::String(setting.value));
+    }
+    
+    Response::from_json(&serde_json::Value::Object(map))
+}

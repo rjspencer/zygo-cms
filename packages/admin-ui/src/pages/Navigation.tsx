@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Flex,
   Box,
@@ -16,58 +16,88 @@ import {
   TrashIcon,
   CheckIcon,
 } from '@radix-ui/react-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '../utils/api';
 
 interface MenuItem {
-  id: string;
-  label: string;
+  title: string;
   url: string;
+  target: string;
+  children: MenuItem[];
 }
 
 export const Navigation: React.FC = () => {
-  const [headerMenu, setHeaderMenu] = useState<MenuItem[]>([
-    { id: '1', label: 'Home', url: '/' },
-    { id: '2', label: 'Blog', url: '/posts' },
-    { id: '3', label: 'About', url: '/about' },
-    { id: '4', label: 'Contact', url: '/contact' },
-  ]);
-
-  const [footerMenu, setFooterMenu] = useState<MenuItem[]>([
-    { id: '10', label: 'Privacy Policy', url: '/privacy' },
-    { id: '11', label: 'Terms of Service', url: '/terms' },
-    { id: '12', label: 'RSS Feed', url: '/rss.xml' },
-  ]);
-
-  const [newLabel, setNewLabel] = useState('');
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'header' | 'footer'>('header');
+  const [newTitle, setNewTitle] = useState('');
   const [newUrl, setNewUrl] = useState('');
-  const [activeTab, setActiveTab] = useState('header');
-  const [saved, setSaved] = useState(false);
+  const [localMenus, setLocalMenus] = useState<{ [key: string]: MenuItem[] }>({
+    header: [],
+    footer: [],
+  });
+
+  const { data: menus, isLoading } = useQuery({
+    queryKey: ['menus'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/menus');
+      if (!res.ok) throw new Error('Failed to fetch menus');
+      return res.json();
+    },
+  });
+
+  useEffect(() => {
+    if (menus) {
+      setLocalMenus({
+        header: menus.header?.items_json ? JSON.parse(menus.header.items_json) : [],
+        footer: menus.footer?.items_json ? JSON.parse(menus.footer.items_json) : [],
+      });
+    }
+  }, [menus]);
+
+  const updateMenuMutation = useMutation({
+    mutationFn: async ({ name, items }: { name: string; items: MenuItem[] }) => {
+      const res = await apiFetch(`/api/menus/${name}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ items_json: JSON.stringify(items) }),
+      });
+      if (!res.ok) throw new Error(`Failed to update ${name} menu`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['menus'] });
+    },
+  });
 
   const handleAdd = () => {
-    if (!newLabel || !newUrl) return;
-    const newItem: MenuItem = { id: Date.now().toString(), label: newLabel, url: newUrl };
-    if (activeTab === 'header') {
-      setHeaderMenu([...headerMenu, newItem]);
-    } else {
-      setFooterMenu([...footerMenu, newItem]);
-    }
-    setNewLabel('');
+    if (!newTitle || !newUrl) return;
+    const newItem: MenuItem = { title: newTitle, url: newUrl, target: '_self', children: [] };
+    setLocalMenus((prev) => ({
+      ...prev,
+      [activeTab]: [...prev[activeTab], newItem],
+    }));
+    setNewTitle('');
     setNewUrl('');
   };
 
-  const handleDelete = (id: string) => {
-    if (activeTab === 'header') {
-      setHeaderMenu(headerMenu.filter((item) => item.id !== id));
-    } else {
-      setFooterMenu(footerMenu.filter((item) => item.id !== id));
-    }
+  const handleDelete = (index: number) => {
+    setLocalMenus((prev) => {
+      const newItems = [...prev[activeTab]];
+      newItems.splice(index, 1);
+      return { ...prev, [activeTab]: newItems };
+    });
   };
 
   const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    updateMenuMutation.mutate({
+      name: activeTab,
+      items: localMenus[activeTab],
+    });
   };
 
-  const currentList = activeTab === 'header' ? headerMenu : footerMenu;
+  const currentList = localMenus[activeTab] || [];
 
   return (
     <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -80,11 +110,13 @@ export const Navigation: React.FC = () => {
             Configure site header and footer menu structures
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={handleSave}>
-          {saved ? (
+        <Button variant="solid" color="iris" onClick={handleSave} disabled={updateMenuMutation.isPending || isLoading}>
+          {updateMenuMutation.isSuccess ? (
             <>
               <CheckIcon width="16" height="16" /> Saved!
             </>
+          ) : updateMenuMutation.isPending ? (
+            'Saving...'
           ) : (
             'Save Changes'
           )}
@@ -92,7 +124,7 @@ export const Navigation: React.FC = () => {
       </Flex>
 
       <Card size="2">
-        <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+        <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as 'header' | 'footer')}>
           <Tabs.List mb="4">
             <Tabs.Trigger value="header">Header Menu</Tabs.Trigger>
             <Tabs.Trigger value="footer">Footer Menu</Tabs.Trigger>
@@ -108,29 +140,43 @@ export const Navigation: React.FC = () => {
                 </Table.Row>
               </Table.Header>
               <Table.Body>
-                {currentList.map((item) => (
-                  <Table.Row key={item.id}>
-                    <Table.RowHeaderCell>
-                      <Text weight="medium">{item.label}</Text>
-                    </Table.RowHeaderCell>
-                    <Table.Cell>
-                      <Text size="2" color="gray">
-                        {item.url}
-                      </Text>
-                    </Table.Cell>
-                    <Table.Cell style={{ textAlign: 'right' }}>
-                      <IconButton
-                        size="1"
-                        variant="ghost"
-                        color="red"
-                        onClick={() => handleDelete(item.id)}
-                        title="Remove link"
-                      >
-                        <TrashIcon width="16" height="16" />
-                      </IconButton>
+                {isLoading ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={3}>
+                      <Text color="gray">Loading...</Text>
                     </Table.Cell>
                   </Table.Row>
-                ))}
+                ) : currentList.length === 0 ? (
+                  <Table.Row>
+                    <Table.Cell colSpan={3}>
+                      <Text color="gray">No items in this menu.</Text>
+                    </Table.Cell>
+                  </Table.Row>
+                ) : (
+                  currentList.map((item, idx) => (
+                    <Table.Row key={`${item.title}-${idx}`}>
+                      <Table.RowHeaderCell>
+                        <Text weight="medium">{item.title}</Text>
+                      </Table.RowHeaderCell>
+                      <Table.Cell>
+                        <Text size="2" color="gray">
+                          {item.url}
+                        </Text>
+                      </Table.Cell>
+                      <Table.Cell style={{ textAlign: 'right' }}>
+                        <IconButton
+                          size="1"
+                          variant="ghost"
+                          color="red"
+                          onClick={() => handleDelete(idx)}
+                          title="Remove link"
+                        >
+                          <TrashIcon width="16" height="16" />
+                        </IconButton>
+                      </Table.Cell>
+                    </Table.Row>
+                  ))
+                )}
               </Table.Body>
             </Table.Root>
 
@@ -147,8 +193,8 @@ export const Navigation: React.FC = () => {
                   <TextField.Root
                     size="2"
                     placeholder="e.g. Documentation"
-                    value={newLabel}
-                    onChange={(e) => setNewLabel(e.target.value)}
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
                   />
                 </Box>
                 <Box style={{ flex: 1 }}>

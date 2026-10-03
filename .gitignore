@@ -1,5 +1,6 @@
 /target
-.env
+.env*
+!.env.example
 .dev.vars
 .vscode/
 node_modules/
@@ -32,3 +33,4 @@ target/
 # Agent detritus
 fix_*
 *.logcoverage/
+**/coverage/*

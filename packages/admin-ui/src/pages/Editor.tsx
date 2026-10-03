@@ -20,6 +20,7 @@ import {
   Pencil1Icon,
 } from '@radix-ui/react-icons';
 import { MediaPickerModal } from '../components/MediaPickerModal';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 
 export const Editor: React.FC = () => {
@@ -37,7 +38,7 @@ export const Editor: React.FC = () => {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [isSaved, setIsSaved] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+
   const [previewToken, setPreviewToken] = useState<string | null>(null);
 
   const [description, setDescription] = useState('');
@@ -63,35 +64,43 @@ export const Editor: React.FC = () => {
     setPickerTarget(null);
   };
 
+  const { data: entryData } = useQuery({
+    queryKey: ['editorEntry', id],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/admin/editor/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch entry');
+      return res.json();
+    },
+    enabled: isEditing
+  });
+
+  const isInitialized = React.useRef(false);
+
   React.useEffect(() => {
-    if (!isEditing) return;
-    const loadEntry = async () => {
-      try {
-        const res = await apiFetch(`/api/admin/editor/${id}`);
-        if (!res || !res.ok) return;
-        const data = await res.json();
-        if (data?.entry) {
-          setTitle(data.entry.title || '');
-          setSlug(data.entry.slug || '');
-          setStatus(data.entry.status || 'draft');
-          setEntryType(data.entry.type || 'post');
-          setContent(data.entry.body_html || '');
-          setTags(data.entry.tags || '');
-          setDescription(data.entry.description || '');
-          setCategory(data.entry.category || '');
-          setCoverImage(data.entry.cover_image || '');
-          setCanonicalUrl(data.entry.canonical_url || '');
-          setSchemaJson(data.entry.schema_json || '');
+    if (entryData && !isInitialized.current) {
+        isInitialized.current = true;
+        if (entryData.entry) {
+          setTitle(entryData.entry.title || '');
+          setSlug(entryData.entry.slug || '');
+          setStatus(entryData.entry.status || 'draft');
+          setEntryType(entryData.entry.type || 'post');
+          setContent(entryData.entry.body_html || '');
+          setTags(entryData.entry.tags || '');
+          setDescription(entryData.entry.description || '');
+          setCategory(entryData.entry.category || '');
+          setCoverImage(entryData.entry.cover_image || '');
+          setCanonicalUrl(entryData.entry.canonical_url || '');
+          setSchemaJson(entryData.entry.schema_json || '');
         }
-        if (data?.latest_revision?.preview_token) {
-          setPreviewToken(data.latest_revision.preview_token);
+        if (entryData.latest_revision?.preview_token) {
+          setPreviewToken(entryData.latest_revision.preview_token);
         }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    loadEntry();
-  }, [id, isEditing]);
+    }
+  }, [entryData]);
+  
+  React.useEffect(() => {
+    isInitialized.current = false;
+  }, [id]);
 
   const handleStartEditTitle = () => {
     setTempTitle(title);
@@ -126,9 +135,36 @@ export const Editor: React.FC = () => {
     }
   };
 
+  const saveMutation = useMutation({
+    mutationFn: async ({ payload, method, url }: any) => {
+      console.error('MUTATION FN EXECUTING with url:', url, 'method:', method);
+      const res = await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+         const errData = await res.text();
+         throw new Error(errData || 'Save failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data, variables) => {
+        setStatus(variables.finalStatus);
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2500);
+        if (data.preview_token) {
+          setPreviewToken(data.preview_token);
+        }
+        if (!isEditing && data.id) {
+          navigate('/editor/' + data.id + '?type=' + entryType, { replace: true });
+        }
+    }
+  });
+
   const handleSave = async (publish = false, isPreview = false): Promise<string | null> => {
-    if (isSaving) return null;
-    setIsSaving(true);
+    console.error('handleSave called, isPending:', saveMutation.isPending);
+    // if (saveMutation.isPending) return null;
     const finalStatus = isPreview ? status : (publish ? 'published' : 'draft');
 
     const effectiveTitle = title.trim() || 'Untitled';
@@ -159,40 +195,21 @@ export const Editor: React.FC = () => {
       payload.draft_only = true;
     }
 
+    const url = isEditing ? `/api/entries/${id}` : `/api/entries`;
+    const method = isEditing ? 'PUT' : 'POST';
+
     try {
-      const url = isEditing ? `/api/entries/${id}` : `/api/entries`;
-      const method = isEditing ? 'PUT' : 'POST';
-      const res = await apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        setStatus(finalStatus);
-        setIsSaved(true);
-        setTimeout(() => setIsSaved(false), 2500);
-        const data = await res.json();
-        if (data.preview_token) {
-          setPreviewToken(data.preview_token);
-        }
-        if (!isEditing && data.id) {
-          navigate('/editor/' + data.id + '?type=' + entryType, { replace: true });
-        }
-        return data.preview_token || null;
-      } else {
-        const errData = await res.text();
-        console.error('Save failed:', errData);
-        return null;
-      }
+      console.error('Calling mutateAsync with url:', url, 'method:', method);
+      const data = await saveMutation.mutateAsync({ payload, method, url, finalStatus });
+      return data.preview_token || null;
     } catch (err) {
       console.error(err);
       return null;
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const handleTabChange = async (value: string) => {
+    console.error('handleTabChange called with value:', value);
     if (value === 'preview') {
       await handleSave(false, true);
     }
@@ -506,7 +523,7 @@ export const Editor: React.FC = () => {
                 />
               ) : (
                 <Flex align="center" justify="center" style={{ height: '100%', minHeight: '400px' }}>
-                  <Text color="gray">{isSaving ? 'Generating preview...' : 'No preview available'}</Text>
+                  <Text color="gray">{saveMutation.isPending ? 'Generating preview...' : 'No preview available'}</Text>
                 </Flex>
               )}
             </Box>

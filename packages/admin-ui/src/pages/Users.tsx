@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   Flex,
   Box,
@@ -24,6 +24,7 @@ import {
   ExternalLinkIcon,
   InfoCircledIcon,
 } from '@radix-ui/react-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 
 export interface UserItem {
@@ -41,18 +42,18 @@ export interface UserItem {
 }
 
 export const Users: React.FC = () => {
-  const [users, setUsers] = useState<UserItem[]>([]);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const { data: users = [], isLoading: loading, error: queryError } = useQuery<UserItem[]>({ queryKey: ['adminUsers'], queryFn: async () => { const res = await apiFetch('/api/admin/users'); if (res.ok) { const data = await res.json(); const userList: UserItem[] = Array.isArray(data) ? data : (data.users || []); return userList.filter((u) => !u.deleted_at); } else { const errText = await res.text(); throw new Error(errText || 'Failed to load users'); } } });
+  const fetchError = queryError ? (queryError as Error).message : null;
 
   // Invite/Create User Dialog State
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteDisplayName, setInviteDisplayName] = useState('');
   const [inviteRole, setInviteRole] = useState('author');
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
+  
 
   // Edit User Dialog State
   const [userToEdit, setUserToEdit] = useState<UserItem | null>(null);
@@ -61,40 +62,75 @@ export const Users: React.FC = () => {
   const [editBio, setEditBio] = useState('');
   const [editWebsite, setEditWebsite] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  
 
   // Delete User Dialog State
   const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
-  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    setFetchError(null);
-    try {
-      const res = await apiFetch('/api/admin/users');
-      if (res.ok) {
-        const data = await res.json();
-        const userList: UserItem[] = Array.isArray(data) ? data : (data.users || []);
-        // Only show non-deleted users
-        setUsers(userList.filter((u) => !u.deleted_at));
-      } else {
-        const errText = await res.text();
-        setFetchError(errText || 'Failed to load users');
-      }
-    } catch (err: any) {
-      setFetchError(err.message || 'Failed to load users');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  
 
   // Open Edit Modal
+  
+  const inviteMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      const res = await apiFetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let errMsg = 'Failed to invite user';
+        try { const errData = await res.json(); errMsg = errData.error || errData.message || errMsg; } catch { const txt = await res.text(); if (txt) errMsg = txt; }
+        throw new Error(errMsg);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<UserItem[]>(['adminUsers'], (old) => old ? [...old, data] : [data]);
+      setIsInviteOpen(false);
+      setInviteEmail('');
+      setInviteDisplayName('');
+      setInviteRole('author');
+    }
+  });
+
+  const editMutation = useMutation({
+    mutationFn: async ({ id, payload }: { id: number, payload: any }) => {
+      const res = await apiFetch(`/api/admin/users/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        let errMsg = 'Failed to update user';
+        try { const errData = await res.json(); errMsg = errData.error || errData.message || errMsg; } catch { const txt = await res.text(); if (txt) errMsg = txt; }
+        throw new Error(errMsg);
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData<UserItem[]>(['adminUsers'], (old) => old ? old.map(u => u.id === data.id ? data : u) : [data]);
+      setUserToEdit(null);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        let errMsg = 'Failed to delete user';
+        try { const errData = await res.json(); errMsg = errData.error || errData.message || errMsg; } catch { const txt = await res.text(); if (txt) errMsg = txt; }
+        throw new Error(errMsg);
+      }
+      return id;
+    },
+    onSuccess: (deletedId) => {
+      queryClient.setQueryData<UserItem[]>(['adminUsers'], (old) => old ? old.filter(u => u.id !== deletedId) : []);
+      setUserToDelete(null);
+    }
+  });
+
   const openEditModal = (user: UserItem) => {
     setUserToEdit(user);
     setEditDisplayName(user.display_name || '');
@@ -102,140 +138,40 @@ export const Users: React.FC = () => {
     setEditBio(user.bio || '');
     setEditWebsite(user.website || '');
     setEditAvatarUrl(user.avatar_url || '');
-    setEditError(null);
+    editMutation.reset();
   };
 
   // Submit Invite User
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) {
-      setInviteError('Email address is required');
-      return;
-    }
-
-    setInviteSubmitting(true);
-    setInviteError(null);
-
-    try {
-      const res = await apiFetch('/api/admin/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          display_name: inviteDisplayName.trim() || undefined,
-          role: inviteRole,
-        }),
-      });
-
-      if (res.ok) {
-        const createdUser: UserItem = await res.json();
-        setUsers((prev) => [...prev, createdUser]);
-        setIsInviteOpen(false);
-        setInviteEmail('');
-        setInviteDisplayName('');
-        setInviteRole('author');
-      } else {
-        let errMsg = 'Failed to invite user';
-        try {
-          const errData = await res.json();
-          errMsg = errData.error || errData.message || errMsg;
-        } catch {
-          const txt = await res.text();
-          if (txt) errMsg = txt;
-        }
-        setInviteError(errMsg);
-      }
-    } catch (err: any) {
-      setInviteError(err.message || 'Network error occurred');
-    } finally {
-      setInviteSubmitting(false);
-    }
+    if (!inviteEmail.trim()) return;
+    inviteMutation.mutate({
+      email: inviteEmail.trim(),
+      display_name: inviteDisplayName.trim() || undefined,
+      role: inviteRole,
+    });
   };
 
   // Submit Edit User
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!userToEdit) return;
-
-    setEditSubmitting(true);
-    setEditError(null);
-
-    try {
-      const res = await apiFetch(`/api/admin/users/${userToEdit.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role: editRole,
-          display_name: editDisplayName.trim() || null,
-          bio: editBio.trim() || null,
-          website: editWebsite.trim() || null,
-          avatar_url: editAvatarUrl.trim() || null,
-        }),
-      });
-
-      if (res.ok) {
-        const updatedUser: UserItem = await res.json().catch(() => ({
-          ...userToEdit,
-          role: editRole,
-          display_name: editDisplayName.trim() || null,
-          bio: editBio.trim() || null,
-          website: editWebsite.trim() || null,
-          avatar_url: editAvatarUrl.trim() || null,
-        }));
-
-        setUsers((prev) =>
-          prev.map((u) => (u.id === userToEdit.id ? { ...u, ...updatedUser } : u))
-        );
-        setUserToEdit(null);
-      } else {
-        let errMsg = 'Failed to update user';
-        try {
-          const errData = await res.json();
-          errMsg = errData.error || errData.message || errMsg;
-        } catch {
-          const txt = await res.text();
-          if (txt) errMsg = txt;
-        }
-        setEditError(errMsg);
+    editMutation.mutate({
+      id: userToEdit.id,
+      payload: {
+        role: editRole,
+        display_name: editDisplayName.trim() || null,
+        bio: editBio.trim() || null,
+        website: editWebsite.trim() || null,
+        avatar_url: editAvatarUrl.trim() || null,
       }
-    } catch (err: any) {
-      setEditError(err.message || 'Network error occurred');
-    } finally {
-      setEditSubmitting(false);
-    }
+    });
   };
 
   // Submit Delete User
   const handleDeleteSubmit = async () => {
     if (!userToDelete) return;
-
-    setDeleteSubmitting(true);
-    setDeleteError(null);
-
-    try {
-      const res = await apiFetch(`/api/admin/users/${userToDelete.id}`, {
-        method: 'DELETE',
-      });
-
-      if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
-        setUserToDelete(null);
-      } else {
-        let errMsg = 'Failed to delete user';
-        try {
-          const errData = await res.json();
-          errMsg = errData.error || errData.message || errMsg;
-        } catch {
-          const txt = await res.text();
-          if (txt) errMsg = txt;
-        }
-        setDeleteError(errMsg);
-      }
-    } catch (err: any) {
-      setDeleteError(err.message || 'Network error occurred');
-    } finally {
-      setDeleteSubmitting(false);
-    }
+    deleteMutation.mutate(userToDelete.id);
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -285,7 +221,7 @@ export const Users: React.FC = () => {
             Manage user accounts, roles, and profiles
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={() => { setIsInviteOpen(true); setInviteError(null); }}>
+        <Button variant="solid" color="iris" onClick={() => { setIsInviteOpen(true); inviteMutation.reset(); }}>
           <PlusIcon width="16" height="16" />
           Invite User
         </Button>
@@ -445,7 +381,7 @@ export const Users: React.FC = () => {
                         size="1"
                         variant="ghost"
                         color="red"
-                        onClick={() => { setUserToDelete(user); setDeleteError(null); }}
+                        onClick={() => { setUserToDelete(user); deleteMutation.reset(); }}
                         title="Delete User"
                         aria-label={`Delete ${user.display_name || user.email}`}
                       >
@@ -469,12 +405,12 @@ export const Users: React.FC = () => {
               Invite a new member to access Zygo CMS with designated permissions.
             </Dialog.Description>
 
-            {inviteError && (
+            {(inviteMutation.error as Error)?.message && (
               <Callout.Root color="red" size="1" mb="3">
                 <Callout.Icon>
                   <InfoCircledIcon />
                 </Callout.Icon>
-                <Callout.Text>{inviteError}</Callout.Text>
+                <Callout.Text>{(inviteMutation.error as Error)?.message}</Callout.Text>
               </Callout.Root>
             )}
 
@@ -520,7 +456,7 @@ export const Users: React.FC = () => {
 
             <Flex gap="3" justify="end">
               <Dialog.Close>
-                <Button variant="soft" color="gray" type="button" disabled={inviteSubmitting}>
+                <Button variant="soft" color="gray" type="button" disabled={inviteMutation.isPending}>
                   Cancel
                 </Button>
               </Dialog.Close>
@@ -528,9 +464,9 @@ export const Users: React.FC = () => {
                 variant="solid"
                 color="iris"
                 type="submit"
-                disabled={inviteSubmitting || !inviteEmail.trim()}
+                disabled={inviteMutation.isPending || !inviteEmail.trim()}
               >
-                {inviteSubmitting ? 'Inviting...' : 'Invite User'}
+                {inviteMutation.isPending ? 'Inviting...' : 'Invite User'}
               </Button>
             </Flex>
           </form>
@@ -546,12 +482,12 @@ export const Users: React.FC = () => {
               Update user details and permissions for {userToEdit?.email}.
             </Dialog.Description>
 
-            {editError && (
+            {(editMutation.error as Error)?.message && (
               <Callout.Root color="red" size="1" mb="3">
                 <Callout.Icon>
                   <InfoCircledIcon />
                 </Callout.Icon>
-                <Callout.Text>{editError}</Callout.Text>
+                <Callout.Text>{(editMutation.error as Error)?.message}</Callout.Text>
               </Callout.Root>
             )}
 
@@ -617,12 +553,12 @@ export const Users: React.FC = () => {
 
             <Flex gap="3" justify="end">
               <Dialog.Close>
-                <Button variant="soft" color="gray" type="button" disabled={editSubmitting}>
+                <Button variant="soft" color="gray" type="button" disabled={editMutation.isPending}>
                   Cancel
                 </Button>
               </Dialog.Close>
-              <Button variant="solid" color="iris" type="submit" disabled={editSubmitting}>
-                {editSubmitting ? 'Saving...' : 'Save Changes'}
+              <Button variant="solid" color="iris" type="submit" disabled={editMutation.isPending}>
+                {editMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </Flex>
           </form>
@@ -637,28 +573,28 @@ export const Users: React.FC = () => {
             Are you sure you want to delete &ldquo;{userToDelete?.display_name || userToDelete?.email}&rdquo;? This action will revoke their access to the CMS.
           </Dialog.Description>
 
-          {deleteError && (
+          {(deleteMutation.error as Error)?.message && (
             <Callout.Root color="red" size="1" mb="3">
               <Callout.Icon>
                 <InfoCircledIcon />
               </Callout.Icon>
-              <Callout.Text>{deleteError}</Callout.Text>
+              <Callout.Text>{(deleteMutation.error as Error)?.message}</Callout.Text>
             </Callout.Root>
           )}
 
           <Flex gap="3" justify="end">
             <Dialog.Close>
-              <Button variant="soft" color="gray" disabled={deleteSubmitting}>
+              <Button variant="soft" color="gray" disabled={deleteMutation.isPending}>
                 Cancel
               </Button>
             </Dialog.Close>
             <Button
               variant="solid"
               color="red"
-              disabled={deleteSubmitting}
+              disabled={deleteMutation.isPending}
               onClick={handleDeleteSubmit}
             >
-              {deleteSubmitting ? 'Deleting...' : 'Delete'}
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
           </Flex>
         </Dialog.Content>

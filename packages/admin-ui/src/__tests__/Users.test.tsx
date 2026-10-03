@@ -1,39 +1,42 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { render } from '../test/test-utils';
 import { Theme } from '@radix-ui/themes';
 import { Users, UserItem } from '../pages/Users';
 
 describe('Users Page Component', () => {
-  const mockUsers: UserItem[] = [
-    {
-      id: 1,
-      auth_provider_id: 'cf-access-1',
-      email: 'admin@zygodactyl.io',
-      display_name: 'Alice Admin',
-      role: 'admin',
-      bio: 'Platform administrator and lead engineer.',
-      website: 'https://zygodactyl.io',
-      avatar_url: 'https://example.com/alice.png',
-      created_at: '2026-08-01 10:00:00',
-      updated_at: '2026-08-01 10:00:00',
-      deleted_at: null,
-    },
-    {
-      id: 2,
-      auth_provider_id: 'cf-access-2',
-      email: 'bob@zygodactyl.io',
-      display_name: 'Bob Author',
-      role: 'author',
-      bio: 'Tech writer and documentation author.',
-      website: 'bobwriter.com',
-      avatar_url: null,
-      created_at: '2026-08-15 14:30:00',
-      updated_at: '2026-08-15 14:30:00',
-      deleted_at: null,
-    },
-  ];
+  let mockUsers: UserItem[] = [];
 
   beforeEach(() => {
+    mockUsers = [
+      {
+        id: 1,
+        auth_provider_id: 'cf-access-1',
+        email: 'admin@zygodactyl.io',
+        display_name: 'Alice Admin',
+        role: 'admin',
+        bio: 'Platform administrator and lead engineer.',
+        website: 'https://zygodactyl.io',
+        avatar_url: 'https://example.com/alice.png',
+        created_at: '2026-08-01 10:00:00',
+        updated_at: '2026-08-01 10:00:00',
+        deleted_at: null,
+      },
+      {
+        id: 2,
+        auth_provider_id: 'cf-access-2',
+        email: 'bob@zygodactyl.io',
+        display_name: 'Bob Author',
+        role: 'author',
+        bio: 'Tech writer and documentation author.',
+        website: 'bobwriter.com',
+        avatar_url: null,
+        created_at: '2026-08-15 14:30:00',
+        updated_at: '2026-08-15 14:30:00',
+        deleted_at: null,
+      },
+    ];
+
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string, options: any = {}) => {
@@ -63,6 +66,7 @@ describe('Users Page Component', () => {
             updated_at: '2026-10-01 12:00:00',
             deleted_at: null,
           };
+          mockUsers.push(newUser);
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve(newUser),
@@ -81,6 +85,8 @@ describe('Users Page Component', () => {
             avatar_url: body.avatar_url,
             updated_at: '2026-10-01 12:30:00',
           };
+          const index = mockUsers.findIndex(u => u.id === 1);
+          if (index !== -1) mockUsers[index] = updatedUser;
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve(updatedUser),
@@ -89,6 +95,8 @@ describe('Users Page Component', () => {
 
         // DELETE /api/admin/users/2
         if (url.includes('/api/admin/users/2') && method === 'DELETE') {
+          const index = mockUsers.findIndex(u => u.id === 2);
+          if (index !== -1) mockUsers.splice(index, 1);
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({ success: true, deleted: 2 }),

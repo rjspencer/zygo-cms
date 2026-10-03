@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import {
   Flex,
@@ -25,31 +26,23 @@ import {
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const [entries, setEntries] = useState<any[]>([]);
-  const [metricsData, setMetricsData] = useState<any>({});
-  const [, setLoading] = useState(true);
+  const { data: entries = [] } = useQuery({
+    queryKey: ['entries'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/entries');
+      if (!res.ok) throw new Error('Failed to fetch entries');
+      return res.json();
+    },
+  });
 
-  React.useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const [entriesRes, metricsRes] = await Promise.all([
-          apiFetch('/api/entries'),
-          apiFetch('/api/admin/dashboard')
-        ]);
-        if (entriesRes.ok && metricsRes.ok) {
-          const entriesData = await entriesRes.json();
-          const mData = await metricsRes.json();
-          setEntries(entriesData);
-          setMetricsData(mData);
-        }
-      } catch (err) {
-        console.error('Failed to fetch dashboard data', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboard();
-  }, []);
+  const { data: metricsData = {} } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/admin/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard data');
+      return res.json();
+    },
+  });
 
   const totalPosts = metricsData.post_count || 0;
   const totalPages = metricsData.page_count || 0;
@@ -135,7 +128,7 @@ export const Dashboard: React.FC = () => {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {recentEntries.map((entry) => (
+            {recentEntries.map((entry: any) => (
               <Table.Row key={entry.id}>
                 <Table.RowHeaderCell>
                   <Text weight="medium">{entry.title}</Text>

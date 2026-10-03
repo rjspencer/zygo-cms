@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Flex,
   Box,
@@ -12,18 +12,63 @@ import {
   Badge,
 } from '@radix-ui/themes';
 import { CheckIcon } from '@radix-ui/react-icons';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiFetch } from '../utils/api';
 
 export const Settings: React.FC = () => {
-  // TODO: Implement fetching and saving of site settings from the backend
-  const [siteTitle, setSiteTitle] = useState('Zygo CMS');
-  const [canonicalOrigin, setCanonicalOrigin] = useState('https://zygodactyl.io');
-  const [description, setDescription] = useState('Fast, modern edge CMS running on Cloudflare Workers and D1');
+  const queryClient = useQueryClient();
+
+  const { data: settingsData = {}, isLoading } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/settings');
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+  });
+
+  const [siteTitle, setSiteTitle] = useState('');
+  const [canonicalOrigin, setCanonicalOrigin] = useState('');
+  const [description, setDescription] = useState('');
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    if (settingsData) {
+      setSiteTitle(settingsData.site_title || 'Zygo CMS');
+      setCanonicalOrigin(settingsData.canonical_origin || 'https://zygodactyl.io');
+      setDescription(settingsData.description || 'Fast, modern edge CMS running on Cloudflare Workers and D1');
+    }
+  }, [settingsData]);
+
+  const updateSettingMutation = useMutation({
+    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+      const res = await apiFetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value }),
+      });
+      if (!res.ok) throw new Error(`Failed to save ${key}`);
+    },
+  });
+
+  const handleSave = async () => {
+    try {
+      await updateSettingMutation.mutateAsync({ key: 'site_title', value: siteTitle });
+      await updateSettingMutation.mutateAsync({ key: 'canonical_origin', value: canonicalOrigin });
+      await updateSettingMutation.mutateAsync({ key: 'description', value: description });
+      
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+    }
   };
+
+  if (isLoading) {
+    return <Box style={{ maxWidth: '900px', margin: '0 auto', padding: '20px' }}>Loading settings...</Box>;
+  }
 
   return (
     <Box style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -36,11 +81,13 @@ export const Settings: React.FC = () => {
             Configure global website and edge deployment parameters
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={handleSave}>
+        <Button variant="solid" color="iris" onClick={handleSave} disabled={updateSettingMutation.isPending}>
           {saved ? (
             <>
               <CheckIcon width="16" height="16" /> Saved!
             </>
+          ) : updateSettingMutation.isPending ? (
+            'Saving...'
           ) : (
             'Save Settings'
           )}

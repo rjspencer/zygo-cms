@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Flex,
   Box,
@@ -32,55 +33,53 @@ interface PostItem {
 
 export const Posts: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [posts, setPosts] = useState<PostItem[]>([]);
   const [postToDelete, setPostToDelete] = useState<PostItem | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        const res = await apiFetch('/api/entries');
-        if (res.ok) {
-          const data = await res.json();
-          const mapped = data
-            .filter((e: any) => e.type === 'post')
-            .map((e: any) => ({
-              id: e.id,
-              title: e.title,
-              slug: e.slug,
-              status: e.status,
-              date: (e.published_at || e.created_at || '').split(/[ T]/)[0] || (e.published_at || e.created_at || ''),
-            }));
-          setPosts(mapped);
-        }
-      } catch (err) {
-        console.error('Failed to fetch posts', err);
-      } finally {
-        setLoading(false);
+  const { data: posts = [], isLoading: loading } = useQuery<PostItem[]>({
+    queryKey: ['entries', 'posts'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/entries');
+      if (!res.ok) throw new Error('Failed to fetch posts');
+      const data = await res.json();
+      return data
+        .filter((e: any) => e.type === 'post')
+        .map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          slug: e.slug,
+          status: e.status,
+          date: (e.published_at || e.created_at || '').split(/[ T]/)[0] || (e.published_at || e.created_at || ''),
+        }));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error(await res.text());
       }
-    };
-    fetchPosts();
-  }, []);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+    },
+    onError: (err) => {
+      console.error('Delete failed', err);
+    },
+    onSettled: () => {
+      setPostToDelete(null);
+    },
+  });
 
   const filteredPosts = posts.filter((p) =>
     p.title.toLowerCase().includes(search.toLowerCase()) ||
     p.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDelete = async (id: number) => {
-    try {
-      const res = await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setPosts((prev) => prev.filter((p) => p.id !== id));
-      } else {
-        console.error('Delete failed', await res.text());
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setPostToDelete(null);
-    }
+  const handleDelete = (id: number) => {
+    deleteMutation.mutate(id);
   };
 
   const getStatusColor = (status: PostItem['status']) => {
