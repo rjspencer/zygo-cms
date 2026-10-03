@@ -23,6 +23,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/settings", handlers::api::update_setting)
         .get_async("/api/analytics", handlers::api::get_analytics)
         .get_async("/api/me", handlers::api::get_me)
+        .get_async("/api/auth/login", handlers::api::auth_login)
         
         // Admin API routes - Users
         .get_async("/api/admin/users", handlers::users::list_users)

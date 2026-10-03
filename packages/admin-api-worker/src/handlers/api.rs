@@ -554,3 +554,9 @@ pub async fn get_settings(req: Request, ctx: RouteContext<()>) -> Result<Respons
     
     Response::from_json(&serde_json::Value::Object(map))
 }
+
+pub async fn auth_login(req: Request, _ctx: RouteContext<()>) -> Result<Response> {
+    let url = req.url()?;
+    let next = url.query_pairs().find(|(k, _)| k == "next").map(|(_, v)| v.to_string()).unwrap_or_else(|| "https://admin.zygodactylstudios.com".to_string());
+    Response::redirect(worker::Url::parse(&next)?)
+}
