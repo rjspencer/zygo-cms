@@ -75,6 +75,11 @@ jobs:
           npm ci
           npm ci --prefix packages/admin-ui
 
+      - name: Inject API URL for UI Build
+        run: |
+          API_DOMAIN=$(grep -oE 'pattern = "[^"]+"' packages/admin-api-worker/wrangler.toml | head -n 1 | cut -d'"' -f2)
+          echo "VITE_API_BASE_URL=https://$API_DOMAIN" >> packages/admin-ui/.env.production
+
       - name: Build All Packages
         run: npm run build
 
