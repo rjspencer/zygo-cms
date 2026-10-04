@@ -142,6 +142,7 @@ describe('Setup Script Helpers', () => {
       const updated = fs.readFileSync(mockApiPath, 'utf8');
       expect(updated).toContain('database_id = "test-db-uuid-222"');
       expect(updated).toContain('pattern = "api.mytestdomain.com"');
+      expect(updated).toContain('PUBLIC_SUBDOMAIN = "www"');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
     });
 
@@ -239,6 +240,21 @@ describe('Setup Script Helpers', () => {
       updateAdminApiWrangler('mytestdomain.com', 'db-uuid-444', 'custom-api', mockApiPath);
       const updated = fs.readFileSync(mockApiPath, 'utf8');
       expect(updated).toContain('pattern = "custom-api.mytestdomain.com"');
+      expect(updated).toContain('PUBLIC_SUBDOMAIN = "www"');
+    });
+
+    it('updates admin-api-worker/wrangler.toml with custom public subdomain', () => {
+      const mockApiPath = path.join(testDir, 'admin-api-worker-custom-public.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\nroutes = []\n[vars]\nENVIRONMENT = "production"\n',
+        'utf8'
+      );
+
+      updateAdminApiWrangler('mytestdomain.com', 'db-uuid-444', 'custom-api', 'blog', mockApiPath);
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('pattern = "custom-api.mytestdomain.com"');
+      expect(updated).toContain('PUBLIC_SUBDOMAIN = "blog"');
     });
 
     it('updates admin-ui/wrangler.toml with custom ui subdomain', () => {
