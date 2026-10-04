@@ -10,6 +10,7 @@ import {
   TextArea,
   Separator,
   Badge,
+  Switch,
 } from '@radix-ui/themes';
 import { CheckIcon } from '@radix-ui/react-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -30,13 +31,15 @@ export const Settings: React.FC = () => {
   const [siteTitle, setSiteTitle] = useState('');
   const [canonicalOrigin, setCanonicalOrigin] = useState('');
   const [description, setDescription] = useState('');
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (settingsData) {
-      setSiteTitle(settingsData.site_title || 'Zygo CMS');
-      setCanonicalOrigin(settingsData.canonical_origin || 'https://zygodactyl.io');
-      setDescription(settingsData.description || 'Fast, modern edge CMS running on Cloudflare Workers and D1');
+      setSiteTitle(settingsData.site_title || '');
+      setCanonicalOrigin(settingsData.canonical_origin || '');
+      setDescription(settingsData.description || '');
+      setAnalyticsEnabled(settingsData.analytics_enabled === 'true');
     }
   }, [settingsData]);
 
@@ -56,6 +59,7 @@ export const Settings: React.FC = () => {
       await updateSettingMutation.mutateAsync({ key: 'site_title', value: siteTitle });
       await updateSettingMutation.mutateAsync({ key: 'canonical_origin', value: canonicalOrigin });
       await updateSettingMutation.mutateAsync({ key: 'description', value: description });
+      await updateSettingMutation.mutateAsync({ key: 'analytics_enabled', value: analyticsEnabled ? 'true' : 'false' });
       
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       
@@ -136,6 +140,24 @@ export const Settings: React.FC = () => {
               placeholder="Default description for search engines..."
             />
           </Box>
+        </Card>
+
+        {/* Analytics Settings */}
+        <Card size="2" mb="4">
+          <Heading size="3" mb="2">
+            Cloudflare Web Analytics
+          </Heading>
+          <Text size="2" color="gray" mb="3">
+            Enable pageview tracking using Cloudflare's privacy-first web analytics. You must also configure CF_API_TOKEN and CF_ZONE_ID in your worker secrets.
+          </Text>
+
+          <Flex align="center" gap="2">
+            <Switch 
+              checked={analyticsEnabled} 
+              onCheckedChange={setAnalyticsEnabled} 
+            />
+            <Text size="2">Enable Web Analytics</Text>
+          </Flex>
         </Card>
 
         {/* Edge Infrastructure Info */}
