@@ -196,6 +196,40 @@ describe('Admin API Worker Integration', () => {
         expect(deletedUserInList.deleted_at).toBeTruthy();
     });
 
+    it('handles settings retrieval with fallback canonical_origin and batch updates', async () => {
+        // 1. Get settings initially (check fallback canonical origin)
+        const getRes = await worker.fetch('/api/settings', { headers: getHeaders() });
+        expect(getRes.status).toBe(200);
+        const getJson = await getRes.json();
+        expect(getJson.canonical_origin).toBeDefined();
+
+        // 2. Batch update settings
+        const postRes = await worker.fetch('/api/settings', {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                settings: {
+                    site_title: 'My Batch Site',
+                    canonical_origin: 'https://custom.mysite.com',
+                    description: 'Batch description',
+                    analytics_enabled: 'true'
+                }
+            })
+        });
+        expect(postRes.status).toBe(200);
+        const postJson = await postRes.json();
+        expect(postJson.success).toBe(true);
+
+        // 3. Read back updated settings
+        const getUpdatedRes = await worker.fetch('/api/settings', { headers: getHeaders() });
+        expect(getUpdatedRes.status).toBe(200);
+        const updatedJson = await getUpdatedRes.json();
+        expect(updatedJson.site_title).toBe('My Batch Site');
+        expect(updatedJson.canonical_origin).toBe('https://custom.mysite.com');
+        expect(updatedJson.description).toBe('Batch description');
+        expect(updatedJson.analytics_enabled).toBe('true');
+    });
+
     it('bypasses Cloudflare Access verification and returns mock admin in dev mode', async () => {
         const devWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
             config: 'packages/admin-api-worker/wrangler.toml',

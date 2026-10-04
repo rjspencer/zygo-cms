@@ -464,10 +464,29 @@ pub async fn search_entries_api(req: Request, ctx: RouteContext<()>) -> Result<R
     Response::from_json(&results)
 }
 
+fn get_fallback_origin(req: &Request, env: &Env) -> Result<String> {
+    let req_url = req.url()?;
+    let host = req_url.host_str().unwrap_or("");
+    let root_domain = host.strip_prefix("api.").unwrap_or(host);
+    let public_sub = env.var("PUBLIC_SUBDOMAIN")
+        .map(|v| v.to_string())
+        .unwrap_or_else(|_| "www".to_string());
+    let origin = if public_sub.trim().is_empty() {
+        format!("https://{}", root_domain)
+    } else {
+        format!("https://{}.{}", public_sub.trim(), root_domain)
+    };
+    Ok(origin)
+}
+
 #[derive(serde::Deserialize)]
-struct UpdateSettingReq {
-    key: String,
-    value: String,
+struct UpdateSettingsReq {
+    #[serde(default)]
+    settings: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    key: Option<String>,
+    #[serde(default)]
+    value: Option<String>,
 }
 
 pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -476,13 +495,44 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
         return Response::error("Forbidden", 403);
     }
 
-    let payload: UpdateSettingReq = match req.json().await {
+    let payload: UpdateSettingsReq = match req.json().await {
         Ok(p) => p,
         Err(_) => return Response::error("Invalid JSON", 400),
     };
 
+    let mut to_update = std::collections::HashMap::new();
+    if let Some(s) = payload.settings {
+        to_update.extend(s);
+    }
+    if let (Some(k), Some(v)) = (payload.key, payload.value) {
+        to_update.insert(k, v);
+    }
+    if to_update.is_empty() {
+        return Response::error("No settings provided", 400);
+    }
+
     let db = ctx.env.d1("DB")?;
-    db::setting::set_setting(&db, &payload.key, &payload.value).await?;
+    for (k, v) in &to_update {
+        db::setting::set_setting(&db, k, v).await?;
+    }
+
+    let origin = if let Some(origin_val) = to_update.get("canonical_origin").filter(|s| !s.trim().is_empty()) {
+        origin_val.trim().trim_end_matches('/').to_string()
+    } else if let Ok(Some(setting)) = db::setting::get_setting(&db, "canonical_origin").await {
+        if !setting.value.trim().is_empty() {
+            setting.value.trim().trim_end_matches('/').to_string()
+        } else {
+            get_fallback_origin(&req, &ctx.env)?
+        }
+    } else {
+        get_fallback_origin(&req, &ctx.env)?
+    };
+
+    cache::purge_urls(&ctx.env, vec![
+        format!("{}/", origin),
+        format!("{}/sitemap.xml", origin),
+        format!("{}/rss.xml", origin),
+    ]).await;
 
     Response::from_json(&json!({ "success": true }))
 }
@@ -550,6 +600,16 @@ pub async fn get_settings(req: Request, ctx: RouteContext<()>) -> Result<Respons
     let mut map = serde_json::Map::new();
     for setting in settings {
         map.insert(setting.key, serde_json::Value::String(setting.value));
+    }
+
+    let needs_fallback = match map.get("canonical_origin") {
+        None => true,
+        Some(serde_json::Value::String(s)) => s.trim().is_empty(),
+        _ => false,
+    };
+    if needs_fallback {
+        let fallback_origin = get_fallback_origin(&req, &ctx.env)?;
+        map.insert("canonical_origin".to_string(), serde_json::Value::String(fallback_origin));
     }
     
     Response::from_json(&serde_json::Value::Object(map))

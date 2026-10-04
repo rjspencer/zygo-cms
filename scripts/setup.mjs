@@ -120,10 +120,15 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', customFilePath = null) {
+function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', publicSubdomain = 'www', customFilePath = null) {
   if (typeof apiSubdomain === 'string' && (apiSubdomain.endsWith('.toml') || apiSubdomain.includes('/') || apiSubdomain.includes('\\'))) {
     customFilePath = apiSubdomain;
     apiSubdomain = 'api';
+    publicSubdomain = 'www';
+  }
+  if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
+    customFilePath = publicSubdomain;
+    publicSubdomain = 'www';
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
@@ -135,6 +140,15 @@ function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', custom
   content = replaceOrInsertRoutes(content, routesStr);
 
   content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
+
+  const publicSub = publicSubdomain ?? 'www';
+  if (/PUBLIC_SUBDOMAIN\s*=\s*"[^"]*"/.test(content)) {
+    content = content.replace(/PUBLIC_SUBDOMAIN\s*=\s*"[^"]*"/, `PUBLIC_SUBDOMAIN = "${publicSub}"`);
+  } else if (/\[vars\]/.test(content)) {
+    content = content.replace(/\[vars\]/, `[vars]\nPUBLIC_SUBDOMAIN = "${publicSub}"`);
+  } else {
+    content += `\n[vars]\nPUBLIC_SUBDOMAIN = "${publicSub}"\n`;
+  }
 
   fs.writeFileSync(filePath, content, 'utf8');
 }
@@ -928,7 +942,7 @@ async function main() {
 
     s.start('Updating wrangler.toml configurations');
     updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling);
-    updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain);
+    updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain, config.publicSubdomain);
     updateAdminUiWrangler(config.domain, config.adminUiSubdomain);
     s.stop('✓ Updated wrangler configurations');
 
