@@ -58,8 +58,8 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
       console.error('Authentication failed after redirect. Please check your Cloudflare Access session.');
     } else {
       sessionStorage.setItem('login_redirect_attempt', 'true');
-      const apiHost = getApiUrl('');
-      window.location.href = `${apiHost}/api/auth/login?next=${encodeURIComponent(window.location.href)}`;
+      const loginUrl = getApiUrl('/api/auth/login');
+      window.location.href = `${loginUrl}?next=${encodeURIComponent(window.location.href)}`;
       // Prevent further execution while redirecting
       return new Promise(() => {});
     }
