@@ -35,6 +35,8 @@ export function getPublicSiteUrl(path: string = ''): string {
   return cleanBase ? `${cleanBase}/${cleanPath}` : `/${cleanPath}`;
 }
 
+let isRedirecting = false;
+
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const url = getApiUrl(path);
 
@@ -49,18 +51,20 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 
   const response = await fetch(url, mergedOptions);
 
-  // If Cloudflare Access or the backend returns 401 (due to expired session),
-  // or if the XHR transparently followed a 302 redirect and failed with 400 at the OAuth callback,
-  // redirect to the API's auth login endpoint to trigger Cloudflare Access login on the API domain.
   if ((response.status === 401 || (response.status === 400 && response.url && response.url.includes('/cdn-cgi/access/'))) && typeof window !== 'undefined') {
+    if (isRedirecting) {
+      return new Promise(() => {}); // Block concurrent calls during redirect
+    }
+
     if (sessionStorage.getItem('login_redirect_attempt')) {
-      sessionStorage.removeItem('login_redirect_attempt');
       console.error('Authentication failed after redirect. Please check your Cloudflare Access session.');
+      // Keep it set for a few seconds to block concurrent requests from clearing and re-redirecting
+      setTimeout(() => sessionStorage.removeItem('login_redirect_attempt'), 5000);
     } else {
+      isRedirecting = true;
       sessionStorage.setItem('login_redirect_attempt', 'true');
       const loginUrl = getApiUrl('/api/auth/login');
       window.location.href = `${loginUrl}?next=${encodeURIComponent(window.location.href)}`;
-      // Prevent further execution while redirecting
       return new Promise(() => {});
     }
   } else if (typeof window !== 'undefined' && response.ok) {

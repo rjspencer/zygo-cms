@@ -14,7 +14,7 @@ describe('Vite Proxy Configuration', () => {
 
     // Existing /api rule must remain intact
     expect(proxy['/api']).toBeDefined();
-    expect(proxy['/api'].target).toBe('http://127.0.0.1:8787');
+    expect(proxy['/api'].target).toBe('http://localhost:8787');
     expect(proxy['/api'].changeOrigin).toBe(true);
 
     // New media proxy rule must be present

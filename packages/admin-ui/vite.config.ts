@@ -22,7 +22,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/api': {
-          target: 'http://127.0.0.1:8787',
+          target: 'http://localhost:8787',
           changeOrigin: true,
         },
         '^/media/.*': {

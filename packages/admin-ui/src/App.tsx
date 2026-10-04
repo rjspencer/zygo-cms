@@ -12,6 +12,9 @@ import ContentTypes from './pages/ContentTypes';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import NotFound from './pages/NotFound';
+import TemplatesList from './pages/TemplatesList';
+import TemplateEditor from './pages/TemplateEditor';
+import RoleGuard from './components/RoleGuard';
 
 export const App: React.FC = () => {
   return (
@@ -26,6 +29,31 @@ export const App: React.FC = () => {
         <Route path="users" element={<Users />} />
         <Route path="navigation" element={<Navigation />} />
         <Route path="content-types" element={<ContentTypes />} />
+        <Route
+          path="admin/templates"
+          element={
+            <RoleGuard allowedRoles={['admin', 'designer']}>
+              <TemplatesList />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="admin/templates/:id"
+          element={
+            <RoleGuard allowedRoles={['admin', 'designer']}>
+              <TemplateEditor />
+            </RoleGuard>
+          }
+        />
+        <Route path="templates" element={<Navigate to="/admin/templates" replace />} />
+        <Route
+          path="templates/:id"
+          element={
+            <RoleGuard allowedRoles={['admin', 'designer']}>
+              <TemplateEditor />
+            </RoleGuard>
+          }
+        />
         <Route path="analytics" element={<Analytics />} />
         <Route path="settings" element={<Settings />} />
         <Route path="admin" element={<Navigate to="/" replace />} />

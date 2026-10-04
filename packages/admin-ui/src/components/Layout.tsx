@@ -28,6 +28,7 @@ import {
   MoonIcon,
   ExitIcon,
   PersonIcon,
+  LayoutIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
@@ -105,6 +106,7 @@ export const Layout: React.FC = () => {
     { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
     { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
     { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
+    { to: '/admin/templates', icon: <LayoutIcon width="18" height="18" />, label: 'Templates' },
     { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
     { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Navigation' },

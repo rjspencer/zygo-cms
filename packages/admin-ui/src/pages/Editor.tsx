@@ -12,12 +12,20 @@ import {
   Tabs,
   Badge,
   Grid,
+  Switch,
+  Select,
+  Card,
 } from '@radix-ui/themes';
 import {
   ArrowLeftIcon,
   CheckIcon,
   Cross2Icon,
   Pencil1Icon,
+  CaretUpIcon,
+  CaretDownIcon,
+  TrashIcon,
+  ChevronDownIcon,
+  ChevronRightIcon
 } from '@radix-ui/react-icons';
 import { MediaPickerModal } from '../components/MediaPickerModal';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -46,8 +54,20 @@ export const Editor: React.FC = () => {
   const [coverImage, setCoverImage] = useState('');
   const [canonicalUrl, setCanonicalUrl] = useState('');
   const [schemaJson, setSchemaJson] = useState('');
-  const [pickerTarget, setPickerTarget] = useState<'cover' | 'content' | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<'cover' | 'content' | { type: 'section', index: number, fieldName: string } | null>(null);
+  const [sections, setSections] = useState<any[]>([]);
+  const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
   const [cursorPos, setCursorPos] = useState<number | null>(null);
+
+  
+  const { data: contentTypes = [] } = useQuery({
+    queryKey: ['contentTypes'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/content-types');
+      if (!res.ok) throw new Error('Failed to fetch content types');
+      return res.json();
+    }
+  });
 
   const handleMediaSelect = (url: string, altText: string) => {
     if (pickerTarget === 'cover') {
@@ -59,6 +79,20 @@ export const Editor: React.FC = () => {
           return prev.slice(0, cursorPos) + markdownImage + prev.slice(cursorPos);
         }
         return prev + markdownImage;
+      });
+    } else if (typeof pickerTarget === 'object' && pickerTarget !== null && pickerTarget.type === 'section') {
+      setSections(prev => {
+        const newSections = [...prev];
+        if (newSections[pickerTarget.index]) {
+          newSections[pickerTarget.index] = {
+            ...newSections[pickerTarget.index],
+            data: {
+              ...newSections[pickerTarget.index].data,
+              [pickerTarget.fieldName]: url
+            }
+          };
+        }
+        return newSections;
       });
     }
     setPickerTarget(null);
@@ -91,6 +125,12 @@ export const Editor: React.FC = () => {
           setCoverImage(entryData.entry.cover_image || '');
           setCanonicalUrl(entryData.entry.canonical_url || '');
           setSchemaJson(entryData.entry.schema_json || '');
+          if (entryData.entry.body_json) {
+            try {
+              const parsed = JSON.parse(entryData.entry.body_json);
+              if (Array.isArray(parsed)) setSections(parsed);
+            } catch (e) {}
+          }
         }
         if (entryData.latest_revision?.preview_token) {
           setPreviewToken(entryData.latest_revision.preview_token);
@@ -186,8 +226,8 @@ export const Editor: React.FC = () => {
       cover_image: coverImage,
       canonical_url: canonicalUrl,
       schema_json: schemaJson,
-      body_html: content,
-      body_json: "{}",
+      body_html: entryType === 'page' ? "" : content,
+      body_json: entryType === 'page' ? JSON.stringify(sections) : "{}",
       tags
     };
 
@@ -345,6 +385,8 @@ export const Editor: React.FC = () => {
                 </TextField.Root>
               </Box>
 
+
+              {entryType === 'post' ? (
               <Box>
                 <Flex justify="between" align="center" mb="1">
                   <Text as="label" size="2" weight="bold">
@@ -373,6 +415,157 @@ export const Editor: React.FC = () => {
                   style={{ minHeight: '400px', fontFamily: 'monospace', fontSize: '14px' }}
                 />
               </Box>
+              ) : (
+                <Box>
+                  <Flex justify="between" align="center" mb="4">
+                    <Text as="label" size="2" weight="bold">
+                      Page Sections
+                    </Text>
+                    <Select.Root
+                      onValueChange={(typeId) => {
+                        setSections([...sections, { type_id: typeId, data: {} }]);
+                        setExpandedSections({ ...expandedSections, [sections.length]: true });
+                      }}
+                    >
+                      <Select.Trigger placeholder="Add Section..." />
+                      <Select.Content>
+                        {contentTypes.map((ct: any) => (
+                          <Select.Item key={ct.id} value={ct.id}>
+                            {ct.name}
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Root>
+                  </Flex>
+
+                  <Flex direction="column" gap="3">
+                    {sections.map((section, index) => {
+                      const ct = contentTypes.find((c: any) => c.id === section.type_id);
+                      let fields = [];
+                      try {
+                        if (ct && ct.schema_json) {
+                          fields = JSON.parse(ct.schema_json);
+                        }
+                      } catch (e) {}
+
+                      const isExpanded = expandedSections[index];
+
+                      return (
+                        <Card key={index} variant="surface" style={{ padding: '0' }}>
+                          <Flex align="center" justify="between" p="3" style={{ borderBottom: isExpanded ? '1px solid var(--gray-a4)' : 'none', backgroundColor: 'var(--gray-a2)' }}>
+                            <Flex align="center" gap="3">
+                              <IconButton
+                                size="1"
+                                variant="ghost"
+                                onClick={() => setExpandedSections({ ...expandedSections, [index]: !isExpanded })}
+                              >
+                                {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                              </IconButton>
+                              <Text weight="bold" size="2">
+                                {ct ? ct.name : section.type_id}
+                              </Text>
+                            </Flex>
+                            <Flex gap="2">
+                              <IconButton
+                                size="1"
+                                variant="soft"
+                                disabled={index === 0}
+                                onClick={() => {
+                                  const newSections = [...sections];
+                                  const temp = newSections[index - 1];
+                                  newSections[index - 1] = newSections[index];
+                                  newSections[index] = temp;
+                                  setSections(newSections);
+                                }}
+                              >
+                                <CaretUpIcon />
+                              </IconButton>
+                              <IconButton
+                                size="1"
+                                variant="soft"
+                                disabled={index === sections.length - 1}
+                                onClick={() => {
+                                  const newSections = [...sections];
+                                  const temp = newSections[index + 1];
+                                  newSections[index + 1] = newSections[index];
+                                  newSections[index] = temp;
+                                  setSections(newSections);
+                                }}
+                              >
+                                <CaretDownIcon />
+                              </IconButton>
+                              <IconButton
+                                size="1"
+                                variant="soft"
+                                color="red"
+                                onClick={() => {
+                                  setSections(sections.filter((_, i) => i !== index));
+                                }}
+                              >
+                                <TrashIcon />
+                              </IconButton>
+                            </Flex>
+                          </Flex>
+
+                          {isExpanded && (
+                            <Box p="4">
+                              <Flex direction="column" gap="4">
+                                {fields.length === 0 ? (
+                                  <Text size="2" color="gray">No fields defined in schema.</Text>
+                                ) : (
+                                  fields.map((field: any) => (
+                                    <Box key={field.name}>
+                                      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                                        {field.label || field.name}
+                                      </Text>
+                                      {field.type === 'boolean' ? (
+                                        <Switch
+                                          checked={!!section.data[field.name]}
+                                          onCheckedChange={(checked) => {
+                                            const newSections = [...sections];
+                                            if (!newSections[index].data) newSections[index].data = {};
+                                            newSections[index].data[field.name] = checked;
+                                            setSections(newSections);
+                                          }}
+                                        />
+                                      ) : field.type === 'image' ? (
+                                        <Flex gap="2" align="center">
+                                          <Button
+                                            type="button"
+                                            variant="soft"
+                                            onClick={() => setPickerTarget({ type: 'section', index, fieldName: field.name })}
+                                          >
+                                            Select Image
+                                          </Button>
+                                          {section.data[field.name] && (
+                                            <Text size="1" color="gray">{section.data[field.name]}</Text>
+                                          )}
+                                        </Flex>
+                                      ) : (
+                                        <TextField.Root
+                                          value={section.data[field.name] || ''}
+                                          onChange={(e) => {
+                                            const newSections = [...sections];
+                                            if (!newSections[index].data) newSections[index].data = {};
+                                            newSections[index].data[field.name] = e.target.value;
+                                            setSections(newSections);
+                                          }}
+                                          placeholder={`Enter ${field.label || field.name}`}
+                                        />
+                                      )}
+                                    </Box>
+                                  ))
+                                )}
+                              </Flex>
+                            </Box>
+                          )}
+                        </Card>
+                      );
+                    })}
+                  </Flex>
+                </Box>
+              )}
+
             </Flex>
           </Tabs.Content>
 
