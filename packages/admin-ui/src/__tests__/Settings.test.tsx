@@ -51,13 +51,47 @@ describe('Settings component', () => {
     });
   });
 
-  it('saves settings correctly', async () => {
+  it('disables save button when there are no changes, and enables when dirty', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        site_title: 'Test Title',
+        canonical_origin: 'https://test.example.com',
+        description: 'Test Description',
+        analytics_enabled: 'false',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <Settings />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
+    });
+
+    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+
+    const titleInput = screen.getByDisplayValue('Test Title');
+    await userEvent.type(titleInput, ' Updated');
+
+    expect(saveButton.disabled).toBe(false);
+  });
+
+  it('saves settings correctly with batch format', async () => {
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
         site_title: 'Test Title',
         canonical_origin: 'https://test.example.com',
         description: 'Test Description',
+        analytics_enabled: 'false',
       }),
     });
 
@@ -78,14 +112,64 @@ describe('Settings component', () => {
     await userEvent.clear(titleInput);
     await userEvent.type(titleInput, 'New Title');
 
+    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    await userEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            site_title: 'New Title',
+            canonical_origin: 'https://test.example.com',
+            description: 'Test Description',
+            analytics_enabled: 'false',
+          },
+        }),
+      });
+    });
+  });
+
+  it('displays user-facing error message when saving fails', async () => {
+    (apiFetch as any)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          site_title: 'Test Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          error: 'Database connection failed',
+        }),
+      });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <Settings />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
+    });
+
+    const titleInput = screen.getByDisplayValue('Test Title');
+    await userEvent.type(titleInput, ' Error Test');
+
     const saveButton = screen.getByRole('button', { name: /save settings/i });
     await userEvent.click(saveButton);
 
     await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith('/api/settings', expect.objectContaining({
-        method: 'POST',
-        body: expect.stringContaining('New Title'),
-      }));
+      expect(screen.getByText('Database connection failed')).toBeTruthy();
     });
   });
 });

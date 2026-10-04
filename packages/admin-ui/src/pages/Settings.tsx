@@ -11,8 +11,9 @@ import {
   Separator,
   Badge,
   Switch,
+  Callout,
 } from '@radix-ui/themes';
-import { CheckIcon } from '@radix-ui/react-icons';
+import { CheckIcon, InfoCircledIcon } from '@radix-ui/react-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 
@@ -33,6 +34,7 @@ export const Settings: React.FC = () => {
   const [description, setDescription] = useState('');
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (settingsData) {
@@ -43,30 +45,49 @@ export const Settings: React.FC = () => {
     }
   }, [settingsData]);
 
-  const updateSettingMutation = useMutation({
-    mutationFn: async ({ key, value }: { key: string; value: string }) => {
+  const isDirty =
+    siteTitle !== (settingsData.site_title || '') ||
+    canonicalOrigin !== (settingsData.canonical_origin || '') ||
+    description !== (settingsData.description || '') ||
+    analyticsEnabled !== (settingsData.analytics_enabled === 'true');
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: Record<string, string>) => {
       const res = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, value }),
+        body: JSON.stringify({ settings }),
       });
-      if (!res.ok) throw new Error(`Failed to save ${key}`);
+      if (!res.ok) {
+        let msg = 'Failed to save settings';
+        try {
+          const errData = await res.json();
+          if (errData?.error || errData?.message) {
+            msg = errData.error || errData.message;
+          }
+        } catch (_) {}
+        throw new Error(msg);
+      }
+      return res.json();
     },
   });
 
   const handleSave = async () => {
+    setError(null);
     try {
-      await updateSettingMutation.mutateAsync({ key: 'site_title', value: siteTitle });
-      await updateSettingMutation.mutateAsync({ key: 'canonical_origin', value: canonicalOrigin });
-      await updateSettingMutation.mutateAsync({ key: 'description', value: description });
-      await updateSettingMutation.mutateAsync({ key: 'analytics_enabled', value: analyticsEnabled ? 'true' : 'false' });
+      await updateSettingsMutation.mutateAsync({
+        site_title: siteTitle,
+        canonical_origin: canonicalOrigin,
+        description: description,
+        analytics_enabled: analyticsEnabled ? 'true' : 'false',
+      });
       
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-    } catch (error) {
-      console.error('Failed to save settings:', error);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to save settings');
     }
   };
 
@@ -85,18 +106,32 @@ export const Settings: React.FC = () => {
             Configure global website and edge deployment parameters
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={handleSave} disabled={updateSettingMutation.isPending}>
+        <Button
+          variant="solid"
+          color="iris"
+          onClick={handleSave}
+          disabled={!isDirty || updateSettingsMutation.isPending}
+        >
           {saved ? (
             <>
               <CheckIcon width="16" height="16" /> Saved!
             </>
-          ) : updateSettingMutation.isPending ? (
+          ) : updateSettingsMutation.isPending ? (
             'Saving...'
           ) : (
             'Save Settings'
           )}
         </Button>
       </Flex>
+
+      {error && (
+        <Callout.Root color="red" size="2" mb="4">
+          <Callout.Icon>
+            <InfoCircledIcon />
+          </Callout.Icon>
+          <Callout.Text>{error}</Callout.Text>
+        </Callout.Root>
+      )}
 
       <Flex direction="column" gap="4">
         {/* General Settings */}
