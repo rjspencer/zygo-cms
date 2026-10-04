@@ -9,7 +9,32 @@ use worker::*;
 
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
-    Router::new()
+    let req_url = req.url()?;
+    let host = req_url.host_str().unwrap_or("");
+    let root_domain = if host.starts_with("api.") {
+        host.strip_prefix("api.").unwrap_or(host)
+    } else {
+        host
+    };
+
+    let origin = req.headers().get("Origin")?.unwrap_or_default();
+    let is_valid_origin = origin.ends_with(root_domain) 
+        || origin.starts_with("http://localhost:") 
+        || origin.starts_with("http://127.0.0.1:");
+        
+    let allowed_origin = if is_valid_origin && !origin.is_empty() {
+        origin
+    } else {
+        format!("https://admin.{}", root_domain)
+    };
+    
+    let cors = Cors::new()
+        .with_credentials(true)
+        .with_origins(vec![allowed_origin])
+        .with_allowed_headers(vec!["*"])
+        .with_methods(vec![Method::Get, Method::Post, Method::Put, Method::Delete, Method::Options]);
+
+    let router = Router::new()
         // Admin routes
         .get_async("/api/admin/dashboard", handlers::admin::dashboard)
         .get_async("/api/admin/pages", handlers::admin::pages)
@@ -51,7 +76,6 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
-
         .get_async("/api/entries", handlers::api::get_entries)
         .get_async("/api/posts", handlers::api::get_posts)
         .post_async("/api/entries", handlers::api::create_entry)
@@ -63,10 +87,13 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/entries/:id/revisions", handlers::api::get_revisions)
         .get_async("/api/revisions/:id", handlers::api::get_revision)
         
+        // CORS preflight catch-all
+        .options("/*catchall", |_, _| Response::empty());
 
-        
-        .run(req, env)
-        .await
+    match router.run(req, env).await {
+        Ok(res) => Ok(res.with_cors(&cors)?),
+        Err(e) => Err(e),
+    }
 }
 
 #[event(scheduled)]
