@@ -52,7 +52,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
 
   describe('Inline-Editable Title Toggle', () => {
     it('renders the title as regular text in default mode with prominent styling and an edit icon button', () => {
-      renderEditor();
+      renderEditor('/editor/1');
 
       // Default mode displays regular text (e.g. "Untitled")
       const titleHeading = screen.getByRole('heading', { level: 1 });
@@ -74,7 +74,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
     });
 
     it('toggles to edit mode on edit icon click, revealing the input and save/cancel buttons', () => {
-      renderEditor();
+      renderEditor('/editor/1');
 
       const editButton = screen.getByRole('button', { name: /edit title/i });
       fireEvent.click(editButton);
@@ -94,7 +94,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
     });
 
     it('commits the new title and auto-generates slug when clicking the Save/Check button', () => {
-      renderEditor();
+      renderEditor('/editor/1');
 
       // Enter edit mode
       fireEvent.click(screen.getByRole('button', { name: /edit title/i }));
@@ -119,7 +119,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
     });
 
     it('reverts to the original title value and does not update slug when clicking Cancel', () => {
-      renderEditor();
+      renderEditor('/editor/1');
 
       // First set a known title
       fireEvent.click(screen.getByRole('button', { name: /edit title/i }));
@@ -151,7 +151,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
     });
 
     it('ensures all icon buttons only display icons and have accessible attributes', () => {
-      renderEditor();
+      renderEditor('/editor/1');
 
       // In default mode
       const editButton = screen.getByRole('button', { name: /edit title/i });
@@ -179,7 +179,7 @@ describe('Editor Component - Phase 1 Refinements', () => {
 
   describe('Content Tab Integrity', () => {
     it('removes the redundant title input from the content tab', () => {
-      renderEditor();
+      renderEditor('/editor/1');
       // In default mode, no title inputs exist
       expect(screen.queryByPlaceholderText('Enter title here...')).toBeNull();
 
@@ -849,8 +849,8 @@ describe('Editor Component - Phase 3 Routing, Title UX & Metadata Previews', () 
 
     expect(screen.getByText('Search & Social Previews')).toBeDefined();
     expect(screen.getByText('Google Search Result')).toBeDefined();
-    expect(screen.getByText('Slack / Social Card')).toBeDefined();
-    expect(screen.getByText('iMessage / Apple Message')).toBeDefined();
+    expect(screen.getByText('Slack Link Preview')).toBeDefined();
+    expect(screen.getByText('iMessage Preview')).toBeDefined();
   });
 });
 

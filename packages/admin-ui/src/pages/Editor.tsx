@@ -42,7 +42,7 @@ export const Editor: React.FC = () => {
 
   const isEditing = Boolean(id && id !== 'new');
   const [title, setTitle] = useState('');
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(!isEditing);
   const [tempTitle, setTempTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [status, setStatus] = useState<'published' | 'draft' | 'scheduled'>('draft');
