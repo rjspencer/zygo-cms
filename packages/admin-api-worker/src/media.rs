@@ -234,3 +234,28 @@ pub async fn sync_r2_to_d1(env: &worker::Env) -> Result<MediaSyncReport> {
         truncated,
     })
 }
+
+pub async fn get_media(key: &str, ctx: &RouteContext<()>) -> Result<Response> {
+    let bucket = ctx.env.bucket("MEDIA")?;
+    let object = bucket.get(key).execute().await?.ok_or(AppError::NotFound);
+
+    match object {
+        Ok(obj) => {
+            let headers = worker::Headers::new();
+
+            if let Some(ct) = obj.http_metadata().content_type {
+                headers.set("Content-Type", &ct)?;
+            }
+
+            headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
+
+            let Some(body) = obj.body() else {
+                return AppError::NotFound.to_response();
+            };
+            let bytes = body.bytes().await?;
+
+            Response::from_bytes(bytes).map(|res| res.with_headers(headers))
+        }
+        Err(err) => err.to_response(),
+    }
+}

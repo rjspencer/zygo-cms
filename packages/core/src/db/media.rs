@@ -65,13 +65,13 @@ pub async fn count_media(db: &D1Database, search: Option<&str>) -> Result<i64> {
     let count_res = match search.filter(|s| !s.trim().is_empty()) {
         Some(term) => {
             let pattern = format!("%{}%", term.trim());
-            db.prepare("SELECT COUNT(*) as count FROM media WHERE filename LIKE ?1")
+            db.prepare("SELECT COUNT(id) as count FROM media WHERE filename LIKE ?1")
                 .bind(&[JsValue::from(pattern)])?
                 .first::<CountResult>(None)
                 .await?
         }
         None => {
-            db.prepare("SELECT COUNT(*) as count FROM media")
+            db.prepare("SELECT COUNT(id) as count FROM media")
                 .first::<CountResult>(None)
                 .await?
         }

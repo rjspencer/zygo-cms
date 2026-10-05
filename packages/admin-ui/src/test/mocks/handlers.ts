@@ -4,6 +4,7 @@ export const mockDashboardMetrics = {
   post_count: 10,
   page_count: 5,
   author_count: 2,
+  media_count: 7,
   auth_url: '/cdn-cgi/access/logout?custom=true',
 };
 
@@ -151,6 +152,11 @@ export const mockMenus = {
 };
 
 export const handlers = [
+  // Health check for edge status
+  http.get('*/', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
+
   // Dashboard metrics
   http.get('*/api/admin/dashboard', () => {
     return HttpResponse.json(mockDashboardMetrics);

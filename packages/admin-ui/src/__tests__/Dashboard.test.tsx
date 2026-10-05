@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { render } from '../test/test-utils';
 import { server } from '../test/mocks/server';
+import { getPublicSiteUrl } from '../utils/api';
 import Dashboard from '../pages/Dashboard';
 
 describe('Dashboard Component Integration Tests', () => {
@@ -20,17 +21,28 @@ describe('Dashboard Component Integration Tests', () => {
     await waitFor(() => {
       expect(screen.getByText('10')).toBeInTheDocument(); // total posts
       expect(screen.getByText('5')).toBeInTheDocument(); // total pages
+      expect(screen.getByText('7')).toBeInTheDocument(); // total media files
     });
 
     expect(screen.getByText('Total Posts')).toBeInTheDocument();
     expect(screen.getByText('Total Pages')).toBeInTheDocument();
+    expect(screen.getByText('Media Files')).toBeInTheDocument();
     expect(screen.getByText('Edge Status')).toBeInTheDocument();
     expect(screen.getByText('Operational')).toBeInTheDocument();
 
-    // Verify recent content table rows from MSW /api/entries
+    // Verify recent content table rows from MSW /api/entries and links to live site
     expect(await screen.findByText('First Blog Post')).toBeInTheDocument();
     expect(screen.getByText('About Zygo')).toBeInTheDocument();
     expect(screen.getByText('Draft Announcement')).toBeInTheDocument();
+
+    // Verify live site links open in the same tab
+    const postLink = screen.getByRole('link', { name: 'First Blog Post' });
+    expect(postLink).toHaveAttribute('href', getPublicSiteUrl('/post/first-blog-post'));
+    expect(postLink).toHaveAttribute('target', '_self');
+
+    const pageLink = screen.getByRole('link', { name: 'About Zygo' });
+    expect(pageLink).toHaveAttribute('href', getPublicSiteUrl('/about-zygo'));
+    expect(pageLink).toHaveAttribute('target', '_self');
   });
 
   it('handles custom MSW responses dynamically', async () => {
@@ -106,5 +118,19 @@ describe('Dashboard Component Integration Tests', () => {
     // Ensure buttons are clickable without error
     await user.click(newPostBtn);
     await user.click(viewAllBtn);
+  });
+
+  it('displays Degraded edge status when public site health check returns non-200', async () => {
+    server.use(
+      http.get('*/', () => {
+        return new HttpResponse('Error', { status: 500 });
+      })
+    );
+
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Degraded')).toBeInTheDocument();
+    });
   });
 });

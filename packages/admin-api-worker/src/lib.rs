@@ -83,6 +83,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/media", handlers::api::list_media)
         .post_async("/api/media/sync", handlers::api::sync_media)
         .delete_async("/api/media/:key", handlers::api::delete_media)
+        .get_async("/media/:key", handlers::api::stream_media)
+        .get_async("/api/media/:key", handlers::api::stream_media)
         
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)

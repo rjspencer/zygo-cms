@@ -6,6 +6,7 @@ pub mod menu;
 pub mod revision;
 pub mod user;
 pub mod setting;
+pub mod dashboard;
 
 pub use section_template::*;
 pub use entry::*;
@@ -14,3 +15,4 @@ pub use menu::*;
 pub use revision::*;
 pub use user::*;
 pub use setting::*;
+pub use dashboard::*;

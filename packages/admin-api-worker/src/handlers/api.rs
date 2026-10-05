@@ -81,6 +81,14 @@ pub async fn delete_media(req: Request, ctx: RouteContext<()>) -> Result<Respons
     media::delete_media(key, &ctx).await
 }
 
+pub async fn stream_media(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let key = match ctx.param("key") {
+        Some(k) => k,
+        None => return Response::error("Missing key", 400),
+    };
+    media::get_media(key, &ctx).await
+}
+
 pub async fn get_entries(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
     let url = req.url()?;
