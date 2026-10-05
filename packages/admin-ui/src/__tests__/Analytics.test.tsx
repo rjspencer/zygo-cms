@@ -38,4 +38,22 @@ describe('Analytics Page', () => {
       expect(screen.getByText('Failed to load analytics data.')).toBeInTheDocument();
     });
   });
+
+  it('renders setup message with Cloudflare dashboard link when analytics returns 403', async () => {
+    server.use(
+      http.get('*/api/analytics', () => {
+        return new HttpResponse(null, { status: 403 });
+      })
+    );
+
+    renderWithProviders(<Analytics />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Cloudflare Web Analytics Not Enabled')).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText('Failed to load analytics data.')).not.toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /cloudflare dashboard/i });
+    expect(link).toHaveAttribute('href', 'https://dash.cloudflare.com/');
+  });
 });

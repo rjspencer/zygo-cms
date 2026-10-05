@@ -22,7 +22,6 @@ packages/admin-ui/
 │   │   └── ThemeModeContext.tsx # Light/Dark mode state management
 │   ├── pages/
 │   │   ├── Analytics.tsx   # Edge metrics & analytics
-│   │   ├── ContentTypes.tsx# Content types schema builder
 │   │   ├── Dashboard.tsx   # Overview dashboard with metrics & recent content
 │   │   ├── Editor.tsx      # Post/Page editor with tabs and metadata pane
 │   │   ├── Media.tsx       # Media library manager

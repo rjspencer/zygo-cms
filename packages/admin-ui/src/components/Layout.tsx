@@ -21,7 +21,6 @@ import {
   HamburgerMenuIcon,
   GearIcon,
   BarChartIcon,
-  Component1Icon,
   PlusIcon,
   ExternalLinkIcon,
   SunIcon,
@@ -110,7 +109,6 @@ export const Layout: React.FC = () => {
     { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
     { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Navigation' },
-    { to: '/content-types', icon: <Component1Icon width="18" height="18" />, label: 'Content Types' },
     { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },
     { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
   ];

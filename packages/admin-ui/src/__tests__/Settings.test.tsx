@@ -172,4 +172,30 @@ describe('Settings component', () => {
       expect(screen.getByText('Database connection failed')).toBeTruthy();
     });
   });
+
+  it('displays Public Site configured from VITE_PUBLIC_SITE_URL in edge environment card', async () => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        site_title: 'Test Title',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <Settings />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Public Site')).toBeTruthy();
+      expect(screen.getByText('https://zygodactylstudios.com')).toBeTruthy();
+    });
+
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
+  });
 });

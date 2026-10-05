@@ -178,20 +178,24 @@ export const Settings: React.FC = () => {
         </Card>
 
         {/* Analytics Settings */}
-        <Card size="2" mb="4">
-          <Heading size="3" mb="2">
-            Cloudflare Web Analytics
-          </Heading>
-          <Text size="2" color="gray" mb="3">
-            Enable pageview tracking using Cloudflare's privacy-first web analytics. You must also configure CF_API_TOKEN and CF_ZONE_ID in your worker secrets.
-          </Text>
+        <Card size="2">
+          <Flex justify="between" align="center" gap="4">
+            <Box style={{ flex: 1 }}>
+              <Heading size="3" mb="1">
+                Cloudflare Web Analytics
+              </Heading>
+              <Text size="2" color="gray">
+                Enable pageview tracking using Cloudflare's privacy-first web analytics. You must also configure CF_API_TOKEN and CF_ZONE_ID in your worker secrets.
+              </Text>
+            </Box>
 
-          <Flex align="center" gap="2">
-            <Switch 
-              checked={analyticsEnabled} 
-              onCheckedChange={setAnalyticsEnabled} 
-            />
-            <Text size="2">Enable Web Analytics</Text>
+            <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+              <Switch 
+                checked={analyticsEnabled} 
+                onCheckedChange={setAnalyticsEnabled} 
+              />
+              <Text size="2">Enable Web Analytics</Text>
+            </Flex>
           </Flex>
         </Card>
 
@@ -206,25 +210,34 @@ export const Settings: React.FC = () => {
 
           <Separator size="4" mb="3" />
 
-          <Flex justify="between" align="center" mb="2">
-            <Text size="2" weight="medium">
-              Admin UI Deployment
-            </Text>
-            <Badge color="iris">Cloudflare Pages</Badge>
-          </Flex>
+          <Flex direction="column" gap="2">
+            <Flex justify="between" align="center">
+              <Text size="2" weight="medium">
+                Admin UI Deployment
+              </Text>
+              <Badge color="iris">Cloudflare Pages</Badge>
+            </Flex>
 
-          <Flex justify="between" align="center" mb="2">
-            <Text size="2" weight="medium">
-              Backend Worker
-            </Text>
-            <Badge color="blue">admin-api-worker</Badge>
-          </Flex>
+            <Flex justify="between" align="center">
+              <Text size="2" weight="medium">
+                Public Site
+              </Text>
+              <Badge color="purple">{import.meta.env.VITE_PUBLIC_SITE_URL || 'Not configured'}</Badge>
+            </Flex>
 
-          <Flex justify="between" align="center">
-            <Text size="2" weight="medium">
-              Database
-            </Text>
-            <Badge color="green">Cloudflare D1 (SQLite)</Badge>
+            <Flex justify="between" align="center">
+              <Text size="2" weight="medium">
+                Backend Worker
+              </Text>
+              <Badge color="blue">admin-api-worker</Badge>
+            </Flex>
+
+            <Flex justify="between" align="center">
+              <Text size="2" weight="medium">
+                Database
+              </Text>
+              <Badge color="green">Cloudflare D1 (SQLite)</Badge>
+            </Flex>
           </Flex>
         </Card>
       </Flex>
