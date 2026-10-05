@@ -72,12 +72,13 @@ describe('TemplateEditor Component', () => {
     expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
 
     // Verify tabs are present
-    expect(screen.getByRole('tab', { name: /Schema \(JSON\)/i })).toBeDefined();
+    expect(screen.getByRole('tab', { name: /^Schema/i })).toBeDefined();
     expect(screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i })).toBeDefined();
     expect(screen.getByRole('tab', { name: /CSS/i })).toBeDefined();
 
-    // Schema tab is active by default
-    expect(screen.getByDisplayValue(mockTemplate.schema_json)).toBeDefined();
+    // Schema tab is active by default and renders VisualFieldBuilder fields
+    expect(screen.getByDisplayValue('Headline')).toBeDefined();
+    expect(screen.getByDisplayValue('headline')).toBeDefined();
 
     // Switch to HTML tab
     const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
@@ -232,6 +233,78 @@ describe('TemplateEditor Component', () => {
 
     // Click Force Save
     await userEvent.click(forceSaveBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/content-types/hero?force=true',
+        expect.objectContaining({
+          method: 'PUT',
+          body: expect.stringContaining('"force":true'),
+        })
+      );
+    });
+
+    // Modal should be closed and success callout visible
+    expect(await screen.findByText('Template saved successfully!')).toBeDefined();
+  });
+
+  it('400 Warning Confirmation: shows modal with warnings and allows Save Anyway with ?force=true', async () => {
+    (apiFetch as any).mockImplementation((url: string, options?: any) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types/hero' && options?.method === 'PUT') {
+        // First PUT returns 400 with requires_confirmation: true
+        return Promise.resolve({
+          ok: false,
+          status: 400,
+          json: async () => ({
+            requires_confirmation: true,
+            warnings: [
+              "Schema field 'unused_field' is defined in schema but never used in template HTML",
+            ],
+          }),
+        });
+      }
+      if (url === '/api/content-types/hero?force=true' && options?.method === 'PUT') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        });
+      }
+      if (url === '/api/content-types/hero') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockTemplate,
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderComponent();
+
+    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+
+    const saveBtn = screen.getByRole('button', { name: /Save Template/i });
+    await userEvent.click(saveBtn);
+
+    // Modal should appear with warnings
+    expect(await screen.findByText('Template Warnings')).toBeDefined();
+    expect(
+      screen.getByText(
+        "Schema field 'unused_field' is defined in schema but never used in template HTML"
+      )
+    ).toBeDefined();
+
+    // Modal should have "Save Anyway" button
+    const saveAnywayBtn = screen.getByRole('button', { name: /Save Anyway/i });
+    expect(saveAnywayBtn).toBeDefined();
+
+    // Click "Save Anyway"
+    await userEvent.click(saveAnywayBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(

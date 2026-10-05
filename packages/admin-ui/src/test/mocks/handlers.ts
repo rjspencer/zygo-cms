@@ -85,6 +85,54 @@ export const mockContentTypes = [
   { id: 'page', name: 'Page', description: 'Static page', schema_json: '{}' },
 ];
 
+export const mockSectionTemplates = [
+  {
+    id: 'hero',
+    name: 'Hero',
+    description: 'Hero banner section',
+    schema_json: JSON.stringify([
+      { name: 'headline', type: 'text', label: 'Headline', required: true },
+      { name: 'subheadline', type: 'text', label: 'Subheadline' },
+      { name: 'image', type: 'image', label: 'Image' },
+    ]),
+    template_html: '<section><h1>{{ headline }}</h1></section>',
+    template_css: '.hero { padding: 2rem; }',
+    is_locked: true,
+  },
+  {
+    id: 'text',
+    name: 'Text',
+    description: 'Rich text content section',
+    schema_json: JSON.stringify([
+      { name: 'content', type: 'richtext', label: 'Content' },
+    ]),
+    template_html: '<section>{{ content | safe }}</section>',
+    template_css: '',
+    is_locked: true,
+  },
+  {
+    id: 'feature_grid',
+    name: 'Feature Grid',
+    description: 'Grid of features with list',
+    schema_json: JSON.stringify([
+      { name: 'title', type: 'text', label: 'Section Title' },
+      {
+        name: 'features',
+        type: 'list',
+        label: 'Features',
+        fields: [
+          { name: 'feature_title', type: 'text', label: 'Feature Title' },
+          { name: 'description', type: 'textarea', label: 'Description' },
+          { name: 'icon', type: 'image', label: 'Icon' },
+        ],
+      },
+    ]),
+    template_html: '<section><h2>{{ title }}</h2></section>',
+    template_css: '',
+    is_locked: false,
+  },
+];
+
 export const mockMenus = {
   header: {
     id: '1',
@@ -139,6 +187,27 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
   http.delete('*/api/content-types/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  // Section Templates
+  http.get('*/api/section-templates', () => {
+    return HttpResponse.json(mockSectionTemplates);
+  }),
+  http.get('*/api/section-templates/:id', ({ params }) => {
+    const item = mockSectionTemplates.find((t) => t.id === params.id);
+    if (!item) {
+      return new HttpResponse('Not found', { status: 404 });
+    }
+    return HttpResponse.json(item);
+  }),
+  http.post('*/api/section-templates/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+  http.put('*/api/section-templates/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+  http.delete('*/api/section-templates/:id', () => {
     return HttpResponse.json({ success: true });
   }),
 

@@ -181,6 +181,10 @@ pub async fn navigation(req: Request, ctx: RouteContext<()>) -> Result<Response>
     }))
 }
 
+pub async fn section_templates(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    content_types(req, ctx).await
+}
+
 pub async fn content_types(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
     let auth_url = get_auth_url(&ctx.env);

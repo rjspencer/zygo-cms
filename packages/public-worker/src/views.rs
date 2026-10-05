@@ -1,5 +1,5 @@
 use minijinja::{AutoEscape, Environment};
-use zygo_core::models::{BreadcrumbItem, ContentType, Entry, EntryRevision, MenuItem, Pagination};
+use zygo_core::models::{BreadcrumbItem, ContentType, SectionTemplate, Entry, EntryRevision, MenuItem, Pagination};
 
 const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
 <html lang="en">
@@ -66,6 +66,9 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
     <link rel="stylesheet" href="/style.css">
+    {% if template_css %}
+    <style>{{ template_css|safe }}</style>
+    {% endif %}
 </head>
 <body>
     <header>
@@ -86,9 +89,13 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
             {% endif %}
             <h1>{{ post.title }}</h1>
             <div class="post-meta">Published on {{ post.display_date }}</div>
+            {% if sections_html %}
+            {{ sections_html|safe }}
+            {% else %}
             <div class="prose">
                 {{ post.body_html|safe }}
             </div>
+            {% endif %}
         </article>
     </main>
     <footer>
@@ -110,6 +117,9 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
     <link rel="stylesheet" href="/style.css">
+    {% if template_css %}
+    <style>{{ template_css|safe }}</style>
+    {% endif %}
 </head>
 <body>
     <header>
@@ -138,9 +148,13 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
             <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}">
             {% endif %}
             <h1>{{ page.title }}</h1>
+            {% if sections_html %}
+            {{ sections_html|safe }}
+            {% else %}
             <div class="prose">
                 {{ page.body_html|safe }}
             </div>
+            {% endif %}
             {% if children %}
             <aside class="subpages-nav">
                 <h2>In this section</h2>
@@ -291,9 +305,100 @@ pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value 
     val
 }
 
-fn create_env<'a>(content_types: &'a [ContentType]) -> worker::Result<Environment<'a>> {
+pub fn video_embed_filter(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    if trimmed.contains("youtube.com") || trimmed.contains("youtu.be") || trimmed.contains("youtube-nocookie.com") {
+        if let Some(id) = extract_youtube_id(trimmed) {
+            return format!("https://www.youtube-nocookie.com/embed/{}", id);
+        }
+    }
+
+    if trimmed.contains("vimeo.com") {
+        if let Some(id) = extract_vimeo_id(trimmed) {
+            return format!("https://player.vimeo.com/video/{}", id);
+        }
+    }
+
+    String::new()
+}
+
+fn extract_youtube_id(url: &str) -> Option<&str> {
+    if let Some(idx) = url.find("youtu.be/") {
+        let rest = &url[idx + "youtu.be/".len()..];
+        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
+        let id = &rest[..end];
+        if !id.is_empty() {
+            return Some(id);
+        }
+    }
+
+    if let Some(idx) = url.find("/embed/") {
+        let rest = &url[idx + "/embed/".len()..];
+        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
+        let id = &rest[..end];
+        if !id.is_empty() {
+            return Some(id);
+        }
+    }
+
+    if let Some(idx) = url.find("/shorts/") {
+        let rest = &url[idx + "/shorts/".len()..];
+        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
+        let id = &rest[..end];
+        if !id.is_empty() {
+            return Some(id);
+        }
+    }
+
+    if let Some(idx) = url.find("v=") {
+        let rest = &url[idx + 2..];
+        let end = rest.find(|c: char| c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
+        let id = &rest[..end];
+        if !id.is_empty() {
+            return Some(id);
+        }
+    }
+
+    None
+}
+
+fn extract_vimeo_id(url: &str) -> Option<&str> {
+    if let Some(idx) = url.find("/video/") {
+        let rest = &url[idx + "/video/".len()..];
+        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
+        let id = &rest[..end];
+        if !id.is_empty() {
+            return Some(id);
+        }
+    }
+
+    let without_query = match url.split_once('?') {
+        Some((p, _)) => p,
+        None => url,
+    };
+    let without_hash = match without_query.split_once('#') {
+        Some((p, _)) => p,
+        None => without_query,
+    };
+    let last = without_hash.trim_end_matches('/').rsplit('/').next()?;
+    if !last.is_empty() && last.chars().all(|c| c.is_ascii_digit()) {
+        return Some(last);
+    }
+
+    None
+}
+
+fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<Environment<'a>> {
     let mut env = Environment::new();
     env.set_auto_escape_callback(|_| AutoEscape::Html);
+
+    env.add_filter("video_embed", |v: minijinja::Value| -> String {
+        video_embed_filter(v.as_str().unwrap_or_default())
+    });
 
     // Register built-in default templates
     let _ = env.add_template("index", DEFAULT_INDEX);
@@ -303,19 +408,68 @@ fn create_env<'a>(content_types: &'a [ContentType]) -> worker::Result<Environmen
     let _ = env.add_template("sitemap", DEFAULT_SITEMAP);
     let _ = env.add_template("rss", DEFAULT_RSS);
 
-    // Iterate over content_types and add each content_type's template_html to the environment
-    for ct in content_types {
-        let tmpl = ct.template_html.as_deref().unwrap_or_default();
+    // Iterate over section_templates and add each template_html to the environment.
+    // Skip broken templates instead of returning an error.
+    for st in section_templates {
+        let tmpl = st.template_html.as_deref().unwrap_or_default();
         if !tmpl.trim().is_empty() {
-            env.add_template(&ct.id, tmpl)
-                .map_err(|e| worker::Error::RustError(e.to_string()))?;
-        } else if env.get_template(&ct.id).is_err() {
-            env.add_template(&ct.id, tmpl)
-                .map_err(|e| worker::Error::RustError(e.to_string()))?;
+            let _ = env.add_template(&st.id, tmpl);
+        } else if env.get_template(&st.id).is_err() {
+            let _ = env.add_template(&st.id, tmpl);
         }
     }
 
     Ok(env)
+}
+
+fn render_sections(
+    env: &Environment,
+    section_templates: &[SectionTemplate],
+    parsed_body: &serde_json::Value,
+) -> (String, Option<String>) {
+    let mut sections_html = String::new();
+    let mut used_template_ids: Vec<String> = Vec::new();
+
+    if let serde_json::Value::Array(sections) = parsed_body {
+        for section in sections {
+            let type_id = section
+                .get("type_id")
+                .or_else(|| section.get("template_id"))
+                .or_else(|| section.get("type"))
+                .and_then(|v| v.as_str());
+
+            if let Some(tid) = type_id {
+                if let Ok(tmpl) = env.get_template(tid) {
+                    let section_data = section.get("data").unwrap_or(section);
+                    if let Ok(rendered) = tmpl.render(section_data) {
+                        sections_html.push_str(&rendered);
+                        if !used_template_ids.iter().any(|id| id == tid) {
+                            used_template_ids.push(tid.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let mut used_css = Vec::new();
+    for tid in &used_template_ids {
+        if let Some(st) = section_templates.iter().find(|t| &t.id == tid) {
+            if let Some(ref css) = st.template_css {
+                let trimmed = css.trim();
+                if !trimmed.is_empty() {
+                    used_css.push(trimmed);
+                }
+            }
+        }
+    }
+    let template_css = if !used_css.is_empty() {
+        Some(used_css.join("\n"))
+    } else {
+        None
+    };
+
+    (sections_html, template_css)
 }
 
 fn render_template(
@@ -559,10 +713,21 @@ fn render_post_internal(
 
     ctx.insert("body".to_string(), parsed_body.clone());
     ctx.insert("body_data".to_string(), parsed_body.clone());
-    ctx.insert("body_json".to_string(), parsed_body);
+    ctx.insert("body_json".to_string(), parsed_body.clone());
 
     ctx.insert("entry".to_string(), entry_val.clone());
     ctx.insert("post".to_string(), entry_val);
+
+    let (sections_html, template_css) = render_sections(&env, content_types, &parsed_body);
+    ctx.insert(
+        "sections_html".to_string(),
+        serde_json::Value::String(sections_html),
+    );
+    if let Some(css) = template_css {
+        ctx.insert("template_css".to_string(), serde_json::Value::String(css));
+    } else {
+        ctx.insert("template_css".to_string(), serde_json::Value::Null);
+    }
 
     if let Some(rev) = preview {
         ctx.insert(
@@ -665,7 +830,7 @@ fn render_page_internal(
 
     ctx.insert("body".to_string(), parsed_body.clone());
     ctx.insert("body_data".to_string(), parsed_body.clone());
-    ctx.insert("body_json".to_string(), parsed_body);
+    ctx.insert("body_json".to_string(), parsed_body.clone());
 
     ctx.insert("entry".to_string(), entry_val.clone());
     ctx.insert("page".to_string(), entry_val);
@@ -680,6 +845,17 @@ fn render_page_internal(
         .map(|c| entry_to_context_value(c, origin))
         .collect();
     ctx.insert("children".to_string(), serde_json::Value::Array(children_vals));
+
+    let (sections_html, template_css) = render_sections(&env, content_types, &parsed_body);
+    ctx.insert(
+        "sections_html".to_string(),
+        serde_json::Value::String(sections_html),
+    );
+    if let Some(css) = template_css {
+        ctx.insert("template_css".to_string(), serde_json::Value::String(css));
+    } else {
+        ctx.insert("template_css".to_string(), serde_json::Value::Null);
+    }
 
     if let Some(rev) = preview {
         ctx.insert(
@@ -1005,5 +1181,161 @@ mod tests {
 
         let search_html = render_search_html(&content_types, "test", &posts, &[], &[]).unwrap();
         assert!(search_html.contains("Search"));
+    }
+
+    #[test]
+    fn test_video_embed_filter() {
+        // YouTube formats
+        assert_eq!(
+            video_embed_filter("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            video_embed_filter("https://youtu.be/dQw4w9WgXcQ?t=10s"),
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            video_embed_filter("https://www.youtube.com/embed/dQw4w9WgXcQ"),
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            video_embed_filter("https://www.youtube.com/shorts/dQw4w9WgXcQ"),
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+        );
+        assert_eq!(
+            video_embed_filter("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"),
+            "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+        );
+
+        // Vimeo formats
+        assert_eq!(
+            video_embed_filter("https://vimeo.com/123456789"),
+            "https://player.vimeo.com/video/123456789"
+        );
+        assert_eq!(
+            video_embed_filter("https://player.vimeo.com/video/123456789?h=abcd"),
+            "https://player.vimeo.com/video/123456789"
+        );
+        assert_eq!(
+            video_embed_filter("https://vimeo.com/123456789?param=value"),
+            "https://player.vimeo.com/video/123456789"
+        );
+
+        // Non-video or unsupported URLs
+        assert_eq!(video_embed_filter("https://example.com/video.mp4"), "");
+        assert_eq!(video_embed_filter("https://dailymotion.com/video/x7"), "");
+        assert_eq!(video_embed_filter(""), "");
+        assert_eq!(video_embed_filter("   "), "");
+    }
+
+    #[test]
+    fn test_render_page_sections_and_css_inlining() {
+        let hero_st = SectionTemplate {
+            id: "hero".to_string(),
+            name: "Hero Section".to_string(),
+            template_html: Some("<section class=\"hero-section\"><h1>{{ headline }}</h1><p>{{ subtitle }}</p></section>".to_string()),
+            template_css: Some(".hero-section { background: #000; color: #fff; }".to_string()),
+            ..Default::default()
+        };
+
+        let text_st = SectionTemplate {
+            id: "text".to_string(),
+            name: "Text Section".to_string(),
+            template_html: Some("<section class=\"text-section\"><div>{{ content|safe }}</div></section>".to_string()),
+            template_css: Some(".text-section { padding: 2rem; }".to_string()),
+            ..Default::default()
+        };
+
+        let unused_st = SectionTemplate {
+            id: "faq".to_string(),
+            name: "FAQ Section".to_string(),
+            template_html: Some("<section class=\"faq-section\"><h2>FAQ</h2></section>".to_string()),
+            template_css: Some(".faq-section { background: yellow; }".to_string()),
+            ..Default::default()
+        };
+
+        let templates = vec![hero_st, text_st, unused_st];
+
+        let mut page = dummy_page();
+        page.body_json = serde_json::json!([
+            {
+                "type_id": "hero",
+                "data": {
+                    "headline": "Welcome to Zygo",
+                    "subtitle": "Blazing fast edge CMS"
+                }
+            },
+            {
+                "type": "text",
+                "data": {
+                    "content": "<p>This is rendered from section template.</p>"
+                }
+            }
+        ]).to_string();
+
+        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[]).unwrap();
+
+        // Check rendered section content
+        assert!(html.contains("<section class=\"hero-section\"><h1>Welcome to Zygo</h1><p>Blazing fast edge CMS</p></section>"));
+        assert!(html.contains("<section class=\"text-section\"><div><p>This is rendered from section template.</p></div></section>"));
+
+        // Check CSS inlining only for used sections
+        assert!(html.contains(".hero-section { background: #000; color: #fff; }"));
+        assert!(html.contains(".text-section { padding: 2rem; }"));
+        assert!(!html.contains(".faq-section { background: yellow; }"));
+    }
+
+    #[test]
+    fn test_skip_missing_or_failing_section_templates() {
+        let valid_st = SectionTemplate {
+            id: "hero".to_string(),
+            name: "Hero".to_string(),
+            template_html: Some("<div class=\"hero\">{{ headline }}</div>".to_string()),
+            template_css: Some(".hero { color: red; }".to_string()),
+            ..Default::default()
+        };
+
+        let templates = vec![valid_st];
+
+        let mut page = dummy_page();
+        page.body_json = serde_json::json!([
+            {
+                "type_id": "non_existent_section",
+                "data": { "foo": "bar" }
+            },
+            {
+                "type_id": "hero",
+                "data": { "headline": "Hero Survived" }
+            }
+        ]).to_string();
+
+        // Rendering page must succeed and skip missing section
+        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[]).unwrap();
+        assert!(html.contains("<div class=\"hero\">Hero Survived</div>"));
+        assert!(!html.contains("non_existent_section"));
+    }
+
+    #[test]
+    fn test_create_env_skips_broken_templates() {
+        let broken_st = SectionTemplate {
+            id: "broken".to_string(),
+            name: "Broken Template".to_string(),
+            template_html: Some("{% if unclosed_tag %}<p>fail".to_string()),
+            ..Default::default()
+        };
+
+        let valid_st = SectionTemplate {
+            id: "valid".to_string(),
+            name: "Valid Template".to_string(),
+            template_html: Some("<p>Success</p>".to_string()),
+            ..Default::default()
+        };
+
+        let templates = vec![broken_st, valid_st];
+        let env_res = create_env(&templates);
+        assert!(env_res.is_ok(), "create_env must succeed even with broken templates");
+        let env = env_res.unwrap();
+        assert!(env.get_template("valid").is_ok());
+        assert!(env.get_template("broken").is_err());
     }
 }

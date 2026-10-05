@@ -42,6 +42,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/admin/editor", handlers::admin::editor)
         .get_async("/api/admin/editor/:id", handlers::admin::editor_id)
         .get_async("/api/admin/navigation", handlers::admin::navigation)
+        .get_async("/api/admin/section-templates", handlers::admin::section_templates)
         .get_async("/api/admin/content-types", handlers::admin::content_types)
         .get_async("/api/admin/analytics", handlers::admin::analytics)
         .get_async("/api/settings", handlers::api::get_settings)
@@ -61,12 +62,21 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/menus/:name", handlers::api::get_menu)
         .put_async("/api/menus/:name", handlers::api::put_menu)
         
-        // API routes - Content Types
-        .get_async("/api/content-types", handlers::content_type::list_content_types)
-        .get_async("/api/content-types/:id", handlers::content_type::get_content_type)
-        .post_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
-        .put_async("/api/content-types/:id", handlers::content_type::upsert_content_type)
-        .delete_async("/api/content-types/:id", handlers::content_type::delete_content_type)
+        // API routes - Section Templates
+        .get_async("/api/section-templates", handlers::section_templates::list_section_templates)
+        .post_async("/api/section-templates", handlers::section_templates::upsert_section_template)
+        .get_async("/api/section-templates/:id", handlers::section_templates::get_section_template)
+        .post_async("/api/section-templates/:id", handlers::section_templates::upsert_section_template)
+        .put_async("/api/section-templates/:id", handlers::section_templates::upsert_section_template)
+        .delete_async("/api/section-templates/:id", handlers::section_templates::delete_section_template)
+
+        // Backwards compatibility aliases for Content Types
+        .get_async("/api/content-types", handlers::section_templates::list_section_templates)
+        .post_async("/api/content-types", handlers::section_templates::upsert_section_template)
+        .get_async("/api/content-types/:id", handlers::section_templates::get_section_template)
+        .post_async("/api/content-types/:id", handlers::section_templates::upsert_section_template)
+        .put_async("/api/content-types/:id", handlers::section_templates::upsert_section_template)
+        .delete_async("/api/content-types/:id", handlers::section_templates::delete_section_template)
         
         // API routes - Media
         .post_async("/api/media", handlers::api::upload_media)

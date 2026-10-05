@@ -9,7 +9,7 @@ routes = [
 [[d1_databases]]
 binding = "DB"
 database_name = "zygo-cms-db"
-database_id = "1ab6229f-73a6-4760-bff2-8ea41dfecce5"
+database_id = "ba933697-e439-478d-b609-f8ba1feb264c"
 migrations_dir = "../../migrations"
 
 [[r2_buckets]]
