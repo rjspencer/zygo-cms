@@ -10,7 +10,7 @@
 # admin-ui-worker      | packages/admin-ui/wrangler.toml              | admin.zygodactylstudios.com
 #
 # All workers share:
-#   - D1 database:  zygo-cms-db  (id: 1ab6229f-73a6-4760-bff2-8ea41dfecce5)
+#   - D1 database:  zygo-cms-db  (id: ba933697-e439-478d-b609-f8ba1feb264c)
 #   - R2 bucket:    zygo-cms-media
 #
 # Development:
@@ -24,3 +24,8 @@
 #
 # Migrations (run once against the shared D1 db):
 #   npx wrangler d1 migrations apply zygo-cms-db --remote
+[[d1_databases]]
+binding = "DB"
+database_name = "zygo-cms-db"
+database_id = "ba933697-e439-478d-b609-f8ba1feb264c"
+migrations_dir = "migrations"

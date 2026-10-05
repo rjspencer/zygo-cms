@@ -1,15 +1,16 @@
 pub mod content_type;
+pub mod section_template;
 pub mod entry;
 pub mod media;
 pub mod menu;
 pub mod revision;
 pub mod user;
+pub mod setting;
 
-pub use content_type::*;
+pub use section_template::*;
 pub use entry::*;
 pub use media::*;
 pub use menu::*;
 pub use revision::*;
 pub use user::*;
-pub mod setting;
 pub use setting::*;

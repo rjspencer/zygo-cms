@@ -105,6 +105,22 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
 
+### Hosted Section Template Store
+- **Goal**: Let users browse and install section templates from a store we host.
+- **Details**:
+  - Built-in section templates are fully deletable; if a user deletes one and wants it back, they can re-install it from the store.
+  - Also a distribution channel for new community/official section templates.
+
+### Post & Page Layout CSS Customization
+- **Goal**: Allow users to customize the CSS of the locked post and page layouts.
+- **Details**:
+  - Post/page layouts live in Rust (`DEFAULT_POST` / `DEFAULT_PAGE`) and are not editable in the admin; only CSS overrides would be exposed.
+
+### Visual Field Builder: Nested List Sub-field Validation
+- **Goal**: Strictly validate `list` sub-fields used inside template loops (e.g. `item.caption`).
+- **Details**:
+  - Currently warn-only, since MiniJinja's `undeclared_variables` cannot map loop variables back to a list's sub-fields.
+
 ### Permanent Deletion & Empty Trash UI
 - **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.
 - **Details**:

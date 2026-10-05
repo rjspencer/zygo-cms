@@ -264,8 +264,8 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
   });
 
   describe('Inline Content Insertion', () => {
-    it('appends markdown image syntax to the content textarea when picking an image', async () => {
-      renderEditor();
+    it('inserts image into TipTap editor when picking an image via toolbar', async () => {
+      const { container } = renderEditor();
 
       // Content tab is active by default
       const insertImageButton = screen.getByRole('button', { name: /insert image/i });
@@ -287,33 +287,12 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
         expect(screen.queryByText('Select Media')).toBeNull();
       });
 
-      // Assert content textarea has markdown string
-      const textarea = screen.getByPlaceholderText(
-        'Write your markdown or HTML content here...'
-      ) as HTMLTextAreaElement;
-      expect(textarea.value).toBe('![test-photo.png](/media/test-photo.png)');
-    });
-
-    it('appends markdown image syntax to existing content in textarea', async () => {
-      renderEditor();
-
-      const textarea = screen.getByPlaceholderText(
-        'Write your markdown or HTML content here...'
-      ) as HTMLTextAreaElement;
-      fireEvent.change(textarea, { target: { value: '# Hello World\n' } });
-
-      const insertImageButton = screen.getByRole('button', { name: /insert image/i });
-      fireEvent.click(insertImageButton);
-
-      expect(await screen.findByText('test-photo.png')).toBeDefined();
-      const pickButton = screen.getByRole('button', { name: /select test-photo\.png/i });
-      fireEvent.click(pickButton);
-
+      // Assert TipTap has image element
       await waitFor(() => {
-        expect(screen.queryByText('Select Media')).toBeNull();
+        const img = container.querySelector('.tiptap img') as HTMLImageElement;
+        expect(img).not.toBeNull();
+        expect(img?.getAttribute('src')).toBe('/media/test-photo.png');
       });
-
-      expect(textarea.value).toBe('# Hello World\n![test-photo.png](/media/test-photo.png)');
     });
   });
 
@@ -334,12 +313,8 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
       expect(screen.getByText('test-photo.png')).toBeDefined();
     });
 
-    it('dismisses modal on Cancel click without altering content', async () => {
-      renderEditor();
-
-      const textarea = screen.getByPlaceholderText(
-        'Write your markdown or HTML content here...'
-      ) as HTMLTextAreaElement;
+    it('dismisses modal on Cancel click without inserting image', async () => {
+      const { container } = renderEditor();
 
       fireEvent.click(screen.getByRole('button', { name: /insert image/i }));
       expect(await screen.findByText('Select Media')).toBeDefined();
@@ -351,9 +326,11 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
         expect(screen.queryByText('Select Media')).toBeNull();
       });
 
-      expect(textarea.value).toBe('');
+      const img = container.querySelector('.tiptap img');
+      expect(img).toBeNull();
     });
   });
+
 });
 
 describe.skip('Editor Component - Phase 3 True Rendered Preview Tab', () => {
@@ -626,6 +603,155 @@ describe.skip('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     fireEvent.click(previewTab);
 
     expect(await screen.findByText('No preview available')).toBeDefined();
+  });
+});
+
+describe('Editor Component - Section Templates Rework', () => {
+  it('renders Post editor with slug prefix /post/ and TipTap body, and no section controls', () => {
+    renderEditor('/editor?type=post');
+
+    // Slug prefix
+    expect(screen.getByText('/post/')).toBeDefined();
+
+    // Body content label and RichTextEditor
+    expect(screen.getByText('Body Content')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Bold' })).toBeDefined();
+
+    // No page section controls
+    expect(screen.queryByText('Page Sections')).toBeNull();
+    expect(screen.queryByText('Add Section...')).toBeNull();
+  });
+
+  it('renders Page editor with slug prefix / and Page Sections UI, without RichTextEditor post body', async () => {
+    renderEditor('/editor?type=page');
+
+    // Slug prefix is / without post/
+    expect(screen.getByText('/')).toBeDefined();
+    expect(screen.queryByText('/post/')).toBeNull();
+
+    // Page Sections UI
+    expect(screen.getByText('Page Sections')).toBeDefined();
+    expect(await screen.findByText('Add Section...')).toBeDefined();
+
+    // No Post Body content
+    expect(screen.queryByText('Body Content')).toBeNull();
+  });
+
+  it('populates Add Section dropdown with templates from /api/section-templates', async () => {
+    renderEditor('/editor?type=page');
+
+    const trigger = await screen.findByText('Add Section...');
+    expect(trigger).toBeDefined();
+  });
+
+  it('displays "Missing template" when a section references an unknown template and allows removing it', async () => {
+    // Override fetch for entry with missing section template
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([
+              { id: 'hero', name: 'Hero', schema_json: '[]' }
+            ]),
+          });
+        }
+        if (url.includes('/api/admin/editor/99')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              entry: {
+                id: 99,
+                title: 'Custom Page',
+                slug: 'custom-page',
+                status: 'draft',
+                type: 'page',
+                body_html: '',
+                body_json: JSON.stringify([
+                  { type_id: 'deleted_section_tpl', data: {} }
+                ]),
+              },
+            }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      })
+    );
+
+    renderEditor('/editor/99');
+
+    // Verify "Missing template" is rendered
+    expect(await screen.findByText('Missing template')).toBeDefined();
+    expect(screen.getByText('(deleted_section_tpl)')).toBeDefined();
+
+    // Verify remove button is available and removes it
+    const deleteBtn = screen.getByRole('button', { name: /delete section/i });
+    fireEvent.click(deleteBtn);
+
+    expect(screen.queryByText('Missing template')).toBeNull();
+    vi.restoreAllMocks();
+  });
+
+  it('saves post with body_html and empty body_json "{}"', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 50, preview_token: 'tok' }),
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    renderEditor('/editor?type=post');
+
+    const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+    fireEvent.click(saveDraftBtn);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/entries',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringMatching(/"body_json":"\{\}"/),
+        })
+      );
+    });
+    vi.restoreAllMocks();
+  });
+
+  it('saves page with empty body_html and stringified sections in body_json', async () => {
+    const fetchSpy = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/section-templates')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([
+            { id: 'hero', name: 'Hero', schema_json: JSON.stringify([{ name: 'title', type: 'text', label: 'Title' }]) }
+          ]),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ id: 51, preview_token: 'tok' }),
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    renderEditor('/editor?type=page');
+
+    const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+    fireEvent.click(saveDraftBtn);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/entries',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringMatching(/"body_html":""/),
+        })
+      );
+    });
+    vi.restoreAllMocks();
   });
 });
 

@@ -26,6 +26,8 @@ import {
 } from '@radix-ui/react-icons';
 import { apiFetch } from '../utils/api';
 import { TemplateItem } from './TemplatesList';
+import { VisualFieldBuilder } from '../components/VisualFieldBuilder';
+import { SectionTemplateField } from '../types/sectionTemplate';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -37,6 +39,7 @@ export const TemplateEditor: React.FC = () => {
   const [formId, setFormId] = useState('');
   const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
+  const [fields, setFields] = useState<SectionTemplateField[]>([]);
   const [formSchemaJson, setFormSchemaJson] = useState('[\n]');
   const [formTemplateHtml, setFormTemplateHtml] = useState('');
   const [formTemplateCss, setFormTemplateCss] = useState('');
@@ -50,6 +53,10 @@ export const TemplateEditor: React.FC = () => {
   // 409 Conflict Dialog state
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [conflictMessage, setConflictMessage] = useState('');
+
+  // 400 Warning Dialog state
+  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [warningList, setWarningList] = useState<string[]>([]);
 
   // Fetch role of logged-in user
   const { data: meData } = useQuery({
@@ -86,12 +93,24 @@ export const TemplateEditor: React.FC = () => {
       setFormId(template.id || '');
       setFormName(template.name || '');
       setFormDescription(template.description || '');
-      setFormSchemaJson(template.schema_json || '[\n]');
+      const rawSchema = template.schema_json || '[\n]';
+      setFormSchemaJson(rawSchema);
+      try {
+        const parsed = JSON.parse(rawSchema);
+        setFields(Array.isArray(parsed) ? parsed : []);
+      } catch {
+        setFields([]);
+      }
       setFormTemplateHtml(template.template_html || '');
       setFormTemplateCss(template.template_css || '');
       setIsLocked(Boolean(template.is_locked));
     }
   }, [template, isNew]);
+
+  const handleFieldsChange = (newFields: SectionTemplateField[]) => {
+    setFields(newFields);
+    setFormSchemaJson(JSON.stringify(newFields, null, 2));
+  };
 
   const handleSave = async (force: boolean = false) => {
     setIsSaving(true);
@@ -144,6 +163,24 @@ export const TemplateEditor: React.FC = () => {
         return;
       }
 
+      // Intercept 400 Warnings (requires_confirmation)
+      if (res.status === 400) {
+        const errorData = await res.json().catch(() => ({}));
+        if (
+          errorData.requires_confirmation &&
+          Array.isArray(errorData.warnings) &&
+          errorData.warnings.length > 0
+        ) {
+          setWarningList(errorData.warnings);
+          setWarningModalOpen(true);
+          setIsSaving(false);
+          return;
+        }
+        throw new Error(
+          errorData.error || errorData.message || `Failed to save template (${res.status})`
+        );
+      }
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(
@@ -153,6 +190,7 @@ export const TemplateEditor: React.FC = () => {
 
       // Success
       setConflictModalOpen(false);
+      setWarningModalOpen(false);
       setSaveSuccess(true);
       queryClient.invalidateQueries({ queryKey: ['content-types'] });
       queryClient.invalidateQueries({ queryKey: ['content-type', targetId] });
@@ -350,28 +388,24 @@ export const TemplateEditor: React.FC = () => {
       <Card size="2">
         <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
           <Tabs.List mb="4">
-            <Tabs.Trigger value="schema">Schema (JSON)</Tabs.Trigger>
+            <Tabs.Trigger value="schema">Schema</Tabs.Trigger>
             <Tabs.Trigger value="html">HTML (MiniJinja)</Tabs.Trigger>
             <Tabs.Trigger value="css">CSS</Tabs.Trigger>
           </Tabs.List>
 
-          {/* Tab 1: Schema (JSON) */}
+          {/* Tab 1: Schema */}
           <Tabs.Content value="schema">
             <Box mb="2">
               <Text as="div" size="2" weight="bold" mb="1">
-                Schema Definition (JSON)
+                Schema Definition
               </Text>
-              <Text size="1" color="gray" mb="2" as="div">
-                Array of field objects defining attributes for this template.
+              <Text size="1" color="gray" mb="3" as="div">
+                Define the fields and data attributes for this template.
               </Text>
-              <TextArea
-                value={formSchemaJson}
-                onChange={(e) => setFormSchemaJson(e.target.value)}
-                placeholder='[{"name": "headline", "type": "text", "label": "Headline", "required": true}]'
-                rows={16}
+              <VisualFieldBuilder
+                fields={fields}
+                onChange={handleFieldsChange}
                 disabled={isLockedForDesigner}
-                style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
-                aria-label="Schema (JSON)"
               />
             </Box>
           </Tabs.Content>
@@ -462,6 +496,51 @@ export const TemplateEditor: React.FC = () => {
               aria-label="Force Save"
             >
               {isSaving ? 'Force Saving...' : 'Force Save'}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {/* Radix UI Modal: 400 Warnings Confirmation Dialog */}
+      <Dialog.Root open={warningModalOpen} onOpenChange={setWarningModalOpen}>
+        <Dialog.Content maxWidth="520px">
+          <Dialog.Title color="amber">Template Warnings</Dialog.Title>
+          <Dialog.Description size="2" mb="3" color="gray">
+            The template has validation warnings that require confirmation:
+          </Dialog.Description>
+
+          <Callout.Root color="amber" mb="4">
+            <Callout.Icon>
+              <ExclamationTriangleIcon />
+            </Callout.Icon>
+            <Callout.Text>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                {warningList.map((warning, idx) => (
+                  <li key={idx}>{warning}</li>
+                ))}
+              </ul>
+            </Callout.Text>
+          </Callout.Root>
+
+          <Flex gap="3" justify="end">
+            <Dialog.Close>
+              <Button
+                variant="soft"
+                color="gray"
+                disabled={isSaving}
+                onClick={() => setWarningModalOpen(false)}
+              >
+                Cancel
+              </Button>
+            </Dialog.Close>
+            <Button
+              color="amber"
+              variant="solid"
+              disabled={isSaving}
+              onClick={() => handleSave(true)}
+              aria-label="Save Anyway"
+            >
+              {isSaving ? 'Saving...' : 'Save Anyway'}
             </Button>
           </Flex>
         </Dialog.Content>

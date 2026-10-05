@@ -1,9 +1,12 @@
 pub mod content_type;
+pub mod section_template;
 pub mod entry;
 pub mod media;
 pub mod revision;
 pub mod user;
 pub mod menu;
+pub mod search;
+pub mod setting;
 
 pub use entry::*;
 pub use media::*;
@@ -27,6 +30,3 @@ pub(crate) fn opt_js_i32(val: &Option<i32>) -> JsValue {
     val.map(|v| JsValue::from(v as f64))
         .unwrap_or_else(JsValue::null)
 }
-
-pub mod search;
-pub mod setting;
