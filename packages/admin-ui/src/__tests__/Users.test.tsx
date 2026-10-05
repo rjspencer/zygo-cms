@@ -205,6 +205,21 @@ describe('Users Page Component', () => {
     // Verify new user is added to table
     expect(await screen.findByText('Charlie Editor')).toBeDefined();
     expect(screen.getByText('charlie@zygodactyl.io')).toBeDefined();
+
+    // Verify invitation email template dialog is shown
+    expect(await screen.findByText('User Invited')).toBeDefined();
+    const emailTemplateArea = screen.getByLabelText('Invitation Email Template') as HTMLTextAreaElement;
+    expect(emailTemplateArea.value).toContain('charlie@zygodactyl.io');
+    expect(emailTemplateArea.value).toContain('Charlie Editor');
+    expect(emailTemplateArea.value).toContain('/admin');
+
+    // Click Copy Template button
+    const copyBtn = screen.getByRole('button', { name: /Copy Template/i });
+    fireEvent.click(copyBtn);
+
+    // Dismiss dialog
+    const doneBtn = screen.getByRole('button', { name: 'Done' });
+    fireEvent.click(doneBtn);
   });
 
   it('displays error in Invite User dialog if backend returns an error', async () => {

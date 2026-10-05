@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Flex,
   Box,
@@ -15,22 +15,35 @@ import {
   PlusIcon,
   TrashIcon,
   CheckIcon,
+  ChevronDownIcon,
 } from '@radix-ui/react-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 
-interface MenuItem {
+export interface MenuItem {
   title: string;
   url: string;
   target: string;
   children: MenuItem[];
 }
 
+interface SitePageItem {
+  id: number;
+  title: string;
+  path: string;
+}
+
 export const Navigation: React.FC = () => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'header' | 'footer'>('header');
   const [newTitle, setNewTitle] = useState('');
-  const [newUrl, setNewUrl] = useState('');
+  const [selectedUrl, setSelectedUrl] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
+  const [customUrl, setCustomUrl] = useState('');
+  const [urlSearchQuery, setUrlSearchQuery] = useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
   const [localMenus, setLocalMenus] = useState<{ [key: string]: MenuItem[] }>({
     header: [],
     footer: [],
@@ -45,6 +58,23 @@ export const Navigation: React.FC = () => {
     },
   });
 
+  const { data: sitePages = [] } = useQuery<SitePageItem[]>({
+    queryKey: ['entries', 'pages-nav'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/entries');
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (!Array.isArray(data)) return [];
+      return data
+        .filter((e: any) => e.type === 'page' && !e.deleted_at)
+        .map((e: any) => ({
+          id: e.id,
+          title: e.title || '',
+          path: e.path || (e.slug ? `/${e.slug.replace(/^\/+/, '')}` : '/'),
+        }));
+    },
+  });
+
   useEffect(() => {
     if (menus) {
       setLocalMenus({
@@ -53,6 +83,17 @@ export const Navigation: React.FC = () => {
       });
     }
   }, [menus]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const updateMenuMutation = useMutation({
     mutationFn: async ({ name, items }: { name: string; items: MenuItem[] }) => {
@@ -71,15 +112,49 @@ export const Navigation: React.FC = () => {
     },
   });
 
+  const isAbsoluteUrl = (url: string) => {
+    if (!url.trim()) return true;
+    return /^([a-z][a-z0-9+.-]*:|\/\/)/i.test(url.trim());
+  };
+
+  const handleSelectPage = (page: SitePageItem) => {
+    setIsCustom(false);
+    setSelectedUrl(page.path);
+    setUrlSearchQuery(`${page.title} (${page.path})`);
+    setIsDropdownOpen(false);
+    if (!newTitle.trim()) {
+      setNewTitle(page.title);
+    }
+  };
+
+  const handleSelectCustom = () => {
+    setIsCustom(true);
+    setSelectedUrl('');
+    setUrlSearchQuery('Custom URL');
+    setIsDropdownOpen(false);
+  };
+
   const handleAdd = () => {
-    if (!newTitle || !newUrl) return;
-    const newItem: MenuItem = { title: newTitle, url: newUrl, target: '_self', children: [] };
+    const finalUrl = isCustom ? customUrl.trim() : (selectedUrl.trim() || urlSearchQuery.trim());
+    if (!newTitle.trim() || !finalUrl) return;
+
+    const newItem: MenuItem = {
+      title: newTitle.trim(),
+      url: finalUrl,
+      target: '_self',
+      children: [],
+    };
+
     setLocalMenus((prev) => ({
       ...prev,
       [activeTab]: [...prev[activeTab], newItem],
     }));
+
     setNewTitle('');
-    setNewUrl('');
+    setSelectedUrl('');
+    setCustomUrl('');
+    setIsCustom(false);
+    setUrlSearchQuery('');
   };
 
   const handleDelete = (index: number) => {
@@ -98,6 +173,11 @@ export const Navigation: React.FC = () => {
   };
 
   const currentList = localMenus[activeTab] || [];
+
+  const filteredPages = sitePages.filter((p) => {
+    const q = urlSearchQuery.toLowerCase();
+    return p.title.toLowerCase().includes(q) || p.path.toLowerCase().includes(q);
+  });
 
   return (
     <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -182,11 +262,156 @@ export const Navigation: React.FC = () => {
 
             {/* Add Item Row */}
             <Card variant="classic" size="1">
-              <Heading size="2" mb="2">
+              <Heading size="2" mb="3">
                 Add Menu Item
               </Heading>
-              <Flex gap="3" align="end">
-                <Box style={{ flex: 1 }}>
+              <Flex gap="3" align="start" wrap="wrap">
+                {/* 1. URL Field (FIRST) */}
+                <Box style={{ flex: 1, minWidth: '240px', position: 'relative' }} ref={dropdownRef}>
+                  <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
+                    URL
+                  </Text>
+                  <TextField.Root
+                    size="2"
+                    placeholder="Select or search a page..."
+                    value={urlSearchQuery}
+                    onChange={(e) => {
+                      setUrlSearchQuery(e.target.value);
+                      setIsDropdownOpen(true);
+                      if (!isCustom) {
+                        setSelectedUrl(e.target.value);
+                      }
+                    }}
+                    onFocus={() => setIsDropdownOpen(true)}
+                    role="combobox"
+                    aria-label="URL"
+                    aria-expanded={isDropdownOpen}
+                    aria-autocomplete="list"
+                  >
+                    <TextField.Slot side="right">
+                      <IconButton
+                        size="1"
+                        variant="ghost"
+                        color="gray"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsDropdownOpen((prev) => !prev);
+                        }}
+                        aria-label="Toggle pages dropdown"
+                      >
+                        <ChevronDownIcon width="14" height="14" />
+                      </IconButton>
+                    </TextField.Slot>
+                  </TextField.Root>
+
+                  {/* Dropdown Menu */}
+                  {isDropdownOpen && (
+                    <Box
+                      role="listbox"
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 100,
+                        marginTop: '4px',
+                        background: 'var(--color-panel-solid, #fff)',
+                        border: '1px solid var(--gray-6, #ccc)',
+                        borderRadius: 'var(--radius-2, 6px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        maxHeight: '220px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {/* Existing Site Pages */}
+                      {filteredPages.length > 0 ? (
+                        filteredPages.map((page) => (
+                          <Box
+                            key={page.id}
+                            role="option"
+                            onClick={() => handleSelectPage(page)}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid var(--gray-3, #f0f0f0)',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = 'var(--gray-3, #f5f5f5)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
+                          >
+                            <Text size="2" weight="medium" style={{ display: 'block' }}>
+                              {page.title}
+                            </Text>
+                            <Text size="1" color="gray" style={{ display: 'block', fontFamily: 'monospace' }}>
+                              {page.path}
+                            </Text>
+                          </Box>
+                        ))
+                      ) : (
+                        <Box style={{ padding: '8px 12px' }}>
+                          <Text size="2" color="gray">
+                            No matching pages
+                          </Text>
+                        </Box>
+                      )}
+
+                      {/* Custom Option */}
+                      <Box
+                        role="option"
+                        onClick={handleSelectCustom}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          backgroundColor: 'var(--gray-2, #fafafa)',
+                          borderTop: '1px solid var(--gray-4, #e5e5e5)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--gray-4, #eee)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'var(--gray-2, #fafafa)';
+                        }}
+                      >
+                        <Text size="2" weight="bold" color="iris">
+                          Custom (External URL)...
+                        </Text>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* 2. Custom URL Field (revealed when custom option is selected) */}
+                {isCustom && (
+                  <Box style={{ flex: 1, minWidth: '240px' }}>
+                    <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
+                      External URL
+                    </Text>
+                    <TextField.Root
+                      size="2"
+                      placeholder="https://example.com"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      aria-label="External URL"
+                    />
+                    {!isAbsoluteUrl(customUrl) && customUrl.trim() !== '' && (
+                      <Text
+                        size="1"
+                        color="amber"
+                        weight="medium"
+                        style={{ display: 'block', marginTop: '4px' }}
+                      >
+                        Warning: External URLs should be absolute (e.g. https://example.com)
+                      </Text>
+                    )}
+                  </Box>
+                )}
+
+                {/* 3. Label Field (SECOND) */}
+                <Box style={{ flex: 1, minWidth: '200px' }}>
                   <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
                     Label
                   </Text>
@@ -195,23 +420,17 @@ export const Navigation: React.FC = () => {
                     placeholder="e.g. Documentation"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
+                    aria-label="Label"
                   />
                 </Box>
-                <Box style={{ flex: 1 }}>
-                  <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
-                    URL
-                  </Text>
-                  <TextField.Root
-                    size="2"
-                    placeholder="e.g. /docs or https://..."
-                    value={newUrl}
-                    onChange={(e) => setNewUrl(e.target.value)}
-                  />
+
+                {/* 4. Add Link Button */}
+                <Box style={{ alignSelf: 'flex-start', marginTop: '22px' }}>
+                  <Button size="2" variant="soft" color="iris" onClick={handleAdd}>
+                    <PlusIcon width="16" height="16" />
+                    Add Link
+                  </Button>
                 </Box>
-                <Button size="2" variant="soft" color="iris" onClick={handleAdd}>
-                  <PlusIcon width="16" height="16" />
-                  Add Link
-                </Button>
               </Flex>
             </Card>
           </Tabs.Content>

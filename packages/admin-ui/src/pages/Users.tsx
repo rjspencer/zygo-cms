@@ -23,6 +23,8 @@ import {
   TrashIcon,
   ExternalLinkIcon,
   InfoCircledIcon,
+  ClipboardCopyIcon,
+  CheckIcon,
 } from '@radix-ui/react-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
@@ -66,12 +68,17 @@ export const Users: React.FC = () => {
 
   // Delete User Dialog State
   const [userToDelete, setUserToDelete] = useState<UserItem | null>(null);
-  
 
-  
+  // Email Template Dialog State
+  const [invitedUserForEmail, setInvitedUserForEmail] = useState<{
+    email: string;
+    displayName?: string;
+    role: string;
+  } | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   // Open Edit Modal
-  
+
   const inviteMutation = useMutation({
     mutationFn: async (payload: any) => {
       const res = await apiFetch('/api/admin/users', {
@@ -86,9 +93,15 @@ export const Users: React.FC = () => {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       queryClient.setQueryData<UserItem[]>(['adminUsers'], (old) => old ? [...old, data] : [data]);
       setIsInviteOpen(false);
+      setInvitedUserForEmail({
+        email: variables.email,
+        displayName: variables.display_name || variables.displayName || data.display_name || data.displayName || '',
+        role: variables.role || data.role || 'author',
+      });
+      setCopiedEmail(false);
       setInviteEmail('');
       setInviteDisplayName('');
       setInviteRole('author');
@@ -199,6 +212,33 @@ export const Users: React.FC = () => {
       return user.email.slice(0, 2).toUpperCase();
     }
     return 'U';
+  };
+
+  const emailTemplate = invitedUserForEmail
+    ? `Subject: You've been invited to Zygo CMS
+
+Hi ${invitedUserForEmail.displayName || 'there'},
+
+You have been invited to join the admin team on Zygo CMS with the "${invitedUserForEmail.role}" role.
+
+You can access the admin dashboard here:
+${typeof window !== 'undefined' ? window.location.origin : ''}/admin
+
+Please sign in using your email: ${invitedUserForEmail.email}
+
+Welcome aboard!`
+    : '';
+
+  const handleCopyEmailTemplate = async () => {
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(emailTemplate);
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2000);
+      }
+    } catch {
+      // Fallback
+    }
   };
 
   const filteredUsers = users.filter((u) => {
@@ -596,6 +636,66 @@ export const Users: React.FC = () => {
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
+      {/* Email Template Dialog after adding user */}
+      <Dialog.Root
+        open={!!invitedUserForEmail}
+        onOpenChange={(open) => {
+          if (!open) setInvitedUserForEmail(null);
+        }}
+      >
+        <Dialog.Content style={{ maxWidth: 520 }}>
+          <Dialog.Title>User Invited</Dialog.Title>
+          <Dialog.Description size="2" mb="4">
+            The user has been added. You can copy and send them the pre-written invitation email below:
+          </Dialog.Description>
+
+          <Box mb="4">
+            <TextArea
+              rows={9}
+              readOnly
+              value={emailTemplate}
+              style={{
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                resize: 'none',
+                width: '100%',
+              }}
+              aria-label="Invitation Email Template"
+            />
+          </Box>
+
+          <Flex gap="3" justify="between" align="center">
+            <Button
+              variant="surface"
+              color={copiedEmail ? 'green' : 'iris'}
+              type="button"
+              onClick={handleCopyEmailTemplate}
+            >
+              {copiedEmail ? (
+                <>
+                  <CheckIcon width="16" height="16" /> Copied!
+                </>
+              ) : (
+                <>
+                  <ClipboardCopyIcon width="16" height="16" /> Copy Template
+                </>
+              )}
+            </Button>
+
+            <Dialog.Close>
+              <Button
+                variant="solid"
+                color="gray"
+                type="button"
+                onClick={() => setInvitedUserForEmail(null)}
+              >
+                Done
+              </Button>
+            </Dialog.Close>
           </Flex>
         </Dialog.Content>
       </Dialog.Root>

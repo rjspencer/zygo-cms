@@ -83,6 +83,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/media", handlers::api::list_media)
         .post_async("/api/media/sync", handlers::api::sync_media)
         .delete_async("/api/media/:key", handlers::api::delete_media)
+        .get_async("/media/:key", handlers::api::stream_media)
+        .get_async("/api/media/:key", handlers::api::stream_media)
         
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
@@ -96,6 +98,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         // API routes - Revisions
         .get_async("/api/entries/:id/revisions", handlers::api::get_revisions)
         .get_async("/api/revisions/:id", handlers::api::get_revision)
+
+        // Preview routes
+        .get_async("/preview/:token", handlers::api::preview)
+        .get_async("/api/preview/:token", handlers::api::preview)
         
         // CORS preflight catch-all
         .options("/*catchall", |_, _| Response::empty());

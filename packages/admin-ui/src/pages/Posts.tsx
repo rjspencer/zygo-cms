@@ -104,7 +104,7 @@ export const Posts: React.FC = () => {
             Manage your blog posts and articles
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={() => navigate('/editor?type=post')}>
+        <Button variant="solid" color="iris" onClick={() => navigate('/posts/editor/new')}>
           <PlusIcon width="16" height="16" />
           Create Post
         </Button>
@@ -182,7 +182,7 @@ export const Posts: React.FC = () => {
                         size="1"
                         variant="ghost"
                         color="gray"
-                        onClick={() => navigate(`/editor/${post.id}`)}
+                        onClick={() => navigate(`/posts/editor/${post.id}`)}
                         title="Edit Post"
                       >
                         <Pencil1Icon width="16" height="16" />

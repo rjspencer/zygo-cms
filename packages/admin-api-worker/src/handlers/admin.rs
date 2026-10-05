@@ -10,6 +10,7 @@ pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> 
     let page_count = db::count_entries_by_type(&db, "page").await?;
     let post_count = db::count_entries_by_type(&db, "post").await?;
     let author_count = db::count_users(&db).await?;
+    let media_count = db::media::count_media(&db, None).await?;
     
     let auth_url = get_auth_url(&ctx.env);
     
@@ -21,15 +22,18 @@ pub async fn dashboard(req: Request, ctx: RouteContext<()>) -> Result<Response> 
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    Response::from_json(&json!({
-        "page_count": page_count,
-        "post_count": post_count,
-        "author_count": author_count,
-        "auth_url": auth_url,
-        "header_menu": header_menu,
-        "footer_menu": footer_menu,
-        "analytics_enabled": analytics_enabled
-    }))
+    let res_data = zygo_core::models::DashboardResponse {
+        page_count,
+        post_count,
+        author_count,
+        media_count,
+        auth_url: Some(auth_url),
+        header_menu,
+        footer_menu,
+        analytics_enabled,
+    };
+
+    Response::from_json(&res_data)
 }
 
 pub async fn pages(req: Request, ctx: RouteContext<()>) -> Result<Response> {

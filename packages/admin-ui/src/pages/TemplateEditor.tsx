@@ -18,7 +18,6 @@ import {
   Badge,
 } from '@radix-ui/themes';
 import {
-  ArrowLeftIcon,
   LockClosedIcon,
   LockOpen1Icon,
   ExclamationTriangleIcon,
@@ -28,6 +27,7 @@ import { apiFetch } from '../utils/api';
 import { TemplateItem } from './TemplatesList';
 import { VisualFieldBuilder } from '../components/VisualFieldBuilder';
 import { SectionTemplateField } from '../types/sectionTemplate';
+import { BackButton } from '../components/BackButton';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -228,33 +228,30 @@ export const TemplateEditor: React.FC = () => {
             {loadError instanceof Error ? loadError.message : 'Failed to load template'}
           </Callout.Text>
         </Callout.Root>
-        <Button variant="soft" color="gray" onClick={() => navigate('/admin/templates')}>
-          <ArrowLeftIcon /> Back to Templates
-        </Button>
+        <BackButton to="/admin/templates" label="Back to Templates" />
       </Box>
     );
   }
 
   return (
     <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      {/* Top navigation row */}
+      <Flex justify="between" align="center" mb="4">
+        <BackButton to="/admin/templates" />
+      </Flex>
+
       {/* Header */}
       <Flex justify="between" align="center" mb="5">
-        <Flex align="center" gap="3">
-          <Button variant="ghost" color="gray" onClick={() => navigate('/admin/templates')}>
-            <ArrowLeftIcon width="16" height="16" />
-            Back
-          </Button>
-          <Box>
-            <Heading size="6" weight="bold">
-              {isNew ? 'New Template' : `Edit Template: ${formName || formId}`}
-            </Heading>
-            <Text size="2" color="gray">
-              {isNew
-                ? 'Create a custom template with schema, markup, and styling'
-                : `Editing content type identifier "${formId}"`}
-            </Text>
-          </Box>
-        </Flex>
+        <Box>
+          <Heading size="6" weight="bold">
+            {isNew ? 'New Template' : `Edit Template: ${formName || formId}`}
+          </Heading>
+          <Text size="2" color="gray">
+            {isNew
+              ? 'Create a custom template with schema, markup, and styling'
+              : `Editing content type identifier "${formId}"`}
+          </Text>
+        </Box>
 
         <Flex align="center" gap="4">
           {/* Lock Template toggle: ONLY render if user has the admin role */}

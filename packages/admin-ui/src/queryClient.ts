@@ -6,10 +6,11 @@ export function createQueryClient(config?: QueryClientConfig): QueryClient {
       queries: {
         // Stale-while-revalidate:
         // Serve immediately from cache while fetching fresh data in the background
-        staleTime: 1000 * 60, // 1 minute
+        staleTime: 0,
         gcTime: 1000 * 60 * 5, // 5 minutes
         refetchOnWindowFocus: true,
         refetchOnReconnect: true,
+        refetchOnMount: true,
         retry: (failureCount, error) => {
           // Do not retry on client errors (4xx)
           if (error instanceof Error && error.message.includes('40')) {

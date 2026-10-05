@@ -7,6 +7,7 @@ import {
   Heading,
   Text,
   Button,
+  IconButton,
   Card,
   Table,
   Badge,
@@ -266,12 +267,12 @@ export const TemplatesList: React.FC = () => {
                     )}
 
                     <Table.Cell style={{ textAlign: 'right' }}>
-                      <Flex justify="end" align="center" gap="2">
+                      <Flex justify="end" align="center" gap="1">
                         {/* Edit Button */}
                         {isDesigner && isLocked ? (
                           <Tooltip content={lockedTooltipText}>
                             <span style={{ display: 'inline-flex' }}>
-                              <Button
+                              <IconButton
                                 size="1"
                                 variant="ghost"
                                 color="gray"
@@ -279,13 +280,12 @@ export const TemplatesList: React.FC = () => {
                                 aria-label={`Edit ${template.name}`}
                                 title="Edit"
                               >
-                                <Pencil1Icon width="14" height="14" />
-                                Edit
-                              </Button>
+                                <Pencil1Icon width="16" height="16" />
+                              </IconButton>
                             </span>
                           </Tooltip>
                         ) : (
-                          <Button
+                          <IconButton
                             size="1"
                             variant="ghost"
                             color="gray"
@@ -293,16 +293,15 @@ export const TemplatesList: React.FC = () => {
                             title="Edit"
                             onClick={() => navigate(`/admin/templates/${template.id}`)}
                           >
-                            <Pencil1Icon width="14" height="14" />
-                            Edit
-                          </Button>
+                            <Pencil1Icon width="16" height="16" />
+                          </IconButton>
                         )}
 
                         {/* Delete Button */}
                         {isDesigner && isLocked ? (
                           <Tooltip content={lockedTooltipText}>
                             <span style={{ display: 'inline-flex' }}>
-                              <Button
+                              <IconButton
                                 size="1"
                                 variant="ghost"
                                 color="red"
@@ -310,13 +309,12 @@ export const TemplatesList: React.FC = () => {
                                 aria-label={`Delete ${template.name}`}
                                 title="Delete"
                               >
-                                <TrashIcon width="14" height="14" />
-                                Delete
-                              </Button>
+                                <TrashIcon width="16" height="16" />
+                              </IconButton>
                             </span>
                           </Tooltip>
                         ) : (
-                          <Button
+                          <IconButton
                             size="1"
                             variant="ghost"
                             color="red"
@@ -333,9 +331,8 @@ export const TemplatesList: React.FC = () => {
                               }
                             }}
                           >
-                            <TrashIcon width="14" height="14" />
-                            Delete
-                          </Button>
+                            <TrashIcon width="16" height="16" />
+                          </IconButton>
                         )}
                       </Flex>
                     </Table.Cell>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../utils/api';
 import {
   Flex,
   Box,
@@ -21,6 +21,7 @@ import {
   ImageIcon,
   Pencil1Icon,
   ActivityLogIcon,
+  ExternalLinkIcon,
 } from '@radix-ui/react-icons';
 
 export const Dashboard: React.FC = () => {
@@ -44,23 +45,56 @@ export const Dashboard: React.FC = () => {
     },
   });
 
+  const publicSiteUrl = getPublicSiteUrl();
+
+  type EdgeStatus = 'Operational' | 'Degraded' | 'Offline' | 'Checking...';
+
+  const { data: edgeStatus = 'Checking...' } = useQuery<EdgeStatus>({
+    queryKey: ['edge-health', publicSiteUrl],
+    queryFn: async (): Promise<EdgeStatus> => {
+      try {
+        const res = await fetch(publicSiteUrl, { method: 'GET' });
+        if (res.status === 200) {
+          return 'Operational';
+        }
+        return 'Degraded';
+      } catch (_err) {
+        return 'Offline';
+      }
+    },
+    staleTime: 30000,
+  });
+
   const totalPosts = metricsData.post_count || 0;
   const totalPages = metricsData.page_count || 0;
+  const totalMedia = metricsData.media_count !== undefined ? metricsData.media_count : 0;
   
+  const edgeColor =
+    edgeStatus === 'Operational'
+      ? ('green' as const)
+      : edgeStatus === 'Checking...'
+      ? ('gray' as const)
+      : ('amber' as const);
+
   const metrics = [
     { title: 'Total Posts', value: totalPosts.toString(), icon: <FileTextIcon width="20" height="20" />, color: 'iris' as const },
     { title: 'Total Pages', value: totalPages.toString(), icon: <LayersIcon width="20" height="20" />, color: 'blue' as const },
-    { title: 'Media Files', value: 'N/A', icon: <ImageIcon width="20" height="20" />, color: 'amber' as const },
-    { title: 'Edge Status', value: 'Operational', icon: <ActivityLogIcon width="20" height="20" />, color: 'green' as const },
+    { title: 'Media Files', value: totalMedia.toString(), icon: <ImageIcon width="20" height="20" />, color: 'amber' as const },
+    { title: 'Edge Status', value: edgeStatus, icon: <ActivityLogIcon width="20" height="20" />, color: edgeColor },
   ];
 
-  const recentEntries = entries.slice(0, 5).map((e: any) => ({
-    id: e.id,
-    title: e.title,
-    type: e.type,
-    status: e.status,
-    date: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
-  }));
+  const recentEntries = entries.slice(0, 5).map((e: any) => {
+    const entryPath = e.type === 'page' ? (e.slug || '') : `/post/${e.slug || ''}`;
+    const liveUrl = getPublicSiteUrl(entryPath);
+    return {
+      id: e.id,
+      title: e.title,
+      type: e.type,
+      status: e.status,
+      liveUrl,
+      date: (e.published_at || e.created_at || '').split(' ')[0] || (e.published_at || e.created_at || ''),
+    };
+  });
 
   return (
     <Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -75,7 +109,7 @@ export const Dashboard: React.FC = () => {
           </Text>
         </Box>
         <Flex gap="2">
-          <Button variant="solid" color="iris" onClick={() => navigate('/editor?type=post')}>
+          <Button variant="solid" color="iris" onClick={() => navigate('/posts/editor/new')}>
             <PlusIcon width="16" height="16" />
             New Post
           </Button>
@@ -131,7 +165,13 @@ export const Dashboard: React.FC = () => {
             {recentEntries.map((entry: any) => (
               <Table.Row key={entry.id}>
                 <Table.RowHeaderCell>
-                  <Text weight="medium">{entry.title}</Text>
+                  <a
+                    href={entry.liveUrl}
+                    target="_self"
+                    style={{ color: 'inherit', textDecoration: 'none' }}
+                  >
+                    <Text weight="medium">{entry.title}</Text>
+                  </a>
                 </Table.RowHeaderCell>
                 <Table.Cell>
                   <Badge variant="outline" color={entry.type === 'post' ? 'iris' : 'blue'}>
@@ -149,15 +189,28 @@ export const Dashboard: React.FC = () => {
                   </Text>
                 </Table.Cell>
                 <Table.Cell style={{ textAlign: 'right' }}>
-                  <IconButton
-                    size="1"
-                    variant="ghost"
-                    color="gray"
-                    onClick={() => navigate(`/editor/${entry.id}`)}
-                    title="Edit"
-                  >
-                    <Pencil1Icon width="16" height="16" />
-                  </IconButton>
+                  <Flex justify="end" gap="1">
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      asChild
+                      title="View on Live Site"
+                    >
+                      <a href={entry.liveUrl} target="_self">
+                        <ExternalLinkIcon width="16" height="16" />
+                      </a>
+                    </IconButton>
+                    <IconButton
+                      size="1"
+                      variant="ghost"
+                      color="gray"
+                      onClick={() => navigate(entry.type === 'page' ? `/pages/editor/${entry.id}` : `/posts/editor/${entry.id}`)}
+                      title="Edit"
+                    >
+                      <Pencil1Icon width="16" height="16" />
+                    </IconButton>
+                  </Flex>
                 </Table.Cell>
               </Table.Row>
             ))}

@@ -53,7 +53,7 @@ export const Media: React.FC = () => {
             ? `${Math.round(item.size / 1024)} KB`
             : `${(item.size / (1024 * 1024)).toFixed(2)} MB`,
         type: item.mime_type,
-        url: item.url,
+        url: item.url || `/media/${item.key}`,
         uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
       }));
     },

@@ -85,6 +85,22 @@ describe('api fetch helper', () => {
         expect(getPublicSiteUrl('about')).toBe('/about');
         expect(getPublicSiteUrl('post/my-post')).toBe('/post/my-post');
       });
+
+      it('falls back to live host without admin. when running on admin.* and VITE_PUBLIC_SITE_URL is not set', () => {
+        const originalLocation = window.location;
+        try {
+          delete (window as any).location;
+          (window as any).location = {
+            protocol: 'https:',
+            host: 'admin.zygodactylstudios.com',
+            hostname: 'admin.zygodactylstudios.com',
+          };
+          expect(getPublicSiteUrl()).toBe('https://zygodactylstudios.com/');
+          expect(getPublicSiteUrl('/about')).toBe('https://zygodactylstudios.com/about');
+        } finally {
+          (window as any).location = originalLocation;
+        }
+      });
     });
 
     describe('when VITE_PUBLIC_SITE_URL is set without trailing slash', () => {

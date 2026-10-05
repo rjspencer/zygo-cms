@@ -67,7 +67,7 @@ export const PagesList: React.FC = () => {
             Manage static and landing pages for your site
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={() => navigate('/editor?type=page')}>
+        <Button variant="solid" color="iris" onClick={() => navigate('/pages/editor/new')}>
           <PlusIcon width="16" height="16" />
           Create Page
         </Button>
@@ -132,7 +132,7 @@ export const PagesList: React.FC = () => {
                       size="1"
                       variant="ghost"
                       color="gray"
-                      onClick={() => navigate(`/editor/${page.id}?type=page`)}
+                      onClick={() => navigate(`/pages/editor/${page.id}`)}
                       title="Edit Page"
                     >
                       <Pencil1Icon width="16" height="16" />
