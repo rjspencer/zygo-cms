@@ -105,6 +105,12 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/public-worker
+          secrets: |
+            CF_API_TOKEN
+            CF_ZONE_ID
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
       - name: Deploy Admin API Worker
         uses: cloudflare/wrangler-action@v3
@@ -112,6 +118,12 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: packages/admin-api-worker
+          secrets: |
+            CF_API_TOKEN
+            CF_ZONE_ID
+        env:
+          CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
 
       - name: Deploy Admin UI
         uses: cloudflare/wrangler-action@v3

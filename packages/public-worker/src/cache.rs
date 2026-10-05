@@ -75,7 +75,7 @@ pub async fn purge_urls(env: &Env, urls: Vec<String>) {
         let _ = cache.delete(url.as_str(), true).await;
     }
     // 2. If Cloudflare API Token & Zone ID are set, broadcast instant purge to all 300+ data centers globally
-    let cf_token = env.var("CF_API_TOKEN").ok().map(|v| v.to_string());
+    let cf_token = env.secret("CF_API_TOKEN").or_else(|_| env.var("CF_API_TOKEN")).ok().map(|v| v.to_string());
     let cf_zone = env.var("CF_ZONE_ID").ok().map(|v| v.to_string());
     if let (Some(token), Some(zone_id)) = (cf_token, cf_zone) {
         let purge_url = format!(
