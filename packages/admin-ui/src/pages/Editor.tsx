@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Flex,
   Box,
@@ -14,9 +14,9 @@ import {
   Grid,
   Select,
   Card,
+  Separator,
 } from '@radix-ui/themes';
 import {
-  ArrowLeftIcon,
   CheckIcon,
   Cross2Icon,
   Pencil1Icon,
@@ -28,26 +28,33 @@ import {
 } from '@radix-ui/react-icons';
 import { MediaPickerModal } from '../components/MediaPickerModal';
 import { RichTextEditor } from '../components/RichTextEditor';
+import { BackButton } from '../components/BackButton';
 import { SectionFieldRenderer } from '../components/SectionFieldRenderer';
 import { SectionTemplate, SectionInstance, SectionTemplateField } from '../types/sectionTemplate';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiFetch } from '../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../utils/api';
 
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const isEditing = Boolean(id);
+  const isEditing = Boolean(id && id !== 'new');
   const [title, setTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [status, setStatus] = useState<'published' | 'draft' | 'scheduled'>('draft');
-  const [entryType, setEntryType] = useState(searchParams.get('type') || 'post');
+  const [entryType, setEntryType] = useState(() => {
+    if (location.pathname.startsWith('/pages')) return 'page';
+    if (location.pathname.startsWith('/posts')) return 'post';
+    return searchParams.get('type') || 'post';
+  });
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [isSaved, setIsSaved] = useState(false);
+  const [activeTab, setActiveTab] = useState('content');
 
   const [previewToken, setPreviewToken] = useState<string | null>(null);
 
@@ -119,7 +126,7 @@ export const Editor: React.FC = () => {
         }
       }
       if (entryData.latest_revision?.preview_token) {
-        setPreviewToken(entryData.latest_revision.preview_token);
+        setPreviewToken((prev) => prev || entryData.latest_revision.preview_token);
       }
     }
   }, [entryData]);
@@ -182,7 +189,8 @@ export const Editor: React.FC = () => {
         setPreviewToken(data.preview_token);
       }
       if (!isEditing && data.id) {
-        navigate('/editor/' + data.id + '?type=' + entryType, { replace: true });
+        const targetPath = entryType === 'page' ? `/pages/editor/${data.id}` : `/posts/editor/${data.id}`;
+        navigate(targetPath, { replace: true });
       }
     },
   });
@@ -190,7 +198,13 @@ export const Editor: React.FC = () => {
   const handleSave = async (publish = false, isPreview = false): Promise<string | null> => {
     const finalStatus = isPreview ? status : publish ? 'published' : 'draft';
 
-    const effectiveTitle = title.trim() || 'Untitled';
+    let currentTitle = title;
+    if (isEditingTitle && tempTitle.trim()) {
+      currentTitle = tempTitle.trim();
+      setTitle(currentTitle);
+    }
+
+    const effectiveTitle = currentTitle.trim() || 'Untitled';
     const effectiveSlug =
       slug.trim() ||
       effectiveTitle
@@ -198,6 +212,10 @@ export const Editor: React.FC = () => {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') ||
       'untitled';
+
+    if (!slug.trim() && effectiveSlug !== 'untitled') {
+      setSlug(effectiveSlug);
+    }
 
     const payload: Record<string, any> = {
       title: effectiveTitle,
@@ -231,6 +249,7 @@ export const Editor: React.FC = () => {
   };
 
   const handleTabChange = async (value: string) => {
+    setActiveTab(value);
     if (value === 'preview') {
       await handleSave(false, true);
     }
@@ -240,10 +259,7 @@ export const Editor: React.FC = () => {
     <Box style={{ maxWidth: '900px', margin: '0 auto' }}>
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
-        <Button variant="ghost" color="gray" onClick={() => navigate(-1)}>
-          <ArrowLeftIcon width="16" height="16" />
-          Back
-        </Button>
+        <BackButton />
         <Flex gap="2">
           <Button variant="soft" color="gray" onClick={() => handleSave(false)}>
             Save Draft
@@ -264,6 +280,16 @@ export const Editor: React.FC = () => {
                 placeholder="Enter title here..."
                 value={tempTitle}
                 onChange={(e) => setTempTitle(e.target.value)}
+                onBlur={() => {
+                  if (!slug.trim() && tempTitle.trim()) {
+                    setSlug(
+                      tempTitle
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-+|-+$/g, '')
+                    );
+                  }
+                }}
                 onKeyDown={handleTitleKeyDown}
                 aria-label="Title"
                 autoFocus
@@ -338,11 +364,11 @@ export const Editor: React.FC = () => {
         </Flex>
       </Box>
 
-      <Tabs.Root defaultValue="content" onValueChange={handleTabChange}>
+      <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
         <Tabs.List mb="4">
-          <Tabs.Trigger value="content">Content</Tabs.Trigger>
-          <Tabs.Trigger value="metadata">Metadata</Tabs.Trigger>
-          <Tabs.Trigger value="preview">Preview</Tabs.Trigger>
+          <Tabs.Trigger value="content" onClick={() => handleTabChange('content')}>Content</Tabs.Trigger>
+          <Tabs.Trigger value="metadata" onClick={() => handleTabChange('metadata')}>Metadata</Tabs.Trigger>
+          <Tabs.Trigger value="preview" onClick={() => handleTabChange('preview')}>Preview</Tabs.Trigger>
         </Tabs.List>
 
         <Tabs.Content value="content">
@@ -666,6 +692,124 @@ export const Editor: React.FC = () => {
               />
             </Box>
           </Grid>
+
+          <Separator size="4" my="5" />
+
+          <Box mb="4">
+            <Heading size="3" mb="1">
+              Search & Social Previews
+            </Heading>
+            <Text size="2" color="gray">
+              Visual preview of how your content appears when shared across platforms.
+            </Text>
+          </Box>
+
+          <Flex direction="column" gap="4">
+            {/* 1. Google Search Results */}
+            <Card size="2">
+              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                Google Search Result
+              </Text>
+              <Box style={{ fontFamily: 'Arial, sans-serif' }}>
+                <Text size="1" color="gray" style={{ display: 'block', marginBottom: '2px', wordBreak: 'break-all' }}>
+                  {`https://example.com › ${entryType === 'page' ? (slug || 'slug') : `post › ${slug || 'slug'}`}`}
+                </Text>
+                <Heading
+                  size="3"
+                  weight="medium"
+                  style={{
+                    color: 'var(--blue-11, #1a0dab)',
+                    marginBottom: '4px',
+                  }}
+                >
+                  {`${title || tempTitle || 'Untitled'} | Zygo CMS`}
+                </Heading>
+                <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
+                  {description || 'Add a meta description to see how this page will appear in search results...'}
+                </Text>
+              </Box>
+            </Card>
+
+            {/* 2. Slack Link Preview / Unfurl */}
+            <Card size="2">
+              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                Slack Link Preview
+              </Text>
+              <Box
+                p="3"
+                style={{
+                  borderLeft: '4px solid var(--accent-9, #36C5F0)',
+                  backgroundColor: 'var(--gray-a2)',
+                  borderRadius: '0 var(--radius-2) var(--radius-2) 0',
+                }}
+              >
+                <Flex justify="between" align="start" gap="3">
+                  <Box style={{ flex: 1 }}>
+                    <Text size="1" weight="medium" color="gray" mb="1" style={{ display: 'block' }}>
+                      Zygo CMS
+                    </Text>
+                    <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                      {title || tempTitle || 'Untitled'}
+                    </Text>
+                    <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
+                      {description || 'No description provided.'}
+                    </Text>
+                  </Box>
+                  {coverImage && (
+                    <Box
+                      style={{
+                        width: '80px',
+                        height: '80px',
+                        flexShrink: 0,
+                        borderRadius: 'var(--radius-2)',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <img
+                        src={coverImage}
+                        alt="Preview thumbnail"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                    </Box>
+                  )}
+                </Flex>
+              </Box>
+            </Card>
+
+            {/* 3. iMessage / iOS Link Bubble Preview */}
+            <Card size="2">
+              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                iMessage Preview
+              </Text>
+              <Box
+                style={{
+                  maxWidth: '340px',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  backgroundColor: 'var(--gray-a3)',
+                  border: '1px solid var(--gray-a5)',
+                }}
+              >
+                {coverImage && (
+                  <Box style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
+                    <img
+                      src={coverImage}
+                      alt="Cover preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  </Box>
+                )}
+                <Box p="3">
+                  <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    {title || tempTitle || 'Untitled'}
+                  </Text>
+                  <Text size="1" color="gray" style={{ display: 'block' }}>
+                    example.com
+                  </Text>
+                </Box>
+              </Box>
+            </Card>
+          </Flex>
         </Tabs.Content>
 
         <Tabs.Content value="preview">
@@ -684,7 +828,7 @@ export const Editor: React.FC = () => {
             {previewToken ? (
               <iframe
                 title="Preview"
-                src={`/preview/${previewToken}`}
+                src={getPublicSiteUrl(`/preview/${previewToken}`)}
                 style={{
                   width: '100%',
                   height: '100%',

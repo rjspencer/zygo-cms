@@ -42,11 +42,32 @@ pub async fn put_menu(mut req: Request, ctx: RouteContext<()>) -> Result<Respons
     let success = db::menu::update_menu_items(&db, name, &payload.items_json).await?;
     
     if success {
-        cache::purge_urls(&ctx.env, vec![
-            format!("{}/", req.url()?.origin().ascii_serialization()),
-            format!("{}/sitemap.xml", req.url()?.origin().ascii_serialization()),
-            format!("{}/rss.xml", req.url()?.origin().ascii_serialization()),
-        ]).await;
+        let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+        let mut purge_list = Vec::new();
+        add_purge_target(&mut purge_list, &origin, "/");
+        add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+        add_purge_target(&mut purge_list, &origin, "/rss.xml");
+        add_purge_target(&mut purge_list, &origin, "/feed.xml");
+        add_purge_target(&mut purge_list, &origin, "/search");
+
+        if let Ok(entries) = db::find_all_entries(&db).await {
+            for entry in entries {
+                if entry.status == "published" {
+                    add_purge_target(&mut purge_list, &origin, &entry.path());
+                }
+            }
+        }
+
+        if let Ok(req_url) = req.url() {
+            let req_origin = req_url.origin().ascii_serialization();
+            if req_origin != origin {
+                add_purge_target(&mut purge_list, &req_origin, "/");
+                add_purge_target(&mut purge_list, &req_origin, "/sitemap.xml");
+                add_purge_target(&mut purge_list, &req_origin, "/rss.xml");
+            }
+        }
+
+        cache::purge_urls(&ctx.env, purge_list).await;
         
         Response::from_json(&json!({ "success": true }))
     } else {
@@ -176,26 +197,25 @@ pub async fn create_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
     };
     let _ = db::create_revision(&db, entry_id, &rev_params, &preview_token).await;
 
-    let origin = req.url()?.origin().ascii_serialization();
+    let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
 
-    let mut purge_list = vec![
-        format!("{}/", origin),
-        format!("{}{}", origin, entry_path),
-        format!("{}/sitemap.xml", origin),
-        format!("{}/rss.xml", origin),
-        format!("{}/feed.xml", origin),
-    ];
+    let mut purge_list = Vec::new();
+    add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, &entry_path);
+    add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+    add_purge_target(&mut purge_list, &origin, "/rss.xml");
+    add_purge_target(&mut purge_list, &origin, "/feed.xml");
     if let Some(ref cat) = payload.category {
         let trimmed = cat.trim();
         if !trimmed.is_empty() {
-            purge_list.push(format!("{}/category/{}", origin, trimmed));
+            add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
         }
     }
     if let Some(ref tags) = payload.tags {
         for tag in tags.split(',') {
             let trimmed = tag.trim();
             if !trimmed.is_empty() {
-                purge_list.push(format!("{}/tag/{}", origin, trimmed));
+                add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
             }
         }
     }
@@ -295,40 +315,48 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
         let _ = db::create_revision(&db, num_id, &rev_params, &preview_token).await;
     }
 
-    let origin = req.url()?.origin().ascii_serialization();
-    let mut purge_list = vec![
-        format!("{}/", origin),
-        format!("{}/sitemap.xml", origin),
-        format!("{}/rss.xml", origin),
-        format!("{}/feed.xml", origin),
-    ];
+    let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+    let mut purge_list = Vec::new();
+    add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+    add_purge_target(&mut purge_list, &origin, "/rss.xml");
+    add_purge_target(&mut purge_list, &origin, "/feed.xml");
     if let Some(ref entry) = existing_entry {
-        purge_list.push(format!("{}{}", origin, entry.path()));
+        add_purge_target(&mut purge_list, &origin, &entry.path());
         let old_prefix = format!("{}/", entry.path());
         let all_entries = db::find_all_entries(&db).await.unwrap_or_default();
         for e in all_entries {
             if e.path().starts_with(&old_prefix) {
-                purge_list.push(format!("{}{}", origin, e.path()));
+                add_purge_target(&mut purge_list, &origin, &e.path());
             }
         }
         if let Some(ref cat) = entry.category {
-            purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+            let trimmed = cat.trim();
+            if !trimmed.is_empty() {
+                add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
+            }
         }
         for tag in entry.tag_list() {
-            purge_list.push(format!("{}/tag/{}", origin, tag));
+            let trimmed = tag.trim();
+            if !trimmed.is_empty() {
+                add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
+            }
         }
     }
     if let Some(updated_entry) = db::find_entry_by_id(&db, id).await? {
-        purge_list.push(format!("{}{}", origin, updated_entry.path()));
+        add_purge_target(&mut purge_list, &origin, &updated_entry.path());
     }
     if let Some(ref cat) = payload.category {
-        purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+        let trimmed = cat.trim();
+        if !trimmed.is_empty() {
+            add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
+        }
     }
     if let Some(ref tags) = payload.tags {
         for tag in tags.split(',') {
             let trimmed = tag.trim();
             if !trimmed.is_empty() {
-                purge_list.push(format!("{}/tag/{}", origin, trimmed));
+                add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
             }
         }
     }
@@ -361,20 +389,25 @@ pub async fn delete_entry(req: Request, ctx: RouteContext<()>) -> Result<Respons
         Err(e) => return Response::error(e.to_string(), 400),
     };
 
-    let origin = req.url()?.origin().ascii_serialization();
-    let mut purge_list = vec![
-        format!("{}/", origin),
-        format!("{}/sitemap.xml", origin),
-        format!("{}/rss.xml", origin),
-        format!("{}/feed.xml", origin),
-    ];
+    let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+    let mut purge_list = Vec::new();
+    add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+    add_purge_target(&mut purge_list, &origin, "/rss.xml");
+    add_purge_target(&mut purge_list, &origin, "/feed.xml");
     if let Some(ref entry) = existing_entry {
-        purge_list.push(format!("{}{}", origin, entry.path()));
+        add_purge_target(&mut purge_list, &origin, &entry.path());
         if let Some(ref cat) = entry.category {
-            purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+            let trimmed = cat.trim();
+            if !trimmed.is_empty() {
+                add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
+            }
         }
         for tag in entry.tag_list() {
-            purge_list.push(format!("{}/tag/{}", origin, tag));
+            let trimmed = tag.trim();
+            if !trimmed.is_empty() {
+                add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
+            }
         }
     }
     cache::purge_urls(&ctx.env, purge_list).await;
@@ -403,19 +436,24 @@ pub async fn restore_entry(req: Request, ctx: RouteContext<()>) -> Result<Respon
 
     if let Some(ref entry) = existing_entry {
         if entry.status == "published" {
-            let origin = req.url()?.origin().ascii_serialization();
-            let mut purge_list = vec![
-                format!("{}/", origin),
-                format!("{}{}", origin, entry.path()),
-                format!("{}/sitemap.xml", origin),
-                format!("{}/rss.xml", origin),
-                format!("{}/feed.xml", origin),
-            ];
+            let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+            let mut purge_list = Vec::new();
+            add_purge_target(&mut purge_list, &origin, "/");
+            add_purge_target(&mut purge_list, &origin, &entry.path());
+            add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+            add_purge_target(&mut purge_list, &origin, "/rss.xml");
+            add_purge_target(&mut purge_list, &origin, "/feed.xml");
             if let Some(ref cat) = entry.category {
-                purge_list.push(format!("{}/category/{}", origin, cat.trim()));
+                let trimmed = cat.trim();
+                if !trimmed.is_empty() {
+                    add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
+                }
             }
             for tag in entry.tag_list() {
-                purge_list.push(format!("{}/tag/{}", origin, tag));
+                let trimmed = tag.trim();
+                if !trimmed.is_empty() {
+                    add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
+                }
             }
             cache::purge_urls(&ctx.env, purge_list).await;
         }
@@ -487,6 +525,36 @@ fn get_fallback_origin(req: &Request, env: &Env) -> Result<String> {
     Ok(origin)
 }
 
+pub async fn resolve_canonical_origin(req: &Request, env: &Env, db: &worker::D1Database) -> Result<String> {
+    if let Ok(Some(setting)) = db::setting::get_setting(db, "canonical_origin").await {
+        if !setting.value.trim().is_empty() {
+            return Ok(setting.value.trim().trim_end_matches('/').to_string());
+        }
+    }
+    if let Ok(env_origin) = env.var("CANONICAL_ORIGIN").or_else(|_| env.var("SITE_URL")) {
+        let s = env_origin.to_string();
+        if !s.trim().is_empty() {
+            return Ok(s.trim().trim_end_matches('/').to_string());
+        }
+    }
+    get_fallback_origin(req, env)
+}
+
+fn add_purge_target(purge_list: &mut Vec<String>, origin: &str, path: &str) {
+    let clean_path = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        format!("/{}", path)
+    };
+    let full_url = format!("{}{}", origin, clean_path);
+    if !purge_list.contains(&full_url) {
+        purge_list.push(full_url);
+    }
+    if !purge_list.contains(&clean_path) {
+        purge_list.push(clean_path);
+    }
+}
+
 #[derive(serde::Deserialize)]
 struct UpdateSettingsReq {
     #[serde(default)]
@@ -526,14 +594,8 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
 
     let origin = if let Some(origin_val) = to_update.get("canonical_origin").filter(|s| !s.trim().is_empty()) {
         origin_val.trim().trim_end_matches('/').to_string()
-    } else if let Ok(Some(setting)) = db::setting::get_setting(&db, "canonical_origin").await {
-        if !setting.value.trim().is_empty() {
-            setting.value.trim().trim_end_matches('/').to_string()
-        } else {
-            get_fallback_origin(&req, &ctx.env)?
-        }
     } else {
-        get_fallback_origin(&req, &ctx.env)?
+        resolve_canonical_origin(&req, &ctx.env, &db).await?
     };
 
     cache::purge_urls(&ctx.env, vec![
@@ -627,4 +689,26 @@ pub async fn auth_login(req: Request, _ctx: RouteContext<()>) -> Result<Response
     let url = req.url()?;
     let next = url.query_pairs().find(|(k, _)| k == "next").map(|(_, v)| v.to_string()).unwrap_or_else(|| "https://admin.zygodactylstudios.com".to_string());
     Response::redirect(worker::Url::parse(&next)?)
+}
+
+pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let token = match ctx.param("token") {
+        Some(t) => t,
+        None => return Response::error("Missing token", 400),
+    };
+    let db = ctx.env.d1("DB")?;
+    let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+    let preview_url = format!("{}/preview/{}", origin, token);
+    let client_req = Request::new(&preview_url, Method::Get)?;
+    let mut resp = match Fetch::Request(client_req).send().await {
+        Ok(r) => r,
+        Err(e) => return Response::error(format!("Failed to fetch preview: {e}"), 502),
+    };
+    let bytes = resp.bytes().await?;
+    let headers = resp.headers().clone();
+    let _ = headers.delete("x-frame-options");
+    let _ = headers.delete("X-Frame-Options");
+    let _ = headers.set("Content-Security-Policy", "frame-ancestors *");
+    let _ = headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    Response::from_bytes(bytes).map(|res| res.with_headers(headers))
 }

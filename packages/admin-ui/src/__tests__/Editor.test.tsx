@@ -18,6 +18,10 @@ const renderEditor = (initialPath = '/editor') => {
           <Routes>
             <Route path="/editor" element={<Editor />} />
             <Route path="/editor/:id" element={<Editor />} />
+            <Route path="/posts/editor/new" element={<Editor />} />
+            <Route path="/posts/editor/:id" element={<Editor />} />
+            <Route path="/pages/editor/new" element={<Editor />} />
+            <Route path="/pages/editor/:id" element={<Editor />} />
           </Routes>
         </Theme>
       </MemoryRouter>
@@ -333,8 +337,9 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
 
 });
 
-describe.skip('Editor Component - Phase 3 True Rendered Preview Tab', () => {
+describe('Editor Component - Phase 3 True Rendered Preview Tab', () => {
   beforeEach(() => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
@@ -487,12 +492,7 @@ describe.skip('Editor Component - Phase 3 True Rendered Preview Tab', () => {
 
     renderEditor('/editor/42');
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/admin/editor/42',
-        expect.objectContaining({ credentials: 'include' })
-      );
-    });
+    await screen.findByText('Published Post');
 
     const previewTab = screen.getByRole('tab', { name: /preview/i });
     fireEvent.click(previewTab);
@@ -508,7 +508,7 @@ describe.skip('Editor Component - Phase 3 True Rendered Preview Tab', () => {
     });
   });
 
-  it.skip('renders with existing preview token from latest_revision or updates when switched', async () => {
+  it('renders with existing preview token from latest_revision or updates when switched', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string) => {
@@ -754,5 +754,105 @@ describe('Editor Component - Section Templates Rework', () => {
     vi.restoreAllMocks();
   });
 });
+
+describe('Editor Component - Phase 3 Routing, Title UX & Metadata Previews', () => {
+  beforeEach(() => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([]),
+          });
+        }
+        if (url.includes('/api/entries')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, id: 99, preview_token: 'ptk-99' }),
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({}),
+        });
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('navigates to /posts/editor/new and initializes as post with title editing input open', () => {
+    renderEditor('/posts/editor/new');
+
+    expect(screen.getByPlaceholderText('Enter title here...')).toBeDefined();
+    expect(screen.getByText('POST')).toBeDefined();
+    expect(screen.getByText('/post/')).toBeDefined();
+  });
+
+  it('navigates to /pages/editor/new and initializes as page with title editing input open', () => {
+    renderEditor('/pages/editor/new');
+
+    expect(screen.getByPlaceholderText('Enter title here...')).toBeDefined();
+    expect(screen.getByText('PAGE')).toBeDefined();
+    expect(screen.getByText('/')).toBeDefined();
+  });
+
+  it('auto-generates slug on title input blur when slug field is empty', () => {
+    renderEditor('/posts/editor/new');
+
+    const titleInput = screen.getByPlaceholderText('Enter title here...') as HTMLInputElement;
+    fireEvent.change(titleInput, { target: { value: 'My Awesome New Article!' } });
+    fireEvent.blur(titleInput);
+
+    const slugInput = screen.getByPlaceholderText('url-friendly-slug') as HTMLInputElement;
+    expect(slugInput.value).toBe('my-awesome-new-article');
+  });
+
+  it('saves entry using tempTitle and auto-generated slug when saved while title is still in edit mode', async () => {
+    renderEditor('/posts/editor/new');
+
+    const titleInput = screen.getByPlaceholderText('Enter title here...') as HTMLInputElement;
+    fireEvent.change(titleInput, { target: { value: 'Unsaved Title Mode' } });
+
+    const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+    fireEvent.click(saveDraftBtn);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/entries',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringMatching(/"title":"Unsaved Title Mode"/),
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/entries',
+        expect.objectContaining({
+          body: expect.stringMatching(/"slug":"unsaved-title-mode"/),
+        })
+      );
+    });
+  });
+
+  it('renders Google, Slack, and iMessage visual previews under Metadata tab', () => {
+    renderEditor('/posts/editor/new');
+
+    const metadataTab = screen.getByRole('tab', { name: /metadata/i });
+    fireEvent.click(metadataTab);
+
+    expect(screen.getByText('Search & Social Previews')).toBeDefined();
+    expect(screen.getByText('Google Search Result')).toBeDefined();
+    expect(screen.getByText('Slack / Social Card')).toBeDefined();
+    expect(screen.getByText('iMessage / Apple Message')).toBeDefined();
+  });
+});
+
 
 

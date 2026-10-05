@@ -98,6 +98,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         // API routes - Revisions
         .get_async("/api/entries/:id/revisions", handlers::api::get_revisions)
         .get_async("/api/revisions/:id", handlers::api::get_revision)
+
+        // Preview routes
+        .get_async("/preview/:token", handlers::api::preview)
+        .get_async("/api/preview/:token", handlers::api::preview)
         
         // CORS preflight catch-all
         .options("/*catchall", |_, _| Response::empty());

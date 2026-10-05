@@ -156,6 +156,12 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
   - **Webhook Triggers**: Dispatch webhooks (from Roadmap #6) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
 
+### Connect an Email Sender
+- **Goal**: Automatically dispatch onboarding invitation and authentication emails to new users directly from Zygo CMS.
+- **Details**:
+  - Integrate an email delivery provider (e.g., Cloudflare Email Routing / Workers Email, Resend, or Mailchannels).
+  - Automatically deliver the onboarding email with access instructions when an admin invites a user, eliminating the manual copy-paste workflow.
+
 ---
 
 ## 4. Developer & Testing Cheat Sheet

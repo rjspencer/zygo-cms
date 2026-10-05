@@ -21,7 +21,11 @@ export const App: React.FC = () => {
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="posts" element={<Posts />} />
+        <Route path="posts/editor/new" element={<Editor />} />
+        <Route path="posts/editor/:id" element={<Editor />} />
         <Route path="pages" element={<PagesList />} />
+        <Route path="pages/editor/new" element={<Editor />} />
+        <Route path="pages/editor/:id" element={<Editor />} />
         <Route path="editor" element={<Editor />} />
         <Route path="editor/:id" element={<Editor />} />
         <Route path="media" element={<Media />} />

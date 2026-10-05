@@ -167,11 +167,11 @@ export const Layout: React.FC = () => {
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content>
-                <DropdownMenu.Item onClick={() => navigate('/editor?type=post')}>
+                <DropdownMenu.Item onClick={() => navigate('/posts/editor/new')}>
                   <FileTextIcon width="16" height="16" />
                   New Post
                 </DropdownMenu.Item>
-                <DropdownMenu.Item onClick={() => navigate('/editor?type=page')}>
+                <DropdownMenu.Item onClick={() => navigate('/pages/editor/new')}>
                   <LayersIcon width="16" height="16" />
                   New Page
                 </DropdownMenu.Item>

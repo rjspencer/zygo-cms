@@ -244,6 +244,9 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
     headers.set("Cache-Control", "no-store, no-cache, must-revalidate")?;
+    headers.set("Content-Security-Policy", "frame-ancestors *")?;
+    let _ = headers.delete("x-frame-options");
+    let _ = headers.delete("X-Frame-Options");
 
     Response::ok(html).map(|res| res.with_headers(headers))
 }

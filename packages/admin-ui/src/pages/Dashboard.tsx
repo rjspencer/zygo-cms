@@ -109,7 +109,7 @@ export const Dashboard: React.FC = () => {
           </Text>
         </Box>
         <Flex gap="2">
-          <Button variant="solid" color="iris" onClick={() => navigate('/editor?type=post')}>
+          <Button variant="solid" color="iris" onClick={() => navigate('/posts/editor/new')}>
             <PlusIcon width="16" height="16" />
             New Post
           </Button>
@@ -205,7 +205,7 @@ export const Dashboard: React.FC = () => {
                       size="1"
                       variant="ghost"
                       color="gray"
-                      onClick={() => navigate(`/editor/${entry.id}`)}
+                      onClick={() => navigate(entry.type === 'page' ? `/pages/editor/${entry.id}` : `/posts/editor/${entry.id}`)}
                       title="Edit"
                     >
                       <Pencil1Icon width="16" height="16" />
