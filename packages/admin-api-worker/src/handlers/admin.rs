@@ -214,7 +214,7 @@ pub async fn analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> 
         .map(|s| s.value == "true")
         .unwrap_or(false);
 
-    let has_cloudflare_tokens = ctx.env.secret("CF_API_TOKEN").is_ok() && ctx.env.var("CF_ZONE_ID").is_ok();
+    let has_cloudflare_tokens = (ctx.env.secret("CF_API_TOKEN").is_ok() || ctx.env.var("CF_API_TOKEN").is_ok()) && (ctx.env.secret("CF_ZONE_ID").is_ok() || ctx.env.var("CF_ZONE_ID").is_ok());
     
     let auth_url = get_auth_url(&ctx.env);
     let menus = db::menu::get_all_menus(&db).await?;

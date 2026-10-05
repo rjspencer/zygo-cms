@@ -619,12 +619,12 @@ pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Respon
         return Response::error("Analytics disabled", 403);
     }
 
-    let api_token = match ctx.env.secret("CF_API_TOKEN") {
+    let api_token = match ctx.env.secret("CF_API_TOKEN").or_else(|_| ctx.env.var("CF_API_TOKEN")) {
         Ok(s) => s.to_string(),
         Err(_) => return Response::error("Missing CF_API_TOKEN", 500),
     };
 
-    let zone_id = match ctx.env.var("CF_ZONE_ID") {
+    let zone_id = match ctx.env.secret("CF_ZONE_ID").or_else(|_| ctx.env.var("CF_ZONE_ID")) {
         Ok(s) => s.to_string(),
         Err(_) => return Response::error("Missing CF_ZONE_ID", 500),
     };

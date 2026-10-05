@@ -77,19 +77,23 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **CI/CD Pipeline**: GitHub Actions workflow (`.github/workflows/deploy.yml`) with automated caching, linting, tests, remote D1 migrations, and release deployment.
 
 ### Full-Text Site Search
-- **Goal**: Allow users to search across all published content.
-- **Details**:
-  - Implement a server-side search using SQLite FTS5 or integrate a client-side search solution (e.g., Algolia or Orama).
+- **Server-Side Search**: Implemented a native server-side search route at `/search` using SQLite FTS5 queries across all published content.
 
 ### Analytics Dashboard
-- **Goal**: Built-in privacy-first traffic insights.
-- **Details**:
-  - Integrate a lightweight, GDPR-compliant analytics view in the admin dashboard (e.g., tracking views, referrers) without requiring a cookie banner.
+- **Admin Analytics View**: Integrated a lightweight, built-in privacy-first traffic insights dashboard in the admin UI without requiring a cookie banner.
 
 ### Custom Content Types & Schema Builder
 - **Schema Builder**: Interface at `/admin/content-types` to define custom entities (e.g., `Product`, `Event`) and construct dynamic JSON schemas with field types (text, number, boolean, date).
 - **Editor Integration**: Dynamically renders custom form inputs in the editor sidebar based on the selected content type.
 - **JSON Storage**: Safely persists structured data into the `custom_fields_json` D1 column.
+
+### Scheduled Publishing
+- **Scheduled Cron Trigger**: Integrated a background cron event (`#[event(scheduled)]`) that automatically transitions posts to "published" status when their `published_at` time arrives, and purges the edge cache.
+
+### Two-Worker Architecture
+- **Separated Responsibilities**: Split Zygo CMS into two independent Cloudflare Workers (`public-worker` and `admin-api-worker`) and a shared `core` package.
+- **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
+- **Admin Worker (Writer)**: Handles authentication, media uploads, and heavy authoring libraries.
 
 ---
 
@@ -127,18 +131,6 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Add "Delete Permanently" action in the Trash table and an "Empty Trash" batch action.
   - Cascade delete associated snapshots in `entry_revisions`.
   - Intentionally kept in the Icebox to maximize data safety; permanent deletion currently requires direct SQL execution via Wrangler D1.
-
-### Scheduled Publishing
-- **Goal**: Allow users to set a future publication date for posts.
-- **Details**: 
-  - Add UI in the editor to select a future date and time for `published_at`.
-  - Implement a cron trigger or deferred worker task to automatically transition status and purge caches when the time arrives.
-
-### Split Public & Admin Workers
-- **Concept**: Separate Zygo CMS into two independent Cloudflare Workers:
-  1. **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
-  2. **Admin Worker (Writer)**: Handles authentication, Cloudflare Access JWT validation, media uploads, and heavy authoring libraries (e.g. Ammonia sanitization).
-- **Triggers**: Revisit only if future writer-side features push the compiled Wasm binary or CPU usage toward Cloudflare Worker limits. Currently, the unified worker remains well under 1 MB and well within performance boundaries.
 
 ### Headless CMS Content API
 - **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
