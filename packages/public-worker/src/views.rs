@@ -15,7 +15,7 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -50,7 +50,7 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
     <footer>
         <nav>
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
@@ -75,7 +75,7 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -101,7 +101,7 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
     <footer>
         <nav>
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
@@ -126,7 +126,7 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -170,7 +170,7 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
     <footer>
         <nav>
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
@@ -190,7 +190,7 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -216,7 +216,7 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
     <footer>
         <nav>
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.label }}</a>
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>

@@ -203,7 +203,7 @@ export const Navigation: React.FC = () => {
         </Button>
       </Flex>
 
-      <Card size="2">
+      <Card size="2" style={{ overflow: 'visible' }}>
         <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as 'header' | 'footer')}>
           <Tabs.List mb="4">
             <Tabs.Trigger value="header">Header Menu</Tabs.Trigger>
@@ -261,7 +261,7 @@ export const Navigation: React.FC = () => {
             </Table.Root>
 
             {/* Add Item Row */}
-            <Card variant="classic" size="1">
+            <Card variant="classic" size="1" style={{ overflow: 'visible' }}>
               <Heading size="2" mb="3">
                 Add Menu Item
               </Heading>
