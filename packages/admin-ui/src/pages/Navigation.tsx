@@ -5,7 +5,6 @@ import {
   Heading,
   Text,
   Button,
-  Card,
   Tabs,
   TextField,
   IconButton,
@@ -203,7 +202,7 @@ export const Navigation: React.FC = () => {
         </Button>
       </Flex>
 
-      <Card size="2" style={{ overflow: 'visible' }}>
+      <Box style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: 'var(--radius-4)', boxShadow: 'var(--shadow-2)', padding: 'var(--space-4)', border: '1px solid var(--gray-6)' }}>
         <Tabs.Root value={activeTab} onValueChange={(v) => setActiveTab(v as 'header' | 'footer')}>
           <Tabs.List mb="4">
             <Tabs.Trigger value="header">Header Menu</Tabs.Trigger>
@@ -261,7 +260,7 @@ export const Navigation: React.FC = () => {
             </Table.Root>
 
             {/* Add Item Row */}
-            <Card variant="classic" size="1" style={{ overflow: 'visible' }}>
+            <Box style={{ backgroundColor: 'var(--color-panel-solid)', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-3)', padding: 'var(--space-4)', position: 'relative', zIndex: 10 }}>
               <Heading size="2" mb="3">
                 Add Menu Item
               </Heading>
@@ -432,10 +431,10 @@ export const Navigation: React.FC = () => {
                   </Button>
                 </Box>
               </Flex>
-            </Card>
+            </Box>
           </Tabs.Content>
         </Tabs.Root>
-      </Card>
+      </Box>
     </Box>
   );
 };
