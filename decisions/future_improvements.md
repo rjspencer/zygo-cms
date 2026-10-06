@@ -99,15 +99,59 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ## 2. Prioritized Roadmap & Future Work
 
+### Priority
 
----
 
-## 3\. Icebox & Long-Term Considerations
+### Soon
+
+### Headless CMS Content API
+- **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
+- **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
+  - Database entries already store both rendered `body_html` and structured TipTap JSON (`body_json`).
+  - Rust models already derive `serde::Serialize` and `serde_json` is integrated.
+  - Paginated D1 queries and filtering logic (category, tag, status) already exist.
+  - Edge caching infrastructure works seamlessly with JSON responses.
+- **Key Requirements**:
+  - **Public Content Delivery API**:
+    - `GET /api/v1/posts` & `GET /api/v1/pages`: Paginated listing with `?page=`, `?per_page=`, `?tag=`, and `?category=`.
+    - `GET /api/v1/posts/:slug` & `GET /api/v1/pages/*`: Single entry retrieval with full metadata, breadcrumbs, `body_html`, and `body_json`.
+    - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
+  - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
+  - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
+  - **Webhook Triggers**: Dispatch webhooks (from Roadmap #6) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
 
 ### Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
+
+#### Custom Workflow Statuses
+- **Goal**: Extend editorial workflows beyond basic draft/published states.
+- **Details**:
+  - Add custom states such as "In Review", "Ready for Publish", or "Archived".
+  - Integrate with RBAC to restrict who can transition between states.
+
+#### Bulk Content Operations
+- **Goal**: Enable efficient management of large content libraries.
+- **Details**:
+  - Add bulk-select capabilities to lists (posts, pages).
+  - Support bulk publish/unpublish, bulk tagging, and move to trash.
+
+---
+
+## 3\. Icebox & Long-Term Considerations
+
+### Content Localization & Multi-language (i18n)
+- **Goal**: Treat locales as first-class citizens.
+- **Details**:
+  - Allow authors to manage translated versions of the same post/page.
+  - Serve content via subdirectories (e.g., `/en/post-slug` vs `/fr/post-slug`).
+
+### Multiplayer / Real-time Editing
+- **Goal**: Enable Google Docs-style real-time collaborative editing.
+- **Details**:
+  - Leverage TipTap's native Yjs support.
+  - Sync cursor positions and edits via WebSockets (Cloudflare Durable Objects).
 
 ### Hosted Section Template Store
 - **Goal**: Let users browse and install section templates from a store we host.
@@ -131,22 +175,6 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Add "Delete Permanently" action in the Trash table and an "Empty Trash" batch action.
   - Cascade delete associated snapshots in `entry_revisions`.
   - Intentionally kept in the Icebox to maximize data safety; permanent deletion currently requires direct SQL execution via Wrangler D1.
-
-### Headless CMS Content API
-- **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
-- **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
-  - Database entries already store both rendered `body_html` and structured TipTap JSON (`body_json`).
-  - Rust models already derive `serde::Serialize` and `serde_json` is integrated.
-  - Paginated D1 queries and filtering logic (category, tag, status) already exist.
-  - Edge caching infrastructure works seamlessly with JSON responses.
-- **Key Requirements**:
-  - **Public Content Delivery API**:
-    - `GET /api/v1/posts` & `GET /api/v1/pages`: Paginated listing with `?page=`, `?per_page=`, `?tag=`, and `?category=`.
-    - `GET /api/v1/posts/:slug` & `GET /api/v1/pages/*`: Single entry retrieval with full metadata, breadcrumbs, `body_html`, and `body_json`.
-    - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
-  - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
-  - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
-  - **Webhook Triggers**: Dispatch webhooks (from Roadmap #6) to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
 
 ### Connect an Email Sender
 - **Goal**: Automatically dispatch onboarding invitation and authentication emails to new users directly from Zygo CMS.
