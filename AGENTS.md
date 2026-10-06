@@ -19,9 +19,12 @@
 - Focus strictly on requested functionality without introducing unneeded dependencies or extra features.
 
 ## Subagent Workflows
-- **Feature Implementation**: When writing code for a new feature, delegate the actual code generation to a subagent (using `invoke_subagent` with `Model: "flash"`). Provide the subagent with highly detailed, clear instructions on what needs to be implemented.
-- **Code Review**: When a feature implementation is complete, always invoke a subagent (using `invoke_subagent` with `Model: "flash"`) to review the code. Provide it with clear, specific instructions about the feature requirements and what to verify.
-- **Visual Review**: If a feature includes major visual or UI components, invoke an additional subagent (with browser tools if available) to open the page in a browser and visually verify the layout and rendering.
+- **Backend Workflow**: For non-visual changes (Rust logic, D1, APIs), delegate feature implementation to a subagent, followed by a standard Code Review Subagent to check logic, tests, and security before committing.
+- **Frontend/UI Workflow (1+2+4 Protocol)**: For ANY visual UI component changes, you must strictly follow this protocol:
+  1. **Build**: Build the React component and create a corresponding `.stories.tsx` file for Storybook.
+  2. **Automate**: Ensure the component passes Playwright tests via the `@storybook/test-runner`.
+  3. **Handoff**: Invoke a strict `ui-qa` Subagent. Provide it with the local Storybook URL for the component (e.g., `http://localhost:6006/?path=/story/...`).
+  4. **Vision Validation**: The `ui-qa` Subagent MUST open the URL in a headless browser, interact with the component, and use its Vision capabilities to actively check for visual regressions (e.g. clipped dropdowns, z-index issues, overflowing text). The commit is blocked until the `ui-qa` agent approves it.
 
 ## Cloudflare Workers & `worker-rs` Routing
 - **No `wait_until` on `RouteContext`**: In `worker-rs`, `wait_until` exists only on the top-level `worker::Context`, not on router closures (`RouteContext<D>`).
