@@ -389,7 +389,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
         console.warn(`   1. Open https://one.dash.cloudflare.com/ in your browser.`);
         console.warn(`   2. Choose an organization / team domain name.`);
         console.warn(`   3. Select the "Free" plan ($0/mo, covers up to 50 users).`);
-        console.warn(`   4. Once complete, re-run "npm run setup" to automatically create the Access application!\n`);
+        console.warn(`   4. Once complete, re-run "pnpm run setup" to automatically create the Access application!\n`);
       } else if (errorStr.includes('auth.forbidden') || errorStr.includes('1010')) {
         console.warn(`\n⚠️  API Token Forbidden (Error 1010: auth.forbidden).`);
         console.warn(`   Your Cloudflare API Token is missing permission to manage Zero Trust Access:`);
@@ -397,7 +397,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
         console.warn(`   2. Edit your API Token and ensure it includes:`);
         console.warn(`      • Account > Access: Apps and Policies -> Edit`);
         console.warn(`      • Account Resources -> Include -> All accounts (or your specific account)`);
-        console.warn(`   3. Re-run "npm run setup" once updated.\n`);
+        console.warn(`   3. Re-run "pnpm run setup" once updated.\n`);
       } else {
         console.warn(`⚠️  Access application creation failed for ${appDomain}: ${errorStr}`);
       }
@@ -1012,11 +1012,11 @@ async function main() {
       // Need real-time output for build/deploy
       s.stop('Building Zygo CMS...');
       updateAdminUiEnv(config.domain, config.adminApiSubdomain);
-      execSync('npm run build', { stdio: 'inherit' });
+      execSync('pnpm run build', { stdio: 'inherit' });
       console.log(pc.green('✓ Build completed'));
 
       console.log(pc.cyan('Deploying to Cloudflare...'));
-      execSync('npm run deploy', { stdio: 'inherit' });
+      execSync('pnpm run deploy', { stdio: 'inherit' });
       console.log(pc.green('✓ Deployment completed'));
     } catch (err) {
       console.error(pc.red('⚠️ Build or deployment failed.'));

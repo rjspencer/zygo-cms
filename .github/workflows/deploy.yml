@@ -31,18 +31,23 @@ jobs:
       - name: Run Rust Unit Test Suite
         run: cargo test --lib
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install JS Dependencies
         run: |
-          npm ci
-          npm ci --prefix packages/admin-ui
+          pnpm install --frozen-lockfile
 
       - name: Run Browser / DOM Test Suite
-        run: npm test
+        run: pnpm test
 
   deploy:
     name: Build & Deploy
@@ -65,15 +70,20 @@ jobs:
       - name: Install worker-build
         run: cargo install worker-build --locked
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: 'pnpm'
 
       - name: Install JS Dependencies
         run: |
-          npm ci
-          npm ci --prefix packages/admin-ui
+          pnpm install --frozen-lockfile
 
       - name: Inject API URL for UI Build
         run: |
@@ -81,7 +91,7 @@ jobs:
           echo "VITE_API_BASE_URL=https://$API_DOMAIN" >> packages/admin-ui/.env.production
 
       - name: Build All Packages
-        run: npm run build
+        run: pnpm run build
 
       - name: Create D1 Database (if not exists)
         uses: cloudflare/wrangler-action@v3

@@ -78,7 +78,7 @@ npx wrangler d1 migrations apply zygo-cms-db --local -c packages/public-worker/w
 Run the test suite:
 
 ```bash
-npm run test:all
+pnpm run test:all
 cargo test
 ```
 
@@ -87,7 +87,7 @@ cargo test
 Start all three workers concurrently in development mode:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 The services will be accessible locally:
@@ -165,7 +165,7 @@ For complete DNS and Cloudflare Custom Domain routing prerequisites, see the [Cu
 The fastest and most seamless way to onboard, configure custom domains, provision resources, and deploy Zygo CMS is with the interactive setup wizard:
 
 ```bash
-npm run setup
+pnpm run setup
 ```
 
 The setup wizard handles the entire onboarding flow out of the box:
@@ -222,17 +222,17 @@ Compile the Rust WebAssembly binaries, build the Admin UI SPA, and deploy to Clo
 
 ```bash
 # Build all 3 packages
-npm run build
+pnpm run build
 
 # Deploy all 3 workers
-npm run deploy
+pnpm run deploy
 ```
 
 You can also deploy individual workers:
 ```bash
-npm run deploy:public   # packages/public-worker
-npm run deploy:api      # packages/admin-api-worker
-npm run deploy:ui       # packages/admin-ui
+pnpm run deploy:public   # packages/public-worker
+pnpm run deploy:api      # packages/admin-api-worker
+pnpm run deploy:ui       # packages/admin-ui
 ```
 
 ---
