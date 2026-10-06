@@ -5,3 +5,6 @@ dist-ssr
 .env*
 !.env.example
 .DS_Store
+
+*storybook.log
+storybook-static
