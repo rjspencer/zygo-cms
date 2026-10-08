@@ -23,7 +23,7 @@ export const NotFound: React.FC = () => {
         The administrative route you are looking for does not exist or has been moved.
       </Text>
       <Button size="3" variant="solid" color="iris" onClick={() => navigate('/')}>
-        <DashboardIcon width="16" height="16" />
+        <DashboardIcon width="18" height="18" />
         Return to Dashboard
       </Button>
     </Flex>

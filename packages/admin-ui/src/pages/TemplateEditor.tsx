@@ -415,9 +415,9 @@ When the user asks for a change, simply write your updates into the respective t
           {isAdmin && (
             <Flex align="center" gap="2">
               {isLocked ? (
-                <LockClosedIcon width="16" height="16" color="var(--amber-10)" />
+                <LockClosedIcon width="18" height="18" color="var(--amber-10)" />
               ) : (
-                <LockOpen1Icon width="16" height="16" color="var(--gray-9)" />
+                <LockOpen1Icon width="18" height="18" color="var(--gray-9)" />
               )}
               <Text as="label" htmlFor="template-lock-switch" size="2" weight="medium">
                 Lock Template
@@ -443,7 +443,7 @@ When the user asks for a change, simply write your updates into the respective t
             <Flex align="center" gap="3">
               <Badge color="orange" variant="soft">Draft Unsaved</Badge>
               <Button variant="soft" color="red" onClick={() => setIsDiscardModalOpen(true)}>
-                <ResetIcon width="16" height="16" /> Discard
+                <ResetIcon width="18" height="18" /> Discard
               </Button>
             </Flex>
           )}

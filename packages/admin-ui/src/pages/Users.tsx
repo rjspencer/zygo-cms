@@ -250,7 +250,7 @@ Welcome aboard!`
   });
 
   return (
-    <Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <Box>
       {/* Header */}
       <Flex justify="between" align="center" mb="5">
         <Box>
@@ -262,7 +262,7 @@ Welcome aboard!`
           </Text>
         </Box>
         <Button variant="solid" color="iris" onClick={() => { setIsInviteOpen(true); inviteMutation.reset(); }}>
-          <PlusIcon width="16" height="16" />
+          <PlusIcon width="18" height="18" />
           Invite User
         </Button>
       </Flex>
@@ -407,25 +407,23 @@ Welcome aboard!`
                   {/* Actions */}
                   <Table.Cell style={{ textAlign: 'right' }}>
                     <Flex justify="end" gap="1">
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="gray"
                         onClick={() => openEditModal(user)}
                         title="Edit User"
                         aria-label={`Edit ${user.display_name || user.email}`}
                       >
-                        <Pencil1Icon width="16" height="16" />
+                        <Pencil1Icon width="18" height="18" />
                       </IconButton>
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="red"
                         onClick={() => { setUserToDelete(user); deleteMutation.reset(); }}
                         title="Delete User"
                         aria-label={`Delete ${user.display_name || user.email}`}
                       >
-                        <TrashIcon width="16" height="16" />
+                        <TrashIcon width="18" height="18" />
                       </IconButton>
                     </Flex>
                   </Table.Cell>
@@ -677,11 +675,11 @@ Welcome aboard!`
             >
               {copiedEmail ? (
                 <>
-                  <CheckIcon width="16" height="16" /> Copied!
+                  <CheckIcon width="18" height="18" /> Copied!
                 </>
               ) : (
                 <>
-                  <ClipboardCopyIcon width="16" height="16" /> Copy Template
+                  <ClipboardCopyIcon width="18" height="18" /> Copy Template
                 </>
               )}
             </Button>
