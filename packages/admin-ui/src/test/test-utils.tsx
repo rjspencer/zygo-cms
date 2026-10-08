@@ -1,7 +1,7 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions, renderHook, RenderHookOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, MemoryRouterProps } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider, MemoryRouterProps } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
 import { ThemeProvider } from '../context/ThemeModeContext';
 import { createQueryClient } from '../queryClient';
@@ -87,6 +87,34 @@ export interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   queryClient?: QueryClient;
 }
 
+const ChildrenContext = React.createContext<React.ReactNode>(null);
+const ChildrenSlot = () => <>{React.useContext(ChildrenContext)}</>;
+
+// useBlocker requires a data router, so tests use createMemoryRouter.
+function createWrapper(
+  queryClient: QueryClient,
+  initialEntries: MemoryRouterProps['initialEntries']
+) {
+  return function Wrapper({ children }: { children: React.ReactNode }) {
+    const [router] = React.useState(() =>
+      createMemoryRouter([{ path: '*', element: <ChildrenSlot /> }], {
+        initialEntries: initialEntries as string[],
+      })
+    );
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <Theme>
+            <ChildrenContext.Provider value={children}>
+              <RouterProvider router={router} />
+            </ChildrenContext.Provider>
+          </Theme>
+        </ThemeProvider>
+      </QueryClientProvider>
+    );
+  };
+}
+
 export function renderWithProviders(
   ui: ReactElement,
   options: CustomRenderOptions = {}
@@ -98,23 +126,9 @@ export function renderWithProviders(
     ...renderOptions
   } = options;
 
-  function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Theme>
-            <MemoryRouter initialEntries={routerInitialEntries}>
-              {children}
-            </MemoryRouter>
-          </Theme>
-        </ThemeProvider>
-      </QueryClientProvider>
-    );
-  }
-
   return {
     queryClient,
-    ...render(ui, { wrapper: Wrapper, ...renderOptions }),
+    ...render(ui, { wrapper: createWrapper(queryClient, routerInitialEntries), ...renderOptions }),
   };
 }
 
@@ -129,23 +143,12 @@ export function renderHookWithProviders<TResult, TProps>(
     ...renderHookOptions
   } = options;
 
-  function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <Theme>
-            <MemoryRouter initialEntries={routerInitialEntries}>
-              {children}
-            </MemoryRouter>
-          </Theme>
-        </ThemeProvider>
-      </QueryClientProvider>
-    );
-  }
-
   return {
     queryClient,
-    ...renderHook(hook, { wrapper: Wrapper, ...renderHookOptions }),
+    ...renderHook(hook, {
+      wrapper: createWrapper(queryClient, routerInitialEntries),
+      ...renderHookOptions,
+    }),
   };
 }
 

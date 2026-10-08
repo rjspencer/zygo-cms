@@ -3,5 +3,5 @@ members = [
     "packages/core",
     "packages/public-worker",
     "packages/admin-api-worker"
-]
+, "packages/template-wasm"]
 resolver = "2"

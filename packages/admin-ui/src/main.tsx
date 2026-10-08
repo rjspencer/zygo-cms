@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { Theme } from '@radix-ui/themes';
@@ -28,15 +28,15 @@ const ThemedApp: React.FC = () => {
   );
 };
 
+const router = createBrowserRouter([{ path: '*', element: <ThemedApp /> }]);
+
 const rootElement = document.getElementById('root');
 if (rootElement) {
   ReactDOM.createRoot(rootElement).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <BrowserRouter>
-            <ThemedApp />
-          </BrowserRouter>
+          <RouterProvider router={router} />
         </ThemeProvider>
       </QueryClientProvider>
     </React.StrictMode>

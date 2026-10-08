@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
 import { Editor } from '../pages/Editor';
 
@@ -11,20 +11,22 @@ const createTestQueryClient = () => new QueryClient({
 
 const renderEditor = (initialPath = '/editor') => {
   const testQueryClient = createTestQueryClient();
+  const router = createMemoryRouter(
+    [
+      '/editor',
+      '/editor/:id',
+      '/posts/editor/new',
+      '/posts/editor/:id',
+      '/pages/editor/new',
+      '/pages/editor/:id',
+    ].map((path) => ({ path, element: <Editor /> })),
+    { initialEntries: [initialPath] }
+  );
   return render(
     <QueryClientProvider client={testQueryClient}>
-      <MemoryRouter initialEntries={[initialPath]}>
-        <Theme>
-          <Routes>
-            <Route path="/editor" element={<Editor />} />
-            <Route path="/editor/:id" element={<Editor />} />
-            <Route path="/posts/editor/new" element={<Editor />} />
-            <Route path="/posts/editor/:id" element={<Editor />} />
-            <Route path="/pages/editor/new" element={<Editor />} />
-            <Route path="/pages/editor/:id" element={<Editor />} />
-          </Routes>
-        </Theme>
-      </MemoryRouter>
+      <Theme>
+        <RouterProvider router={router} />
+      </Theme>
     </QueryClientProvider>
   );
 };

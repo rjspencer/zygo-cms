@@ -4,6 +4,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Settings } from '../pages/Settings';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
+import { useState } from 'react';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 vi.mock('../utils/api', () => ({
   apiFetch: vi.fn(),
@@ -19,6 +21,13 @@ const createTestQueryClient = () =>
       },
     },
   });
+
+const SettingsWithRouter = () => {
+  const [router] = useState(() =>
+    createMemoryRouter([{ path: '*', element: <Settings /> }])
+  );
+  return <RouterProvider router={router} />;
+};
 
 describe('Settings component', () => {
   beforeEach(() => {
@@ -39,7 +48,7 @@ describe('Settings component', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <Settings />
+          <SettingsWithRouter />
         </Theme>
       </QueryClientProvider>
     );
@@ -66,7 +75,7 @@ describe('Settings component', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <Settings />
+          <SettingsWithRouter />
         </Theme>
       </QueryClientProvider>
     );
@@ -99,7 +108,7 @@ describe('Settings component', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <Settings />
+          <SettingsWithRouter />
         </Theme>
       </QueryClientProvider>
     );
@@ -153,7 +162,7 @@ describe('Settings component', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <Settings />
+          <SettingsWithRouter />
         </Theme>
       </QueryClientProvider>
     );
@@ -186,7 +195,7 @@ describe('Settings component', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <Settings />
+          <SettingsWithRouter />
         </Theme>
       </QueryClientProvider>
     );

@@ -1,0 +1,12 @@
+{
+  "name": "template-wasm",
+  "version": "0.1.0",
+  "main": "pkg/template_wasm.js",
+  "types": "pkg/template_wasm.d.ts",
+  "files": [
+    "pkg/"
+  ],
+  "scripts": {
+    "build": "wasm-pack build --target web"
+  }
+}

@@ -20,6 +20,7 @@
         "deploy:api": "wrangler deploy -c packages/admin-api-worker/wrangler.toml",
         "deploy:ui": "wrangler deploy -c packages/admin-ui/wrangler.toml",
         "setup": "node scripts/setup.mjs",
+        "seed:docs:official": "node scripts/seed_official_docs.mjs",
         "test": "vitest run packages/admin-ui/src/__tests__/Editor.test.tsx",
         "test:e2e": "vitest run --no-file-parallelism tests/",
         "test:all": "vitest run"

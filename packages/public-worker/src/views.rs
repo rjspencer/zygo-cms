@@ -1,4 +1,4 @@
-use minijinja::{AutoEscape, Environment};
+use minijinja::{Environment};
 use zygo_core::models::{BreadcrumbItem, ContentType, SectionTemplate, Entry, EntryRevision, MenuItem, Pagination};
 
 const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
@@ -305,100 +305,10 @@ pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value 
     val
 }
 
-pub fn video_embed_filter(url: &str) -> String {
-    let trimmed = url.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-
-    if trimmed.contains("youtube.com") || trimmed.contains("youtu.be") || trimmed.contains("youtube-nocookie.com") {
-        if let Some(id) = extract_youtube_id(trimmed) {
-            return format!("https://www.youtube-nocookie.com/embed/{}", id);
-        }
-    }
-
-    if trimmed.contains("vimeo.com") {
-        if let Some(id) = extract_vimeo_id(trimmed) {
-            return format!("https://player.vimeo.com/video/{}", id);
-        }
-    }
-
-    String::new()
-}
-
-fn extract_youtube_id(url: &str) -> Option<&str> {
-    if let Some(idx) = url.find("youtu.be/") {
-        let rest = &url[idx + "youtu.be/".len()..];
-        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
-        let id = &rest[..end];
-        if !id.is_empty() {
-            return Some(id);
-        }
-    }
-
-    if let Some(idx) = url.find("/embed/") {
-        let rest = &url[idx + "/embed/".len()..];
-        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
-        let id = &rest[..end];
-        if !id.is_empty() {
-            return Some(id);
-        }
-    }
-
-    if let Some(idx) = url.find("/shorts/") {
-        let rest = &url[idx + "/shorts/".len()..];
-        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
-        let id = &rest[..end];
-        if !id.is_empty() {
-            return Some(id);
-        }
-    }
-
-    if let Some(idx) = url.find("v=") {
-        let rest = &url[idx + 2..];
-        let end = rest.find(|c: char| c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
-        let id = &rest[..end];
-        if !id.is_empty() {
-            return Some(id);
-        }
-    }
-
-    None
-}
-
-fn extract_vimeo_id(url: &str) -> Option<&str> {
-    if let Some(idx) = url.find("/video/") {
-        let rest = &url[idx + "/video/".len()..];
-        let end = rest.find(|c: char| c == '?' || c == '&' || c == '#' || c == '/').unwrap_or(rest.len());
-        let id = &rest[..end];
-        if !id.is_empty() {
-            return Some(id);
-        }
-    }
-
-    let without_query = match url.split_once('?') {
-        Some((p, _)) => p,
-        None => url,
-    };
-    let without_hash = match without_query.split_once('#') {
-        Some((p, _)) => p,
-        None => without_query,
-    };
-    let last = without_hash.trim_end_matches('/').rsplit('/').next()?;
-    if !last.is_empty() && last.chars().all(|c| c.is_ascii_digit()) {
-        return Some(last);
-    }
-
-    None
-}
 
 fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<Environment<'a>> {
     let mut env = Environment::new();
-    env.set_auto_escape_callback(|_| AutoEscape::Html);
-
-    env.add_filter("video_embed", |v: minijinja::Value| -> String {
-        video_embed_filter(v.as_str().unwrap_or_default())
-    });
+    zygo_core::template_engine::configure_env(&mut env);
 
     // Register built-in default templates
     let _ = env.add_template("index", DEFAULT_INDEX);
@@ -1187,45 +1097,45 @@ mod tests {
     fn test_video_embed_filter() {
         // YouTube formats
         assert_eq!(
-            video_embed_filter("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            video_embed_filter("https://youtu.be/dQw4w9WgXcQ?t=10s"),
+            zygo_core::template_engine::video_embed_filter("https://youtu.be/dQw4w9WgXcQ?t=10s"),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            video_embed_filter("https://www.youtube.com/embed/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/embed/dQw4w9WgXcQ"),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            video_embed_filter("https://www.youtube.com/shorts/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/shorts/dQw4w9WgXcQ"),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            video_embed_filter("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
 
         // Vimeo formats
         assert_eq!(
-            video_embed_filter("https://vimeo.com/123456789"),
+            zygo_core::template_engine::video_embed_filter("https://vimeo.com/123456789"),
             "https://player.vimeo.com/video/123456789"
         );
         assert_eq!(
-            video_embed_filter("https://player.vimeo.com/video/123456789?h=abcd"),
+            zygo_core::template_engine::video_embed_filter("https://player.vimeo.com/video/123456789?h=abcd"),
             "https://player.vimeo.com/video/123456789"
         );
         assert_eq!(
-            video_embed_filter("https://vimeo.com/123456789?param=value"),
+            zygo_core::template_engine::video_embed_filter("https://vimeo.com/123456789?param=value"),
             "https://player.vimeo.com/video/123456789"
         );
 
         // Non-video or unsupported URLs
-        assert_eq!(video_embed_filter("https://example.com/video.mp4"), "");
-        assert_eq!(video_embed_filter("https://dailymotion.com/video/x7"), "");
-        assert_eq!(video_embed_filter(""), "");
-        assert_eq!(video_embed_filter("   "), "");
+        assert_eq!(zygo_core::template_engine::video_embed_filter("https://example.com/video.mp4"), "");
+        assert_eq!(zygo_core::template_engine::video_embed_filter("https://dailymotion.com/video/x7"), "");
+        assert_eq!(zygo_core::template_engine::video_embed_filter(""), "");
+        assert_eq!(zygo_core::template_engine::video_embed_filter("   "), "");
     }
 
     #[test]

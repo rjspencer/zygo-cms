@@ -28,6 +28,8 @@ import { TemplateItem } from './TemplatesList';
 import { VisualFieldBuilder } from '../components/VisualFieldBuilder';
 import { SectionTemplateField } from '../types/sectionTemplate';
 import { BackButton } from '../components/BackButton';
+import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -104,8 +106,41 @@ export const TemplateEditor: React.FC = () => {
       setFormTemplateHtml(template.template_html || '');
       setFormTemplateCss(template.template_css || '');
       setIsLocked(Boolean(template.is_locked));
+      setSavedSnapshot(
+        JSON.stringify({
+          formId: template.id || '',
+          formName: template.name || '',
+          formDescription: template.description || '',
+          formSchemaJson: rawSchema,
+          formTemplateHtml: template.template_html || '',
+          formTemplateCss: template.template_css || '',
+          isLocked: Boolean(template.is_locked),
+        })
+      );
     }
   }, [template, isNew]);
+
+  // Unsaved-changes tracking: compare current fields against the last loaded/saved snapshot.
+  const latestFields = React.useRef<Record<string, unknown>>({});
+  latestFields.current = {
+    formId,
+    formName,
+    formDescription,
+    formSchemaJson,
+    formTemplateHtml,
+    formTemplateCss,
+    isLocked,
+  };
+  const currentSnapshot = JSON.stringify(latestFields.current);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isNew) setSavedSnapshot((prev) => prev ?? currentSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNew]);
+
+  const isDirty = savedSnapshot !== null && currentSnapshot !== savedSnapshot;
+  const { blocker, allowNextNavigation } = useUnsavedChangesBlocker(isDirty);
 
   const handleFieldsChange = (newFields: SectionTemplateField[]) => {
     setFields(newFields);
@@ -192,10 +227,12 @@ export const TemplateEditor: React.FC = () => {
       setConflictModalOpen(false);
       setWarningModalOpen(false);
       setSaveSuccess(true);
+      setSavedSnapshot(JSON.stringify(latestFields.current));
       queryClient.invalidateQueries({ queryKey: ['content-types'] });
       queryClient.invalidateQueries({ queryKey: ['content-type', targetId] });
 
       if (isNew) {
+        allowNextNavigation();
         navigate(`/admin/templates/${targetId}`, { replace: true });
       }
     } catch (err: any) {
@@ -542,6 +579,7 @@ export const TemplateEditor: React.FC = () => {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
+      <UnsavedChangesDialog blocker={blocker} />
     </Box>
   );
 };
