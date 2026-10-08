@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -30,6 +30,10 @@ import { SectionTemplateField } from '../types/sectionTemplate';
 import { BackButton } from '../components/BackButton';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
+import { AiContextInstructions } from '../components/AiContextInstructions';
+import { useDebounce } from '../hooks/useDebounce';
+import { generateDummyDataFromSchema } from '../utils/dummyData';
+import { ResetIcon } from '@radix-ui/react-icons';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,6 +55,20 @@ export const TemplateEditor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Wasm Preview State
+  const workerRef = useRef<Worker | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [hasDraft, setHasDraft] = useState(false);
+  const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
+
+  // Debounced values
+  const debouncedWasmHtml = useDebounce(formTemplateHtml, 200);
+  const debouncedWasmSchema = useDebounce(formSchemaJson, 200);
+  
+  const debouncedDraftHtml = useDebounce(formTemplateHtml, 2500);
+  const debouncedDraftCss = useDebounce(formTemplateCss, 2500);
+  const debouncedDraftSchema = useDebounce(formSchemaJson, 2500);
 
   // 409 Conflict Dialog state
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
@@ -119,6 +137,94 @@ export const TemplateEditor: React.FC = () => {
       );
     }
   }, [template, isNew]);
+
+  // 1. Initialize Web Worker
+  useEffect(() => {
+    workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
+    workerRef.current.onmessage = (e) => {
+      if (e.data.success) {
+        setPreviewHtml(e.data.result);
+      } else {
+        console.error("Wasm Render Error:", e.data.error);
+      }
+    };
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+
+  // 2. Fast Debounce -> Trigger Wasm Preview
+  useEffect(() => {
+    if (workerRef.current) {
+      const dummyData = generateDummyDataFromSchema(debouncedWasmSchema);
+      workerRef.current.postMessage({
+        html: debouncedWasmHtml,
+        dummyDataJson: dummyData,
+        id: formId || 'preview'
+      });
+    }
+  }, [debouncedWasmHtml, debouncedWasmSchema, formId]);
+
+  // 3. Slow Debounce -> Auto-Save Draft
+  useEffect(() => {
+    if (isLoadingTemplate) return;
+    if (!formId && !isNew) return;
+    
+    // Prevent saving draft if unchanged from DB
+    if (template) {
+      if (
+        formTemplateHtml === (template.template_html || '') &&
+        formTemplateCss === (template.template_css || '') &&
+        formSchemaJson === (template.schema_json || '[]')
+      ) {
+        return;
+      }
+    }
+
+    const draftKey = `zygo_template_draft_${id || 'new'}`;
+    const draftData = {
+      template_html: debouncedDraftHtml,
+      template_css: debouncedDraftCss,
+      schema_json: debouncedDraftSchema,
+      updated_at: new Date().toISOString()
+    };
+    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    setHasDraft(true);
+  }, [debouncedDraftHtml, debouncedDraftCss, debouncedDraftSchema, id, isLoadingTemplate, template, formTemplateHtml, formTemplateCss, formSchemaJson]);
+
+  // 4. On Mount -> Load Draft
+  useEffect(() => {
+    const draftKey = `zygo_template_draft_${id || 'new'}`;
+    const saved = localStorage.getItem(draftKey);
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        setFormTemplateHtml(draft.template_html || '');
+        setFormTemplateCss(draft.template_css || '');
+        setFormSchemaJson(draft.schema_json || '[]');
+        setHasDraft(true);
+      } catch (e) {
+        console.error("Failed to load draft", e);
+      }
+    }
+  }, [id]);
+
+  const discardDraft = () => {
+    const draftKey = `zygo_template_draft_${id || 'new'}`;
+    localStorage.removeItem(draftKey);
+    setHasDraft(false);
+    setIsDiscardModalOpen(false);
+    
+    if (template) {
+      setFormTemplateHtml(template.template_html || '');
+      setFormTemplateCss(template.template_css || '');
+      setFormSchemaJson(template.schema_json || '[]');
+    } else {
+      setFormTemplateHtml('');
+      setFormTemplateCss('');
+      setFormSchemaJson('[]');
+    }
+  };
 
   // Unsaved-changes tracking: compare current fields against the last loaded/saved snapshot.
   const latestFields = React.useRef<Record<string, unknown>>({});
@@ -230,6 +336,11 @@ export const TemplateEditor: React.FC = () => {
       setSavedSnapshot(JSON.stringify(latestFields.current));
       queryClient.invalidateQueries({ queryKey: ['content-types'] });
       queryClient.invalidateQueries({ queryKey: ['content-type', targetId] });
+      
+      // Clear draft on successful save
+      const draftKey = `zygo_template_draft_${id || 'new'}`;
+      localStorage.removeItem(draftKey);
+      setHasDraft(false);
 
       if (isNew) {
         allowNextNavigation();
@@ -248,7 +359,7 @@ export const TemplateEditor: React.FC = () => {
 
   if (isLoadingTemplate && !isNew) {
     return (
-      <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <Box style={{ width: '100%' }}>
         <Text color="gray">Loading template details...</Text>
       </Box>
     );
@@ -256,7 +367,7 @@ export const TemplateEditor: React.FC = () => {
 
   if (loadError && !isNew) {
     return (
-      <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <Box style={{ width: '100%' }}>
         <Callout.Root color="red" mb="4">
           <Callout.Icon>
             <ExclamationTriangleIcon />
@@ -271,7 +382,7 @@ export const TemplateEditor: React.FC = () => {
   }
 
   return (
-    <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
         <BackButton to="/admin/templates" />
@@ -280,9 +391,18 @@ export const TemplateEditor: React.FC = () => {
       {/* Header */}
       <Flex justify="between" align="center" mb="5">
         <Box>
-          <Heading size="6" weight="bold">
-            {isNew ? 'New Template' : `Edit Template: ${formName || formId}`}
-          </Heading>
+          <Flex align="center" gap="2">
+            <Heading size="6" weight="bold">
+              {isNew ? 'New Template' : `Edit Template: ${formName || formId}`}
+            </Heading>
+            <AiContextInstructions instructions={`**AI Assistant Instructions:**
+You are an in-browser AI helping the user build this template component.
+- **Schema**: Defines the data model. To add a field, click 'Add Field' or modify the underlying JSON.
+- **HTML**: Uses MiniJinja (Rust) syntax. Use standard HTML with \`class=\` (NOT \`className\`). Inject schema variables using \`{{ field_name }}\` or \`{% for item in list_field %}\`.
+- **CSS**: Standard CSS.
+
+When the user asks for a change, simply write your updates into the respective textarea elements or schema inputs. Your changes will automatically trigger a real-time Wasm preview on the right side of the screen. Do not hit 'Save' unless explicitly asked; let the user review your changes via the live preview first.`} />
+          </Flex>
           <Text size="2" color="gray">
             {isNew
               ? 'Create a custom template with schema, markup, and styling'
@@ -317,6 +437,15 @@ export const TemplateEditor: React.FC = () => {
               <LockClosedIcon width="12" height="12" />
               Locked Core Template
             </Badge>
+          )}
+
+          {hasDraft && (
+            <Flex align="center" gap="3">
+              <Badge color="orange" variant="soft">Draft Unsaved</Badge>
+              <Button variant="soft" color="red" onClick={() => setIsDiscardModalOpen(true)}>
+                <ResetIcon width="16" height="16" /> Discard
+              </Button>
+            </Flex>
           )}
 
           {/* Save Button */}
@@ -372,126 +501,130 @@ export const TemplateEditor: React.FC = () => {
         </Callout.Root>
       )}
 
-      {/* Basic Metadata Card */}
-      <Card size="2" mb="4">
-        <Flex direction="column" gap="3">
-          <Flex gap="4">
-            <Box style={{ flex: 1 }}>
-              <Text as="div" size="2" mb="1" weight="bold">
-                Identifier (Slug)
-              </Text>
-              <TextField.Root
-                value={formId}
-                onChange={(e) => setFormId(e.target.value)}
-                placeholder="e.g. hero-banner"
-                disabled={!isNew || isLockedForDesigner}
-                aria-label="Identifier (Slug)"
-              />
-            </Box>
+      {/* Split-Pane Editor & Preview */}
+      <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
+        
+        {/* Left Pane: Metadata & Multi-Tab Editor */}
+        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0 }}>
+          
+          {/* Basic Metadata Card */}
+          <Card size="2">
+            <Flex direction="column" gap="3">
+              <Flex gap="4">
+                <Box style={{ flex: 1 }}>
+                  <Text as="div" size="2" mb="1" weight="bold">
+                    Identifier (Slug)
+                  </Text>
+                  <TextField.Root
+                    value={formId}
+                    onChange={(e) => setFormId(e.target.value)}
+                    placeholder="e.g. hero-banner"
+                    disabled={!isNew || isLockedForDesigner}
+                    aria-label="Identifier (Slug)"
+                  />
+                </Box>
 
-            <Box style={{ flex: 2 }}>
-              <Text as="div" size="2" mb="1" weight="bold">
-                Template Name
-              </Text>
-              <TextField.Root
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                placeholder="e.g. Hero Banner"
-                disabled={isLockedForDesigner}
-                aria-label="Template Name"
-              />
-            </Box>
-          </Flex>
+                <Box style={{ flex: 2 }}>
+                  <Text as="div" size="2" mb="1" weight="bold">
+                    Template Name
+                  </Text>
+                  <TextField.Root
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="e.g. Hero Banner"
+                    disabled={isLockedForDesigner}
+                    aria-label="Template Name"
+                  />
+                </Box>
+              </Flex>
 
-          <Box>
-            <Text as="div" size="2" mb="1" weight="bold">
-              Description
-            </Text>
-            <TextField.Root
-              value={formDescription}
-              onChange={(e) => setFormDescription(e.target.value)}
-              placeholder="Optional summary or usage instructions"
-              disabled={isLockedForDesigner}
-              aria-label="Description"
-            />
-          </Box>
+              <Box>
+                <Text as="div" size="2" mb="1" weight="bold">
+                  Description
+                </Text>
+                <TextField.Root
+                  value={formDescription}
+                  onChange={(e) => setFormDescription(e.target.value)}
+                  placeholder="Optional summary or usage instructions"
+                  disabled={isLockedForDesigner}
+                  aria-label="Description"
+                />
+              </Box>
+            </Flex>
+          </Card>
+
+          <Card size="2" style={{ flexGrow: 1 }}>
+            <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+              <Tabs.List mb="4">
+                <Tabs.Trigger value="schema">Schema</Tabs.Trigger>
+                <Tabs.Trigger value="html">HTML (MiniJinja)</Tabs.Trigger>
+                <Tabs.Trigger value="css">CSS</Tabs.Trigger>
+              </Tabs.List>
+
+              <Tabs.Content value="schema">
+                <Box mb="2">
+                  <Text as="div" size="2" weight="bold" mb="1">Schema Definition</Text>
+                  <VisualFieldBuilder fields={fields} onChange={handleFieldsChange} disabled={isLockedForDesigner} />
+                </Box>
+              </Tabs.Content>
+
+              <Tabs.Content value="html">
+                <Box mb="2">
+                  <Text as="div" size="2" weight="bold" mb="1">HTML Template (MiniJinja)</Text>
+                  <TextArea
+                    value={formTemplateHtml}
+                    onChange={(e) => setFormTemplateHtml(e.target.value)}
+                    rows={20}
+                    disabled={isLockedForDesigner}
+                    style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
+                  />
+                </Box>
+              </Tabs.Content>
+
+              <Tabs.Content value="css">
+                <Box mb="2">
+                  <Text as="div" size="2" weight="bold" mb="1">CSS Stylesheet</Text>
+                  <TextArea
+                    value={formTemplateCss}
+                    onChange={(e) => setFormTemplateCss(e.target.value)}
+                    rows={20}
+                    disabled={isLockedForDesigner}
+                    style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
+                  />
+                </Box>
+              </Tabs.Content>
+            </Tabs.Root>
+          </Card>
         </Flex>
-      </Card>
 
-      {/* Multi-Tab Editor Card */}
-      <Card size="2">
-        <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
-          <Tabs.List mb="4">
-            <Tabs.Trigger value="schema">Schema</Tabs.Trigger>
-            <Tabs.Trigger value="html">HTML (MiniJinja)</Tabs.Trigger>
-            <Tabs.Trigger value="css">CSS</Tabs.Trigger>
-          </Tabs.List>
-
-          {/* Tab 1: Schema */}
-          <Tabs.Content value="schema">
-            <Box mb="2">
-              <Text as="div" size="2" weight="bold" mb="1">
-                Schema Definition
-              </Text>
-              <Text size="1" color="gray" mb="3" as="div">
-                Define the fields and data attributes for this template.
-              </Text>
-              <VisualFieldBuilder
-                fields={fields}
-                onChange={handleFieldsChange}
-                disabled={isLockedForDesigner}
+        {/* Right Pane: Live Wasm Preview */}
+        <Box style={{ flex: 1, minWidth: 0 }}>
+          <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Text as="div" size="2" weight="bold" mb="2">Live Preview (Wasm)</Text>
+            <Box style={{ flexGrow: 1, minHeight: '500px', backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
+              <iframe
+                title="Wasm Preview"
+                sandbox="allow-scripts"
+                srcDoc={`
+                  <!DOCTYPE html>
+                  <html>
+                    <head>
+                      <meta charset="utf-8">
+                      <meta name="viewport" content="width=device-width, initial-scale=1">
+                      <link rel="stylesheet" href="/styles/main.css" />
+                      <style>${debouncedWasmHtml !== formTemplateHtml ? formTemplateCss : debouncedWasmHtml /* just to trigger reactivity if needed */} ${formTemplateCss}</style>
+                    </head>
+                    <body>
+                      ${previewHtml || '<div style="padding: 20px; color: #888; font-family: sans-serif;">Waiting for template render...</div>'}
+                    </body>
+                  </html>
+                `}
+                style={{ width: '100%', height: '100%', border: 'none' }}
               />
             </Box>
-          </Tabs.Content>
-
-          {/* Tab 2: HTML (MiniJinja) */}
-          <Tabs.Content value="html">
-            <Box mb="2">
-              <Text as="div" size="2" weight="bold" mb="1">
-                HTML Template (MiniJinja)
-              </Text>
-              <Text size="1" color="gray" mb="2" as="div">
-                Template markup rendered via MiniJinja with access to schema fields.
-              </Text>
-              <TextArea
-                value={formTemplateHtml}
-                onChange={(e) => setFormTemplateHtml(e.target.value)}
-                placeholder='<section class="hero">
-  <h1>{{ headline }}</h1>
-</section>'
-                rows={16}
-                disabled={isLockedForDesigner}
-                style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
-                aria-label="HTML (MiniJinja)"
-              />
-            </Box>
-          </Tabs.Content>
-
-          {/* Tab 3: CSS */}
-          <Tabs.Content value="css">
-            <Box mb="2">
-              <Text as="div" size="2" weight="bold" mb="1">
-                CSS Stylesheet
-              </Text>
-              <Text size="1" color="gray" mb="2" as="div">
-                Scoped CSS styles. Class selectors will be extracted automatically to prevent collisions.
-              </Text>
-              <TextArea
-                value={formTemplateCss}
-                onChange={(e) => setFormTemplateCss(e.target.value)}
-                placeholder='.hero {
-  padding: 3rem 1rem;
-  text-align: center;
-}'
-                rows={16}
-                disabled={isLockedForDesigner}
-                style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
-                aria-label="CSS"
-              />
-            </Box>
-          </Tabs.Content>
-        </Tabs.Root>
-      </Card>
+          </Card>
+        </Box>
+      </Flex>
 
       {/* Radix UI Modal: 409 Conflict Guardrail */}
       <Dialog.Root open={conflictModalOpen} onOpenChange={setConflictModalOpen}>
@@ -579,6 +712,25 @@ export const TemplateEditor: React.FC = () => {
           </Flex>
         </Dialog.Content>
       </Dialog.Root>
+
+      {/* Radix UI Modal: Discard Draft Confirmation */}
+      <Dialog.Root open={isDiscardModalOpen} onOpenChange={setIsDiscardModalOpen}>
+        <Dialog.Content maxWidth="450px">
+          <Dialog.Title color="red">Discard Unsaved Draft?</Dialog.Title>
+          <Dialog.Description size="2" mb="4" color="gray">
+            You have unsaved changes stored locally. Are you sure you want to discard them? This action cannot be undone.
+          </Dialog.Description>
+          <Flex gap="3" justify="end">
+            <Button variant="soft" color="gray" onClick={() => setIsDiscardModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={discardDraft}>
+              Discard Changes
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
+
       <UnsavedChangesDialog blocker={blocker} />
     </Box>
   );
