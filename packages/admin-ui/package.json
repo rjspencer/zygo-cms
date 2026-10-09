@@ -21,11 +21,15 @@
     "@tiptap/extension-link": "^3.31.4",
     "@tiptap/react": "^3.31.4",
     "@tiptap/starter-kit": "^3.31.4",
+    "@types/prismjs": "^1.26.6",
+    "prettier": "^3.9.9",
+    "prismjs": "^1.30.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.5",
+    "react-simple-code-editor": "^0.14.1",
     "template-wasm": "workspace:*"
   },
   "devDependencies": {

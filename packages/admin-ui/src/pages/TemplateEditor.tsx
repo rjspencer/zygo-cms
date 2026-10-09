@@ -10,7 +10,6 @@ import {
   Card,
   Tabs,
   TextField,
-  TextArea,
   Switch,
   Dialog,
   Callout,
@@ -34,6 +33,12 @@ import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 import { useDebounce } from '../hooks/useDebounce';
 import { generateDummyDataFromSchema } from '../utils/dummyData';
 import { ResetIcon } from '@radix-ui/react-icons';
+import Editor from 'react-simple-code-editor';
+import Prism from 'prismjs';
+import 'prismjs/components/prism-core';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-css';
+import 'prismjs/themes/prism.css';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -314,12 +319,33 @@ export const TemplateEditor: React.FC = () => {
     const queryParam = force ? '?force=true' : '';
     const endpoint = `/api/content-types/${targetId}${queryParam}`;
 
+    let finalHtml = formTemplateHtml;
+    let finalCss = formTemplateCss;
+    try {
+      const [prettier, htmlPlugin, cssPlugin] = await Promise.all([
+        import('prettier/standalone'),
+        import('prettier/plugins/html'),
+        import('prettier/plugins/postcss')
+      ]);
+      
+      if (finalHtml) {
+        finalHtml = await prettier.format(finalHtml, { parser: 'html', plugins: [htmlPlugin] });
+        setFormTemplateHtml(finalHtml);
+      }
+      if (finalCss) {
+        finalCss = await prettier.format(finalCss, { parser: 'css', plugins: [cssPlugin] });
+        setFormTemplateCss(finalCss);
+      }
+    } catch (e) {
+      console.error("Prettier formatting failed", e);
+    }
+
     const payload = {
       name: formName.trim(),
       description: formDescription.trim() || null,
       schema_json: formSchemaJson,
-      template_html: formTemplateHtml || null,
-      template_css: formTemplateCss || null,
+      template_html: finalHtml || null,
+      template_css: finalCss || null,
       is_locked: isLocked,
       ...(force ? { force: true } : {}),
     };
@@ -630,28 +656,32 @@ export const TemplateEditor: React.FC = () => {
               <Tabs.Content value="html" forceMount hidden={activeTab !== 'html'}>
                 <Box mb="2" id="editor-html" data-panel="html">
                   <Text as="div" size="2" weight="bold" mb="1">HTML Template (MiniJinja)</Text>
-                  <TextArea
-                    name="template_html"
-                    value={formTemplateHtml}
-                    onChange={(e) => setFormTemplateHtml(e.target.value)}
-                    rows={20}
-                    disabled={isLockedForDesigner}
-                    style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
-                  />
+                  <div style={{ border: '1px solid var(--gray-6)', borderRadius: 'var(--radius-2)', backgroundColor: '#fff', minHeight: '300px', overflow: 'hidden' }}>
+                    <Editor
+                      value={formTemplateHtml}
+                      onValueChange={setFormTemplateHtml}
+                      highlight={code => Prism.highlight(code, Prism.languages.markup, 'markup')}
+                      padding={10}
+                      disabled={isLockedForDesigner}
+                      style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '300px' }}
+                    />
+                  </div>
                 </Box>
               </Tabs.Content>
 
               <Tabs.Content value="css" forceMount hidden={activeTab !== 'css'}>
                 <Box mb="2" id="editor-css" data-panel="css">
                   <Text as="div" size="2" weight="bold" mb="1">CSS Stylesheet</Text>
-                  <TextArea
-                    name="template_css"
-                    value={formTemplateCss}
-                    onChange={(e) => setFormTemplateCss(e.target.value)}
-                    rows={20}
-                    disabled={isLockedForDesigner}
-                    style={{ fontFamily: 'monospace', fontSize: '13px', width: '100%' }}
-                  />
+                  <div style={{ border: '1px solid var(--gray-6)', borderRadius: 'var(--radius-2)', backgroundColor: '#fff', minHeight: '300px', overflow: 'hidden' }}>
+                    <Editor
+                      value={formTemplateCss}
+                      onValueChange={setFormTemplateCss}
+                      highlight={code => Prism.highlight(code, Prism.languages.css, 'css')}
+                      padding={10}
+                      disabled={isLockedForDesigner}
+                      style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '300px' }}
+                    />
+                  </div>
                 </Box>
               </Tabs.Content>
             </Tabs.Root>
