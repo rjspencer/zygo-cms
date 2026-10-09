@@ -137,16 +137,19 @@ export const Layout: React.FC = () => {
       >
         <IconButton
           size="1"
-          variant="soft"
+          variant="outline"
           color="gray"
           onClick={() => setIsCollapsed(!isCollapsed)}
           style={{
             position: 'absolute',
             right: '-12px',
-            top: '200px',
+            top: '116px',
             borderRadius: '50%',
             zIndex: 10,
             cursor: 'pointer',
+            backgroundColor: 'var(--color-background)',
+            border: '1px solid var(--gray-a4)',
+            boxShadow: 'inset 0 0 1px var(--accent-a8)',
           }}
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -341,7 +344,7 @@ export const Layout: React.FC = () => {
             overflowY: 'auto',
           }}
         >
-          <Box style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+          <Box style={{ maxWidth: '2000px', margin: '0 auto', width: '100%' }}>
             <Outlet />
           </Box>
         </Box>
