@@ -46,6 +46,24 @@ pub async fn find_all_pages(db: &D1Database) -> Result<Vec<Entry>> {
     result.results::<Entry>()
 }
 
+pub async fn find_all_docs(db: &D1Database) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'doc' AND deleted_at IS NULL ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+    );
+    let statement = db.prepare(&query);
+    let result = statement.run().await?;
+    result.results::<Entry>()
+}
+
+pub async fn find_published_docs(db: &D1Database) -> Result<Vec<Entry>> {
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE type = 'doc' AND status = 'published' AND deleted_at IS NULL ORDER BY sort_order ASC, title COLLATE NOCASE ASC"
+    );
+    let statement = db.prepare(&query);
+    let result = statement.run().await?;
+    result.results::<Entry>()
+}
+
 pub async fn find_published_entries(db: &D1Database) -> Result<Vec<Entry>> {
     let query = format!(
         "SELECT {LIST_COLUMNS} FROM entries WHERE status = 'published' AND deleted_at IS NULL ORDER BY published_at DESC, created_at DESC"
@@ -210,6 +228,24 @@ pub async fn find_published_page_by_path(db: &D1Database, path: &str) -> Result<
 
     let query = format!(
         "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'page' AND status = 'published' AND deleted_at IS NULL AND (path = ?1 OR (path IS NULL AND slug = ?2))"
+    );
+    let statement = db.prepare(&query);
+    statement
+        .bind(&[normalized.into(), slug.into()])?
+        .first::<Entry>(None)
+        .await
+}
+
+pub async fn find_published_doc_by_path(db: &D1Database, path: &str) -> Result<Option<Entry>> {
+    let normalized = if path.starts_with('/') {
+        path.to_string()
+    } else {
+        format!("/{}", path)
+    };
+    let slug = normalized.trim_start_matches('/').to_string();
+
+    let query = format!(
+        "SELECT {ALL_COLUMNS} FROM entries WHERE type = 'doc' AND status = 'published' AND deleted_at IS NULL AND (path = ?1 OR (path IS NULL AND slug = ?2))"
     );
     let statement = db.prepare(&query);
     statement

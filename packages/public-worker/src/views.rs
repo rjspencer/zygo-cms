@@ -260,6 +260,134 @@ const DEFAULT_RSS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>"#;
 
+const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ doc.title }} &mdash; Docs</title>
+    <meta name="description" content="{{ doc.meta_description }}">
+    <link rel="canonical" href="{{ doc.canonical|safe }}">
+    <link rel="stylesheet" href="/style.css">
+    {% if template_css %}
+    <style>{{ template_css|safe }}</style>
+    {% endif %}
+    <style>
+        .docs-layout { display: flex; gap: 2rem; max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .docs-sidebar { width: 250px; flex-shrink: 0; }
+        .docs-main { flex: 1; min-width: 0; }
+        .docs-toc { width: 250px; flex-shrink: 0; position: sticky; top: 2rem; align-self: start; }
+        .docs-search { margin-bottom: 1rem; }
+        .docs-search input { width: 100%; padding: 0.5rem; }
+        .docs-nav ul { list-style: none; padding-left: 1rem; }
+        .docs-nav > ul { padding-left: 0; }
+        .docs-nav li { margin: 0.5rem 0; }
+        .docs-nav a { text-decoration: none; color: inherit; }
+        .docs-nav a[aria-current="page"] { font-weight: bold; color: var(--primary-color, #0070f3); }
+        .toc-list { list-style: none; padding: 0; }
+        .toc-list li { margin: 0.25rem 0; font-size: 0.9rem; }
+        .toc-h2 { margin-left: 0.5rem; }
+        .toc-h3 { margin-left: 1rem; }
+        .docs-footer-nav { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #eaeaea; }
+        @media (max-width: 1024px) { .docs-toc { display: none; } }
+        @media (max-width: 768px) { .docs-layout { flex-direction: column; } .docs-sidebar { width: 100%; } }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Home</a>
+            {% for item in header_menu %}
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            {% endfor %}
+        </nav>
+    </header>
+    <div class="docs-layout">
+        <aside class="docs-sidebar">
+            <div class="docs-search">
+                <form action="/search" method="GET">
+                    <input type="hidden" name="type" value="doc">
+                    <input type="search" name="q" placeholder="Search docs..." required>
+                </form>
+            </div>
+            <nav class="docs-nav">
+                {{ docs_tree_html|safe }}
+            </nav>
+        </aside>
+        
+        <main class="docs-main">
+            {% if is_preview %}
+            <div class="preview-banner">Preview Mode</div>
+            {% endif %}
+            <article>
+                <h1>{{ doc.title }}</h1>
+                <div class="prose docs-content" id="docs-content">
+                    {{ doc.body_html|safe }}
+                </div>
+            </article>
+            
+            <div class="docs-footer-nav">
+                <div>
+                    {% if prev_doc %}
+                    <a href="{{ prev_doc.path|safe }}">&larr; {{ prev_doc.title }}</a>
+                    {% endif %}
+                </div>
+                <div>
+                    {% if next_doc %}
+                    <a href="{{ next_doc.path|safe }}">{{ next_doc.title }} &rarr;</a>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+        
+        <aside class="docs-toc">
+            <h3>On this page</h3>
+            <ul id="toc-container" class="toc-list"></ul>
+        </aside>
+    </div>
+    <footer>
+        <nav>
+            {% for item in footer_menu %}
+            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            {% endfor %}
+        </nav>
+    </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const content = document.getElementById('docs-content');
+            const tocContainer = document.getElementById('toc-container');
+            if (!content || !tocContainer) return;
+            
+            const headings = content.querySelectorAll('h2, h3');
+            if (headings.length === 0) {
+                document.querySelector('.docs-toc').style.display = 'none';
+                return;
+            }
+            
+            headings.forEach((heading, index) => {
+                if (!heading.id) {
+                    heading.id = 'heading-' + index;
+                }
+                const li = document.createElement('li');
+                li.className = 'toc-' + heading.tagName.toLowerCase();
+                const a = document.createElement('a');
+                a.href = '#' + heading.id;
+                a.textContent = heading.textContent;
+                
+                a.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    heading.scrollIntoView({ behavior: 'smooth' });
+                    history.pushState(null, null, '#' + heading.id);
+                });
+                
+                li.appendChild(a);
+                tocContainer.appendChild(li);
+            });
+        });
+    </script>
+</body>
+</html>"#;
+
 pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value {
     let mut val = serde_json::to_value(entry).unwrap_or_else(|_| serde_json::json!({}));
     if let serde_json::Value::Object(ref mut map) = val {
@@ -314,6 +442,7 @@ fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<En
     let _ = env.add_template("index", DEFAULT_INDEX);
     let _ = env.add_template("post", DEFAULT_POST);
     let _ = env.add_template("page", DEFAULT_PAGE);
+    let _ = env.add_template("doc", DEFAULT_DOC);
     let _ = env.add_template("search", DEFAULT_SEARCH);
     let _ = env.add_template("sitemap", DEFAULT_SITEMAP);
     let _ = env.add_template("rss", DEFAULT_RSS);
@@ -330,6 +459,127 @@ fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<En
     }
 
     Ok(env)
+}
+
+fn build_docs_tree_html(docs: &[Entry], current_path: &str, parent_id: Option<i64>) -> String {
+    let mut children: Vec<&Entry> = docs.iter().filter(|d| d.parent_id == parent_id).collect();
+    if children.is_empty() {
+        return String::new();
+    }
+    
+    // Sort by sort_order
+    children.sort_by_key(|d| d.sort_order.unwrap_or(0));
+    
+    let mut html = String::from("<ul>");
+    for child in children {
+        let path = child.path();
+        let current_attr = if path == current_path { " aria-current=\"page\"" } else { "" };
+        html.push_str(&format!(
+            "<li><a href=\"{}\"{}>{}</a>",
+            path, current_attr, child.title
+        ));
+        
+        let sub_tree = build_docs_tree_html(docs, current_path, Some(child.id));
+        if !sub_tree.is_empty() {
+            html.push_str(&sub_tree);
+        }
+        html.push_str("</li>");
+    }
+    html.push_str("</ul>");
+    html
+}
+
+fn flatten_docs<'a>(docs: &'a [Entry], parent_id: Option<i64>, flattened: &mut Vec<&'a Entry>) {
+    let mut children: Vec<&'a Entry> = docs.iter()
+        .filter(|d| d.parent_id == parent_id)
+        .collect();
+        
+    children.sort_by_key(|d| d.sort_order.unwrap_or(0));
+    
+    for child in children {
+        let cid = child.id;
+        flattened.push(child);
+        flatten_docs(docs, Some(cid), flattened);
+    }
+}
+
+pub fn render_doc(
+    content_types: &[ContentType],
+    doc: &Entry,
+    all_docs: &[Entry],
+    origin: &str,
+    header_menu: &[MenuItem],
+    footer_menu: &[MenuItem],
+) -> worker::Result<String> {
+    let env = create_env(content_types)?;
+    let entry_val = entry_to_context_value(doc, origin);
+
+    let parsed_body: serde_json::Value =
+        serde_json::from_str(&doc.body_json).unwrap_or(serde_json::Value::Null);
+
+    let mut ctx = serde_json::Map::new();
+
+    if let serde_json::Value::Object(ref body_map) = parsed_body {
+        for (k, v) in body_map {
+            ctx.insert(k.clone(), v.clone());
+        }
+    }
+
+    ctx.insert("body".to_string(), parsed_body.clone());
+    ctx.insert("body_data".to_string(), parsed_body.clone());
+    ctx.insert("body_json".to_string(), parsed_body.clone());
+
+    ctx.insert("entry".to_string(), entry_val.clone());
+    ctx.insert("doc".to_string(), entry_val);
+
+    let (sections_html, template_css) = render_sections(&env, content_types, &parsed_body);
+    ctx.insert(
+        "sections_html".to_string(),
+        serde_json::Value::String(sections_html),
+    );
+    if let Some(css) = template_css {
+        ctx.insert("template_css".to_string(), serde_json::Value::String(css));
+    } else {
+        ctx.insert("template_css".to_string(), serde_json::Value::Null);
+    }
+    
+    ctx.insert("is_preview".to_string(), serde_json::Value::Bool(false));
+
+    let tree_html = build_docs_tree_html(all_docs, &doc.path(), None);
+    ctx.insert("docs_tree_html".to_string(), serde_json::Value::String(tree_html));
+    
+    let mut flat = Vec::new();
+    flatten_docs(all_docs, None, &mut flat);
+    
+    let current_index = flat.iter().position(|d| d.id == doc.id);
+    if let Some(idx) = current_index {
+        if idx > 0 {
+            ctx.insert("prev_doc".to_string(), entry_to_context_value(&flat[idx - 1], origin));
+        }
+        if idx < flat.len() - 1 {
+            ctx.insert("next_doc".to_string(), entry_to_context_value(&flat[idx + 1], origin));
+        }
+    }
+
+    ctx.insert(
+        "origin".to_string(),
+        serde_json::Value::String(origin.to_string()),
+    );
+    ctx.insert(
+        "header_menu".to_string(),
+        serde_json::to_value(header_menu).unwrap_or_default(),
+    );
+    ctx.insert(
+        "footer_menu".to_string(),
+        serde_json::to_value(footer_menu).unwrap_or_default(),
+    );
+
+    render_template(
+        &env,
+        &doc.r#type,
+        Some("doc"),
+        serde_json::Value::Object(ctx),
+    )
 }
 
 fn render_sections(

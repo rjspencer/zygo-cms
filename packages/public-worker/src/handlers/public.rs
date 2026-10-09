@@ -264,43 +264,59 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
 
-    let page = db::find_published_page_by_path(&db, path)
-        .await?
-        .ok_or(AppError::NotFound);
+    let page = db::find_published_page_by_path(&db, path).await?;
+    if let Some(p) = page {
+        let section_templates = zygo_core::db::section_template::get_all(&db).await?;
+        let breadcrumbs = db::find_page_ancestors(&db, p.id).await.unwrap_or_default();
+        let children = db::find_published_children(&db, p.id).await.unwrap_or_default();
 
-    match page {
-        Ok(p) => {
-            let section_templates = zygo_core::db::section_template::get_all(&db).await?;
-            let breadcrumbs = db::find_page_ancestors(&db, p.id).await.unwrap_or_default();
-            let children = db::find_published_children(&db, p.id).await.unwrap_or_default();
+        let menus = db::menu::get_all_menus(&db).await?;
+        let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+        let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
 
-            let menus = db::menu::get_all_menus(&db).await?;
-            let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
-            let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+        let html = views::render_page(&section_templates, &p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu)?;
+        let mut headers = Headers::new();
+        headers.set("Content-Type", "text/html; charset=utf-8")?;
+        cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
 
-            let html = views::render_page(&section_templates, &p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu)?;
-            let mut headers = Headers::new();
-            headers.set("Content-Type", "text/html; charset=utf-8")?;
-            cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
-
-            let mut res = Response::ok(html)?.with_headers(headers);
-            cache::put_cached(&req, &mut res).await;
-            Ok(res)
-        }
-        Err(err) => err.to_response(),
+        let mut res = Response::ok(html)?.with_headers(headers);
+        cache::put_cached(&req, &mut res).await;
+        return Ok(res);
     }
+
+    let doc = db::find_published_doc_by_path(&db, path).await?;
+    if let Some(d) = doc {
+        let section_templates = zygo_core::db::section_template::get_all(&db).await?;
+        let all_docs = db::find_published_docs(&db).await.unwrap_or_default();
+        
+        let menus = db::menu::get_all_menus(&db).await?;
+        let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+        let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+
+        let html = views::render_doc(&section_templates, &d, &all_docs, &origin, &header_menu, &footer_menu)?;
+        let mut headers = Headers::new();
+        headers.set("Content-Type", "text/html; charset=utf-8")?;
+        cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
+
+        let mut res = Response::ok(html)?.with_headers(headers);
+        cache::put_cached(&req, &mut res).await;
+        return Ok(res);
+    }
+
+    AppError::NotFound.to_response()
 }
 
 
 pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let url = req.url()?;
     let query = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+    let entry_type = url.query_pairs().find(|(k, _)| k == "type").map(|(_, v)| v.to_string());
     let db = ctx.env.d1("DB")?;
     
     let entries = if query.trim().is_empty() {
         vec![]
     } else {
-        zygo_core::db::search::search_entries(&db, &query, 50).await?
+        zygo_core::db::search::search_entries(&db, &query, 50, entry_type.as_deref()).await?
     };
 
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;

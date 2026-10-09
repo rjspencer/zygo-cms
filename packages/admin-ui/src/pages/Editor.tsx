@@ -52,6 +52,7 @@ export const Editor: React.FC = () => {
   const [entryType, setEntryType] = useState(() => {
     if (location.pathname.startsWith('/pages')) return 'page';
     if (location.pathname.startsWith('/posts')) return 'post';
+    if (location.pathname.startsWith('/docs')) return 'doc';
     return searchParams.get('type') || 'post';
   });
   const [content, setContent] = useState('');
@@ -66,6 +67,8 @@ export const Editor: React.FC = () => {
   const [schemaJson, setSchemaJson] = useState('');
   const [sections, setSections] = useState<SectionInstance[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
+  const [parentId, setParentId] = useState<string>('');
+  const [sortOrder, setSortOrder] = useState<number>(0);
 
   // Unsaved-changes tracking: compare current fields against the last loaded/saved snapshot.
   const latestFields = React.useRef<Record<string, unknown>>({});
@@ -82,6 +85,8 @@ export const Editor: React.FC = () => {
     canonicalUrl,
     schemaJson,
     sections,
+    parentId,
+    sortOrder,
   };
   const currentSnapshot = JSON.stringify(latestFields.current);
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
@@ -144,6 +149,8 @@ export const Editor: React.FC = () => {
         setCoverImage(entryData.entry.cover_image || '');
         setCanonicalUrl(entryData.entry.canonical_url || '');
         setSchemaJson(entryData.entry.schema_json || '');
+        setParentId(entryData.entry.parent_id ? String(entryData.entry.parent_id) : '');
+        setSortOrder(entryData.entry.sort_order || 0);
         let loadedSections: SectionInstance[] = [];
         if (entryData.entry.body_json) {
           try {
@@ -170,6 +177,8 @@ export const Editor: React.FC = () => {
             canonicalUrl: entryData.entry.canonical_url || '',
             schemaJson: entryData.entry.schema_json || '',
             sections: loadedSections,
+            parentId: entryData.entry.parent_id ? String(entryData.entry.parent_id) : '',
+            sortOrder: entryData.entry.sort_order || 0,
           })
         );
       }
@@ -338,6 +347,8 @@ export const Editor: React.FC = () => {
       body_html: entryType === 'page' ? '' : content,
       body_json: entryType === 'page' ? JSON.stringify(sections) : '{}',
       tags,
+      parent_id: parentId ? Number(parentId) : null,
+      sort_order: sortOrder,
     };
 
     if (isEditing && isPreview) {
@@ -497,13 +508,13 @@ export const Editor: React.FC = () => {
                   >
                     <TextField.Slot>
                       <Text size="1" color="gray">
-                        /{entryType === 'post' ? 'post/' : ''}
+                        /{entryType === 'post' ? 'post/' : entryType === 'doc' ? 'docs/' : ''}
                       </Text>
                     </TextField.Slot>
                   </TextField.Root>
                 </Box>
 
-                {entryType === 'post' ? (
+                {entryType === 'post' || entryType === 'doc' ? (
                   <Box>
                     <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                       Body Content
@@ -513,7 +524,7 @@ export const Editor: React.FC = () => {
                       onChange={setContent}
                       onOpenMediaPicker={handleOpenMediaPicker}
                       minHeight="400px"
-                      aria-label="Post Body"
+                      aria-label={`${entryType === 'post' ? 'Post' : 'Doc'} Body`}
                     />
                   </Box>
                 ) : (
@@ -777,6 +788,35 @@ export const Editor: React.FC = () => {
                     onChange={(e) => setDescription(e.target.value)}
                   />
                 </Box>
+
+                {(entryType === 'page' || entryType === 'doc') && (
+                  <Flex gap="4">
+                    <Box style={{ flex: 1 }}>
+                      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                        Parent ID
+                      </Text>
+                      <TextField.Root
+                        size="2"
+                        placeholder="Leave blank for root"
+                        value={parentId}
+                        onChange={(e) => setParentId(e.target.value)}
+                      />
+                      <Text size="1" color="gray">ID of the parent entry</Text>
+                    </Box>
+                    <Box style={{ flex: 1 }}>
+                      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                        Sort Order
+                      </Text>
+                      <TextField.Root
+                        type="number"
+                        size="2"
+                        value={sortOrder.toString()}
+                        onChange={(e) => setSortOrder(Number(e.target.value) || 0)}
+                      />
+                      <Text size="1" color="gray">Order relative to siblings</Text>
+                    </Box>
+                  </Flex>
+                )}
 
                 <Box>
                   <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>

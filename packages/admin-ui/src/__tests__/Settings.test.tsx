@@ -135,6 +135,8 @@ describe('Settings component', () => {
             canonical_origin: 'https://test.example.com',
             description: 'Test Description',
             analytics_enabled: 'false',
+            docs_mode_enabled: 'false',
+            docs_path: '/docs',
           },
         }),
       });

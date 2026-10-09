@@ -35,6 +35,8 @@ export const Settings: React.FC = () => {
   const [canonicalOrigin, setCanonicalOrigin] = useState('');
   const [description, setDescription] = useState('');
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
+  const [docsModeEnabled, setDocsModeEnabled] = useState(false);
+  const [docsPath, setDocsPath] = useState('/docs');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,6 +46,8 @@ export const Settings: React.FC = () => {
       setCanonicalOrigin(settingsData.canonical_origin || '');
       setDescription(settingsData.description || '');
       setAnalyticsEnabled(settingsData.analytics_enabled === 'true');
+      setDocsModeEnabled(settingsData.docs_mode_enabled === 'true');
+      setDocsPath(settingsData.docs_path || '/docs');
     }
   }, [settingsData]);
 
@@ -51,7 +55,9 @@ export const Settings: React.FC = () => {
     siteTitle !== (settingsData.site_title || '') ||
     canonicalOrigin !== (settingsData.canonical_origin || '') ||
     description !== (settingsData.description || '') ||
-    analyticsEnabled !== (settingsData.analytics_enabled === 'true');
+    analyticsEnabled !== (settingsData.analytics_enabled === 'true') ||
+    docsModeEnabled !== (settingsData.docs_mode_enabled === 'true') ||
+    docsPath !== (settingsData.docs_path || '/docs');
 
   const { blocker } = useUnsavedChangesBlocker(isDirty);
 
@@ -84,6 +90,8 @@ export const Settings: React.FC = () => {
         canonical_origin: canonicalOrigin,
         description: description,
         analytics_enabled: analyticsEnabled ? 'true' : 'false',
+        docs_mode_enabled: docsModeEnabled ? 'true' : 'false',
+        docs_path: docsPath,
       });
       
       queryClient.invalidateQueries({ queryKey: ['settings'] });
@@ -201,6 +209,44 @@ export const Settings: React.FC = () => {
               <Text size="2">Enable Web Analytics</Text>
             </Flex>
           </Flex>
+        </Card>
+
+        {/* Docs Settings */}
+        <Card size="2">
+          <Flex justify="between" align="center" gap="4" mb="4">
+            <Box style={{ flex: 1 }}>
+              <Heading size="3" mb="1">
+                Docs Mode
+              </Heading>
+              <Text size="2" color="gray">
+                Enable product documentation features including tree navigation and table of contents
+              </Text>
+            </Box>
+
+            <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
+              <Switch 
+                checked={docsModeEnabled} 
+                onCheckedChange={setDocsModeEnabled} 
+              />
+              <Text size="2">Enable Docs Mode</Text>
+            </Flex>
+          </Flex>
+
+          {docsModeEnabled && (
+            <Box mb="2">
+              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                Docs Base Path
+              </Text>
+              <TextField.Root
+                value={docsPath}
+                onChange={(e) => setDocsPath(e.target.value)}
+                placeholder="/docs"
+              />
+              <Text size="1" color="gray" mt="1" style={{ display: 'block' }}>
+                The path where the documentation will be served. E.g., /docs
+              </Text>
+            </Box>
+          )}
         </Card>
 
         {/* Edge Infrastructure Info */}
