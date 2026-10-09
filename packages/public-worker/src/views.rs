@@ -352,7 +352,7 @@ fn render_sections(
                 if let Ok(tmpl) = env.get_template(tid) {
                     let section_data = section.get("data").unwrap_or(section);
                     if let Ok(rendered) = tmpl.render(section_data) {
-                        sections_html.push_str(&rendered);
+                        sections_html.push_str(&format!("<div class=\"template-{}\" style=\"display: contents;\">{}</div>", tid, rendered));
                         if !used_template_ids.iter().any(|id| id == tid) {
                             used_template_ids.push(tid.to_string());
                         }
@@ -362,13 +362,13 @@ fn render_sections(
         }
     }
 
-    let mut used_css = Vec::new();
+    let mut used_css: Vec<String> = Vec::new();
     for tid in &used_template_ids {
         if let Some(st) = section_templates.iter().find(|t| &t.id == tid) {
             if let Some(ref css) = st.template_css {
                 let trimmed = css.trim();
                 if !trimmed.is_empty() {
-                    used_css.push(trimmed);
+                    used_css.push(format!(".template-{} {{\n{}\n}}", tid, trimmed));
                 }
             }
         }
