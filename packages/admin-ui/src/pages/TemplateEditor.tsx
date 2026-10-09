@@ -140,14 +140,16 @@ export const TemplateEditor: React.FC = () => {
 
   // 1. Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
-    workerRef.current.onmessage = (e) => {
-      if (e.data.success) {
-        setPreviewHtml(e.data.result);
-      } else {
-        console.error("Wasm Render Error:", e.data.error);
-      }
-    };
+    if (typeof Worker !== 'undefined') {
+      workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current.onmessage = (e) => {
+        if (e.data.success) {
+          setPreviewHtml(e.data.result);
+        } else {
+          console.error("Wasm Render Error:", e.data.error);
+        }
+      };
+    }
     return () => {
       workerRef.current?.terminate();
     };
@@ -188,14 +190,14 @@ export const TemplateEditor: React.FC = () => {
       schema_json: debouncedDraftSchema,
       updated_at: new Date().toISOString()
     };
-    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    window.localStorage?.setItem(draftKey, JSON.stringify(draftData));
     setHasDraft(true);
   }, [debouncedDraftHtml, debouncedDraftCss, debouncedDraftSchema, id, isLoadingTemplate, template, formTemplateHtml, formTemplateCss, formSchemaJson]);
 
   // 4. On Mount -> Load Draft
   useEffect(() => {
     const draftKey = `zygo_template_draft_${id || 'new'}`;
-    const saved = localStorage.getItem(draftKey);
+    const saved = window.localStorage?.getItem(draftKey);
     if (saved) {
       try {
         const draft = JSON.parse(saved);
@@ -211,7 +213,7 @@ export const TemplateEditor: React.FC = () => {
 
   const discardDraft = () => {
     const draftKey = `zygo_template_draft_${id || 'new'}`;
-    localStorage.removeItem(draftKey);
+    window.localStorage?.removeItem(draftKey);
     setHasDraft(false);
     setIsDiscardModalOpen(false);
     
@@ -339,7 +341,7 @@ export const TemplateEditor: React.FC = () => {
       
       // Clear draft on successful save
       const draftKey = `zygo_template_draft_${id || 'new'}`;
-      localStorage.removeItem(draftKey);
+      window.localStorage?.removeItem(draftKey);
       setHasDraft(false);
 
       if (isNew) {

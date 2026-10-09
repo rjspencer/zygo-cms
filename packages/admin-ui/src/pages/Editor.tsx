@@ -186,14 +186,16 @@ export const Editor: React.FC = () => {
   const [previewCss, setPreviewCss] = useState<string>('');
 
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
-    workerRef.current.onmessage = (e) => {
-      if (e.data.success) {
-        setPreviewHtml(e.data.result);
-      } else {
-        console.error("Wasm Render Error:", e.data.error);
-      }
-    };
+    if (typeof Worker !== 'undefined') {
+      workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current.onmessage = (e) => {
+        if (e.data.success) {
+          setPreviewHtml(e.data.result);
+        } else {
+          console.error("Wasm Render Error:", e.data.error);
+        }
+      };
+    }
     return () => {
       workerRef.current?.terminate();
     };
