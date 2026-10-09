@@ -507,10 +507,10 @@ When the user asks for a change, simply write your updates into the respective t
       <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
         
         {/* Left Pane: Metadata & Multi-Tab Editor */}
-        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px' }}>
+        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px', paddingBottom: '32px' }}>
           
           {/* Basic Metadata Card */}
-          <Card size="2">
+          <Card size="2" style={{ flexShrink: 0 }}>
             <Flex direction="column" gap="3">
               <Flex gap="4">
                 <Box style={{ flex: 1 }}>
@@ -555,7 +555,7 @@ When the user asks for a change, simply write your updates into the respective t
             </Flex>
           </Card>
 
-          <Card size="2" style={{ flexGrow: 1 }}>
+          <Card size="2" style={{ flexGrow: 1, flexShrink: 0 }}>
             <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
               <Tabs.List mb="4">
                 <Tabs.Trigger value="schema">Schema</Tabs.Trigger>
