@@ -140,14 +140,16 @@ export const TemplateEditor: React.FC = () => {
 
   // 1. Initialize Web Worker
   useEffect(() => {
-    workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
-    workerRef.current.onmessage = (e) => {
-      if (e.data.success) {
-        setPreviewHtml(e.data.result);
-      } else {
-        console.error("Wasm Render Error:", e.data.error);
-      }
-    };
+    if (typeof Worker !== 'undefined') {
+      workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current.onmessage = (e) => {
+        if (e.data.success) {
+          setPreviewHtml(e.data.result);
+        } else {
+          console.error("Wasm Render Error:", e.data.error);
+        }
+      };
+    }
     return () => {
       workerRef.current?.terminate();
     };
@@ -188,14 +190,14 @@ export const TemplateEditor: React.FC = () => {
       schema_json: debouncedDraftSchema,
       updated_at: new Date().toISOString()
     };
-    localStorage.setItem(draftKey, JSON.stringify(draftData));
+    window.localStorage?.setItem(draftKey, JSON.stringify(draftData));
     setHasDraft(true);
   }, [debouncedDraftHtml, debouncedDraftCss, debouncedDraftSchema, id, isLoadingTemplate, template, formTemplateHtml, formTemplateCss, formSchemaJson]);
 
   // 4. On Mount -> Load Draft
   useEffect(() => {
     const draftKey = `zygo_template_draft_${id || 'new'}`;
-    const saved = localStorage.getItem(draftKey);
+    const saved = window.localStorage?.getItem(draftKey);
     if (saved) {
       try {
         const draft = JSON.parse(saved);
@@ -211,7 +213,7 @@ export const TemplateEditor: React.FC = () => {
 
   const discardDraft = () => {
     const draftKey = `zygo_template_draft_${id || 'new'}`;
-    localStorage.removeItem(draftKey);
+    window.localStorage?.removeItem(draftKey);
     setHasDraft(false);
     setIsDiscardModalOpen(false);
     
@@ -339,7 +341,7 @@ export const TemplateEditor: React.FC = () => {
       
       // Clear draft on successful save
       const draftKey = `zygo_template_draft_${id || 'new'}`;
-      localStorage.removeItem(draftKey);
+      window.localStorage?.removeItem(draftKey);
       setHasDraft(false);
 
       if (isNew) {
@@ -382,7 +384,7 @@ export const TemplateEditor: React.FC = () => {
   }
 
   return (
-    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
         <BackButton to="/admin/templates" />
@@ -505,7 +507,7 @@ When the user asks for a change, simply write your updates into the respective t
       <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
         
         {/* Left Pane: Metadata & Multi-Tab Editor */}
-        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0 }}>
+        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px' }}>
           
           {/* Basic Metadata Card */}
           <Card size="2">
@@ -598,10 +600,10 @@ When the user asks for a change, simply write your updates into the respective t
         </Flex>
 
         {/* Right Pane: Live Wasm Preview */}
-        <Box style={{ flex: 1, minWidth: 0 }}>
+        <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
           <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Text as="div" size="2" weight="bold" mb="2">Live Preview (Wasm)</Text>
-            <Box style={{ flexGrow: 1, minHeight: '500px', backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
+            <Box style={{ flexGrow: 1, minHeight: 0, backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
               <iframe
                 title="Wasm Preview"
                 sandbox="allow-scripts"

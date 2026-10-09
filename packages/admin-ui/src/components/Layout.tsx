@@ -119,7 +119,7 @@ export const Layout: React.FC = () => {
   ];
 
   return (
-    <Flex style={{ minHeight: '100vh', width: '100%' }}>
+    <Flex style={{ height: '100%', width: '100%' }}>
       {/* Sidebar */}
       <Box
         style={{
@@ -301,7 +301,7 @@ export const Layout: React.FC = () => {
       </Box>
 
       {/* Main Content Area */}
-      <Flex direction="column" style={{ flex: 1, minWidth: 0, minHeight: '100vh' }}>
+      <Flex direction="column" style={{ flex: 1, minWidth: 0, height: '100%' }}>
         {/* Top Header */}
         <Flex
           align="center"
@@ -337,14 +337,19 @@ export const Layout: React.FC = () => {
 
         {/* Page Content */}
         <Box
-          p="6"
+          px="6"
+          pt="4"
+          pb="0"
           style={{
             flex: 1,
+            height: '100%',
             backgroundColor: 'var(--gray-a2)',
             overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          <Box style={{ maxWidth: '2000px', margin: '0 auto', width: '100%' }}>
+          <Box style={{ maxWidth: '2000px', margin: '0 auto', height: '100%', width: '100%', flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Outlet />
           </Box>
         </Box>

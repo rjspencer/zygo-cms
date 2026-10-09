@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Flex,
@@ -11,7 +11,6 @@ import {
   TextArea,
   Tabs,
   Badge,
-  Grid,
   Select,
   Card,
   Separator,
@@ -36,6 +35,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
+import { useDebounce } from '../hooks/useDebounce';
 
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -58,8 +58,6 @@ export const Editor: React.FC = () => {
   const [tags, setTags] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
-
-  const [previewToken, setPreviewToken] = useState<string | null>(null);
 
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -175,15 +173,74 @@ export const Editor: React.FC = () => {
           })
         );
       }
-      if (entryData.latest_revision?.preview_token) {
-        setPreviewToken((prev) => prev || entryData.latest_revision.preview_token);
-      }
     }
   }, [entryData]);
 
   React.useEffect(() => {
     isInitialized.current = false;
   }, [id]);
+
+  // Wasm Preview State
+  const workerRef = useRef<Worker | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string>('');
+  const [previewCss, setPreviewCss] = useState<string>('');
+
+  useEffect(() => {
+    if (typeof Worker !== 'undefined') {
+      workerRef.current = new Worker(new URL('../workers/templateWasmWorker.ts', import.meta.url), { type: 'module' });
+      workerRef.current.onmessage = (e) => {
+        if (e.data.success) {
+          setPreviewHtml(e.data.result);
+        } else {
+          console.error("Wasm Render Error:", e.data.error);
+        }
+      };
+    }
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+
+  const debouncedContent = useDebounce(content, 200);
+  const debouncedTitle = useDebounce(isEditingTitle ? tempTitle : title, 200);
+  const debouncedSections = useDebounce(sections, 200);
+
+  useEffect(() => {
+    if (!workerRef.current) return;
+
+    if (entryType === 'page') {
+      const items = debouncedSections.map(sec => {
+        const tpl = sectionTemplates.find(t => t.id === sec.type_id);
+        return {
+          html: tpl?.template_html || '',
+          dummyDataJson: JSON.stringify(sec.data || {})
+        };
+      });
+
+      const css = debouncedSections.map(sec => {
+        const tpl = sectionTemplates.find(t => t.id === sec.type_id);
+        return tpl?.template_css || '';
+      }).join('\n');
+
+      setPreviewCss(css);
+
+      workerRef.current.postMessage({
+        type: 'batch',
+        items,
+        id: 'preview'
+      });
+    } else {
+      const html = `<h1>{{ title }}</h1><div class="post-content">{{ content|safe }}</div>`;
+      const dummyDataJson = JSON.stringify({ title: debouncedTitle, content: debouncedContent });
+      setPreviewCss('');
+      workerRef.current.postMessage({
+        type: 'single',
+        html,
+        dummyDataJson,
+        id: 'preview'
+      });
+    }
+  }, [debouncedContent, debouncedTitle, debouncedSections, entryType, sectionTemplates]);
 
   const handleStartEditTitle = () => {
     setTempTitle(title);
@@ -238,9 +295,6 @@ export const Editor: React.FC = () => {
       }
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2500);
-      if (data.preview_token) {
-        setPreviewToken(data.preview_token);
-      }
       if (!isEditing && data.id) {
         const targetPath = entryType === 'page' ? `/pages/editor/${data.id}` : `/posts/editor/${data.id}`;
         allowNextNavigation();
@@ -310,9 +364,9 @@ export const Editor: React.FC = () => {
   };
 
   return (
-    <Box style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Top navigation row */}
-      <Flex justify="between" align="center" mb="4">
+      <Flex justify="between" align="center" mb="2">
         <BackButton />
         <Flex gap="2">
           <Button variant="soft" color="gray" onClick={() => handleSave(false)}>
@@ -418,491 +472,495 @@ export const Editor: React.FC = () => {
         </Flex>
       </Box>
 
-      <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
-        <Tabs.List mb="4">
-          <Tabs.Trigger value="content" onClick={() => handleTabChange('content')}>Content</Tabs.Trigger>
-          <Tabs.Trigger value="metadata" onClick={() => handleTabChange('metadata')}>Metadata</Tabs.Trigger>
-          <Tabs.Trigger value="links" onClick={() => handleTabChange('links')}>Links</Tabs.Trigger>
-          <Tabs.Trigger value="preview" onClick={() => handleTabChange('preview')}>Preview</Tabs.Trigger>
-        </Tabs.List>
+      {/* Split-Pane Editor & Preview */}
+      <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
+        {/* Left Pane */}
+        <Box style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px' }}>
+          <Tabs.Root value={activeTab} onValueChange={handleTabChange}>
+            <Tabs.List mb="4">
+              <Tabs.Trigger value="content" onClick={() => handleTabChange('content')}>Content</Tabs.Trigger>
+              <Tabs.Trigger value="metadata" onClick={() => handleTabChange('metadata')}>Metadata</Tabs.Trigger>
+              <Tabs.Trigger value="links" onClick={() => handleTabChange('links')}>Links</Tabs.Trigger>
+            </Tabs.List>
 
-        <Tabs.Content value="content">
-          <Flex direction="column" gap="4">
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Slug
-              </Text>
-              <TextField.Root
-                size="2"
-                placeholder="url-friendly-slug"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
-              >
-                <TextField.Slot>
-                  <Text size="1" color="gray">
-                    /{entryType === 'post' ? 'post/' : ''}
+            <Tabs.Content value="content">
+              <Flex direction="column" gap="4">
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Slug
                   </Text>
-                </TextField.Slot>
-              </TextField.Root>
-            </Box>
-
-            {entryType === 'post' ? (
-              <Box>
-                <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                  Body Content
-                </Text>
-                <RichTextEditor
-                  value={content}
-                  onChange={setContent}
-                  onOpenMediaPicker={handleOpenMediaPicker}
-                  minHeight="400px"
-                  aria-label="Post Body"
-                />
-              </Box>
-            ) : (
-              <Box>
-                <Flex justify="between" align="center" mb="4">
-                  <Text as="label" size="2" weight="bold">
-                    Page Sections
-                  </Text>
-                  <Select.Root
-                    onValueChange={(typeId) => {
-                      setSections([...sections, { type_id: typeId, data: {} }]);
-                      setExpandedSections({ ...expandedSections, [sections.length]: true });
-                    }}
+                  <TextField.Root
+                    size="2"
+                    placeholder="url-friendly-slug"
+                    value={slug}
+                    onChange={(e) => setSlug(e.target.value)}
                   >
-                    <Select.Trigger placeholder="Add Section..." />
-                    <Select.Content>
-                      {sectionTemplates.map((st) => (
-                        <Select.Item key={st.id} value={st.id}>
-                          {st.name}
-                        </Select.Item>
-                      ))}
-                    </Select.Content>
-                  </Select.Root>
-                </Flex>
+                    <TextField.Slot>
+                      <Text size="1" color="gray">
+                        /{entryType === 'post' ? 'post/' : ''}
+                      </Text>
+                    </TextField.Slot>
+                  </TextField.Root>
+                </Box>
 
-                <Flex direction="column" gap="3">
-                  {sections.length === 0 && (
-                    <Text size="2" color="gray">
-                      No sections added yet. Click &quot;Add Section...&quot; above to add one.
+                {entryType === 'post' ? (
+                  <Box>
+                    <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                      Body Content
                     </Text>
-                  )}
-                  {sections.map((section, index) => {
-                    const template = sectionTemplates.find((t) => t.id === section.type_id);
-                    const isMissing = !template;
-
-                    let fields: SectionTemplateField[] = [];
-                    if (template && template.schema_json) {
-                      try {
-                        fields =
-                          typeof template.schema_json === 'string'
-                            ? JSON.parse(template.schema_json)
-                            : template.schema_json;
-                      } catch (e) {
-                        console.error('Failed to parse schema_json for template', template.id, e);
-                      }
-                    }
-
-                    const isExpanded = expandedSections[index] ?? true;
-
-                    return (
-                      <Card key={index} variant="surface" style={{ padding: 0, overflow: 'hidden' }}>
-                        <Flex
-                          align="center"
-                          justify="between"
-                          p="3"
-                          style={{
-                            borderBottom: isExpanded ? '1px solid var(--gray-a4)' : 'none',
-                            backgroundColor: 'var(--gray-a2)',
-                          }}
-                        >
-                          <Flex align="center" gap="3">
-                            <IconButton style={{ cursor: 'pointer' }} size="2"
-                              variant="ghost"
-                              type="button"
-                              aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
-                              onClick={() =>
-                                setExpandedSections({ ...expandedSections, [index]: !isExpanded })
-                              }
-                            >
-                              {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                            </IconButton>
-                            {isMissing ? (
-                              <Flex align="center" gap="2">
-                                <Text weight="bold" size="2" color="red">
-                                  Missing template
-                                </Text>
-                                <Text size="1" color="gray">
-                                  ({section.type_id})
-                                </Text>
-                              </Flex>
-                            ) : (
-                              <Text weight="bold" size="2">
-                                {template.name}
-                              </Text>
-                            )}
-                          </Flex>
-
-                          <Flex gap="2">
-                            <IconButton style={{ cursor: 'pointer' }} size="2"
-                              variant="soft"
-                              type="button"
-                              disabled={index === 0}
-                              aria-label="Move section up"
-                              title="Move Up"
-                              onClick={() => {
-                                const newSections = [...sections];
-                                const temp = newSections[index - 1];
-                                newSections[index - 1] = newSections[index];
-                                newSections[index] = temp;
-                                setSections(newSections);
-                              }}
-                            >
-                              <CaretUpIcon />
-                            </IconButton>
-                            <IconButton style={{ cursor: 'pointer' }} size="2"
-                              variant="soft"
-                              type="button"
-                              disabled={index === sections.length - 1}
-                              aria-label="Move section down"
-                              title="Move Down"
-                              onClick={() => {
-                                const newSections = [...sections];
-                                const temp = newSections[index + 1];
-                                newSections[index + 1] = newSections[index];
-                                newSections[index] = temp;
-                                setSections(newSections);
-                              }}
-                            >
-                              <CaretDownIcon />
-                            </IconButton>
-                            <IconButton style={{ cursor: 'pointer' }} size="2"
-                              variant="soft"
-                              color="red"
-                              type="button"
-                              aria-label="Delete section"
-                              title="Delete Section"
-                              onClick={() => {
-                                setSections(sections.filter((_, i) => i !== index));
-                              }}
-                            >
-                              <TrashIcon />
-                            </IconButton>
-                          </Flex>
-                        </Flex>
-
-                        {isExpanded && (
-                          <Box p="4">
-                            {isMissing ? (
-                              <Text size="2" color="red">
-                                This section uses a template ({section.type_id}) that cannot be found. You can remove it using the delete button above.
-                              </Text>
-                            ) : (
-                              <SectionFieldRenderer
-                                fields={fields}
-                                data={section.data || {}}
-                                onChange={(newData) => {
-                                  const newSections = [...sections];
-                                  newSections[index] = {
-                                    ...newSections[index],
-                                    data: newData,
-                                  };
-                                  setSections(newSections);
-                                }}
-                                onOpenMediaPicker={handleOpenMediaPicker}
-                              />
-                            )}
-                          </Box>
-                        )}
-                      </Card>
-                    );
-                  })}
-                </Flex>
-              </Box>
-            )}
-          </Flex>
-        </Tabs.Content>
-
-        <Tabs.Content value="metadata">
-          <Grid columns={{ initial: '1', sm: '2' }} gap="4">
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Status
-              </Text>
-              <Flex gap="2">
-                <Button
-                  size="1"
-                  variant={status === 'draft' ? 'solid' : 'soft'}
-                  color="gray"
-                  onClick={() => setStatus('draft')}
-                >
-                  Draft
-                </Button>
-                <Button
-                  size="1"
-                  variant={status === 'published' ? 'solid' : 'soft'}
-                  color="green"
-                  onClick={() => setStatus('published')}
-                >
-                  Published
-                </Button>
-              </Flex>
-            </Box>
-
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Tags (comma separated)
-              </Text>
-              <TextField.Root
-                size="2"
-                placeholder="tech, news"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </Box>
-
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Category
-              </Text>
-              <TextField.Root
-                size="2"
-                placeholder="Category..."
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-              />
-            </Box>
-
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Cover Image URL
-              </Text>
-              <Flex align="center" gap="2" wrap="wrap">
-                <Button
-                  type="button"
-                  variant="soft"
-                  color="iris"
-                  onClick={() => handleOpenMediaPicker((url) => setCoverImage(url))}
-                >
-                  Select Image
-                </Button>
-                {coverImage && (
-                  <Flex align="center" gap="2">
-                    <Text size="2" color="gray" style={{ wordBreak: 'break-all' }}>
-                      {coverImage}
-                    </Text>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      color="red"
-                      size="1"
-                      onClick={() => setCoverImage('')}
-                    >
-                      Remove
-                    </Button>
-                  </Flex>
-                )}
-              </Flex>
-            </Box>
-
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Meta Description
-              </Text>
-              <TextArea
-                size="2"
-                placeholder="Brief description for SEO..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </Box>
-
-            <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Canonical URL
-              </Text>
-              <TextField.Root
-                size="2"
-                placeholder="https://example.com/..."
-                value={canonicalUrl}
-                onChange={(e) => setCanonicalUrl(e.target.value)}
-              />
-            </Box>
-
-            <Box style={{ gridColumn: '1 / -1' }}>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                Schema JSON
-              </Text>
-              <TextArea
-                size="2"
-                placeholder='{"@context": "https://schema.org", ...}'
-                value={schemaJson}
-                onChange={(e) => setSchemaJson(e.target.value)}
-                style={{ fontFamily: 'monospace' }}
-              />
-            </Box>
-          </Grid>
-
-          <Separator size="4" my="5" />
-
-          <Box mb="4">
-            <Heading size="3" mb="1">
-              Search & Social Previews
-            </Heading>
-            <Text size="2" color="gray">
-              Visual preview of how your content appears when shared across platforms.
-            </Text>
-          </Box>
-
-          <Flex direction="column" gap="4">
-            {/* 1. Google Search Results */}
-            <Card size="2">
-              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
-                Google Search Result
-              </Text>
-              <Box style={{ fontFamily: 'Arial, sans-serif' }}>
-                <Text size="1" color="gray" style={{ display: 'block', marginBottom: '2px', wordBreak: 'break-all' }}>
-                  {`https://example.com › ${entryType === 'page' ? (slug || 'slug') : `post › ${slug || 'slug'}`}`}
-                </Text>
-                <Heading
-                  size="3"
-                  weight="medium"
-                  style={{
-                    color: 'var(--blue-11, #1a0dab)',
-                    marginBottom: '4px',
-                  }}
-                >
-                  {`${title || tempTitle || 'Untitled'} | Zygo CMS`}
-                </Heading>
-                <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
-                  {description || 'Add a meta description to see how this page will appear in search results...'}
-                </Text>
-              </Box>
-            </Card>
-
-            {/* 2. Slack Link Preview / Unfurl */}
-            <Card size="2">
-              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
-                Slack Link Preview
-              </Text>
-              <Box
-                p="3"
-                style={{
-                  borderLeft: '4px solid var(--accent-9, #36C5F0)',
-                  backgroundColor: 'var(--gray-a2)',
-                  borderRadius: '0 var(--radius-2) var(--radius-2) 0',
-                }}
-              >
-                <Flex justify="between" align="start" gap="3">
-                  <Box style={{ flex: 1 }}>
-                    <Text size="1" weight="medium" color="gray" mb="1" style={{ display: 'block' }}>
-                      Zygo CMS
-                    </Text>
-                    <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                      {title || tempTitle || 'Untitled'}
-                    </Text>
-                    <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
-                      {description || 'No description provided.'}
-                    </Text>
-                  </Box>
-                  {coverImage && (
-                    <Box
-                      style={{
-                        width: '80px',
-                        height: '80px',
-                        flexShrink: 0,
-                        borderRadius: 'var(--radius-2)',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <img
-                        src={coverImage}
-                        alt="Preview thumbnail"
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </Box>
-                  )}
-                </Flex>
-              </Box>
-            </Card>
-
-            {/* 3. iMessage / iOS Link Bubble Preview */}
-            <Card size="2">
-              <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
-                iMessage Preview
-              </Text>
-              <Box
-                style={{
-                  maxWidth: '340px',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  backgroundColor: 'var(--gray-a3)',
-                  border: '1px solid var(--gray-a5)',
-                }}
-              >
-                {coverImage && (
-                  <Box style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
-                    <img
-                      src={coverImage}
-                      alt="Cover preview"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    <RichTextEditor
+                      value={content}
+                      onChange={setContent}
+                      onOpenMediaPicker={handleOpenMediaPicker}
+                      minHeight="400px"
+                      aria-label="Post Body"
                     />
                   </Box>
+                ) : (
+                  <Box>
+                    <Flex justify="between" align="center" mb="4">
+                      <Text as="label" size="2" weight="bold">
+                        Page Sections
+                      </Text>
+                      <Select.Root
+                        onValueChange={(typeId) => {
+                          setSections([...sections, { type_id: typeId, data: {} }]);
+                          setExpandedSections({ ...expandedSections, [sections.length]: true });
+                        }}
+                      >
+                        <Select.Trigger placeholder="Add Section..." />
+                        <Select.Content>
+                          {sectionTemplates.map((st) => (
+                            <Select.Item key={st.id} value={st.id}>
+                              {st.name}
+                            </Select.Item>
+                          ))}
+                        </Select.Content>
+                      </Select.Root>
+                    </Flex>
+
+                    <Flex direction="column" gap="3">
+                      {sections.length === 0 && (
+                        <Text size="2" color="gray">
+                          No sections added yet. Click &quot;Add Section...&quot; above to add one.
+                        </Text>
+                      )}
+                      {sections.map((section, index) => {
+                        const template = sectionTemplates.find((t) => t.id === section.type_id);
+                        const isMissing = !template;
+
+                        let fields: SectionTemplateField[] = [];
+                        if (template && template.schema_json) {
+                          try {
+                            fields =
+                              typeof template.schema_json === 'string'
+                                ? JSON.parse(template.schema_json)
+                                : template.schema_json;
+                          } catch (e) {
+                            console.error('Failed to parse schema_json for template', template.id, e);
+                          }
+                        }
+
+                        const isExpanded = expandedSections[index] ?? true;
+
+                        return (
+                          <Card key={index} variant="surface" style={{ padding: 0, overflow: 'hidden' }}>
+                            <Flex
+                              align="center"
+                              justify="between"
+                              p="3"
+                              style={{
+                                borderBottom: isExpanded ? '1px solid var(--gray-a4)' : 'none',
+                                backgroundColor: 'var(--gray-a2)',
+                              }}
+                            >
+                              <Flex align="center" gap="3">
+                                <IconButton style={{ cursor: 'pointer' }} size="2"
+                                  variant="ghost"
+                                  type="button"
+                                  aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+                                  onClick={() =>
+                                    setExpandedSections({ ...expandedSections, [index]: !isExpanded })
+                                  }
+                                >
+                                  {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                                </IconButton>
+                                {isMissing ? (
+                                  <Flex align="center" gap="2">
+                                    <Text weight="bold" size="2" color="red">
+                                      Missing template
+                                    </Text>
+                                    <Text size="1" color="gray">
+                                      ({section.type_id})
+                                    </Text>
+                                  </Flex>
+                                ) : (
+                                  <Text weight="bold" size="2">
+                                    {template.name}
+                                  </Text>
+                                )}
+                              </Flex>
+
+                              <Flex gap="2">
+                                <IconButton style={{ cursor: 'pointer' }} size="2"
+                                  variant="soft"
+                                  type="button"
+                                  disabled={index === 0}
+                                  aria-label="Move section up"
+                                  title="Move Up"
+                                  onClick={() => {
+                                    const newSections = [...sections];
+                                    const temp = newSections[index - 1];
+                                    newSections[index - 1] = newSections[index];
+                                    newSections[index] = temp;
+                                    setSections(newSections);
+                                  }}
+                                >
+                                  <CaretUpIcon />
+                                </IconButton>
+                                <IconButton style={{ cursor: 'pointer' }} size="2"
+                                  variant="soft"
+                                  type="button"
+                                  disabled={index === sections.length - 1}
+                                  aria-label="Move section down"
+                                  title="Move Down"
+                                  onClick={() => {
+                                    const newSections = [...sections];
+                                    const temp = newSections[index + 1];
+                                    newSections[index + 1] = newSections[index];
+                                    newSections[index] = temp;
+                                    setSections(newSections);
+                                  }}
+                                >
+                                  <CaretDownIcon />
+                                </IconButton>
+                                <IconButton style={{ cursor: 'pointer' }} size="2"
+                                  variant="soft"
+                                  color="red"
+                                  type="button"
+                                  aria-label="Delete section"
+                                  title="Delete Section"
+                                  onClick={() => {
+                                    setSections(sections.filter((_, i) => i !== index));
+                                  }}
+                                >
+                                  <TrashIcon />
+                                </IconButton>
+                              </Flex>
+                            </Flex>
+
+                            {isExpanded && (
+                              <Box p="4">
+                                {isMissing ? (
+                                  <Text size="2" color="red">
+                                    This section uses a template ({section.type_id}) that cannot be found. You can remove it using the delete button above.
+                                  </Text>
+                                ) : (
+                                  <SectionFieldRenderer
+                                    fields={fields}
+                                    data={section.data || {}}
+                                    onChange={(newData) => {
+                                      const newSections = [...sections];
+                                      newSections[index] = {
+                                        ...newSections[index],
+                                        data: newData,
+                                      };
+                                      setSections(newSections);
+                                    }}
+                                    onOpenMediaPicker={handleOpenMediaPicker}
+                                  />
+                                )}
+                              </Box>
+                            )}
+                          </Card>
+                        );
+                      })}
+                    </Flex>
+                  </Box>
                 )}
-                <Box p="3">
-                  <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
-                    {title || tempTitle || 'Untitled'}
-                  </Text>
-                  <Text size="1" color="gray" style={{ display: 'block' }}>
-                    example.com
-                  </Text>
-                </Box>
-              </Box>
-            </Card>
-          </Flex>
-        </Tabs.Content>
-
-        <Tabs.Content value="preview">
-          <Box
-            style={{
-              width: '100%',
-              minHeight: '600px',
-              height: '75vh',
-              borderRadius: 'var(--radius-3)',
-              overflow: 'hidden',
-              border: '1px solid var(--gray-a4)',
-              backgroundColor: 'var(--color-surface)',
-              position: 'relative',
-            }}
-          >
-            {previewToken ? (
-              <iframe
-                title="Preview"
-                src={getPublicSiteUrl(`/preview/${previewToken}`)}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  border: 'none',
-                  display: 'block',
-                }}
-              />
-            ) : (
-              <Flex align="center" justify="center" style={{ height: '100%', minHeight: '400px' }}>
-                <Text color="gray">{saveMutation.isPending ? 'Generating preview...' : 'No preview available'}</Text>
               </Flex>
-            )}
-          </Box>
-        </Tabs.Content>
+            </Tabs.Content>
 
-        <Tabs.Content value="links">
-          <LinksTab 
-            entryId={id} 
-            baseCanonicalUrl={canonicalUrl || getPublicSiteUrl(entryType === 'post' ? `/post/${slug}` : `/${slug}`)} 
-            isSaved={isEditing && !isDirty} 
-          />
-        </Tabs.Content>
-      </Tabs.Root>
+            <Tabs.Content value="metadata">
+              <Flex direction="column" gap="4">
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Status
+                  </Text>
+                  <Flex gap="2">
+                    <Button
+                      size="1"
+                      variant={status === 'draft' ? 'solid' : 'soft'}
+                      color="gray"
+                      onClick={() => setStatus('draft')}
+                    >
+                      Draft
+                    </Button>
+                    <Button
+                      size="1"
+                      variant={status === 'published' ? 'solid' : 'soft'}
+                      color="green"
+                      onClick={() => setStatus('published')}
+                    >
+                      Published
+                    </Button>
+                  </Flex>
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Tags (comma separated)
+                  </Text>
+                  <TextField.Root
+                    size="2"
+                    placeholder="tech, news"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Category
+                  </Text>
+                  <TextField.Root
+                    size="2"
+                    placeholder="Category..."
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Cover Image URL
+                  </Text>
+                  <Flex align="center" gap="2" wrap="wrap">
+                    <Button
+                      type="button"
+                      variant="soft"
+                      color="iris"
+                      onClick={() => handleOpenMediaPicker((url) => setCoverImage(url))}
+                    >
+                      Select Image
+                    </Button>
+                    {coverImage && (
+                      <Flex align="center" gap="3">
+                        <Box style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-2)', overflow: 'hidden', flexShrink: 0 }}>
+                          <img src={coverImage} alt="Cover Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        </Box>
+                        <Text size="2" color="gray" style={{ wordBreak: 'break-all' }}>
+                          {coverImage}
+                        </Text>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          color="red"
+                          size="1"
+                          onClick={() => setCoverImage('')}
+                        >
+                          Remove
+                        </Button>
+                      </Flex>
+                    )}
+                  </Flex>
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Meta Description
+                  </Text>
+                  <TextArea
+                    size="2"
+                    placeholder="Brief description for SEO..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Canonical URL
+                  </Text>
+                  <TextField.Root
+                    size="2"
+                    placeholder="https://example.com/..."
+                    value={canonicalUrl}
+                    onChange={(e) => setCanonicalUrl(e.target.value)}
+                  />
+                </Box>
+
+                <Box>
+                  <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                    Schema JSON
+                  </Text>
+                  <TextArea
+                    size="2"
+                    placeholder='{"@context": "https://schema.org", ...}'
+                    value={schemaJson}
+                    onChange={(e) => setSchemaJson(e.target.value)}
+                    style={{ fontFamily: 'monospace' }}
+                  />
+                </Box>
+              </Flex>
+
+              <Separator size="4" my="5" />
+
+              <Box mb="4">
+                <Heading size="3" mb="1">
+                  Search & Social Previews
+                </Heading>
+                <Text size="2" color="gray">
+                  Visual preview of how your content appears when shared across platforms.
+                </Text>
+              </Box>
+
+              <Flex direction="column" gap="4">
+                {/* 1. Google Search Results */}
+                <Card size="2">
+                  <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                    Google Search Result
+                  </Text>
+                  <Box style={{ fontFamily: 'Arial, sans-serif' }}>
+                    <Text size="1" color="gray" style={{ display: 'block', marginBottom: '2px', wordBreak: 'break-all' }}>
+                      {`https://example.com › ${entryType === 'page' ? (slug || 'slug') : `post › ${slug || 'slug'}`}`}
+                    </Text>
+                    <Heading
+                      size="3"
+                      weight="medium"
+                      style={{
+                        color: 'var(--blue-11, #1a0dab)',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      {`${title || tempTitle || 'Untitled'} | Zygo CMS`}
+                    </Heading>
+                    <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
+                      {description || 'Add a meta description to see how this page will appear in search results...'}
+                    </Text>
+                  </Box>
+                </Card>
+
+                {/* 2. Slack Link Preview / Unfurl */}
+                <Card size="2">
+                  <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                    Slack Link Preview
+                  </Text>
+                  <Box
+                    p="3"
+                    style={{
+                      borderLeft: '4px solid var(--accent-9, #36C5F0)',
+                      backgroundColor: 'var(--gray-a2)',
+                      borderRadius: '0 var(--radius-2) var(--radius-2) 0',
+                    }}
+                  >
+                    <Flex justify="between" align="start" gap="3">
+                      <Box style={{ flex: 1 }}>
+                        <Text size="1" weight="medium" color="gray" mb="1" style={{ display: 'block' }}>
+                          Zygo CMS
+                        </Text>
+                        <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                          {title || tempTitle || 'Untitled'}
+                        </Text>
+                        <Text size="2" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>
+                          {description || 'No description provided.'}
+                        </Text>
+                      </Box>
+                      {coverImage && (
+                        <Box
+                          style={{
+                            width: '80px',
+                            height: '80px',
+                            flexShrink: 0,
+                            borderRadius: 'var(--radius-2)',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <img
+                            src={coverImage}
+                            alt="Preview thumbnail"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </Box>
+                      )}
+                    </Flex>
+                  </Box>
+                </Card>
+
+                {/* 3. iMessage / iOS Link Bubble Preview */}
+                <Card size="2">
+                  <Text size="1" weight="bold" color="gray" mb="2" style={{ display: 'block' }}>
+                    iMessage Preview
+                  </Text>
+                  <Box
+                    style={{
+                      maxWidth: '340px',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      backgroundColor: 'var(--gray-a3)',
+                      border: '1px solid var(--gray-a5)',
+                    }}
+                  >
+                    {coverImage && (
+                      <Box style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
+                        <img
+                          src={coverImage}
+                          alt="Cover preview"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </Box>
+                    )}
+                    <Box p="3">
+                      <Text size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+                        {title || tempTitle || 'Untitled'}
+                      </Text>
+                      <Text size="1" color="gray" style={{ display: 'block' }}>
+                        example.com
+                      </Text>
+                    </Box>
+                  </Box>
+                </Card>
+              </Flex>
+            </Tabs.Content>
+
+            <Tabs.Content value="links">
+              <LinksTab
+                entryId={id}
+                baseCanonicalUrl={canonicalUrl || getPublicSiteUrl(entryType === 'post' ? `/post/${slug}` : `/${slug}`)}
+                isSaved={isEditing && !isDirty}
+              />
+            </Tabs.Content>
+          </Tabs.Root>
+        </Box>
+
+        {/* Right Pane: Live Wasm Preview */}
+        <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
+          <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Text as="div" size="2" weight="bold" mb="2">Live Preview</Text>
+            <Box style={{ flexGrow: 1, minHeight: 0, backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
+              <iframe
+                title="Wasm Preview"
+                sandbox="allow-scripts"
+                srcDoc={`
+                <!DOCTYPE html>
+                <html>
+                  <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1">
+                    <link rel="stylesheet" href="/styles/main.css" />
+                    <style>${previewCss}</style>
+                  </head>
+                  <body>
+                    ${previewHtml || '<div style="padding: 20px; color: #888; font-family: sans-serif;">Waiting for preview render...</div>'}
+                  </body>
+                </html>
+              `}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
+            </Box>
+          </Card>
+        </Box>
+      </Flex>
 
       <MediaPickerModal
         open={mediaPickerCallback !== null}
