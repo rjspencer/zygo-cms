@@ -22,6 +22,7 @@ import {
   LockOpen1Icon,
   ExclamationTriangleIcon,
   CheckCircledIcon,
+  InfoCircledIcon,
 } from '@radix-ui/react-icons';
 import { apiFetch } from '../utils/api';
 import { TemplateItem } from './TemplatesList';
@@ -30,7 +31,6 @@ import { SectionTemplateField } from '../types/sectionTemplate';
 import { BackButton } from '../components/BackButton';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
-import { AiContextInstructions } from '../components/AiContextInstructions';
 import { useDebounce } from '../hooks/useDebounce';
 import { generateDummyDataFromSchema } from '../utils/dummyData';
 import { ResetIcon } from '@radix-ui/react-icons';
@@ -61,10 +61,15 @@ export const TemplateEditor: React.FC = () => {
   const [previewHtml, setPreviewHtml] = useState<string>('');
   const [hasDraft, setHasDraft] = useState(false);
   const [isDiscardModalOpen, setIsDiscardModalOpen] = useState(false);
+  const [isCompilingWasm, setIsCompilingWasm] = useState(false);
+  const [renderCount, setRenderCount] = useState(0);
 
   // Debounced values
   const debouncedWasmHtml = useDebounce(formTemplateHtml, 200);
   const debouncedWasmSchema = useDebounce(formSchemaJson, 200);
+  
+  const isPendingDebounce = formTemplateHtml !== debouncedWasmHtml || formSchemaJson !== debouncedWasmSchema;
+  const isStatusCompiling = isPendingDebounce || isCompilingWasm;
   
   const debouncedDraftHtml = useDebounce(formTemplateHtml, 2500);
   const debouncedDraftCss = useDebounce(formTemplateCss, 2500);
@@ -148,6 +153,8 @@ export const TemplateEditor: React.FC = () => {
         } else {
           console.error("Wasm Render Error:", e.data.error);
         }
+        setIsCompilingWasm(false);
+        setRenderCount(prev => prev + 1);
       };
     }
     return () => {
@@ -158,6 +165,7 @@ export const TemplateEditor: React.FC = () => {
   // 2. Fast Debounce -> Trigger Wasm Preview
   useEffect(() => {
     if (workerRef.current) {
+      setIsCompilingWasm(true);
       const dummyData = generateDummyDataFromSchema(debouncedWasmSchema);
       workerRef.current.postMessage({
         html: debouncedWasmHtml,
@@ -166,6 +174,36 @@ export const TemplateEditor: React.FC = () => {
       });
     }
   }, [debouncedWasmHtml, debouncedWasmSchema, formId]);
+
+  // Window Editor Bridge for AI Agents
+  useEffect(() => {
+    (window as any).zygoEditor = {
+      getValues: () => ({
+        schema: formSchemaJson,
+        html: formTemplateHtml,
+        css: formTemplateCss,
+      }),
+      setTab: (tabName: string) => setActiveTab(tabName),
+      updateField: (field: string, value: string) => {
+        if (field === 'html') setFormTemplateHtml(value);
+        else if (field === 'css') setFormTemplateCss(value);
+        else if (field === 'schema') {
+          setFormSchemaJson(value);
+          try {
+            const parsed = JSON.parse(value);
+            if (Array.isArray(parsed)) {
+              setFields(parsed);
+            }
+          } catch (e) {
+            // Ignore parse errors on partial typing
+          }
+        }
+      },
+    };
+    return () => {
+      delete (window as any).zygoEditor;
+    };
+  }, [formSchemaJson, formTemplateHtml, formTemplateCss, setActiveTab, setFormTemplateHtml, setFormTemplateCss, setFormSchemaJson, setFields]);
 
   // 3. Slow Debounce -> Auto-Save Draft
   useEffect(() => {
@@ -385,6 +423,32 @@ export const TemplateEditor: React.FC = () => {
 
   return (
     <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      {/* AI Assistant Banner */}
+      <Box mb="4" id="ai-agent-instructions" data-agent-info="Editing schema, html, or css triggers an automatic Wasm re-render in the preview pane." style={{ width: '100%', marginTop: '0' }}>
+        <Callout.Root color="blue" variant="surface" style={{ width: '100%', padding: '0', overflow: 'hidden', borderRadius: '0' }}>
+          <details style={{ width: '100%' }}>
+            <summary style={{ padding: 'var(--space-3)', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', gap: 'var(--space-2)', userSelect: 'none' }}>
+              <InfoCircledIcon />
+              <Text size="2">
+                <strong>AI Assistant Guide:</strong> This editor is optimized for both human users and AI agents. [Click to learn more]
+              </Text>
+            </summary>
+            <Box px="3" pb="3">
+              <Text size="2" as="div">
+                <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                  <li><strong>Schema</strong>: Defines the data model (JSON array of fields).</li>
+                  <li><strong>HTML</strong>: Uses MiniJinja (Rust). Standard HTML with <code>class=</code> (NOT <code>className</code>). Variables: <code>{'{{ field_name }}'}</code>.</li>
+                  <li><strong>CSS</strong>: Standard CSS rules applied to the component.</li>
+                </ul>
+                <Box mt="2">
+                  <strong>For AI Agents:</strong> All 3 editors (Schema, HTML, CSS) remain mounted in the DOM regardless of the active tab. You can interact with them directly, or use the global <code>window.zygoEditor.updateField(field, value)</code> API to reliably update React state. Edits trigger an auto-recompile. Watch the <code>#wasm-render-status</code> badge transition from <code>compiling</code> to <code>rendered</code> to verify changes.
+                </Box>
+              </Text>
+            </Box>
+          </details>
+        </Callout.Root>
+      </Box>
+
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
         <BackButton to="/admin/templates" />
@@ -397,13 +461,6 @@ export const TemplateEditor: React.FC = () => {
             <Heading size="6" weight="bold">
               {isNew ? 'New Template' : `Edit Template: ${formName || formId}`}
             </Heading>
-            <AiContextInstructions instructions={`**AI Assistant Instructions:**
-You are an in-browser AI helping the user build this template component.
-- **Schema**: Defines the data model. To add a field, click 'Add Field' or modify the underlying JSON.
-- **HTML**: Uses MiniJinja (Rust) syntax. Use standard HTML with \`class=\` (NOT \`className\`). Inject schema variables using \`{{ field_name }}\` or \`{% for item in list_field %}\`.
-- **CSS**: Standard CSS.
-
-When the user asks for a change, simply write your updates into the respective textarea elements or schema inputs. Your changes will automatically trigger a real-time Wasm preview on the right side of the screen. Do not hit 'Save' unless explicitly asked; let the user review your changes via the live preview first.`} />
           </Flex>
           <Text size="2" color="gray">
             {isNew
@@ -563,17 +620,18 @@ When the user asks for a change, simply write your updates into the respective t
                 <Tabs.Trigger value="css">CSS</Tabs.Trigger>
               </Tabs.List>
 
-              <Tabs.Content value="schema">
-                <Box mb="2">
+              <Tabs.Content value="schema" forceMount hidden={activeTab !== 'schema'}>
+                <Box mb="2" id="editor-schema" data-panel="schema">
                   <Text as="div" size="2" weight="bold" mb="1">Schema Definition</Text>
                   <VisualFieldBuilder fields={fields} onChange={handleFieldsChange} disabled={isLockedForDesigner} />
                 </Box>
               </Tabs.Content>
 
-              <Tabs.Content value="html">
-                <Box mb="2">
+              <Tabs.Content value="html" forceMount hidden={activeTab !== 'html'}>
+                <Box mb="2" id="editor-html" data-panel="html">
                   <Text as="div" size="2" weight="bold" mb="1">HTML Template (MiniJinja)</Text>
                   <TextArea
+                    name="template_html"
                     value={formTemplateHtml}
                     onChange={(e) => setFormTemplateHtml(e.target.value)}
                     rows={20}
@@ -583,10 +641,11 @@ When the user asks for a change, simply write your updates into the respective t
                 </Box>
               </Tabs.Content>
 
-              <Tabs.Content value="css">
-                <Box mb="2">
+              <Tabs.Content value="css" forceMount hidden={activeTab !== 'css'}>
+                <Box mb="2" id="editor-css" data-panel="css">
                   <Text as="div" size="2" weight="bold" mb="1">CSS Stylesheet</Text>
                   <TextArea
+                    name="template_css"
                     value={formTemplateCss}
                     onChange={(e) => setFormTemplateCss(e.target.value)}
                     rows={20}
@@ -602,7 +661,17 @@ When the user asks for a change, simply write your updates into the respective t
         {/* Right Pane: Live Wasm Preview */}
         <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
           <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Text as="div" size="2" weight="bold" mb="2">Live Preview (Wasm)</Text>
+            <Flex justify="between" align="center" mb="2">
+              <Text as="div" size="2" weight="bold">Live Preview (Wasm)</Text>
+              <Badge
+                id="wasm-render-status"
+                color={isStatusCompiling ? "amber" : "green"}
+                data-status={isStatusCompiling ? "compiling" : "rendered"}
+                data-render-count={renderCount}
+              >
+                {isStatusCompiling ? "Compiling..." : "Live"}
+              </Badge>
+            </Flex>
             <Box style={{ flexGrow: 1, minHeight: 0, backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
               <iframe
                 title="Wasm Preview"
