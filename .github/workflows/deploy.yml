@@ -46,6 +46,12 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
 
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build template-wasm
+        run: pnpm --filter template-wasm run build
+
       - name: Run Browser / DOM Test Suite
         run: pnpm test
 
@@ -84,6 +90,12 @@ jobs:
       - name: Install JS Dependencies
         run: |
           pnpm install --frozen-lockfile
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build template-wasm
+        run: pnpm --filter template-wasm run build
 
       - name: Inject API URL for UI Build
         run: |
