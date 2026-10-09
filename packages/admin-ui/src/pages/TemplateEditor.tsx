@@ -683,10 +683,17 @@ export const TemplateEditor: React.FC = () => {
                       <meta charset="utf-8">
                       <meta name="viewport" content="width=device-width, initial-scale=1">
                       <link rel="stylesheet" href="/styles/main.css" />
-                      <style>${debouncedWasmHtml !== formTemplateHtml ? formTemplateCss : debouncedWasmHtml /* just to trigger reactivity if needed */} ${formTemplateCss}</style>
+                      <style>
+                        /* ${debouncedWasmHtml !== formTemplateHtml ? formTemplateCss : debouncedWasmHtml} reactivity trigger */
+                        .template-${formId} {
+                          ${formTemplateCss}
+                        }
+                      </style>
                     </head>
                     <body>
-                      ${previewHtml || '<div style="padding: 20px; color: #888; font-family: sans-serif;">Waiting for template render...</div>'}
+                      <div class="template-${formId}" style="display: contents;">
+                        ${previewHtml || '<div style="padding: 20px; color: #888; font-family: sans-serif;">Waiting for template render...</div>'}
+                      </div>
                     </body>
                   </html>
                 `}
