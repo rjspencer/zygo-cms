@@ -62,7 +62,8 @@ console.log('Building official documentation seed script...');
 
 let queries = [];
 
-for (const page of pages) {
+for (let i = 0; i < pages.length; i++) {
+  const page = pages[i];
   console.log(`Processing ${page.file}...`);
   const mdPath = path.join(ROOT_DIR, 'docs', 'official', page.file);
   
@@ -82,23 +83,26 @@ for (const page of pages) {
   }
   
   const query = `
-    INSERT INTO entries (slug, title, type, status, body_html, body_json, path, parent_id)
+    INSERT INTO entries (slug, title, type, status, body_html, body_json, path, parent_id, sort_order)
     VALUES (
       '${escapeSql(page.slug)}',
       '${escapeSql(page.title)}',
-      'page',
+      'doc',
       'published',
       '${escapeSql(bodyHtml)}',
       '${escapeSql(bodyJson)}',
       '${escapeSql(page.path)}',
-      ${parentIdExpr}
+      ${parentIdExpr},
+      ${i}
     )
     ON CONFLICT(slug) DO UPDATE SET
       title = excluded.title,
+      type = excluded.type,
       body_html = excluded.body_html,
       body_json = excluded.body_json,
       path = excluded.path,
       parent_id = excluded.parent_id,
+      sort_order = excluded.sort_order,
       updated_at = CURRENT_TIMESTAMP;
   `.trim();
 

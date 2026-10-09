@@ -39,6 +39,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/admin/dashboard", handlers::admin::dashboard)
         .get_async("/api/admin/pages", handlers::admin::pages)
         .get_async("/api/admin/posts", handlers::admin::posts)
+        .get_async("/api/admin/docs", handlers::admin::docs)
         .get_async("/api/admin/editor", handlers::admin::editor)
         .get_async("/api/admin/editor/:id", handlers::admin::editor_id)
         .get_async("/api/admin/navigation", handlers::admin::navigation)

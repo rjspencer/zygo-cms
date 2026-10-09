@@ -96,6 +96,16 @@ export const Layout: React.FC = () => {
     retry: false,
   });
 
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/settings');
+      if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+    retry: false,
+  });
+
   const logoutUrl = dashData?.auth_url || '/cdn-cgi/access/logout';
   let userEmail = 'Admin User';
   if (meData?.email) {
@@ -110,6 +120,7 @@ export const Layout: React.FC = () => {
     { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
     { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
     { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
+    ...(settingsData?.docs_mode_enabled === 'true' ? [{ to: '/docs', icon: <FileTextIcon width="18" height="18" />, label: 'Docs' }] : []),
     { to: '/admin/templates', icon: <LayoutIcon width="18" height="18" />, label: 'Templates' },
     { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
     { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },

@@ -64,6 +64,34 @@ pub async fn pages(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     }))
 }
 
+pub async fn docs(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
+    let db = ctx.env.d1("DB")?;
+    let entries = zygo_core::db::entry::find_all_docs(&db).await?;
+    
+    let all_deleted = db::find_deleted_entries(&db).await?;
+    let deleted_entries = all_deleted.into_iter().filter(|e| e.r#type == "doc").collect::<Vec<_>>();
+    
+    let auth_url = get_auth_url(&ctx.env);
+    
+    let menus = db::menu::get_all_menus(&db).await?;
+    let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
+    let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
+    
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
+        .map(|s| s.value == "true")
+        .unwrap_or(false);
+
+    Response::from_json(&json!({
+        "entries": entries,
+        "deleted_entries": deleted_entries,
+        "auth_url": auth_url,
+        "header_menu": header_menu,
+        "footer_menu": footer_menu,
+        "analytics_enabled": analytics_enabled
+    }))
+}
+
 pub async fn posts(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
     let db = ctx.env.d1("DB")?;

@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Posts from './pages/Posts';
 import PagesList from './pages/PagesList';
+import DocsList from './pages/DocsList';
 import Editor from './pages/Editor';
 import Media from './pages/Media';
 import Users from './pages/Users';
@@ -26,6 +27,9 @@ export const App: React.FC = () => {
         <Route path="pages" element={<PagesList />} />
         <Route path="pages/editor/new" element={<Editor />} />
         <Route path="pages/editor/:id" element={<Editor />} />
+        <Route path="docs" element={<DocsList />} />
+        <Route path="docs/editor/new" element={<Editor />} />
+        <Route path="docs/editor/:id" element={<Editor />} />
         <Route path="editor" element={<Editor />} />
         <Route path="editor/:id" element={<Editor />} />
         <Route path="media" element={<Media />} />

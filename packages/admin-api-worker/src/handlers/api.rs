@@ -242,12 +242,32 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
     if let Err(err) = payload.validate() {
         return err.to_response();
     }
+    
+    let db = ctx.env.d1("DB")?;
+
+    let existing_entry = db::find_entry_by_id(&db, id).await?;
+    if let Some(ref e) = existing_entry {
+        if e.r#type == "doc" {
+            let actual_path = if let Ok(Some(s)) = db::setting::get_setting(&db, "docs_path").await {
+                if s.value.is_empty() { "/docs".to_string() } else { s.value }
+            } else {
+                "/docs".to_string()
+            };
+            let docs_slug = actual_path.trim_start_matches('/');
+            let docs_slug = if docs_slug.is_empty() { "docs" } else { docs_slug };
+            
+            if e.slug == docs_slug {
+                // Ignore any attempts to change parent_id or sort_order for Docs Home
+                payload.parent_id = Some(None); 
+                payload.sort_order = Some(0);
+            }
+        }
+    }
 
     if let Some(ref mut html) = payload.body_html {
         *html = sanitize::sanitize_html(html);
     }
 
-    let db = ctx.env.d1("DB")?;
     let is_draft_only = payload.draft_only.unwrap_or(false);
     let num_id = match id.parse::<i64>() {
         Ok(n) => n,
@@ -255,7 +275,7 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
     };
 
     if is_draft_only {
-        let existing_entry = match db::find_entry_by_id(&db, id).await? {
+        let existing_entry = match existing_entry {
             Some(e) => e,
             None => return AppError::NotFound.to_response(),
         };
@@ -380,6 +400,20 @@ pub async fn delete_entry(req: Request, ctx: RouteContext<()>) -> Result<Respons
         if _user.role == "author" && e.author_id != Some(_user.id) {
             return AppError::Unauthorized("You do not have permission to delete this entry".into()).to_response();
         }
+        
+        if e.r#type == "doc" {
+            let actual_path = if let Ok(Some(s)) = db::setting::get_setting(&db, "docs_path").await {
+                if s.value.is_empty() { "/docs".to_string() } else { s.value }
+            } else {
+                "/docs".to_string()
+            };
+            let docs_slug = actual_path.trim_start_matches('/');
+            let docs_slug = if docs_slug.is_empty() { "docs" } else { docs_slug };
+            
+            if e.slug == docs_slug {
+                return AppError::BadRequest("The Docs Home page cannot be deleted.".into()).to_response();
+            }
+        }
     }
     let delete_result = db::delete_entry(&db, id).await;
 
@@ -500,13 +534,14 @@ pub async fn get_revision(req: Request, ctx: RouteContext<()>) -> Result<Respons
 pub async fn search_entries_api(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let url = req.url()?;
     let query = url.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()).unwrap_or_default();
+    let entry_type = url.query_pairs().find(|(k, _)| k == "type").map(|(_, v)| v.to_string());
     
     if query.trim().is_empty() {
         return Response::from_json(&serde_json::json!([]));
     }
 
     let db = ctx.env.d1("DB")?;
-    let results = zygo_core::db::search::search_entries(&db, &query, 5).await?;
+    let results = zygo_core::db::search::search_entries(&db, &query, 5, entry_type.as_deref()).await?;
     Response::from_json(&results)
 }
 
@@ -590,6 +625,48 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
     let db = ctx.env.d1("DB")?;
     for (k, v) in &to_update {
         db::setting::set_setting(&db, k, v).await?;
+    }
+
+    if let Some(enabled) = to_update.get("docs_mode_enabled") {
+        if enabled == "true" {
+            // Need to get actual docs_path from db if not in to_update
+            let actual_path = if let Some(p) = to_update.get("docs_path") {
+                p.clone()
+            } else {
+                if let Ok(Some(s)) = db::setting::get_setting(&db, "docs_path").await {
+                    if s.value.is_empty() { "/docs".to_string() } else { s.value }
+                } else {
+                    "/docs".to_string()
+                }
+            };
+            
+            let slug = actual_path.trim_start_matches('/');
+            let slug = if slug.is_empty() { "docs".to_string() } else { slug.to_string() };
+
+            if let Ok(None) = db::find_entry_by_slug(&db, &slug).await {
+                // Create Docs Home
+                let req = models::CreateEntryRequest {
+                    slug: slug.clone(),
+                    title: "Docs Home".to_string(),
+                    r#type: Some("doc".to_string()),
+                    status: Some("published".to_string()),
+                    description: Some("Welcome to the documentation.".to_string()),
+                    cover_image: None,
+                    canonical_url: None,
+                    schema_json: None,
+                    category: None,
+                    tags: None,
+                    parent_id: None,
+                    sort_order: Some(0),
+                    body_html: "<p>Welcome to the docs.</p>".to_string(),
+                    body_json: "{}".to_string(),
+                    custom_fields_json: None,
+                    published_at: None,
+                    author_id: Some(user.id),
+                };
+                let _ = db::create_entry(&db, &req).await;
+            }
+        }
     }
 
     let origin = if let Some(origin_val) = to_update.get("canonical_origin").filter(|s| !s.trim().is_empty()) {
