@@ -50,3 +50,29 @@ mod tests {
     }
 }
 
+
+#[cfg(target_arch = "wasm32")]
+pub fn generate_id() -> String {
+    use worker::wasm_bindgen::prelude::*;
+
+    #[wasm_bindgen]
+    extern "C" {
+        #[wasm_bindgen(js_namespace = crypto, js_name = randomUUID)]
+        fn js_random_uuid() -> String;
+    }
+
+    js_random_uuid().replace('-', "")
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub fn generate_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+    static ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    let count = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("id{:x}{:x}", nanos, count)
+}

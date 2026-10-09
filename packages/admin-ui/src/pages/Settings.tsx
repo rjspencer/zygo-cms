@@ -16,6 +16,8 @@ import {
 import { CheckIcon, InfoCircledIcon } from '@radix-ui/react-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
+import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 
 export const Settings: React.FC = () => {
   const queryClient = useQueryClient();
@@ -50,6 +52,8 @@ export const Settings: React.FC = () => {
     canonicalOrigin !== (settingsData.canonical_origin || '') ||
     description !== (settingsData.description || '') ||
     analyticsEnabled !== (settingsData.analytics_enabled === 'true');
+
+  const { blocker } = useUnsavedChangesBlocker(isDirty);
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (settings: Record<string, string>) => {
@@ -114,7 +118,7 @@ export const Settings: React.FC = () => {
         >
           {saved ? (
             <>
-              <CheckIcon width="16" height="16" /> Saved!
+              <CheckIcon width="18" height="18" /> Saved!
             </>
           ) : updateSettingsMutation.isPending ? (
             'Saving...'
@@ -241,6 +245,7 @@ export const Settings: React.FC = () => {
           </Flex>
         </Card>
       </Flex>
+      <UnsavedChangesDialog blocker={blocker} />
     </Box>
   );
 };

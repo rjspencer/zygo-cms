@@ -30,9 +30,12 @@ import { MediaPickerModal } from '../components/MediaPickerModal';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { BackButton } from '../components/BackButton';
 import { SectionFieldRenderer } from '../components/SectionFieldRenderer';
+import { LinksTab } from '../components/LinksTab';
 import { SectionTemplate, SectionInstance, SectionTemplateField } from '../types/sectionTemplate';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
+import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
+import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -65,6 +68,33 @@ export const Editor: React.FC = () => {
   const [schemaJson, setSchemaJson] = useState('');
   const [sections, setSections] = useState<SectionInstance[]>([]);
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
+
+  // Unsaved-changes tracking: compare current fields against the last loaded/saved snapshot.
+  const latestFields = React.useRef<Record<string, unknown>>({});
+  latestFields.current = {
+    title: isEditingTitle ? tempTitle : title,
+    slug,
+    status,
+    entryType,
+    content,
+    tags,
+    description,
+    category,
+    coverImage,
+    canonicalUrl,
+    schemaJson,
+    sections,
+  };
+  const currentSnapshot = JSON.stringify(latestFields.current);
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!isEditing) setSavedSnapshot((prev) => prev ?? currentSnapshot);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
+  const isDirty = savedSnapshot !== null && currentSnapshot !== savedSnapshot;
+  const { blocker, allowNextNavigation } = useUnsavedChangesBlocker(isDirty);
 
   // Unified media picker callback
   const [mediaPickerCallback, setMediaPickerCallback] = useState<((url: string, altText?: string) => void) | null>(null);
@@ -116,14 +146,34 @@ export const Editor: React.FC = () => {
         setCoverImage(entryData.entry.cover_image || '');
         setCanonicalUrl(entryData.entry.canonical_url || '');
         setSchemaJson(entryData.entry.schema_json || '');
+        let loadedSections: SectionInstance[] = [];
         if (entryData.entry.body_json) {
           try {
             const parsed = JSON.parse(entryData.entry.body_json);
-            if (Array.isArray(parsed)) setSections(parsed);
+            if (Array.isArray(parsed)) {
+              setSections(parsed);
+              loadedSections = parsed;
+            }
           } catch (e) {
             console.error('Failed to parse body_json', e);
           }
         }
+        setSavedSnapshot(
+          JSON.stringify({
+            title: entryData.entry.title || '',
+            slug: entryData.entry.slug || '',
+            status: entryData.entry.status || 'draft',
+            entryType: entryData.entry.type || 'post',
+            content: entryData.entry.body_html || '',
+            tags: entryData.entry.tags || '',
+            description: entryData.entry.description || '',
+            category: entryData.entry.category || '',
+            coverImage: entryData.entry.cover_image || '',
+            canonicalUrl: entryData.entry.canonical_url || '',
+            schemaJson: entryData.entry.schema_json || '',
+            sections: loadedSections,
+          })
+        );
       }
       if (entryData.latest_revision?.preview_token) {
         setPreviewToken((prev) => prev || entryData.latest_revision.preview_token);
@@ -183,6 +233,9 @@ export const Editor: React.FC = () => {
     },
     onSuccess: (data, variables) => {
       setStatus(variables.finalStatus);
+      if (!variables.payload.draft_only) {
+        setSavedSnapshot(JSON.stringify({ ...latestFields.current, status: variables.finalStatus }));
+      }
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2500);
       if (data.preview_token) {
@@ -190,6 +243,7 @@ export const Editor: React.FC = () => {
       }
       if (!isEditing && data.id) {
         const targetPath = entryType === 'page' ? `/pages/editor/${data.id}` : `/posts/editor/${data.id}`;
+        allowNextNavigation();
         navigate(targetPath, { replace: true });
       }
     },
@@ -299,7 +353,7 @@ export const Editor: React.FC = () => {
                 }}
               />
             </Box>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="soft"
               color="green"
@@ -307,9 +361,9 @@ export const Editor: React.FC = () => {
               title="Save title"
               onClick={handleSaveTitle}
             >
-              <CheckIcon width="16" height="16" />
+              <CheckIcon width="18" height="18" />
             </IconButton>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="soft"
               color="gray"
@@ -317,7 +371,7 @@ export const Editor: React.FC = () => {
               title="Cancel"
               onClick={handleCancelEditTitle}
             >
-              <Cross2Icon width="16" height="16" />
+              <Cross2Icon width="18" height="18" />
             </IconButton>
           </Flex>
         ) : (
@@ -336,7 +390,7 @@ export const Editor: React.FC = () => {
             >
               {title || 'Untitled'}
             </Heading>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="ghost"
               color="gray"
@@ -344,7 +398,7 @@ export const Editor: React.FC = () => {
               title="Edit title"
               onClick={handleStartEditTitle}
             >
-              <Pencil1Icon width="16" height="16" />
+              <Pencil1Icon width="18" height="18" />
             </IconButton>
           </Flex>
         )}
@@ -368,6 +422,7 @@ export const Editor: React.FC = () => {
         <Tabs.List mb="4">
           <Tabs.Trigger value="content" onClick={() => handleTabChange('content')}>Content</Tabs.Trigger>
           <Tabs.Trigger value="metadata" onClick={() => handleTabChange('metadata')}>Metadata</Tabs.Trigger>
+          <Tabs.Trigger value="links" onClick={() => handleTabChange('links')}>Links</Tabs.Trigger>
           <Tabs.Trigger value="preview" onClick={() => handleTabChange('preview')}>Preview</Tabs.Trigger>
         </Tabs.List>
 
@@ -463,8 +518,7 @@ export const Editor: React.FC = () => {
                           }}
                         >
                           <Flex align="center" gap="3">
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="ghost"
                               type="button"
                               aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
@@ -491,8 +545,7 @@ export const Editor: React.FC = () => {
                           </Flex>
 
                           <Flex gap="2">
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               type="button"
                               disabled={index === 0}
@@ -508,8 +561,7 @@ export const Editor: React.FC = () => {
                             >
                               <CaretUpIcon />
                             </IconButton>
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               type="button"
                               disabled={index === sections.length - 1}
@@ -525,8 +577,7 @@ export const Editor: React.FC = () => {
                             >
                               <CaretDownIcon />
                             </IconButton>
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               color="red"
                               type="button"
@@ -843,6 +894,14 @@ export const Editor: React.FC = () => {
             )}
           </Box>
         </Tabs.Content>
+
+        <Tabs.Content value="links">
+          <LinksTab 
+            entryId={id} 
+            baseCanonicalUrl={canonicalUrl || getPublicSiteUrl(entryType === 'post' ? `/post/${slug}` : `/${slug}`)} 
+            isSaved={isEditing && !isDirty} 
+          />
+        </Tabs.Content>
       </Tabs.Root>
 
       <MediaPickerModal
@@ -850,6 +909,7 @@ export const Editor: React.FC = () => {
         onClose={() => setMediaPickerCallback(null)}
         onSelect={handleMediaSelect}
       />
+      <UnsavedChangesDialog blocker={blocker} />
     </Box>
   );
 };

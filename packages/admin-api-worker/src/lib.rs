@@ -70,6 +70,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .put_async("/api/section-templates/:id", handlers::section_templates::upsert_section_template)
         .delete_async("/api/section-templates/:id", handlers::section_templates::delete_section_template)
 
+        .get_async("/api/section-templates/:id/revisions", handlers::section_templates::list_section_template_revisions)
+        .post_async("/api/section-templates/:id/restore/:revision_id", handlers::section_templates::restore_section_template_revision)
+
         // Backwards compatibility aliases for Content Types
         .get_async("/api/content-types", handlers::section_templates::list_section_templates)
         .post_async("/api/content-types", handlers::section_templates::upsert_section_template)
@@ -78,6 +81,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .put_async("/api/content-types/:id", handlers::section_templates::upsert_section_template)
         .delete_async("/api/content-types/:id", handlers::section_templates::delete_section_template)
         
+        .get_async("/api/content-types/:id/revisions", handlers::section_templates::list_section_template_revisions)
+        .post_async("/api/content-types/:id/restore/:revision_id", handlers::section_templates::restore_section_template_revision)
+
         // API routes - Media
         .post_async("/api/media", handlers::api::upload_media)
         .get_async("/api/media", handlers::api::list_media)
@@ -86,6 +92,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/media/:key", handlers::api::stream_media)
         .get_async("/api/media/:key", handlers::api::stream_media)
         
+        // API routes - Trackable Links
+        .get_async("/api/entries/:id/links", handlers::trackable_links::list_links)
+        .post_async("/api/entries/:id/links", handlers::trackable_links::create_link)
+        .delete_async("/api/links/:id", handlers::trackable_links::delete_link)
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
         .get_async("/api/entries", handlers::api::get_entries)

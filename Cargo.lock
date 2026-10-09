@@ -783,6 +783,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "template-wasm"
+version = "0.1.0"
+dependencies = [
+ "minijinja",
+ "serde_json",
+ "wasm-bindgen",
+ "zygo-core",
+]
+
+[[package]]
 name = "tendril"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

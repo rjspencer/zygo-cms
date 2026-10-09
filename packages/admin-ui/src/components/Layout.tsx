@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -28,6 +28,8 @@ import {
   ExitIcon,
   PersonIcon,
   LayoutIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
@@ -37,20 +39,22 @@ interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   exact?: boolean;
+  isCollapsed?: boolean;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false }) => {
+const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false, isCollapsed = false }) => {
   const location = useLocation();
   const isActive = exact
     ? location.pathname === to
     : location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
 
   return (
-    <NavLink to={to} style={{ textDecoration: 'none', width: '100%' }}>
+    <NavLink to={to} style={{ textDecoration: 'none', width: '100%' }} title={isCollapsed ? label : undefined}>
       <Flex
         align="center"
+        justify={isCollapsed ? 'center' : 'start'}
         gap="3"
-        px="3"
+        px={isCollapsed ? '0' : '3'}
         py="2"
         style={{
           borderRadius: 'var(--radius-3)',
@@ -62,7 +66,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false }) => 
         }}
       >
         <Box style={{ display: 'flex', alignItems: 'center' }}>{icon}</Box>
-        <Text size="2">{label}</Text>
+        {!isCollapsed && <Text size="2">{label}</Text>}
       </Flex>
     </NavLink>
   );
@@ -70,6 +74,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false }) => 
 
 export const Layout: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
   const { data: dashData } = useQuery({
     queryKey: ['dashboard'],
@@ -118,19 +123,41 @@ export const Layout: React.FC = () => {
       {/* Sidebar */}
       <Box
         style={{
-          width: '260px',
-          minWidth: '260px',
+          width: isCollapsed ? '64px' : '260px',
+          minWidth: isCollapsed ? '64px' : '260px',
+          transition: 'width 0.2s ease, min-width 0.2s ease',
           borderRight: '1px solid var(--gray-a4)',
           backgroundColor: 'var(--color-background)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          padding: '16px',
+          padding: isCollapsed ? '16px 8px' : '16px',
+          position: 'relative',
         }}
       >
+        <IconButton
+          size="1"
+          variant="outline"
+          color="gray"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{
+            position: 'absolute',
+            right: '-12px',
+            top: '116px',
+            borderRadius: '50%',
+            zIndex: 10,
+            cursor: 'pointer',
+            backgroundColor: 'var(--color-background)',
+            border: '1px solid var(--gray-a4)',
+            boxShadow: 'inset 0 0 1px var(--accent-a8)',
+          }}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+        </IconButton>
         <Box>
           {/* Brand Header */}
-          <Flex align="center" justify="between" mb="5" px="2">
+          <Flex align="center" justify={isCollapsed ? 'center' : 'between'} mb="5" px={isCollapsed ? '0' : '2'}>
             <Flex align="center" gap="2">
               <Box
                 style={{
@@ -148,22 +175,26 @@ export const Layout: React.FC = () => {
               >
                 Z
               </Box>
-              <Heading size="3" weight="bold">
-                Zygo CMS
-              </Heading>
+              {!isCollapsed && (
+                <Heading size="3" weight="bold">
+                  Zygo CMS
+                </Heading>
+              )}
             </Flex>
-            <Badge color="iris" variant="soft" size="1">
-              v0.1
-            </Badge>
+            {!isCollapsed && (
+              <Badge color="iris" variant="soft" size="1">
+                v0.1
+              </Badge>
+            )}
           </Flex>
 
           {/* Quick Create Dropdown */}
-          <Box mb="4">
+          <Box mb="4" style={{ display: 'flex', justifyContent: 'center' }}>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button size="2" variant="solid" color="iris" style={{ width: '100%' }}>
+                <Button size={isCollapsed ? '1' : '2'} variant="solid" color="iris" style={{ width: isCollapsed ? 'auto' : '100%', padding: isCollapsed ? '8px' : undefined }}>
                   <PlusIcon width="16" height="16" />
-                  New Content
+                  {!isCollapsed && 'New Content'}
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content>
@@ -193,6 +224,7 @@ export const Layout: React.FC = () => {
                 icon={item.icon}
                 label={item.label}
                 exact={item.exact}
+                isCollapsed={isCollapsed}
               />
             ))}
           </Flex>
@@ -201,35 +233,37 @@ export const Layout: React.FC = () => {
         {/* Sidebar Footer */}
         <Box>
           <Separator size="4" my="3" />
-          <Flex align="center" justify="between" px="2">
-            <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1, marginRight: '8px' }}>
+          <Flex align="center" justify={isCollapsed ? 'center' : 'between'} px={isCollapsed ? '0' : '2'} direction={isCollapsed ? 'column' : 'row'} gap={isCollapsed ? '3' : '0'}>
+            <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1, marginRight: isCollapsed ? '0' : '8px' }} title={isCollapsed ? userEmail : undefined}>
               <Avatar
                 size="1"
                 fallback={userEmail && userEmail !== 'Admin User' ? userEmail.slice(0, 2).toUpperCase() : 'AD'}
                 radius="full"
                 color="iris"
               />
-              <Box style={{ minWidth: 0, overflow: 'hidden' }}>
-                <Text
-                  size="1"
-                  weight="medium"
-                  title={userEmail}
-                  style={{
-                    display: 'block',
-                    lineHeight: 1.2,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {userEmail}
-                </Text>
-                <Text size="1" color="gray" style={{ display: 'block', fontSize: '11px' }}>
-                  Cloudflare Access
-                </Text>
-              </Box>
+              {!isCollapsed && (
+                <Box style={{ minWidth: 0, overflow: 'hidden' }}>
+                  <Text
+                    size="1"
+                    weight="medium"
+                    title={userEmail}
+                    style={{
+                      display: 'block',
+                      lineHeight: 1.2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {userEmail}
+                  </Text>
+                  <Text size="1" color="gray" style={{ display: 'block', fontSize: '11px' }}>
+                    Cloudflare Access
+                  </Text>
+                </Box>
+              )}
             </Flex>
-            <Flex align="center" gap="1">
+            <Flex align="center" gap="1" direction={isCollapsed ? 'column' : 'row'}>
               <IconButton
                 size="1"
                 variant="ghost"
@@ -291,7 +325,7 @@ export const Layout: React.FC = () => {
               data-testid="view-live-site-link"
               target="_blank"
               rel="noopener noreferrer"
-              style={{ textDecoration: 'none' }}
+              style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}
             >
               <Button size="1" variant="ghost" color="gray">
                 <ExternalLinkIcon width="14" height="14" />
@@ -310,7 +344,9 @@ export const Layout: React.FC = () => {
             overflowY: 'auto',
           }}
         >
-          <Outlet />
+          <Box style={{ maxWidth: '2000px', margin: '0 auto', width: '100%' }}>
+            <Outlet />
+          </Box>
         </Box>
       </Flex>
     </Flex>

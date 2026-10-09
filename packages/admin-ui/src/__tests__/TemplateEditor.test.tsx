@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TemplateEditor } from '../pages/TemplateEditor';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { apiFetch } from '../utils/api';
 
 vi.mock('../utils/api', () => ({
@@ -36,15 +36,17 @@ describe('TemplateEditor Component', () => {
   });
 
   const renderComponent = (initialPath = '/admin/templates/hero', client = createTestQueryClient()) => {
+    const router = createMemoryRouter(
+      ['/admin/templates/:id', '/admin/templates/new'].map((path) => ({
+        path,
+        element: <TemplateEditor />,
+      })),
+      { initialEntries: [initialPath] }
+    );
     return render(
       <QueryClientProvider client={client}>
         <Theme>
-          <MemoryRouter initialEntries={[initialPath]}>
-            <Routes>
-              <Route path="/admin/templates/:id" element={<TemplateEditor />} />
-              <Route path="/admin/templates/new" element={<TemplateEditor />} />
-            </Routes>
-          </MemoryRouter>
+          <RouterProvider router={router} />
         </Theme>
       </QueryClientProvider>
     );

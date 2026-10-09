@@ -101,6 +101,14 @@ A persistent record of architectural decisions, completed enhancements, and prio
 
 ### Priority
 
+### `create-zygo-app` CLI Tool
+- **Concept**: Provide a frictionless developer experience (DX) for onboarding by distributing the CMS via an `npx create-zygo-app` CLI command.
+- **Goal**: Enable users to bootstrap a generic, pristine Zygo CMS project without cloning the main repository (which contains Zygo's official docs, marketing assets, and internal CI scripts).
+- **Details**:
+  - The CLI script acts as a sanitizing scaffolder. It pulls the core project but explicitly strips out internal directories (like `docs/` and official seed scripts).
+  - Initializes the local D1 database, updates `wrangler.toml` securely, and installs dependencies.
+  - **Important Distinction**: The `create` script (scaffolding a fresh local codebase) should remain strictly separate from the existing `setup.mjs` script (which is focused on provisioning production Cloudflare resources and assigning custom domains).
+
 
 ### Soon
 
@@ -182,6 +190,16 @@ A persistent record of architectural decisions, completed enhancements, and prio
   - Integrate an email delivery provider (e.g., Cloudflare Email Routing / Workers Email, Resend, or Mailchannels).
   - Automatically deliver the onboarding email with access instructions when an admin invites a user, eliminating the manual copy-paste workflow.
 
+### Shareable Links Enhancements
+- **Goal**: Expand the Shareable Trackable Links feature in the Admin UI.
+- **Details**:
+  - Add a logo overlay to the QR code generation.
+  - Implement pagination for the trackable links list.
+  - Add filtering, sorting, and querying capabilities to the list.
+  - Add a description field to the trackable link.
+  - Display the creator of the trackable link.
+  - Allow editing of the title and description, while keeping the URL locked and uneditable.
+
 ---
 
 ## 4. Developer & Testing Cheat Sheet
@@ -205,4 +223,3 @@ cargo check --target wasm32-unknown-unknown
 # Run local worker development server
 npx wrangler dev
 ```
-  - Integrate a lightweight analytics view in the admin dashboard (e.g., tracking views, referrers).
