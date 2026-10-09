@@ -382,7 +382,7 @@ export const TemplateEditor: React.FC = () => {
   }
 
   return (
-    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <Box style={{ width: '100%', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
         <BackButton to="/admin/templates" />
@@ -505,7 +505,7 @@ When the user asks for a change, simply write your updates into the respective t
       <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
         
         {/* Left Pane: Metadata & Multi-Tab Editor */}
-        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0 }}>
+        <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px' }}>
           
           {/* Basic Metadata Card */}
           <Card size="2">
@@ -598,10 +598,10 @@ When the user asks for a change, simply write your updates into the respective t
         </Flex>
 
         {/* Right Pane: Live Wasm Preview */}
-        <Box style={{ flex: 1, minWidth: 0 }}>
+        <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
           <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Text as="div" size="2" weight="bold" mb="2">Live Preview (Wasm)</Text>
-            <Box style={{ flexGrow: 1, minHeight: '500px', backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
+            <Box style={{ flexGrow: 1, minHeight: 0, backgroundColor: '#fff', border: '1px solid var(--gray-5)', borderRadius: 'var(--radius-2)', overflow: 'hidden' }}>
               <iframe
                 title="Wasm Preview"
                 sandbox="allow-scripts"

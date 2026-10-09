@@ -9,16 +9,20 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 #root {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -100,4 +104,3 @@ a {
   color: var(--iris-9);
   text-decoration: underline;
 }
-
