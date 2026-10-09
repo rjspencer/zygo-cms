@@ -118,7 +118,7 @@ export const Settings: React.FC = () => {
         >
           {saved ? (
             <>
-              <CheckIcon width="16" height="16" /> Saved!
+              <CheckIcon width="18" height="18" /> Saved!
             </>
           ) : updateSettingsMutation.isPending ? (
             'Saving...'

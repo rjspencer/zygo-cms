@@ -353,7 +353,7 @@ export const Editor: React.FC = () => {
                 }}
               />
             </Box>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="soft"
               color="green"
@@ -361,9 +361,9 @@ export const Editor: React.FC = () => {
               title="Save title"
               onClick={handleSaveTitle}
             >
-              <CheckIcon width="16" height="16" />
+              <CheckIcon width="18" height="18" />
             </IconButton>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="soft"
               color="gray"
@@ -371,7 +371,7 @@ export const Editor: React.FC = () => {
               title="Cancel"
               onClick={handleCancelEditTitle}
             >
-              <Cross2Icon width="16" height="16" />
+              <Cross2Icon width="18" height="18" />
             </IconButton>
           </Flex>
         ) : (
@@ -390,7 +390,7 @@ export const Editor: React.FC = () => {
             >
               {title || 'Untitled'}
             </Heading>
-            <IconButton
+            <IconButton style={{ cursor: 'pointer' }}
               size="2"
               variant="ghost"
               color="gray"
@@ -398,7 +398,7 @@ export const Editor: React.FC = () => {
               title="Edit title"
               onClick={handleStartEditTitle}
             >
-              <Pencil1Icon width="16" height="16" />
+              <Pencil1Icon width="18" height="18" />
             </IconButton>
           </Flex>
         )}
@@ -518,8 +518,7 @@ export const Editor: React.FC = () => {
                           }}
                         >
                           <Flex align="center" gap="3">
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="ghost"
                               type="button"
                               aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
@@ -546,8 +545,7 @@ export const Editor: React.FC = () => {
                           </Flex>
 
                           <Flex gap="2">
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               type="button"
                               disabled={index === 0}
@@ -563,8 +561,7 @@ export const Editor: React.FC = () => {
                             >
                               <CaretUpIcon />
                             </IconButton>
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               type="button"
                               disabled={index === sections.length - 1}
@@ -580,8 +577,7 @@ export const Editor: React.FC = () => {
                             >
                               <CaretDownIcon />
                             </IconButton>
-                            <IconButton
-                              size="1"
+                            <IconButton style={{ cursor: 'pointer' }} size="2"
                               variant="soft"
                               color="red"
                               type="button"

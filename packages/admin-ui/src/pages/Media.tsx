@@ -152,7 +152,7 @@ export const Media: React.FC = () => {
   };
 
   return (
-    <Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -171,7 +171,7 @@ export const Media: React.FC = () => {
               loading={syncMutation.isPending}
               aria-label="Sync"
             >
-              <ReloadIcon width="16" height="16" />
+              <ReloadIcon width="18" height="18" />
               Sync
             </Button>
           )}
@@ -183,7 +183,7 @@ export const Media: React.FC = () => {
             loading={uploadMutation.isPending}
             aria-label="Upload Image"
           >
-            <UploadIcon width="16" height="16" />
+            <UploadIcon width="18" height="18" />
             Upload Image
           </Button>
         </Flex>
@@ -284,8 +284,7 @@ export const Media: React.FC = () => {
                 {item.uploadedAt}
               </Text>
               <Flex gap="1">
-                <IconButton
-                  size="1"
+                <IconButton style={{ cursor: 'pointer' }} size="2"
                   variant="ghost"
                   color="gray"
                   onClick={() => handleCopy(item.id, item.url)}
@@ -297,8 +296,7 @@ export const Media: React.FC = () => {
                     <ClipboardCopyIcon />
                   )}
                 </IconButton>
-                <IconButton
-                  size="1"
+                <IconButton style={{ cursor: 'pointer' }} size="2"
                   variant="ghost"
                   color="red"
                   onClick={() => handleDelete(item.id)}

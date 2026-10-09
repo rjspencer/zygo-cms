@@ -46,7 +46,7 @@ export const Analytics: React.FC = () => {
   const uniquePaths = events.length;
 
   return (
-    <Box style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -77,7 +77,7 @@ export const Analytics: React.FC = () => {
               style={{ textDecoration: 'none' }}
             >
               <Button size="2" variant="solid" color="iris">
-                <ExternalLinkIcon width="16" height="16" />
+                <ExternalLinkIcon width="18" height="18" />
                 Cloudflare Dashboard
               </Button>
             </a>

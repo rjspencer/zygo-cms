@@ -94,7 +94,7 @@ export const Posts: React.FC = () => {
   };
 
   return (
-    <Box style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -105,7 +105,7 @@ export const Posts: React.FC = () => {
           </Text>
         </Box>
         <Button variant="solid" color="iris" onClick={() => navigate('/posts/editor/new')}>
-          <PlusIcon width="16" height="16" />
+          <PlusIcon width="18" height="18" />
           Create Post
         </Button>
       </Flex>
@@ -169,32 +169,29 @@ export const Posts: React.FC = () => {
                   </Table.Cell>
                   <Table.Cell style={{ textAlign: 'right' }}>
                     <Flex justify="end" gap="1">
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="gray"
                         onClick={() => window.open(getPublicSiteUrl(`/post/${post.slug}`), '_blank')}
                         title="View Public Post"
                       >
-                        <ExternalLinkIcon width="16" height="16" />
+                        <ExternalLinkIcon width="18" height="18" />
                       </IconButton>
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="gray"
                         onClick={() => navigate(`/posts/editor/${post.id}`)}
                         title="Edit Post"
                       >
-                        <Pencil1Icon width="16" height="16" />
+                        <Pencil1Icon width="18" height="18" />
                       </IconButton>
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="red"
                         onClick={() => setPostToDelete(post)}
                         title="Delete Post"
                       >
-                        <TrashIcon width="16" height="16" />
+                        <TrashIcon width="18" height="18" />
                       </IconButton>
                     </Flex>
                   </Table.Cell>

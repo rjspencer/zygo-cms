@@ -179,7 +179,7 @@ export const Navigation: React.FC = () => {
   });
 
   return (
-    <Box style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -192,7 +192,7 @@ export const Navigation: React.FC = () => {
         <Button variant="solid" color="iris" onClick={handleSave} disabled={updateMenuMutation.isPending || isLoading}>
           {updateMenuMutation.isSuccess ? (
             <>
-              <CheckIcon width="16" height="16" /> Saved!
+              <CheckIcon width="18" height="18" /> Saved!
             </>
           ) : updateMenuMutation.isPending ? (
             'Saving...'
@@ -243,14 +243,13 @@ export const Navigation: React.FC = () => {
                         </Text>
                       </Table.Cell>
                       <Table.Cell style={{ textAlign: 'right' }}>
-                        <IconButton
-                          size="1"
+                        <IconButton style={{ cursor: 'pointer' }} size="2"
                           variant="ghost"
                           color="red"
                           onClick={() => handleDelete(idx)}
                           title="Remove link"
                         >
-                          <TrashIcon width="16" height="16" />
+                          <TrashIcon width="18" height="18" />
                         </IconButton>
                       </Table.Cell>
                     </Table.Row>
@@ -288,8 +287,7 @@ export const Navigation: React.FC = () => {
                     aria-autocomplete="list"
                   >
                     <TextField.Slot side="right">
-                      <IconButton
-                        size="1"
+                      <IconButton style={{ cursor: 'pointer' }} size="2"
                         variant="ghost"
                         color="gray"
                         type="button"
@@ -299,7 +297,7 @@ export const Navigation: React.FC = () => {
                         }}
                         aria-label="Toggle pages dropdown"
                       >
-                        <ChevronDownIcon width="14" height="14" />
+                        <ChevronDownIcon width="16" height="16" />
                       </IconButton>
                     </TextField.Slot>
                   </TextField.Root>
@@ -426,7 +424,7 @@ export const Navigation: React.FC = () => {
                 {/* 4. Add Link Button */}
                 <Box style={{ alignSelf: 'flex-start', marginTop: '22px' }}>
                   <Button size="2" variant="soft" color="iris" onClick={handleAdd}>
-                    <PlusIcon width="16" height="16" />
+                    <PlusIcon width="18" height="18" />
                     Add Link
                   </Button>
                 </Box>

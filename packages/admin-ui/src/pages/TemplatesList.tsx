@@ -139,7 +139,7 @@ export const TemplatesList: React.FC = () => {
     'This core template is locked. Please reach out to an admin if you need to make a change.';
 
   return (
-    <Box style={{ maxWidth: '1100px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -150,7 +150,7 @@ export const TemplatesList: React.FC = () => {
           </Text>
         </Box>
         <Button variant="solid" color="iris" onClick={() => navigate('/admin/templates/new')}>
-          <PlusIcon width="16" height="16" />
+          <PlusIcon width="18" height="18" />
           New Template
         </Button>
       </Flex>
@@ -272,28 +272,26 @@ export const TemplatesList: React.FC = () => {
                         {isDesigner && isLocked ? (
                           <Tooltip content={lockedTooltipText}>
                             <span style={{ display: 'inline-flex' }}>
-                              <IconButton
-                                size="1"
+                              <IconButton style={{ cursor: 'pointer' }} size="2"
                                 variant="ghost"
                                 color="gray"
                                 disabled={true}
                                 aria-label={`Edit ${template.name}`}
                                 title="Edit"
                               >
-                                <Pencil1Icon width="16" height="16" />
+                                <Pencil1Icon width="18" height="18" />
                               </IconButton>
                             </span>
                           </Tooltip>
                         ) : (
-                          <IconButton
-                            size="1"
+                          <IconButton style={{ cursor: 'pointer' }} size="2"
                             variant="ghost"
                             color="gray"
                             aria-label={`Edit ${template.name}`}
                             title="Edit"
                             onClick={() => navigate(`/admin/templates/${template.id}`)}
                           >
-                            <Pencil1Icon width="16" height="16" />
+                            <Pencil1Icon width="18" height="18" />
                           </IconButton>
                         )}
 
@@ -301,21 +299,19 @@ export const TemplatesList: React.FC = () => {
                         {isDesigner && isLocked ? (
                           <Tooltip content={lockedTooltipText}>
                             <span style={{ display: 'inline-flex' }}>
-                              <IconButton
-                                size="1"
+                              <IconButton style={{ cursor: 'pointer' }} size="2"
                                 variant="ghost"
                                 color="red"
                                 disabled={true}
                                 aria-label={`Delete ${template.name}`}
                                 title="Delete"
                               >
-                                <TrashIcon width="16" height="16" />
+                                <TrashIcon width="18" height="18" />
                               </IconButton>
                             </span>
                           </Tooltip>
                         ) : (
-                          <IconButton
-                            size="1"
+                          <IconButton style={{ cursor: 'pointer' }} size="2"
                             variant="ghost"
                             color="red"
                             aria-label={`Delete ${template.name}`}
@@ -331,7 +327,7 @@ export const TemplatesList: React.FC = () => {
                               }
                             }}
                           >
-                            <TrashIcon width="16" height="16" />
+                            <TrashIcon width="18" height="18" />
                           </IconButton>
                         )}
                       </Flex>
