@@ -177,7 +177,7 @@ export const Media: React.FC = () => {
           )}
           <Button
             variant="solid"
-            color="iris"
+            color="cyan"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending || syncMutation.isPending}
             loading={uploadMutation.isPending}

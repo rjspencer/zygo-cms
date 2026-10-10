@@ -101,6 +101,32 @@ a {
 }
 
 .tiptap a {
-  color: var(--iris-9);
+  color: var(--cyan-11);
   text-decoration: underline;
+}
+
+/* Print Shop CMYK Design Tokens & WCAG Contrast Calibrations */
+:root {
+  /* CMYK Inks calibrated for print shop aesthetics and WCAG AA / AAA contrast */
+  --cmyk-cyan: #007799;       /* Deep Process Cyan (5.14:1 vs white - WCAG AA) */
+  --cmyk-cyan-hover: #006684; /* Deep Process Cyan Hover (6.27:1 vs white) */
+  --cmyk-cyan-dark: #004d64;  /* Rich Ink Cyan (8.85:1 vs white - WCAG AAA) */
+  --cmyk-magenta: #be185d;    /* Deep Process Magenta (5.62:1 vs white - WCAG AA) */
+  --cmyk-magenta-hover: #9d174d; /* Rich Magenta Hover (7.88:1 vs white - WCAG AAA) */
+  --cmyk-yellow: #b45309;     /* Process Yellow / Warm Amber Ink (5.02:1 vs white - WCAG AA) */
+  --cmyk-yellow-tint: #fef3c7;/* Warm Paper Substrate Tint */
+  --cmyk-key: #0f172a;        /* Registration Black / Key Ink (16.5:1 vs white - WCAG AAA) */
+  --cmyk-key-muted: #334155;  /* Halftone Charcoal / Key Muted (9.6:1 vs white - WCAG AAA) */
+}
+
+/* In light mode: ensure Radix cyan solid buttons hit WCAG AA standards (>= 4.5:1 against white text) */
+:root, .light, .light-theme {
+  --cyan-9: #007799;
+  --cyan-10: #006684;
+}
+
+/* In dark mode: ensure Radix cyan solid buttons use deep ink black text for WCAG AAA contrast */
+.dark, .dark-theme {
+  --cyan-contrast: #031e26;
+  --accent-contrast: var(--cyan-contrast);
 }

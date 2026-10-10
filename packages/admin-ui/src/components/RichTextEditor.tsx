@@ -128,7 +128,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('bold') ? 'solid' : 'ghost'}
-          color={editor.isActive('bold') ? 'iris' : 'gray'}
+          color={editor.isActive('bold') ? 'cyan' : 'gray'}
           aria-label="Bold"
           title="Bold"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -140,7 +140,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('italic') ? 'solid' : 'ghost'}
-          color={editor.isActive('italic') ? 'iris' : 'gray'}
+          color={editor.isActive('italic') ? 'cyan' : 'gray'}
           aria-label="Italic"
           title="Italic"
           onClick={() => editor.chain().focus().toggleItalic().run()}
@@ -152,7 +152,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('strike') ? 'solid' : 'ghost'}
-          color={editor.isActive('strike') ? 'iris' : 'gray'}
+          color={editor.isActive('strike') ? 'cyan' : 'gray'}
           aria-label="Strikethrough"
           title="Strikethrough"
           onClick={() => editor.chain().focus().toggleStrike().run()}
@@ -164,7 +164,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('code') ? 'solid' : 'ghost'}
-          color={editor.isActive('code') ? 'iris' : 'gray'}
+          color={editor.isActive('code') ? 'cyan' : 'gray'}
           aria-label="Inline Code"
           title="Inline Code"
           onClick={() => editor.chain().focus().toggleCode().run()}
@@ -178,7 +178,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('heading', { level: 1 }) ? 'solid' : 'ghost'}
-          color={editor.isActive('heading', { level: 1 }) ? 'iris' : 'gray'}
+          color={editor.isActive('heading', { level: 1 }) ? 'cyan' : 'gray'}
           aria-label="Heading 1"
           title="Heading 1"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -191,7 +191,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('heading', { level: 2 }) ? 'solid' : 'ghost'}
-          color={editor.isActive('heading', { level: 2 }) ? 'iris' : 'gray'}
+          color={editor.isActive('heading', { level: 2 }) ? 'cyan' : 'gray'}
           aria-label="Heading 2"
           title="Heading 2"
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
@@ -204,7 +204,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('heading', { level: 3 }) ? 'solid' : 'ghost'}
-          color={editor.isActive('heading', { level: 3 }) ? 'iris' : 'gray'}
+          color={editor.isActive('heading', { level: 3 }) ? 'cyan' : 'gray'}
           aria-label="Heading 3"
           title="Heading 3"
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
@@ -219,7 +219,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('bulletList') ? 'solid' : 'ghost'}
-          color={editor.isActive('bulletList') ? 'iris' : 'gray'}
+          color={editor.isActive('bulletList') ? 'cyan' : 'gray'}
           aria-label="Bullet List"
           title="Bullet List"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -231,7 +231,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('orderedList') ? 'solid' : 'ghost'}
-          color={editor.isActive('orderedList') ? 'iris' : 'gray'}
+          color={editor.isActive('orderedList') ? 'cyan' : 'gray'}
           aria-label="Ordered List"
           title="Ordered List"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
@@ -244,7 +244,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('blockquote') ? 'solid' : 'ghost'}
-          color={editor.isActive('blockquote') ? 'iris' : 'gray'}
+          color={editor.isActive('blockquote') ? 'cyan' : 'gray'}
           aria-label="Blockquote"
           title="Blockquote"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
@@ -258,7 +258,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           size="1"
           type="button"
           variant={editor.isActive('link') ? 'solid' : 'ghost'}
-          color={editor.isActive('link') ? 'iris' : 'gray'}
+          color={editor.isActive('link') ? 'cyan' : 'gray'}
           aria-label="Link"
           title="Link"
           onClick={handleToggleLink}

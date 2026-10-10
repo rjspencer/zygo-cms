@@ -77,8 +77,8 @@ export const Dashboard: React.FC = () => {
       : ('amber' as const);
 
   const metrics = [
-    { title: 'Total Posts', value: totalPosts.toString(), icon: <FileTextIcon width="20" height="20" />, color: 'iris' as const },
-    { title: 'Total Pages', value: totalPages.toString(), icon: <LayersIcon width="20" height="20" />, color: 'blue' as const },
+    { title: 'Total Posts', value: totalPosts.toString(), icon: <FileTextIcon width="20" height="20" />, color: 'crimson' as const },
+    { title: 'Total Pages', value: totalPages.toString(), icon: <LayersIcon width="20" height="20" />, color: 'cyan' as const },
     { title: 'Media Files', value: totalMedia.toString(), icon: <ImageIcon width="20" height="20" />, color: 'amber' as const },
     { title: 'Edge Status', value: edgeStatus, icon: <ActivityLogIcon width="20" height="20" />, color: edgeColor },
   ];
@@ -109,7 +109,7 @@ export const Dashboard: React.FC = () => {
           </Text>
         </Box>
         <Flex gap="2">
-          <Button variant="solid" color="iris" onClick={() => navigate('/posts/editor/new')}>
+          <Button variant="solid" color="cyan" onClick={() => navigate('/posts/editor/new')}>
             <PlusIcon width="18" height="18" />
             New Post
           </Button>
@@ -174,7 +174,7 @@ export const Dashboard: React.FC = () => {
                   </a>
                 </Table.RowHeaderCell>
                 <Table.Cell>
-                  <Badge variant="outline" color={entry.type === 'post' ? 'iris' : 'blue'}>
+                  <Badge variant="outline" color={entry.type === 'post' ? 'crimson' : 'cyan'}>
                     {entry.type}
                   </Badge>
                 </Table.Cell>

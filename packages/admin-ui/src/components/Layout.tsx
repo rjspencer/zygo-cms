@@ -27,10 +27,11 @@ import {
   MoonIcon,
   ExitIcon,
   PersonIcon,
-  LayoutIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ColorWheelIcon,
+  SectionIcon,
+  ArchiveIcon,
+  BlendingModeIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
@@ -59,6 +60,7 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false, isCol
         py="2"
         style={{
           borderRadius: 'var(--radius-3)',
+          borderLeft: isActive ? '3px solid var(--cmyk-cyan)' : '3px solid transparent',
           backgroundColor: isActive ? 'var(--accent-a4)' : 'transparent',
           color: isActive ? 'var(--accent-11)' : 'var(--gray-11)',
           fontWeight: isActive ? 600 : 400,
@@ -119,15 +121,15 @@ export const Layout: React.FC = () => {
 
   const navItems = [
     { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
-    { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
-    { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
-    ...(settingsData?.docs_mode_enabled === 'true' ? [{ to: '/docs', icon: <FileTextIcon width="18" height="18" />, label: 'Docs' }] : []),
-    { to: '/admin/templates', icon: <LayoutIcon width="18" height="18" />, label: 'Templates' },
-    { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
-    { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
-    { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Navigation' },
     { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },
-    { to: '/theme', icon: <ColorWheelIcon width="18" height="18" />, label: 'Theme' },
+    { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
+    { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
+    ...(settingsData?.docs_mode_enabled === 'true' ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
+    { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
+    { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
+    { to: '/templates', icon: <SectionIcon width="18" height="18" />, label: 'Page Templates' },
+    { to: '/theme', icon: <BlendingModeIcon width="18" height="18" />, label: 'Theme' },
+    { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
   ];
 
@@ -177,25 +179,34 @@ export const Layout: React.FC = () => {
                   width: '28px',
                   height: '28px',
                   borderRadius: '6px',
-                  background: 'linear-gradient(135deg, var(--iris-9), var(--violet-10))',
+                  background: 'linear-gradient(135deg, var(--cmyk-cyan, #007799) 0%, var(--cmyk-magenta, #be185d) 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'white',
                   fontWeight: 700,
                   fontSize: '14px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                 }}
               >
                 Z
               </Box>
               {!isCollapsed && (
-                <Heading size="3" weight="bold">
-                  Zygo CMS
-                </Heading>
+                <Box>
+                  <Heading size="3" weight="bold">
+                    Zygo CMS
+                  </Heading>
+                  <Flex gap="1" align="center" mt="1" title="CMYK Process Control">
+                    <Box style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--cmyk-cyan)' }} />
+                    <Box style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--cmyk-magenta)' }} />
+                    <Box style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--cmyk-yellow)' }} />
+                    <Box style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--cmyk-key)' }} />
+                  </Flex>
+                </Box>
               )}
             </Flex>
             {!isCollapsed && (
-              <Badge color="iris" variant="soft" size="1">
+              <Badge color="crimson" variant="soft" size="1">
                 v0.1
               </Badge>
             )}
@@ -205,7 +216,7 @@ export const Layout: React.FC = () => {
           <Box mb="4" style={{ display: 'flex', justifyContent: 'center' }}>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button size={isCollapsed ? '1' : '2'} variant="solid" color="iris" style={{ width: isCollapsed ? 'auto' : '100%', padding: isCollapsed ? '8px' : undefined }}>
+                <Button size={isCollapsed ? '1' : '2'} variant="solid" color="cyan" style={{ width: isCollapsed ? 'auto' : '100%', padding: isCollapsed ? '8px' : undefined }}>
                   <PlusIcon width="16" height="16" />
                   {!isCollapsed && 'New Content'}
                 </Button>
@@ -252,7 +263,7 @@ export const Layout: React.FC = () => {
                 size="1"
                 fallback={userEmail && userEmail !== 'Admin User' ? userEmail.slice(0, 2).toUpperCase() : 'AD'}
                 radius="full"
-                color="iris"
+                color="cyan"
               />
               {!isCollapsed && (
                 <Box style={{ minWidth: 0, overflow: 'hidden' }}>

@@ -120,7 +120,7 @@ export const Settings: React.FC = () => {
         </Box>
         <Button
           variant="solid"
-          color="iris"
+          color="cyan"
           onClick={handleSave}
           disabled={!isDirty || updateSettingsMutation.isPending}
         >
@@ -265,21 +265,21 @@ export const Settings: React.FC = () => {
               <Text size="2" weight="medium">
                 Admin UI Deployment
               </Text>
-              <Badge color="iris">Cloudflare Pages</Badge>
+              <Badge color="cyan">Cloudflare Pages</Badge>
             </Flex>
 
             <Flex justify="between" align="center">
               <Text size="2" weight="medium">
                 Public Site
               </Text>
-              <Badge color="purple">{import.meta.env.VITE_PUBLIC_SITE_URL || 'Not configured'}</Badge>
+              <Badge color="crimson">{import.meta.env.VITE_PUBLIC_SITE_URL || 'Not configured'}</Badge>
             </Flex>
 
             <Flex justify="between" align="center">
               <Text size="2" weight="medium">
                 Backend Worker
               </Text>
-              <Badge color="blue">admin-api-worker</Badge>
+              <Badge color="amber">admin-api-worker</Badge>
             </Flex>
 
             <Flex justify="between" align="center">

@@ -190,11 +190,11 @@ export const Users: React.FC = () => {
   const getRoleBadgeColor = (role: string) => {
     switch (role?.toLowerCase()) {
       case 'admin':
-        return 'iris';
+        return 'cyan';
       case 'editor':
-        return 'purple';
+        return 'crimson';
       case 'author':
-        return 'blue';
+        return 'amber';
       default:
         return 'gray';
     }
@@ -261,7 +261,7 @@ Welcome aboard!`
             Manage user accounts, roles, and profiles
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={() => { setIsInviteOpen(true); inviteMutation.reset(); }}>
+        <Button variant="solid" color="cyan" onClick={() => { setIsInviteOpen(true); inviteMutation.reset(); }}>
           <PlusIcon width="18" height="18" />
           Invite User
         </Button>
@@ -325,7 +325,7 @@ Welcome aboard!`
                         src={user.avatar_url || undefined}
                         fallback={getInitials(user)}
                         radius="full"
-                        color="iris"
+                        color="cyan"
                       />
                       <Box>
                         <Text weight="medium" style={{ display: 'block' }}>
@@ -372,7 +372,7 @@ Welcome aboard!`
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            color: 'var(--iris-10)',
+                            color: 'var(--cyan-11)',
                             textDecoration: 'none',
                             fontSize: '12px',
                           }}
@@ -500,7 +500,7 @@ Welcome aboard!`
               </Dialog.Close>
               <Button
                 variant="solid"
-                color="iris"
+                color="cyan"
                 type="submit"
                 disabled={inviteMutation.isPending || !inviteEmail.trim()}
               >
@@ -595,7 +595,7 @@ Welcome aboard!`
                   Cancel
                 </Button>
               </Dialog.Close>
-              <Button variant="solid" color="iris" type="submit" disabled={editMutation.isPending}>
+              <Button variant="solid" color="cyan" type="submit" disabled={editMutation.isPending}>
                 {editMutation.isPending ? 'Saving...' : 'Save Changes'}
               </Button>
             </Flex>
@@ -669,7 +669,7 @@ Welcome aboard!`
           <Flex gap="3" justify="between" align="center">
             <Button
               variant="surface"
-              color={copiedEmail ? 'green' : 'iris'}
+              color={copiedEmail ? 'green' : 'cyan'}
               type="button"
               onClick={handleCopyEmailTemplate}
             >
