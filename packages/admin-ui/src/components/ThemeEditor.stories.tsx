@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { ThemeEditor, MODERN_EDITORIAL_PRESET } from './ThemeEditor';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { WebMCPProvider } from '../providers/WebMCPProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,15 +20,23 @@ const meta = {
     layout: 'padded',
   },
   decorators: [
-    (Story) => (
-      <BrowserRouter>
-        <Theme appearance="light" accentColor="cyan" radius="medium">
-          <QueryClientProvider client={queryClient}>
-            <Story />
-          </QueryClientProvider>
-        </Theme>
-      </BrowserRouter>
-    ),
+    (Story) => {
+      const router = createMemoryRouter([
+        {
+          path: '/',
+          element: (
+            <WebMCPProvider>
+              <Theme appearance="light" accentColor="cyan" radius="medium">
+                <QueryClientProvider client={queryClient}>
+                  <Story />
+                </QueryClientProvider>
+              </Theme>
+            </WebMCPProvider>
+          ),
+        },
+      ]);
+      return <RouterProvider router={router} />;
+    },
   ],
 } satisfies Meta<typeof ThemeEditor>;
 
@@ -65,3 +74,14 @@ export const SplitBarSolidBorder: Story = {
     },
   },
 };
+
+export const WithWebMCPLiveUpdate: Story = {
+  args: {
+    initialTokens: {
+      ...MODERN_EDITORIAL_PRESET,
+      colorAccent: '#0284c7',
+      headerTagline: 'WebMCP Live Editor Preview',
+    },
+  },
+};
+

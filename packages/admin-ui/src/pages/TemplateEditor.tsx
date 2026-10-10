@@ -22,17 +22,18 @@ import {
   ExclamationTriangleIcon,
   CheckCircledIcon,
   InfoCircledIcon,
+  ResetIcon,
 } from '@radix-ui/react-icons';
 import { apiFetch } from '../utils/api';
-import { TemplateItem } from './TemplatesList';
+import type { TemplateItem } from './TemplatesList';
 import { VisualFieldBuilder } from '../components/VisualFieldBuilder';
-import { SectionTemplateField } from '../types/sectionTemplate';
+import type { SectionTemplateField } from '../types/sectionTemplate';
 import { BackButton } from '../components/BackButton';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 import { useDebounce } from '../hooks/useDebounce';
 import { generateDummyDataFromSchema } from '../utils/dummyData';
-import { ResetIcon } from '@radix-ui/react-icons';
+import { useTemplateEditorWebMCP } from '../lib/webmcp/templateTools';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-core';
@@ -209,6 +210,22 @@ export const TemplateEditor: React.FC = () => {
       delete (window as any).zygoEditor;
     };
   }, [formSchemaJson, formTemplateHtml, formTemplateCss, setActiveTab, setFormTemplateHtml, setFormTemplateCss, setFormSchemaJson, setFields]);
+
+  // WebMCP Active Template Editor Tools
+  useTemplateEditorWebMCP({
+    formId,
+    formName,
+    formDescription,
+    formTemplateHtml,
+    formTemplateCss,
+    formSchemaJson,
+    isLocked,
+    previewHtml,
+    setFormTemplateHtml,
+    setFormTemplateCss,
+    setFormSchemaJson,
+    setFields,
+  });
 
   // 3. Slow Debounce -> Auto-Save Draft
   useEffect(() => {
