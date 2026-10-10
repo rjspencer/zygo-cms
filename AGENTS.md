@@ -61,6 +61,10 @@ The workspace is organized into discrete packages:
 - **No `wait_until` on `RouteContext`**: In `worker-rs`, `wait_until` exists only on top-level `worker::Context`, not on router closures (`RouteContext<D>`). Implement async side-effects as `async fn` taking `&worker::Env` and await them directly in handlers.
 - **Edge Cache Invalidation**: Whenever content (entries, posts, menus) is created, updated, or deleted, call `cache::purge_urls` to purge the affected canonical URL, the homepage (`/`), RSS (`/rss.xml`), and Sitemap (`/sitemap.xml`).
 - **SEO & Canonical URLs**: Always resolve canonical origins using `utils::get_canonical_origin`. Strictly include trailing slash for homepage (`{origin}/`) and omit trailing slash for posts/pages (`{origin}/post/:slug`).
+- **Rust Raw String Delimiters with HTML**: When defining HTML templates or markup inline in Rust code, always use `r##"..."##` (with two or more `#` characters) instead of `r#"..."#` to prevent attributes like `href="#..."` from prematurely terminating the raw string literal.
+- **Static Asset Synchronization**: The public worker serves static assets directly from `public/style.css` at runtime (via `[assets]` binding in `packages/public-worker/wrangler.toml`). When modifying public site styles, keep `public/style.css` and `packages/public-worker/src/style.css` synchronized.
+- **Public SSR Accessibility Baseline**: All public SSR templates must maintain universal `:focus-visible` styling (using `var(--color-accent)`), an accessible `.skip-link` pointing to `<main id="main-content">`, and descriptive `aria-label` landmarks on all `<nav>` and search forms (`role="search"`).
+- **Theming Guidelines Skill**: For deep design tokens, color-mix rules, typography presets, and ThemeEditor conventions, refer to the on-demand workspace skill in `.agents/skills/zygo-theming/SKILL.md`.
 
 ---
 
