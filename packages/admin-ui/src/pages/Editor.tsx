@@ -27,15 +27,17 @@ import {
 } from '@radix-ui/react-icons';
 import { MediaPickerModal } from '../components/MediaPickerModal';
 import { RichTextEditor } from '../components/RichTextEditor';
+import type { Editor as TipTapEditor } from '@tiptap/react';
 import { BackButton } from '../components/BackButton';
 import { SectionFieldRenderer } from '../components/SectionFieldRenderer';
 import { LinksTab } from '../components/LinksTab';
-import { SectionTemplate, SectionInstance, SectionTemplateField } from '../types/sectionTemplate';
+import type { SectionTemplate, SectionInstance, SectionTemplateField } from '../types/sectionTemplate';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 import { useDebounce } from '../hooks/useDebounce';
+import { useTipTapWebMCP } from '../lib/webmcp/entryTools';
 
 export const Editor: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
@@ -43,6 +45,7 @@ export const Editor: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [tiptapEditor, setTiptapEditor] = useState<TipTapEditor | null>(null);
   const isEditing = Boolean(id && id !== 'new');
   const [title, setTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(!isEditing);
@@ -367,6 +370,31 @@ export const Editor: React.FC = () => {
     }
   };
 
+  useTipTapWebMCP({
+    editor: tiptapEditor,
+    content,
+    setContent,
+    title: isEditingTitle ? tempTitle : title,
+    setTitle: (newTitle: string) => {
+      setTitle(newTitle);
+      setTempTitle(newTitle);
+    },
+    slug,
+    setSlug,
+    status,
+    setStatus,
+    entryType,
+    description,
+    setDescription,
+    category,
+    setCategory,
+    tags,
+    setTags,
+    sections,
+    onSaveDraft: () => handleSave(false),
+    onPublish: () => handleSave(true),
+  });
+
   const handleTabChange = async (value: string) => {
     setActiveTab(value);
     if (value === 'preview') {
@@ -523,6 +551,7 @@ export const Editor: React.FC = () => {
                       value={content}
                       onChange={setContent}
                       onOpenMediaPicker={handleOpenMediaPicker}
+                      onEditorReady={setTiptapEditor}
                       minHeight="400px"
                       aria-label={`${entryType === 'post' ? 'Post' : 'Doc'} Body`}
                     />

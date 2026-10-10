@@ -29,6 +29,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
+import { useThemeEditorWebMCP } from '../lib/webmcp/themeAndMediaTools';
 
 export interface ThemeTokens {
   fontUrl: string;
@@ -295,6 +296,12 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
   const handleResetToModernEditorial = () => {
     setTokens({ ...MODERN_EDITORIAL_PRESET });
   };
+
+  useThemeEditorWebMCP({
+    tokens,
+    setTokens,
+    onReset: handleResetToModernEditorial,
+  });
 
   const borderBottomCss =
     tokens.headerBorderStyle === 'double'

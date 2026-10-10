@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor as TipTapEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -23,6 +24,7 @@ export interface RichTextEditorProps {
   placeholder?: string;
   minHeight?: string;
   onOpenMediaPicker?: (insertImage: (url: string, alt?: string) => void) => void;
+  onEditorReady?: (editor: TipTapEditor | null) => void;
   'aria-label'?: string;
   id?: string;
 }
@@ -33,6 +35,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder,
   minHeight = '200px',
   onOpenMediaPicker,
+  onEditorReady,
   'aria-label': ariaLabel,
   id,
 }) => {
@@ -74,6 +77,15 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       editor.commands.setContent(value || '', { emitUpdate: false });
     }
   }, [value, editor]);
+
+  useEffect(() => {
+    if (editor) {
+      onEditorReady?.(editor);
+    }
+    return () => {
+      onEditorReady?.(null);
+    };
+  }, [editor, onEditorReady]);
 
   if (!editor) {
     return null;
