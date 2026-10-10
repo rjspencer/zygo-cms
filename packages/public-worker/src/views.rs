@@ -1,7 +1,7 @@
 use minijinja::{Environment};
 use zygo_core::models::{BreadcrumbItem, ContentType, SectionTemplate, Entry, EntryRevision, MenuItem, Pagination};
 
-const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
+const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -19,6 +19,7 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
     {% endif %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
             <a href="/" class="site-title">{{ site_title }}</a>
@@ -26,14 +27,14 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
         </div>
-        <nav>
+        <nav aria-label="Main Navigation">
             <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
-    <main>
+    <main id="main-content">
         {% if heading %}
         <div class="taxonomy-header">
             <h1>{{ heading }}</h1>
@@ -50,28 +51,28 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
             {% endfor %}
         </div>
         {% if pagination %}
-        <nav class="pagination">
+        <nav class="pagination" aria-label="Pagination">
             {% if pagination.has_prev %}
-            <a href="{{ pagination.prev_url|safe }}">&larr; Previous</a>
+            <a href="{{ pagination.prev_url|safe }}" rel="prev">&larr; Previous</a>
             {% endif %}
             <span>Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
             {% if pagination.has_next %}
-            <a href="{{ pagination.next_url|safe }}">Next &rarr;</a>
+            <a href="{{ pagination.next_url|safe }}" rel="next">Next &rarr;</a>
             {% endif %}
         </nav>
         {% endif %}
     </main>
     <footer>
-        <nav>
+        <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
 </body>
-</html>"#;
+</html>"##;
 
-const DEFAULT_POST: &str = r#"<!DOCTYPE html>
+const DEFAULT_POST: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -93,6 +94,7 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
     {% endif %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
             <a href="/" class="site-title">{{ site_title }}</a>
@@ -100,16 +102,16 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
         </div>
-        <nav>
+        <nav aria-label="Main Navigation">
             <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
-    <main>
+    <main id="main-content">
         {% if is_preview %}
-        <div class="preview-banner">Preview Mode</div>
+        <div class="preview-banner" role="status">Preview Mode</div>
         {% endif %}
         <article>
             {% if post.cover_image %}
@@ -127,16 +129,16 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
         </article>
     </main>
     <footer>
-        <nav>
+        <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
 </body>
-</html>"#;
+</html>"##;
 
-const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
+const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -158,6 +160,7 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
     {% endif %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
             <a href="/" class="site-title">{{ site_title }}</a>
@@ -165,26 +168,26 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
         </div>
-        <nav>
+        <nav aria-label="Main Navigation">
             <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
-    <main>
+    <main id="main-content">
         {% if is_preview %}
-        <div class="preview-banner">Preview Mode</div>
+        <div class="preview-banner" role="status">Preview Mode</div>
         {% endif %}
         <article>
             <nav class="breadcrumbs" aria-label="Breadcrumb">
                 <a href="/">Home</a>
                 {% for crumb in breadcrumbs %}
-                <span class="crumb-separator">/</span>
+                <span class="crumb-separator" aria-hidden="true">/</span>
                 <a href="{{ crumb.path|safe }}">{{ crumb.title }}</a>
                 {% endfor %}
-                <span class="crumb-separator">/</span>
-                <span class="crumb-current">{{ page.title }}</span>
+                <span class="crumb-separator" aria-hidden="true">/</span>
+                <span class="crumb-current" aria-current="page">{{ page.title }}</span>
             </nav>
             {% if page.cover_image %}
             <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}">
@@ -198,7 +201,7 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
             </div>
             {% endif %}
             {% if children %}
-            <aside class="subpages-nav">
+            <aside class="subpages-nav" aria-label="Subpages">
                 <h2>In this section</h2>
                 <ul class="subpages-list">
                     {% for child in children %}
@@ -210,16 +213,16 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
         </article>
     </main>
     <footer>
-        <nav>
+        <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
 </body>
-</html>"#;
+</html>"##;
 
-const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
+const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -236,6 +239,7 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
     {% endif %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
             <a href="/" class="site-title">{{ site_title }}</a>
@@ -243,21 +247,21 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
         </div>
-        <nav>
+        <nav aria-label="Main Navigation">
             <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
-    <main>
+    <main id="main-content">
         <h1>Search</h1>
-        <form action="/search" method="GET" class="search-form">
-            <input type="search" name="q" value="{{ query }}" placeholder="Search...">
+        <form action="/search" method="GET" class="search-form" role="search">
+            <input type="search" name="q" id="search-input" value="{{ query }}" placeholder="Search..." aria-label="Search posts">
             <button type="submit">Search</button>
         </form>
         {% if query %}
-        <p>Found {{ posts|length }} result(s) for "{{ query }}"</p>
+        <p class="search-results-info">Found {{ posts|length }} result(s) for "{{ query }}"</p>
         <div class="posts-list">
             {% for post in posts %}
             <article class="post-summary">
@@ -270,14 +274,14 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
         {% endif %}
     </main>
     <footer>
-        <nav>
+        <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
     </footer>
 </body>
-</html>"#;
+</html>"##;
 
 const DEFAULT_SITEMAP: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -316,7 +320,7 @@ const DEFAULT_RSS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
   </channel>
 </rss>"#;
 
-const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
+const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -723,6 +727,7 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
     </style>
 </head>
 <body class="docs-page">
+    <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
             <a href="/" class="site-title">{{ site_title }}</a>
@@ -730,7 +735,7 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
         </div>
-        <nav>
+        <nav aria-label="Main Navigation">
             <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
@@ -738,21 +743,21 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
         </nav>
     </header>
     <div class="docs-layout">
-        <aside class="docs-sidebar">
+        <aside class="docs-sidebar" aria-label="Documentation Sidebar">
             <div class="docs-search">
-                <form action="/search" method="GET">
+                <form action="/search" method="GET" role="search">
                     <input type="hidden" name="type" value="doc">
-                    <input type="search" name="q" placeholder="Search docs..." required>
+                    <input type="search" name="q" placeholder="Search docs..." aria-label="Search documentation" required>
                 </form>
             </div>
-            <nav class="docs-nav">
+            <nav class="docs-nav" aria-label="Documentation Navigation">
                 {{ docs_tree_html|safe }}
             </nav>
         </aside>
         
-        <main class="docs-main">
+        <main class="docs-main" id="main-content">
             {% if is_preview %}
-            <div class="preview-banner">Preview Mode</div>
+            <div class="preview-banner" role="status">Preview Mode</div>
             {% endif %}
             <article>
                 <h1>{{ doc.title }}</h1>
@@ -761,7 +766,7 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
                 </div>
             </article>
             
-            <div class="docs-footer-nav">
+            <nav class="docs-footer-nav" aria-label="Document Paging">
                 <div>
                     {% if prev_doc %}
                     <a href="{{ prev_doc.path|safe }}">&larr; {{ prev_doc.title }}</a>
@@ -772,16 +777,16 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
                     <a href="{{ next_doc.path|safe }}">{{ next_doc.title }} &rarr;</a>
                     {% endif %}
                 </div>
-            </div>
+            </nav>
         </main>
         
-        <aside class="docs-toc">
+        <aside class="docs-toc" aria-label="Table of contents">
             <h3>On this page</h3>
             <ul id="toc-container" class="toc-list"></ul>
         </aside>
     </div>
     <footer>
-        <nav>
+        <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -844,7 +849,7 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
         });
     </script>
 </body>
-</html>"#;
+</html>"##;
 
 pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value {
     let mut val = serde_json::to_value(entry).unwrap_or_else(|_| serde_json::json!({}));

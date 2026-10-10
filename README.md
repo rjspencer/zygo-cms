@@ -54,10 +54,10 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 ### 1. Prerequisites
 
 - [Rust](https://rustup.rs/) (stable toolchain)
-- Node.js & npm (for Wrangler CLI)
+- Node.js & pnpm
 - Cloudflare Wrangler:
   ```bash
-  npm install -g wrangler
+  pnpm add -g wrangler
   ```
 - Rust WebAssembly target and worker builder:
   ```bash
