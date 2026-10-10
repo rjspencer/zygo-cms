@@ -407,11 +407,15 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             align-self: flex-start;
             max-height: calc(100vh - 4rem);
             overflow-y: auto;
-            padding-right: 1rem;
+            padding: 1.25rem;
+            background: color-mix(in srgb, var(--color-surface, #ffffff) 88%, transparent);
+            border: 1px solid var(--color-border, #e7e5e4);
+            border-radius: 8px;
+            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent);
             scrollbar-width: thin;
         }
         .docs-search {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1.25rem;
         }
         .docs-search form {
             margin: 0;
@@ -432,7 +436,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
         .docs-search input:focus {
             outline: none;
             border-color: var(--color-accent, #991b1b);
-            box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.12);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #991b1b) 15%, transparent);
         }
         .docs-search input::placeholder {
             color: var(--color-text-muted, #78716c);
@@ -448,7 +452,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
         .docs-nav ul ul {
             padding-left: 0.85rem;
             margin-top: 0.25rem;
-            border-left: 1px solid var(--color-border, #e7e5e4);
+            border-left: 1.5px solid var(--color-border, #e7e5e4);
             margin-left: 0.5rem;
         }
         .docs-nav li {
@@ -456,28 +460,37 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
         }
         .docs-nav a {
             display: block;
-            padding: 0.35rem 0.6rem;
-            border-radius: 5px;
+            padding: 0.4rem 0.65rem;
+            border-radius: 0 5px 5px 0;
+            border-left: 3px solid transparent;
             text-decoration: none;
             color: var(--color-text-muted, #78716c);
             font-size: 0.875rem;
             font-weight: 500;
             line-height: 1.4;
-            transition: background-color 0.15s ease, color 0.15s ease;
+            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
         }
         .docs-nav a:hover {
             color: var(--color-text, #1c1917);
-            background: rgba(0, 0, 0, 0.04);
+            background: color-mix(in srgb, var(--color-text, #1c1917) 5%, transparent);
         }
         .docs-nav a[aria-current="page"] {
-            font-weight: 600;
+            font-weight: 700;
             color: var(--color-accent, #991b1b);
-            background: rgba(153, 27, 27, 0.08);
+            border-left-color: var(--color-accent, #991b1b);
+            background: color-mix(in srgb, var(--color-accent, #991b1b) 10%, var(--color-surface, #ffffff));
         }
         .docs-main {
             flex: 1;
             min-width: 0;
             padding-bottom: 3rem;
+        }
+        .docs-main > article {
+            background: var(--color-surface, #ffffff);
+            border: 1px solid var(--color-border, #e7e5e4);
+            border-radius: 8px;
+            padding: 2.25rem 2.5rem;
+            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent);
         }
         .docs-main article > h1 {
             font-family: var(--font-headline, 'Newsreader', Georgia, serif);
@@ -541,11 +554,11 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             transition: color 0.15s ease;
         }
         .docs-content a:hover {
-            color: #b91c1c;
+            color: color-mix(in srgb, var(--color-accent, #991b1b) 80%, black);
         }
         .docs-content blockquote {
             border-left: 4px solid var(--color-accent, #991b1b);
-            background: rgba(153, 27, 27, 0.04);
+            background: color-mix(in srgb, var(--color-accent, #991b1b) 5%, transparent);
             margin: 1.75rem 0;
             padding: 1rem 1.5rem;
             border-radius: 0 6px 6px 0;
@@ -573,7 +586,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
         }
         .docs-content :not(pre) > code {
-            background: rgba(0, 0, 0, 0.06);
+            background: color-mix(in srgb, var(--color-text, #1c1917) 6%, transparent);
             color: var(--color-accent, #991b1b);
             padding: 0.2rem 0.4rem;
             border-radius: 4px;
@@ -593,7 +606,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             text-align: left;
         }
         .docs-content th {
-            background: rgba(0, 0, 0, 0.03);
+            background: color-mix(in srgb, var(--color-text, #1c1917) 3%, transparent);
             font-family: var(--font-body, system-ui, sans-serif);
             font-weight: 600;
             color: var(--color-text, #1c1917);
@@ -662,9 +675,8 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             display: flex;
             justify-content: space-between;
             gap: 1.5rem;
-            margin-top: 4rem;
-            padding-top: 1.75rem;
-            border-top: 1px solid var(--color-border, #e7e5e4);
+            margin-top: 2.5rem;
+            padding-top: 1.5rem;
         }
         .docs-footer-nav a {
             display: inline-flex;
@@ -679,12 +691,14 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             font-size: 0.875rem;
             font-weight: 600;
             text-decoration: none;
+            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 22%, transparent);
             transition: all 0.15s ease;
         }
         .docs-footer-nav a:hover {
             border-color: var(--color-accent, #991b1b);
             color: var(--color-accent, #991b1b);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px color-mix(in srgb, var(--color-accent, #991b1b) 35%, var(--color-border, #e7e5e4));
         }
         @media (max-width: 1100px) {
             .docs-toc {
@@ -708,9 +722,10 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
                 width: 100%;
                 position: static;
                 max-height: none;
-                padding-right: 0;
-                border-bottom: 1px solid var(--color-border, #e7e5e4);
-                padding-bottom: 1.5rem;
+                box-sizing: border-box;
+            }
+            .docs-main > article {
+                padding: 1.5rem 1.25rem;
             }
             body:has(.docs-layout) footer,
             body.docs-page footer {

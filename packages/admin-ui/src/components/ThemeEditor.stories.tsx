@@ -1,5 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { ThemeEditor, MODERN_EDITORIAL_PRESET } from './ThemeEditor';
+import '@radix-ui/themes/styles.css';
+import {
+  ThemeEditor,
+  MODERN_EDITORIAL_PRESET,
+  BENTO_BRUTALISM_PRESET,
+} from './ThemeEditor';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -46,6 +51,23 @@ type Story = StoryObj<typeof meta>;
 export const DefaultModernEditorial: Story = {
   args: {
     initialTokens: MODERN_EDITORIAL_PRESET,
+    initialThemeName: 'Modern Editorial',
+  },
+};
+
+export const BentoBrutalism: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_PRESET,
+    initialThemeName: 'Bento-Brutalism',
+    initialPreviewMode: 'editorial',
+  },
+};
+
+export const BentoBrutalismDocsPreview: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_PRESET,
+    initialThemeName: 'Bento-Brutalism',
+    initialPreviewMode: 'docs',
   },
 };
 
