@@ -1,8 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { ThemeEditor, MODERN_EDITORIAL_PRESET } from './ThemeEditor';
+import '@radix-ui/themes/styles.css';
+import {
+  ThemeEditor,
+  MODERN_EDITORIAL_PRESET,
+  BENTO_BRUTALISM_PRESET,
+} from './ThemeEditor';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { BrowserRouter } from 'react-router-dom';
+import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,15 +24,21 @@ const meta = {
     layout: 'padded',
   },
   decorators: [
-    (Story) => (
-      <BrowserRouter>
+    (Story) => {
+      const router = createMemoryRouter([
+        {
+          path: '*',
+          element: <Story />,
+        },
+      ]);
+      return (
         <Theme appearance="light" accentColor="cyan" radius="medium">
           <QueryClientProvider client={queryClient}>
-            <Story />
+            <RouterProvider router={router} />
           </QueryClientProvider>
         </Theme>
-      </BrowserRouter>
-    ),
+      );
+    },
   ],
 } satisfies Meta<typeof ThemeEditor>;
 
@@ -37,6 +48,23 @@ type Story = StoryObj<typeof meta>;
 export const DefaultModernEditorial: Story = {
   args: {
     initialTokens: MODERN_EDITORIAL_PRESET,
+    initialThemeName: 'Modern Editorial',
+  },
+};
+
+export const BentoBrutalism: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_PRESET,
+    initialThemeName: 'Bento-Brutalism',
+    initialPreviewMode: 'editorial',
+  },
+};
+
+export const BentoBrutalismDocsPreview: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_PRESET,
+    initialThemeName: 'Bento-Brutalism',
+    initialPreviewMode: 'docs',
   },
 };
 
@@ -65,3 +93,4 @@ export const SplitBarSolidBorder: Story = {
     },
   },
 };
+
