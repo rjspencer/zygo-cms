@@ -13,7 +13,7 @@ export const NotFound: React.FC = () => {
       justify="center"
       style={{ minHeight: '60vh', textAlign: 'center' }}
     >
-      <Heading size="9" weight="bold" color="iris" mb="2">
+      <Heading size="9" weight="bold" color="cyan" mb="2">
         404
       </Heading>
       <Heading size="5" mb="2">
@@ -22,7 +22,7 @@ export const NotFound: React.FC = () => {
       <Text size="2" color="gray" mb="4" style={{ maxWidth: '400px' }}>
         The administrative route you are looking for does not exist or has been moved.
       </Text>
-      <Button size="3" variant="solid" color="iris" onClick={() => navigate('/')}>
+      <Button size="3" variant="solid" color="cyan" onClick={() => navigate('/')}>
         <DashboardIcon width="18" height="18" />
         Return to Dashboard
       </Button>

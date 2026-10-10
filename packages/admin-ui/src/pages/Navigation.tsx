@@ -189,7 +189,7 @@ export const Navigation: React.FC = () => {
             Configure site header and footer menu structures
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={handleSave} disabled={updateMenuMutation.isPending || isLoading}>
+        <Button variant="solid" color="cyan" onClick={handleSave} disabled={updateMenuMutation.isPending || isLoading}>
           {updateMenuMutation.isSuccess ? (
             <>
               <CheckIcon width="18" height="18" /> Saved!
@@ -373,7 +373,7 @@ export const Navigation: React.FC = () => {
                           e.currentTarget.style.backgroundColor = 'var(--gray-2, #fafafa)';
                         }}
                       >
-                        <Text size="2" weight="bold" color="iris">
+                        <Text size="2" weight="bold" color="cyan">
                           Custom (External URL)...
                         </Text>
                       </Box>
@@ -385,7 +385,7 @@ export const Navigation: React.FC = () => {
                 {isCustom && (
                   <Box style={{ flex: 1, minWidth: '240px' }}>
                     <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
-                      External URL
+                       External URL
                     </Text>
                     <TextField.Root
                       size="2"
@@ -423,7 +423,7 @@ export const Navigation: React.FC = () => {
 
                 {/* 4. Add Link Button */}
                 <Box style={{ alignSelf: 'flex-start', marginTop: '22px' }}>
-                  <Button size="2" variant="soft" color="iris" onClick={handleAdd}>
+                  <Button size="2" variant="soft" color="cyan" onClick={handleAdd}>
                     <PlusIcon width="18" height="18" />
                     Add Link
                   </Button>

@@ -35,9 +35,9 @@ describe('TemplateEditor Component', () => {
     vi.clearAllMocks();
   });
 
-  const renderComponent = (initialPath = '/admin/templates/hero', client = createTestQueryClient()) => {
+  const renderComponent = (initialPath = '/templates/hero', client = createTestQueryClient()) => {
     const router = createMemoryRouter(
-      ['/admin/templates/:id', '/admin/templates/new'].map((path) => ({
+      ['/templates/:id', '/templates/new'].map((path) => ({
         path,
         element: <TemplateEditor />,
       })),

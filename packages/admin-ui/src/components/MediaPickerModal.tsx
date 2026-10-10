@@ -149,7 +149,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
           </Box>
           <Button
             variant="solid"
-            color="iris"
+            color="cyan"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
             loading={uploadMutation.isPending}
@@ -239,7 +239,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
                   <Button
                     size="1"
                     variant="soft"
-                    color="iris"
+                    color="cyan"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSelectItem(item);

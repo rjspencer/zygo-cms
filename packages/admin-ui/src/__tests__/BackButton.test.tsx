@@ -37,14 +37,14 @@ describe('BackButton component', () => {
     render(
       <MemoryRouter>
         <Theme>
-          <BackButton to="/admin/templates" />
+          <BackButton to="/templates" />
         </Theme>
       </MemoryRouter>
     );
 
     const button = screen.getByRole('button', { name: /Back/i });
     await userEvent.click(button);
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/templates');
+    expect(mockNavigate).toHaveBeenCalledWith('/templates');
   });
 
   it('calls custom `onClick` handler when provided', async () => {

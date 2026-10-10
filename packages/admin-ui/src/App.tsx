@@ -37,7 +37,7 @@ export const App: React.FC = () => {
         <Route path="users" element={<Users />} />
         <Route path="navigation" element={<Navigation />} />
         <Route
-          path="admin/templates"
+          path="templates"
           element={
             <RoleGuard allowedRoles={['admin', 'designer']}>
               <TemplatesList />
@@ -45,14 +45,14 @@ export const App: React.FC = () => {
           }
         />
         <Route
-          path="admin/templates/:id"
+          path="templates/:id"
           element={
             <RoleGuard allowedRoles={['admin', 'designer']}>
               <TemplateEditor />
             </RoleGuard>
           }
         />
-        <Route path="templates" element={<Navigate to="/admin/templates" replace />} />
+        <Route path="templates" element={<Navigate to="/templates" replace />} />
         <Route
           path="templates/:id"
           element={

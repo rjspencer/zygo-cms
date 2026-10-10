@@ -340,11 +340,11 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
       <Flex justify="between" align="center" mb="5" wrap="wrap" gap="3">
         <Box>
           <Flex align="center" gap="2">
-            <ColorWheelIcon width="24" height="24" style={{ color: 'var(--iris-9)' }} />
+            <ColorWheelIcon width="24" height="24" style={{ color: 'var(--cyan-9)' }} />
             <Heading size="6" weight="bold">
               Theme Settings
             </Heading>
-            <Badge color="iris" variant="soft">
+            <Badge color="cyan" variant="soft">
               Modern Editorial
             </Badge>
           </Flex>
@@ -358,7 +358,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
           </Button>
           <Button
             variant="solid"
-            color="iris"
+            color="cyan"
             onClick={handleSave}
             disabled={!isDirty || updateSettingsMutation.isPending}
           >
@@ -391,7 +391,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
           {/* Section 1: Header Styling */}
           <Card size="2">
             <Flex align="center" gap="2" mb="2">
-              <HeadingIcon width="18" height="18" style={{ color: 'var(--iris-9)' }} />
+              <HeadingIcon width="18" height="18" style={{ color: 'var(--cyan-9)' }} />
               <Heading size="3">Header & Masthead Styling</Heading>
             </Flex>
             <Text size="2" color="gray" mb="3">
@@ -437,8 +437,8 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                       }
                       style={{
                         borderRadius: '6px',
-                        border: isSelected ? '1px solid var(--iris-8)' : '1px solid var(--gray-a4)',
-                        backgroundColor: isSelected ? 'var(--iris-a3)' : 'var(--color-surface)',
+                        border: isSelected ? '1px solid var(--cyan-8)' : '1px solid var(--gray-a4)',
+                        backgroundColor: isSelected ? 'var(--cyan-a3)' : 'var(--color-surface)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
@@ -494,8 +494,8 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                       }
                       style={{
                         borderRadius: '6px',
-                        border: isSelected ? '1px solid var(--iris-8)' : '1px solid var(--gray-a4)',
-                        backgroundColor: isSelected ? 'var(--iris-a3)' : 'var(--color-surface)',
+                        border: isSelected ? '1px solid var(--cyan-8)' : '1px solid var(--gray-a4)',
+                        backgroundColor: isSelected ? 'var(--cyan-a3)' : 'var(--color-surface)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
@@ -536,7 +536,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                   <Button
                     size="2"
                     variant={tokens.headerNavTransform === 'uppercase' ? 'solid' : 'outline'}
-                    color="iris"
+                    color="cyan"
                     style={{ flex: 1 }}
                     onClick={() =>
                       setTokens((prev) => ({ ...prev, headerNavTransform: 'uppercase' }))
@@ -547,7 +547,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                   <Button
                     size="2"
                     variant={tokens.headerNavTransform === 'none' ? 'solid' : 'outline'}
-                    color="iris"
+                    color="cyan"
                     style={{ flex: 1 }}
                     onClick={() =>
                       setTokens((prev) => ({ ...prev, headerNavTransform: 'none' }))
@@ -593,7 +593,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
           {/* Section 2: Font Picker & Google Fonts */}
           <Card size="2">
             <Flex align="center" gap="2" mb="2">
-              <FontFamilyIcon width="18" height="18" style={{ color: 'var(--iris-9)' }} />
+              <FontFamilyIcon width="18" height="18" style={{ color: 'var(--cyan-9)' }} />
               <Heading size="3">Pick a Font & Google Fonts</Heading>
             </Flex>
             <Text size="2" color="gray" mb="3">
@@ -614,7 +614,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                 <Text size="2" weight="bold">
                   Browse Google Fonts
                 </Text>
-                <Button size="1" variant="surface" color="iris" asChild>
+                <Button size="1" variant="surface" color="cyan" asChild>
                   <a href="https://fonts.google.com" target="_blank" rel="noopener noreferrer">
                     Open Google Fonts <ExternalLinkIcon width="14" height="14" />
                   </a>
@@ -647,8 +647,8 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                       onClick={() => handleApplyFontPreset(p)}
                       style={{
                         borderRadius: '6px',
-                        border: isSelected ? '1px solid var(--iris-8)' : '1px solid var(--gray-a4)',
-                        backgroundColor: isSelected ? 'var(--iris-a3)' : 'var(--color-surface)',
+                        border: isSelected ? '1px solid var(--cyan-8)' : '1px solid var(--gray-a4)',
+                        backgroundColor: isSelected ? 'var(--cyan-a3)' : 'var(--color-surface)',
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
@@ -657,7 +657,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
                         <Text size="2" weight={isSelected ? 'bold' : 'medium'}>
                           {p.name}
                         </Text>
-                        {isSelected && <Badge color="iris" size="1">Active</Badge>}
+                        {isSelected && <Badge color="cyan" size="1">Active</Badge>}
                       </Flex>
                       <Text size="1" color="gray">
                         {p.description}
@@ -721,7 +721,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
           {/* Section 3: Color Design Tokens */}
           <Card size="2">
             <Flex align="center" gap="2" mb="2">
-              <ColorWheelIcon width="18" height="18" style={{ color: 'var(--iris-9)' }} />
+              <ColorWheelIcon width="18" height="18" style={{ color: 'var(--cyan-9)' }} />
               <Heading size="3">Color Design Tokens (CSS Variables)</Heading>
             </Flex>
             <Text size="2" color="gray" mb="3">

@@ -76,7 +76,7 @@ export const Analytics: React.FC = () => {
               rel="noopener noreferrer"
               style={{ textDecoration: 'none' }}
             >
-              <Button size="2" variant="solid" color="iris">
+              <Button size="2" variant="solid" color="cyan">
                 <ExternalLinkIcon width="18" height="18" />
                 Cloudflare Dashboard
               </Button>

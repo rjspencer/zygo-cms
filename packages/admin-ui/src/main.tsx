@@ -16,7 +16,7 @@ const ThemedApp: React.FC = () => {
   return (
     <Theme
       appearance={mode}
-      accentColor="iris"
+      accentColor="cyan"
       grayColor="slate"
       panelBackground="translucent"
       radius="medium"

@@ -383,7 +383,7 @@ export const Editor: React.FC = () => {
           <Button variant="soft" color="gray" onClick={() => handleSave(false)}>
             Save Draft
           </Button>
-          <Button variant="solid" color="iris" onClick={() => handleSave(true)}>
+          <Button variant="solid" color="cyan" onClick={() => handleSave(true)}>
             Publish
           </Button>
         </Flex>
@@ -469,7 +469,7 @@ export const Editor: React.FC = () => {
         )}
 
         <Flex align="center" gap="2" mt="2">
-          <Badge color={entryType === 'post' ? 'iris' : 'blue'}>
+          <Badge color={entryType === 'post' ? 'crimson' : 'cyan'}>
             {entryType.toUpperCase()}
           </Badge>
           <Badge color={status === 'published' ? 'green' : 'gray'}>
@@ -750,7 +750,7 @@ export const Editor: React.FC = () => {
                     <Button
                       type="button"
                       variant="soft"
-                      color="iris"
+                      color="cyan"
                       onClick={() => handleOpenMediaPicker((url) => setCoverImage(url))}
                     >
                       Select Image

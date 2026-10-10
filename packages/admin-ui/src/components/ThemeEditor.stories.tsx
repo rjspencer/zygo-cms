@@ -21,7 +21,7 @@ const meta = {
   decorators: [
     (Story) => (
       <BrowserRouter>
-        <Theme appearance="light" accentColor="iris" radius="medium">
+        <Theme appearance="light" accentColor="cyan" radius="medium">
           <QueryClientProvider client={queryClient}>
             <Story />
           </QueryClientProvider>

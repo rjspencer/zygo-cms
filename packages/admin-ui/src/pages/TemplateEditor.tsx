@@ -72,10 +72,10 @@ export const TemplateEditor: React.FC = () => {
   // Debounced values
   const debouncedWasmHtml = useDebounce(formTemplateHtml, 200);
   const debouncedWasmSchema = useDebounce(formSchemaJson, 200);
-  
+
   const isPendingDebounce = formTemplateHtml !== debouncedWasmHtml || formSchemaJson !== debouncedWasmSchema;
   const isStatusCompiling = isPendingDebounce || isCompilingWasm;
-  
+
   const debouncedDraftHtml = useDebounce(formTemplateHtml, 2500);
   const debouncedDraftCss = useDebounce(formTemplateCss, 2500);
   const debouncedDraftSchema = useDebounce(formSchemaJson, 2500);
@@ -214,7 +214,7 @@ export const TemplateEditor: React.FC = () => {
   useEffect(() => {
     if (isLoadingTemplate) return;
     if (!formId && !isNew) return;
-    
+
     // Prevent saving draft if unchanged from DB
     if (template) {
       if (
@@ -259,7 +259,7 @@ export const TemplateEditor: React.FC = () => {
     window.localStorage?.removeItem(draftKey);
     setHasDraft(false);
     setIsDiscardModalOpen(false);
-    
+
     if (template) {
       setFormTemplateHtml(template.template_html || '');
       setFormTemplateCss(template.template_css || '');
@@ -327,7 +327,7 @@ export const TemplateEditor: React.FC = () => {
         import('prettier/plugins/html'),
         import('prettier/plugins/postcss')
       ]);
-      
+
       if (finalHtml) {
         finalHtml = await prettier.format(finalHtml, { parser: 'html', plugins: [htmlPlugin] });
         setFormTemplateHtml(finalHtml);
@@ -402,7 +402,7 @@ export const TemplateEditor: React.FC = () => {
       setSavedSnapshot(JSON.stringify(latestFields.current));
       queryClient.invalidateQueries({ queryKey: ['content-types'] });
       queryClient.invalidateQueries({ queryKey: ['content-type', targetId] });
-      
+
       // Clear draft on successful save
       const draftKey = `zygo_template_draft_${id || 'new'}`;
       window.localStorage?.removeItem(draftKey);
@@ -410,7 +410,7 @@ export const TemplateEditor: React.FC = () => {
 
       if (isNew) {
         allowNextNavigation();
-        navigate(`/admin/templates/${targetId}`, { replace: true });
+        navigate(`/templates/${targetId}`, { replace: true });
       }
     } catch (err: any) {
       setSaveError(err.message || 'An unexpected error occurred while saving the template.');
@@ -442,7 +442,7 @@ export const TemplateEditor: React.FC = () => {
             {loadError instanceof Error ? loadError.message : 'Failed to load template'}
           </Callout.Text>
         </Callout.Root>
-        <BackButton to="/admin/templates" label="Back to Templates" />
+        <BackButton to="/templates" label="Back to Templates" />
       </Box>
     );
   }
@@ -477,7 +477,7 @@ export const TemplateEditor: React.FC = () => {
 
       {/* Top navigation row */}
       <Flex justify="between" align="center" mb="4">
-        <BackButton to="/admin/templates" />
+        <BackButton to="/templates" />
       </Flex>
 
       {/* Header */}
@@ -537,7 +537,7 @@ export const TemplateEditor: React.FC = () => {
           {isLockedForDesigner ? (
             <Tooltip content={lockedTooltipText}>
               <span style={{ display: 'inline-flex' }}>
-                <Button variant="solid" color="iris" disabled={true} aria-label="Save Template">
+                <Button variant="solid" color="cyan" disabled={true} aria-label="Save Template">
                   Save Template
                 </Button>
               </span>
@@ -545,7 +545,7 @@ export const TemplateEditor: React.FC = () => {
           ) : (
             <Button
               variant="solid"
-              color="iris"
+              color="cyan"
               disabled={isSaving || !formName || (isNew && !formId)}
               onClick={() => handleSave(false)}
               aria-label="Save Template"
@@ -588,10 +588,10 @@ export const TemplateEditor: React.FC = () => {
 
       {/* Split-Pane Editor & Preview */}
       <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>
-        
+
         {/* Left Pane: Metadata & Multi-Tab Editor */}
         <Flex direction="column" gap="4" style={{ flexShrink: 0, width: '100%', maxWidth: '600px', minWidth: 0, height: '100%', overflowY: 'auto', paddingRight: '8px', paddingBottom: '32px' }}>
-          
+
           {/* Basic Metadata Card */}
           <Card size="2" style={{ flexShrink: 0 }}>
             <Flex direction="column" gap="3">

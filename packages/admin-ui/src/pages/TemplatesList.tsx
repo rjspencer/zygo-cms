@@ -149,7 +149,7 @@ export const TemplatesList: React.FC = () => {
             Manage section templates, schemas, and MiniJinja rendering layouts
           </Text>
         </Box>
-        <Button variant="solid" color="iris" onClick={() => navigate('/admin/templates/new')}>
+        <Button variant="solid" color="cyan" onClick={() => navigate('/templates/new')}>
           <PlusIcon width="18" height="18" />
           New Template
         </Button>
@@ -289,7 +289,7 @@ export const TemplatesList: React.FC = () => {
                             color="gray"
                             aria-label={`Edit ${template.name}`}
                             title="Edit"
-                            onClick={() => navigate(`/admin/templates/${template.id}`)}
+                            onClick={() => navigate(`/templates/${template.id}`)}
                           >
                             <Pencil1Icon width="18" height="18" />
                           </IconButton>
