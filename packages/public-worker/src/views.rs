@@ -8,10 +8,24 @@ const DEFAULT_INDEX: &str = r#"<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
     <link rel="canonical" href="{{ canonical_url|safe }}">
+    {% if theme_font_url %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ theme_font_url|safe }}">
+    {% endif %}
     <link rel="stylesheet" href="/style.css">
+    {% if theme_css %}
+    <style>{{ theme_css|safe }}</style>
+    {% endif %}
 </head>
 <body>
-    <header>
+    <header class="header-{{ header_layout }}">
+        <div class="site-branding">
+            <a href="/" class="site-title">{{ site_title }}</a>
+            {% if site_tagline %}
+            <div class="site-tagline">{{ site_tagline }}</div>
+            {% endif %}
+        </div>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
@@ -62,16 +76,30 @@ const DEFAULT_POST: &str = r#"<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ post.title }} &mdash; Zygo</title>
+    <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
+    {% if theme_font_url %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ theme_font_url|safe }}">
+    {% endif %}
     <link rel="stylesheet" href="/style.css">
+    {% if theme_css %}
+    <style>{{ theme_css|safe }}</style>
+    {% endif %}
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
 </head>
 <body>
-    <header>
+    <header class="header-{{ header_layout }}">
+        <div class="site-branding">
+            <a href="/" class="site-title">{{ site_title }}</a>
+            {% if site_tagline %}
+            <div class="site-tagline">{{ site_tagline }}</div>
+            {% endif %}
+        </div>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
@@ -113,16 +141,30 @@ const DEFAULT_PAGE: &str = r#"<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page.title }} &mdash; Zygo</title>
+    <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
+    {% if theme_font_url %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ theme_font_url|safe }}">
+    {% endif %}
     <link rel="stylesheet" href="/style.css">
+    {% if theme_css %}
+    <style>{{ theme_css|safe }}</style>
+    {% endif %}
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
 </head>
 <body>
-    <header>
+    <header class="header-{{ header_layout }}">
+        <div class="site-branding">
+            <a href="/" class="site-title">{{ site_title }}</a>
+            {% if site_tagline %}
+            <div class="site-tagline">{{ site_tagline }}</div>
+            {% endif %}
+        </div>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
@@ -182,11 +224,25 @@ const DEFAULT_SEARCH: &str = r#"<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Search &mdash; Zygo</title>
+    <title>Search &mdash; {{ site_title }}</title>
+    {% if theme_font_url %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ theme_font_url|safe }}">
+    {% endif %}
     <link rel="stylesheet" href="/style.css">
+    {% if theme_css %}
+    <style>{{ theme_css|safe }}</style>
+    {% endif %}
 </head>
 <body>
-    <header>
+    <header class="header-{{ header_layout }}">
+        <div class="site-branding">
+            <a href="/" class="site-title">{{ site_title }}</a>
+            {% if site_tagline %}
+            <div class="site-tagline">{{ site_tagline }}</div>
+            {% endif %}
+        </div>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
@@ -268,33 +324,412 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
+    {% if theme_font_url %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ theme_font_url|safe }}">
+    {% endif %}
     <link rel="stylesheet" href="/style.css">
+    {% if theme_css %}
+    <style>{{ theme_css|safe }}</style>
+    {% endif %}
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
     <style>
-        .docs-layout { display: flex; gap: 2rem; max-width: 1400px; margin: 0 auto; padding: 2rem; }
-        .docs-sidebar { width: 250px; flex-shrink: 0; }
-        .docs-main { flex: 1; min-width: 0; }
-        .docs-toc { width: 250px; flex-shrink: 0; position: sticky; top: 2rem; align-self: start; }
-        .docs-search { margin-bottom: 1rem; }
-        .docs-search input { width: 100%; padding: 0.5rem; }
-        .docs-nav ul { list-style: none; padding-left: 1rem; }
-        .docs-nav > ul { padding-left: 0; }
-        .docs-nav li { margin: 0.5rem 0; }
-        .docs-nav a { text-decoration: none; color: inherit; }
-        .docs-nav a[aria-current="page"] { font-weight: bold; color: var(--primary-color, #0070f3); }
-        .toc-list { list-style: none; padding: 0; }
-        .toc-list li { margin: 0.25rem 0; font-size: 0.9rem; }
-        .toc-h2 { margin-left: 0.5rem; }
-        .toc-h3 { margin-left: 1rem; }
-        .docs-footer-nav { display: flex; justify-content: space-between; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #eaeaea; }
-        @media (max-width: 1024px) { .docs-toc { display: none; } }
-        @media (max-width: 768px) { .docs-layout { flex-direction: column; } .docs-sidebar { width: 100%; } }
+        body:has(.docs-layout),
+        body.docs-page {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        body:has(.docs-layout) header,
+        body.docs-page header {
+            max-width: var(--docs-max-width, 1440px);
+            margin: 0 auto;
+            padding: var(--header-padding, 1.75rem 2rem 1.25rem 2rem);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        body:has(.docs-layout) footer,
+        body.docs-page footer {
+            max-width: var(--docs-max-width, 1440px);
+            margin: auto auto 0 auto;
+            padding: 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            border-top: 1px solid var(--color-border, #e7e5e4);
+        }
+        body:has(.docs-layout) footer nav,
+        body.docs-page footer nav {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+        body:has(.docs-layout) footer nav a,
+        body.docs-page footer nav a {
+            font-family: var(--font-body, system-ui, sans-serif);
+            font-size: 0.825rem;
+            font-weight: 600;
+            text-transform: var(--header-nav-transform, uppercase);
+            letter-spacing: 0.08em;
+            color: var(--color-text-muted, #78716c);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+        body:has(.docs-layout) footer nav a:hover,
+        body.docs-page footer nav a:hover {
+            color: var(--color-accent, #991b1b);
+        }
+        .docs-layout {
+            display: flex;
+            gap: 3rem;
+            max-width: var(--docs-max-width, 1440px);
+            margin: 0 auto;
+            padding: 2rem;
+            width: 100%;
+            box-sizing: border-box;
+            flex: 1;
+        }
+        .docs-sidebar {
+            width: 260px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 2rem;
+            align-self: flex-start;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            padding-right: 1rem;
+            scrollbar-width: thin;
+        }
+        .docs-search {
+            margin-bottom: 1.5rem;
+        }
+        .docs-search form {
+            margin: 0;
+        }
+        .docs-search input {
+            width: 100%;
+            padding: 0.6rem 0.85rem;
+            border: 1px solid var(--color-border, #e7e5e4);
+            border-radius: 6px;
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text, #1c1917);
+            font-family: var(--font-body, system-ui, sans-serif);
+            font-size: 0.875rem;
+            line-height: 1.4;
+            box-sizing: border-box;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .docs-search input:focus {
+            outline: none;
+            border-color: var(--color-accent, #991b1b);
+            box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.12);
+        }
+        .docs-search input::placeholder {
+            color: var(--color-text-muted, #78716c);
+        }
+        .docs-nav ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .docs-nav > ul > li {
+            margin-bottom: 0.75rem;
+        }
+        .docs-nav ul ul {
+            padding-left: 0.85rem;
+            margin-top: 0.25rem;
+            border-left: 1px solid var(--color-border, #e7e5e4);
+            margin-left: 0.5rem;
+        }
+        .docs-nav li {
+            margin: 0.25rem 0;
+        }
+        .docs-nav a {
+            display: block;
+            padding: 0.35rem 0.6rem;
+            border-radius: 5px;
+            text-decoration: none;
+            color: var(--color-text-muted, #78716c);
+            font-size: 0.875rem;
+            font-weight: 500;
+            line-height: 1.4;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+        .docs-nav a:hover {
+            color: var(--color-text, #1c1917);
+            background: rgba(0, 0, 0, 0.04);
+        }
+        .docs-nav a[aria-current="page"] {
+            font-weight: 600;
+            color: var(--color-accent, #991b1b);
+            background: rgba(153, 27, 27, 0.08);
+        }
+        .docs-main {
+            flex: 1;
+            min-width: 0;
+            padding-bottom: 3rem;
+        }
+        .docs-main article > h1 {
+            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin-top: 0;
+            margin-bottom: 1.5rem;
+            color: var(--color-text, #1c1917);
+        }
+        .docs-content {
+            font-size: 1.05rem;
+            line-height: 1.8;
+            color: var(--color-text, #1c1917);
+        }
+        .docs-content > p,
+        .docs-content > ul,
+        .docs-content > ol {
+            max-width: 78ch;
+            margin-bottom: 1.5rem;
+        }
+        .docs-content > ul,
+        .docs-content > ol {
+            padding-left: 1.5rem;
+        }
+        .docs-content li {
+            margin-bottom: 0.5rem;
+        }
+        .docs-content h2 {
+            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
+            font-size: 1.65rem;
+            font-weight: 700;
+            margin-top: 2.75rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--color-border, #e7e5e4);
+            scroll-margin-top: 2rem;
+            letter-spacing: -0.01em;
+        }
+        .docs-content h3 {
+            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+            scroll-margin-top: 2rem;
+        }
+        .docs-content h4 {
+            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+            scroll-margin-top: 2rem;
+        }
+        .docs-content a {
+            color: var(--color-accent, #991b1b);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            transition: color 0.15s ease;
+        }
+        .docs-content a:hover {
+            color: #b91c1c;
+        }
+        .docs-content blockquote {
+            border-left: 4px solid var(--color-accent, #991b1b);
+            background: rgba(153, 27, 27, 0.04);
+            margin: 1.75rem 0;
+            padding: 1rem 1.5rem;
+            border-radius: 0 6px 6px 0;
+            color: var(--color-text, #1c1917);
+            font-style: italic;
+            max-width: 78ch;
+        }
+        .docs-content blockquote p {
+            margin-bottom: 0;
+        }
+        .docs-content pre {
+            background: #18181b;
+            color: #f4f4f5;
+            padding: 1.25rem 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.75rem 0;
+            font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            border: 1px solid #27272a;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+        .docs-content code {
+            font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+        }
+        .docs-content :not(pre) > code {
+            background: rgba(0, 0, 0, 0.06);
+            color: var(--color-accent, #991b1b);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.88em;
+            font-weight: 500;
+        }
+        .docs-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            font-size: 0.95rem;
+        }
+        .docs-content th,
+        .docs-content td {
+            border: 1px solid var(--color-border, #e7e5e4);
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+        .docs-content th {
+            background: rgba(0, 0, 0, 0.03);
+            font-family: var(--font-body, system-ui, sans-serif);
+            font-weight: 600;
+            color: var(--color-text, #1c1917);
+        }
+        .docs-content hr {
+            border: 0;
+            border-top: 1px solid var(--color-border, #e7e5e4);
+            margin: 2.5rem 0;
+        }
+        .docs-toc {
+            width: 240px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 2rem;
+            align-self: flex-start;
+            max-height: calc(100vh - 4rem);
+            overflow-y: auto;
+            padding-left: 1.25rem;
+            border-left: 1px solid var(--color-border, #e7e5e4);
+            scrollbar-width: thin;
+        }
+        .docs-toc h3 {
+            font-family: var(--font-body, system-ui, sans-serif);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--color-text-muted, #78716c);
+            margin-top: 0;
+            margin-bottom: 0.75rem;
+            font-weight: 700;
+        }
+        .toc-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .toc-list li {
+            margin: 0.35rem 0;
+            line-height: 1.4;
+        }
+        .toc-list a {
+            color: var(--color-text-muted, #78716c);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.15s ease, border-color 0.15s ease;
+            display: block;
+            padding: 0.2rem 0 0.2rem 0.5rem;
+            margin-left: -1.25rem;
+            border-left: 2px solid transparent;
+        }
+        .toc-list a:hover {
+            color: var(--color-text, #1c1917);
+        }
+        .toc-list a.active {
+            color: var(--color-accent, #991b1b);
+            border-left-color: var(--color-accent, #991b1b);
+            font-weight: 600;
+        }
+        .toc-h2 {
+            margin-left: 0;
+        }
+        .toc-h3 {
+            margin-left: 0.75rem;
+        }
+        .docs-footer-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 1.5rem;
+            margin-top: 4rem;
+            padding-top: 1.75rem;
+            border-top: 1px solid var(--color-border, #e7e5e4);
+        }
+        .docs-footer-nav a {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.15rem;
+            border: 1px solid var(--color-border, #e7e5e4);
+            border-radius: 6px;
+            background: var(--color-surface, #ffffff);
+            color: var(--color-text, #1c1917);
+            font-family: var(--font-body, system-ui, sans-serif);
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .docs-footer-nav a:hover {
+            border-color: var(--color-accent, #991b1b);
+            color: var(--color-accent, #991b1b);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        @media (max-width: 1100px) {
+            .docs-toc {
+                display: none;
+            }
+            .docs-layout {
+                gap: 2rem;
+            }
+        }
+        @media (max-width: 768px) {
+            body:has(.docs-layout) header,
+            body.docs-page header {
+                padding: 1.25rem 1rem 1rem 1rem;
+            }
+            .docs-layout {
+                flex-direction: column;
+                padding: 1rem;
+                gap: 2rem;
+            }
+            .docs-sidebar {
+                width: 100%;
+                position: static;
+                max-height: none;
+                padding-right: 0;
+                border-bottom: 1px solid var(--color-border, #e7e5e4);
+                padding-bottom: 1.5rem;
+            }
+            body:has(.docs-layout) footer,
+            body.docs-page footer {
+                padding: 1.5rem 1rem;
+            }
+            .docs-footer-nav {
+                flex-direction: column;
+                gap: 0.75rem;
+            }
+            .docs-footer-nav a {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
-<body>
-    <header>
+<body class="docs-page">
+    <header class="header-{{ header_layout }}">
+        <div class="site-branding">
+            <a href="/" class="site-title">{{ site_title }}</a>
+            {% if site_tagline %}
+            <div class="site-tagline">{{ site_tagline }}</div>
+            {% endif %}
+        </div>
         <nav>
             <a href="/">Home</a>
             {% for item in header_menu %}
@@ -360,7 +795,8 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
             
             const headings = content.querySelectorAll('h2, h3');
             if (headings.length === 0) {
-                document.querySelector('.docs-toc').style.display = 'none';
+                const tocAside = document.querySelector('.docs-toc');
+                if (tocAside) tocAside.style.display = 'none';
                 return;
             }
             
@@ -378,11 +814,33 @@ const DEFAULT_DOC: &str = r#"<!DOCTYPE html>
                     e.preventDefault();
                     heading.scrollIntoView({ behavior: 'smooth' });
                     history.pushState(null, null, '#' + heading.id);
+                    document.querySelectorAll('.toc-list a').forEach((link) => link.classList.remove('active'));
+                    a.classList.add('active');
                 });
                 
                 li.appendChild(a);
                 tocContainer.appendChild(li);
             });
+
+            if ('IntersectionObserver' in window) {
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach((entry) => {
+                        if (entry.isIntersecting) {
+                            const id = entry.target.id;
+                            const links = tocContainer.querySelectorAll('a');
+                            links.forEach((link) => {
+                                if (link.getAttribute('href') === '#' + id) {
+                                    link.classList.add('active');
+                                } else {
+                                    link.classList.remove('active');
+                                }
+                            });
+                        }
+                    });
+                }, { rootMargin: '0px 0px -70% 0px' });
+                
+                headings.forEach((h) => observer.observe(h));
+            }
         });
     </script>
 </body>
@@ -503,6 +961,64 @@ fn flatten_docs<'a>(docs: &'a [Entry], parent_id: Option<i64>, flattened: &mut V
     }
 }
 
+pub fn inject_theme_context(
+    ctx: &mut serde_json::Map<String, serde_json::Value>,
+    settings: Option<&std::collections::HashMap<String, String>>,
+) {
+    let get_setting = |key: &str| -> Option<&str> {
+        settings
+            .and_then(|s| s.get(key).map(|v| v.as_str()))
+            .filter(|v| !v.trim().is_empty())
+    };
+
+    let font_url = get_setting("theme_font_url").unwrap_or(
+        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap",
+    );
+    let font_headline = get_setting("theme_font_headline").unwrap_or("'Newsreader', Georgia, serif");
+    let font_body = get_setting("theme_font_body")
+        .unwrap_or("'Inter', -apple-system, BlinkMacSystemFont, sans-serif");
+    let color_bg = get_setting("theme_color_bg").unwrap_or("#faf8f5");
+    let color_text = get_setting("theme_color_text").unwrap_or("#1c1917");
+    let color_text_muted = get_setting("theme_color_text_muted").unwrap_or("#78716c");
+    let color_accent = get_setting("theme_color_accent").unwrap_or("#991b1b");
+    let color_surface = get_setting("theme_color_surface").unwrap_or("#ffffff");
+    let color_border = get_setting("theme_color_border").unwrap_or("#e7e5e4");
+    let max_width = get_setting("theme_max_width").unwrap_or("740px");
+    let font_size_base = get_setting("theme_font_size_base").unwrap_or("18px");
+    let line_height = get_setting("theme_line_height").unwrap_or("1.75");
+    let header_layout = get_setting("theme_header_layout").unwrap_or("centered");
+    let header_border_style = get_setting("theme_header_border_style").unwrap_or("double");
+    let header_title_size = get_setting("theme_header_title_size").unwrap_or("2rem");
+    let header_nav_transform = get_setting("theme_header_nav_transform").unwrap_or("uppercase");
+    let header_padding = get_setting("theme_header_padding").unwrap_or("1.75rem 0 1.25rem 0");
+
+    let header_border = match header_border_style {
+        "none" => "none".to_string(),
+        "solid" => format!("1px solid {color_border}"),
+        _ => format!("3px double {color_border}"),
+    };
+
+    let site_title = get_setting("site_title").unwrap_or("Zygo");
+    let site_tagline = settings
+        .and_then(|s| s.get("theme_header_tagline").or_else(|| s.get("site_tagline")))
+        .map(|s| s.as_str())
+        .unwrap_or("An Editorial Review & Journal");
+
+    let theme_css = format!(
+        ":root {{\n  --font-headline: {font_headline};\n  --font-body: {font_body};\n  --color-bg: {color_bg};\n  --color-text: {color_text};\n  --color-text-muted: {color_text_muted};\n  --color-accent: {color_accent};\n  --color-surface: {color_surface};\n  --color-border: {color_border};\n  --content-max-width: {max_width};\n  --font-size-base: {font_size_base};\n  --line-height-body: {line_height};\n  --header-layout: {header_layout};\n  --header-border-style: {header_border_style};\n  --header-border: {header_border};\n  --header-title-size: {header_title_size};\n  --header-nav-transform: {header_nav_transform};\n  --header-padding: {header_padding};\n}}"
+    );
+
+    if !font_url.trim().is_empty() {
+        ctx.insert("theme_font_url".to_string(), serde_json::Value::String(font_url.to_string()));
+    }
+    ctx.insert("theme_css".to_string(), serde_json::Value::String(theme_css));
+    ctx.insert("site_title".to_string(), serde_json::Value::String(site_title.to_string()));
+    if !site_tagline.trim().is_empty() {
+        ctx.insert("site_tagline".to_string(), serde_json::Value::String(site_tagline.to_string()));
+    }
+    ctx.insert("header_layout".to_string(), serde_json::Value::String(header_layout.to_string()));
+}
+
 pub fn render_doc(
     content_types: &[ContentType],
     doc: &Entry,
@@ -510,6 +1026,7 @@ pub fn render_doc(
     origin: &str,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let env = create_env(content_types)?;
     let entry_val = entry_to_context_value(doc, origin);
@@ -573,6 +1090,8 @@ pub fn render_doc(
         "footer_menu".to_string(),
         serde_json::to_value(footer_menu).unwrap_or_default(),
     );
+
+    inject_theme_context(&mut ctx, settings);
 
     render_template(
         &env,
@@ -653,7 +1172,7 @@ fn render_template(
         .map_err(|e| worker::Error::RustError(e.to_string()))
 }
 
-fn page_title(heading: Option<&str>, pagination: Option<&Pagination>) -> String {
+fn page_title(heading: Option<&str>, pagination: Option<&Pagination>, site_title: &str) -> String {
     let base_title = if let Some(h) = heading {
         h.to_string()
     } else {
@@ -662,11 +1181,11 @@ fn page_title(heading: Option<&str>, pagination: Option<&Pagination>) -> String 
 
     if let Some(p) = pagination {
         if p.page > 1 {
-            return format!("{base_title} (Page {}) \u{2014} Zygo", p.page);
+            return format!("{base_title} (Page {}) \u{2014} {site_title}", p.page);
         }
     }
 
-    format!("{base_title} \u{2014} Zygo")
+    format!("{base_title} \u{2014} {site_title}")
 }
 
 fn canonical_url(
@@ -698,6 +1217,7 @@ pub fn render_index(
     pagination: Option<Pagination>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     render_index_internal(
         content_types,
@@ -708,6 +1228,7 @@ pub fn render_index(
         pagination,
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -719,6 +1240,7 @@ pub fn render_tag_index(
     pagination: Option<Pagination>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let heading = format!("Tag: #{tag}");
     let canonical = format!("/tag/{tag}");
@@ -731,6 +1253,7 @@ pub fn render_tag_index(
         pagination,
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -742,6 +1265,7 @@ pub fn render_category_index(
     pagination: Option<Pagination>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let heading = format!("Category: {category}");
     let canonical = format!("/category/{category}");
@@ -754,6 +1278,7 @@ pub fn render_category_index(
         pagination,
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -766,6 +1291,7 @@ fn render_index_internal(
     pagination: Option<Pagination>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let env = create_env(content_types)?;
 
@@ -773,6 +1299,11 @@ fn render_index_internal(
         .iter()
         .map(|p| entry_to_context_value(p, origin))
         .collect();
+
+    let site_title = settings
+        .and_then(|s| s.get("site_title").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or("Zygo");
 
     let mut ctx = serde_json::Map::new();
     ctx.insert("posts".to_string(), serde_json::Value::Array(posts_vals));
@@ -798,7 +1329,7 @@ fn render_index_internal(
     );
     ctx.insert(
         "page_title".to_string(),
-        serde_json::Value::String(page_title(heading, pagination.as_ref())),
+        serde_json::Value::String(page_title(heading, pagination.as_ref(), site_title)),
     );
     ctx.insert(
         "canonical_url".to_string(),
@@ -817,6 +1348,8 @@ fn render_index_internal(
         serde_json::to_value(footer_menu).unwrap_or_default(),
     );
 
+    inject_theme_context(&mut ctx, settings);
+
     render_template(&env, "index", None, serde_json::Value::Object(ctx))
 }
 
@@ -826,8 +1359,9 @@ pub fn render_post(
     origin: &str,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
-    render_post_internal(content_types, post, origin, None, header_menu, footer_menu)
+    render_post_internal(content_types, post, origin, None, header_menu, footer_menu, settings)
 }
 
 pub fn render_preview_post(
@@ -837,6 +1371,7 @@ pub fn render_preview_post(
     rev: &EntryRevision,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     render_post_internal(
         content_types,
@@ -845,6 +1380,7 @@ pub fn render_preview_post(
         Some(rev),
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -855,6 +1391,7 @@ fn render_post_internal(
     preview: Option<&EntryRevision>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let env = create_env(content_types)?;
     let entry_val = entry_to_context_value(post, origin);
@@ -912,6 +1449,8 @@ fn render_post_internal(
         serde_json::to_value(footer_menu).unwrap_or_default(),
     );
 
+    inject_theme_context(&mut ctx, settings);
+
     render_template(
         &env,
         &post.r#type,
@@ -928,6 +1467,7 @@ pub fn render_page(
     children: &[Entry],
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     render_page_internal(
         content_types,
@@ -938,6 +1478,7 @@ pub fn render_page(
         None,
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -950,6 +1491,7 @@ pub fn render_preview_page(
     rev: &EntryRevision,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     render_page_internal(
         content_types,
@@ -960,6 +1502,7 @@ pub fn render_preview_page(
         Some(rev),
         header_menu,
         footer_menu,
+        settings,
     )
 }
 
@@ -972,6 +1515,7 @@ fn render_page_internal(
     preview: Option<&EntryRevision>,
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let env = create_env(content_types)?;
     let entry_val = entry_to_context_value(page, origin);
@@ -1039,6 +1583,8 @@ fn render_page_internal(
         "footer_menu".to_string(),
         serde_json::to_value(footer_menu).unwrap_or_default(),
     );
+
+    inject_theme_context(&mut ctx, settings);
 
     render_template(
         &env,
@@ -1126,6 +1672,7 @@ pub fn render_search_html(
     posts: &[Entry],
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
+    settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
     let env = create_env(content_types)?;
     let posts_vals: Vec<serde_json::Value> = posts
@@ -1151,6 +1698,8 @@ pub fn render_search_html(
         "footer_menu".to_string(),
         serde_json::to_value(footer_menu).unwrap_or_default(),
     );
+
+    inject_theme_context(&mut ctx, settings);
 
     render_template(&env, "search", None, serde_json::Value::Object(ctx))
 }
@@ -1223,7 +1772,7 @@ mod tests {
         };
         let content_types = vec![ct];
         let posts = vec![dummy_post()];
-        let html = render_index(&content_types, &posts, "https://example.com", None, &[], &[]).unwrap();
+        let html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], None).unwrap();
         assert!(html.contains("<ul class=\"posts\">"));
         assert!(html.contains("<a href=\"/post/hello-world\">Hello World</a>"));
         assert!(html.contains("2026-10-04"));
@@ -1239,7 +1788,7 @@ mod tests {
         };
         let content_types = vec![ct];
         let post = dummy_post();
-        let html = render_post(&content_types, &post, "https://example.com", &[], &[]).unwrap();
+        let html = render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
         assert!(html.contains("<h1>Hello World</h1>"));
         assert!(html.contains("<h2>Welcome to My Blog</h2>"));
         assert!(html.contains("<p>Rust Enthusiast</p>"));
@@ -1258,7 +1807,7 @@ mod tests {
             ..Default::default()
         };
         let content_types = vec![ct];
-        let html = render_post(&content_types, &post, "https://example.com", &[], &[]).unwrap();
+        let html = render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
         assert!(html.contains("<div class=\"banner\">Announcement: Hello World - Welcome to My Blog</div>"));
     }
 
@@ -1274,7 +1823,7 @@ mod tests {
         let page = dummy_page();
         let breadcrumbs = vec![BreadcrumbItem { title: "Home".to_string(), path: "/".to_string() }];
         let children = vec![dummy_post()];
-        let html = render_page(&content_types, &page, "https://example.com", &breadcrumbs, &children, &[], &[]).unwrap();
+        let html = render_page(&content_types, &page, "https://example.com", &breadcrumbs, &children, &[], &[], None).unwrap();
         assert!(html.contains("<h1>About Us</h1>"));
         assert!(html.contains("<h3>Our Mission</h3>"));
         assert!(html.contains("<a href=\"/\">Home</a>"));
@@ -1305,7 +1854,7 @@ mod tests {
             created_at: "2026-10-04 12:00:00".to_string(),
             preview_token: "abc-123".to_string(),
         };
-        let html = render_preview_post(&content_types, &post, "https://example.com", &rev, &[], &[]).unwrap();
+        let html = render_preview_post(&content_types, &post, "https://example.com", &rev, &[], &[], None).unwrap();
         assert!(html.contains("<span class=\"preview-tag\">PREVIEW</span>"));
         assert!(html.contains("<h1>Hello World</h1>"));
     }
@@ -1320,7 +1869,7 @@ mod tests {
         };
         let content_types = vec![ct];
         let posts = vec![dummy_post()];
-        let html = render_search_html(&content_types, "rust", &posts, &[], &[]).unwrap();
+        let html = render_search_html(&content_types, "rust", &posts, &[], &[], None).unwrap();
         assert!(html.contains("Query: rust - Count: 1"));
     }
 
@@ -1330,17 +1879,44 @@ mod tests {
         let posts = vec![dummy_post()];
         let page = dummy_page();
 
-        let index_html = render_index(&content_types, &posts, "https://example.com", None, &[], &[]).unwrap();
+        let index_html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], None).unwrap();
         assert!(index_html.contains("Hello World"));
+        assert!(index_html.contains("<header class=\"header-centered\">"));
+        assert!(index_html.contains("<a href=\"/\" class=\"site-title\">Zygo</a>"));
+        assert!(index_html.contains("<div class=\"site-tagline\">An Editorial Review &amp; Journal</div>"));
 
-        let post_html = render_post(&content_types, &dummy_post(), "https://example.com", &[], &[]).unwrap();
+        let post_html = render_post(&content_types, &dummy_post(), "https://example.com", &[], &[], None).unwrap();
         assert!(post_html.contains("Hello World"));
+        assert!(post_html.contains("<header class=\"header-centered\">"));
 
-        let page_html = render_page(&content_types, &page, "https://example.com", &[], &[], &[], &[]).unwrap();
+        let page_html = render_page(&content_types, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
         assert!(page_html.contains("About Us"));
+        assert!(page_html.contains("<header class=\"header-centered\">"));
 
-        let search_html = render_search_html(&content_types, "test", &posts, &[], &[]).unwrap();
+        let search_html = render_search_html(&content_types, "test", &posts, &[], &[], None).unwrap();
         assert!(search_html.contains("Search"));
+        assert!(search_html.contains("<header class=\"header-centered\">"));
+    }
+
+    #[test]
+    fn test_custom_theme_settings_injection() {
+        let content_types: Vec<ContentType> = vec![];
+        let posts = vec![dummy_post()];
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "The Daily Review".to_string());
+        settings.insert("theme_header_tagline".to_string(), "Notes on Architecture".to_string());
+        settings.insert("theme_header_layout".to_string(), "split".to_string());
+        settings.insert("theme_header_border_style".to_string(), "none".to_string());
+        settings.insert("theme_color_accent".to_string(), "#2563eb".to_string());
+        settings.insert("theme_font_url".to_string(), "https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap".to_string());
+
+        let html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], Some(&settings)).unwrap();
+        assert!(html.contains("<header class=\"header-split\">"));
+        assert!(html.contains("<a href=\"/\" class=\"site-title\">The Daily Review</a>"));
+        assert!(html.contains("<div class=\"site-tagline\">Notes on Architecture</div>"));
+        assert!(html.contains("https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap"));
+        assert!(html.contains("--color-accent: #2563eb;"));
+        assert!(html.contains("--header-border: none;"));
     }
 
     #[test]
@@ -1433,7 +2009,7 @@ mod tests {
             }
         ]).to_string();
 
-        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[]).unwrap();
+        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
 
         // Check rendered section content
         assert!(html.contains("<section class=\"hero-section\"><h1>Welcome to Zygo</h1><p>Blazing fast edge CMS</p></section>"));
@@ -1470,7 +2046,7 @@ mod tests {
         ]).to_string();
 
         // Rendering page must succeed and skip missing section
-        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[]).unwrap();
+        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
         assert!(html.contains("<div class=\"hero\">Hero Survived</div>"));
         assert!(!html.contains("non_existent_section"));
     }
@@ -1497,5 +2073,54 @@ mod tests {
         let env = env_res.unwrap();
         assert!(env.get_template("valid").is_ok());
         assert!(env.get_template("broken").is_err());
+    }
+
+    fn dummy_doc(id: i64, title: &str, slug: &str, body: &str) -> Entry {
+        Entry {
+            id,
+            slug: slug.to_string(),
+            title: title.to_string(),
+            r#type: "doc".to_string(),
+            status: "published".to_string(),
+            description: Some("Doc description".to_string()),
+            cover_image: None,
+            canonical_url: None,
+            schema_json: None,
+            category: None,
+            tags: None,
+            published_at: Some("2026-10-10 12:00:00".to_string()),
+            body_html: body.to_string(),
+            body_json: "{}".to_string(),
+            custom_fields_json: None,
+            search_text: None,
+            created_at: "2026-10-10 10:00:00".to_string(),
+            parent_id: None,
+            path: None,
+            sort_order: None,
+            deleted_at: None,
+            author_id: None,
+        }
+    }
+
+    #[test]
+    fn test_render_doc_page_styling_and_layout() {
+        let doc = dummy_doc(1, "Getting Started", "getting-started", "<h2>Introduction</h2><p>Welcome to Zygo CMS documentation.</p><h3>Configuration</h3><p>Details here.</p>");
+
+        let all_docs = vec![
+            dummy_doc(1, "Getting Started", "getting-started", "<h2>Introduction</h2><p>Welcome to Zygo CMS documentation.</p><h3>Configuration</h3><p>Details here.</p>"),
+            dummy_doc(2, "Architecture", "architecture", "<p>Arch</p>"),
+        ];
+        let html = render_doc(&[], &doc, &all_docs, "https://example.com", &[], &[], None).unwrap();
+
+        assert!(html.contains("<body class=\"docs-page\">"));
+        assert!(html.contains("class=\"docs-layout\""));
+        assert!(html.contains("class=\"docs-sidebar\""));
+        assert!(html.contains("class=\"docs-main\""));
+        assert!(html.contains("class=\"docs-toc\""));
+        assert!(html.contains("class=\"prose docs-content\""));
+        assert!(html.contains("Getting Started"));
+        assert!(html.contains("Architecture"));
+        assert!(html.contains("max-width: 100%"));
+        assert!(html.contains("max-width: var(--docs-max-width, 1440px)"));
     }
 }

@@ -30,6 +30,7 @@ import {
   LayoutIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ColorWheelIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
@@ -126,6 +127,7 @@ export const Layout: React.FC = () => {
     { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Navigation' },
     { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },
+    { to: '/theme', icon: <ColorWheelIcon width="18" height="18" />, label: 'Theme' },
     { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
   ];
 

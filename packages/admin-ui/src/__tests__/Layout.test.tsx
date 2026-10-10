@@ -86,6 +86,7 @@ describe('Layout Component', () => {
     expect(screen.getByText('Templates')).toBeDefined();
     expect(screen.getByText('Media Library')).toBeDefined();
     expect(screen.getByText('Users')).toBeDefined();
+    expect(screen.getByText('Theme')).toBeDefined();
     expect(screen.queryByText('Content Types')).toBeNull();
   });
 
