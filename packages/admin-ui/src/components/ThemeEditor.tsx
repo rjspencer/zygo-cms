@@ -31,6 +31,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../utils/api';
 import { useUnsavedChangesBlocker } from '../hooks/useUnsavedChangesBlocker';
 import { UnsavedChangesDialog } from './UnsavedChangesDialog';
+import { useThemeEditorWebMCP } from '../lib/webmcp/themeAndMediaTools';
 
 export interface ThemeTokens {
   fontUrl: string;
@@ -123,50 +124,50 @@ export const FONT_PRESETS: Array<{
   url: string;
   description: string;
 }> = [
-  {
-    name: 'Newsreader & Inter (Modern Editorial)',
-    headlineFont: "'Newsreader', Georgia, serif",
-    bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap',
-    description: 'Prestigious literary serif paired with a crisp, hyper-readable modern sans.',
-  },
-  {
-    name: 'Space Grotesk & IBM Plex Mono (Bento-Brutalism)',
-    headlineFont: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif",
-    bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap',
-    description:
-      'Geometric display grotesk with technical monospace accents and print-shop clarity.',
-  },
-  {
-    name: 'Playfair Display & Source Sans (Vogue / Fashion)',
-    headlineFont: "'Playfair Display', Georgia, serif",
-    bodyFont: "'Source Sans 3', -apple-system, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Source+Sans+3:wght@400;500;600&display=swap',
-    description: 'High-contrast transitional serif headlines for an elegant editorial tone.',
-  },
-  {
-    name: 'Fraunces & Inter (Warm Contemporary)',
-    headlineFont: "'Fraunces', Georgia, serif",
-    bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;600&display=swap',
-    description: 'Characterful, warm old-style serif with expressive personality.',
-  },
-  {
-    name: 'Lora & Merriweather Sans (Classic Journal)',
-    headlineFont: "'Lora', Georgia, serif",
-    bodyFont: "'Merriweather Sans', -apple-system, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather+Sans:wght@400;500;600&display=swap',
-    description: 'Contemporary serif with roots in calligraphy, ideal for long essays.',
-  },
-  {
-    name: 'Space Mono & System Sans (Technical Original)',
-    headlineFont: "'Space Mono', monospace",
-    bodyFont: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap',
-    description: 'Original Zygo developer aesthetic with monospace headlines.',
-  },
-];
+    {
+      name: 'Newsreader & Inter (Modern Editorial)',
+      headlineFont: "'Newsreader', Georgia, serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap',
+      description: 'Prestigious literary serif paired with a crisp, hyper-readable modern sans.',
+    },
+    {
+      name: 'Space Grotesk & IBM Plex Mono (Bento-Brutalism)',
+      headlineFont: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap',
+      description:
+        'Geometric display grotesk with technical monospace accents and print-shop clarity.',
+    },
+    {
+      name: 'Playfair Display & Source Sans (Vogue / Fashion)',
+      headlineFont: "'Playfair Display', Georgia, serif",
+      bodyFont: "'Source Sans 3', -apple-system, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Source+Sans+3:wght@400;500;600&display=swap',
+      description: 'High-contrast transitional serif headlines for an elegant editorial tone.',
+    },
+    {
+      name: 'Fraunces & Inter (Warm Contemporary)',
+      headlineFont: "'Fraunces', Georgia, serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;600&display=swap',
+      description: 'Characterful, warm old-style serif with expressive personality.',
+    },
+    {
+      name: 'Lora & Merriweather Sans (Classic Journal)',
+      headlineFont: "'Lora', Georgia, serif",
+      bodyFont: "'Merriweather Sans', -apple-system, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather+Sans:wght@400;500;600&display=swap',
+      description: 'Contemporary serif with roots in calligraphy, ideal for long essays.',
+    },
+    {
+      name: 'Space Mono & System Sans (Technical Original)',
+      headlineFont: "'Space Mono', monospace",
+      bodyFont: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap',
+      description: 'Original Zygo developer aesthetic with monospace headlines.',
+    },
+  ];
 
 // Helper to extract clean URL if user pastes a full <link> tag
 export function cleanGoogleFontUrl(input: string): string {
@@ -264,7 +265,7 @@ export function parseCustomThemes(raw?: string): CustomThemeEntry[] {
         (item) => item && typeof item.name === 'string' && item.tokens && typeof item.tokens === 'object'
       );
     }
-  } catch (_) {}
+  } catch (_) { }
   return [];
 }
 
@@ -397,7 +398,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
         try {
           const errData = await res.json();
           if (errData?.error || errData?.message) msg = errData.error || errData.message;
-        } catch (_) {}
+        } catch (_) { }
         throw new Error(msg);
       }
       return res.json();
@@ -597,6 +598,16 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({
       fontBody: preset.bodyFont,
     }));
   };
+
+  const handleResetToModernEditorial = () => {
+    setTokens({ ...MODERN_EDITORIAL_PRESET });
+  };
+
+  useThemeEditorWebMCP({
+    tokens,
+    setTokens,
+    onReset: handleResetToModernEditorial,
+  });
 
   const borderBottomCss =
     tokens.headerBorderStyle === 'double'

@@ -35,6 +35,9 @@ import {
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { apiFetch, getPublicSiteUrl } from '../utils/api';
+import { useWebMCP } from '../providers/WebMCPProvider';
+import { WebMCPAssistantDrawer } from './assistant/WebMCPAssistantDrawer';
+import { StagedDiffModal } from './assistant/StagedDiffModal';
 
 interface NavItemProps {
   to: string;
@@ -78,6 +81,8 @@ const NavItem: React.FC<NavItemProps> = ({ to, icon, label, exact = false, isCol
 export const Layout: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+  const { stagedChange, resolveStagedChange, externalBridgeEnabled } = useWebMCP();
   const navigate = useNavigate();
   const { data: dashData } = useQuery({
     queryKey: ['dashboard'],
@@ -344,6 +349,25 @@ export const Layout: React.FC = () => {
           </Flex>
 
           <Flex align="center" gap="3">
+            <Button
+              size="1"
+              variant="outline"
+              color="cyan"
+              aria-label="Open WebMCP Assistant"
+              onClick={() => setIsAssistantOpen(true)}
+              style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Box
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: externalBridgeEnabled ? 'var(--green-9)' : 'var(--cyan-9)',
+                }}
+              />
+              WebMCP
+            </Button>
+
             <a
               href={getPublicSiteUrl()}
               data-testid="view-live-site-link"
@@ -378,6 +402,23 @@ export const Layout: React.FC = () => {
           </Box>
         </Box>
       </Flex>
+
+      <WebMCPAssistantDrawer
+        open={isAssistantOpen}
+        onOpenChange={setIsAssistantOpen}
+      />
+      {stagedChange && (
+        <StagedDiffModal
+          open={true}
+          title={stagedChange.title}
+          description={stagedChange.description}
+          fieldLabel={stagedChange.fieldLabel}
+          beforeText={stagedChange.beforeText}
+          afterText={stagedChange.afterText}
+          onAccept={() => resolveStagedChange(true)}
+          onReject={() => resolveStagedChange(false)}
+        />
+      )}
     </Flex>
   );
 };

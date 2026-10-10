@@ -8,6 +8,7 @@ import {
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { WebMCPProvider } from '../providers/WebMCPProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,17 +28,19 @@ const meta = {
     (Story) => {
       const router = createMemoryRouter([
         {
-          path: '*',
-          element: <Story />,
+          path: '/',
+          element: (
+            <WebMCPProvider>
+              <Theme appearance="light" accentColor="cyan" radius="medium">
+                <QueryClientProvider client={queryClient}>
+                  <Story />
+                </QueryClientProvider>
+              </Theme>
+            </WebMCPProvider>
+          ),
         },
       ]);
-      return (
-        <Theme appearance="light" accentColor="cyan" radius="medium">
-          <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-          </QueryClientProvider>
-        </Theme>
-      );
+      return <RouterProvider router={router} />;
     },
   ],
 } satisfies Meta<typeof ThemeEditor>;
@@ -90,6 +93,16 @@ export const SplitBarSolidBorder: Story = {
       headerTitleSize: '1.5rem',
       headerNavTransform: 'none',
       headerTagline: 'Weekly Dispatches',
+    },
+  },
+};
+
+export const WithWebMCPLiveUpdate: Story = {
+  args: {
+    initialTokens: {
+      ...MODERN_EDITORIAL_PRESET,
+      colorAccent: '#0284c7',
+      headerTagline: 'WebMCP Live Editor Preview',
     },
   },
 };

@@ -16,10 +16,12 @@ import NotFound from './pages/NotFound';
 import TemplatesList from './pages/TemplatesList';
 import TemplateEditor from './pages/TemplateEditor';
 import RoleGuard from './components/RoleGuard';
+import { WebMCPProvider } from './providers/WebMCPProvider';
 
 export const App: React.FC = () => {
   return (
-    <Routes>
+    <WebMCPProvider>
+      <Routes>
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="posts" element={<Posts />} />
@@ -52,15 +54,6 @@ export const App: React.FC = () => {
             </RoleGuard>
           }
         />
-        <Route path="templates" element={<Navigate to="/templates" replace />} />
-        <Route
-          path="templates/:id"
-          element={
-            <RoleGuard allowedRoles={['admin', 'designer']}>
-              <TemplateEditor />
-            </RoleGuard>
-          }
-        />
         <Route path="analytics" element={<Analytics />} />
         <Route path="theme" element={<ThemePage />} />
         <Route path="settings" element={<Settings />} />
@@ -68,6 +61,7 @@ export const App: React.FC = () => {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
+    </WebMCPProvider>
   );
 };
 

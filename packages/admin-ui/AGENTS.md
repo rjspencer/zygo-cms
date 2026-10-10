@@ -22,3 +22,15 @@
 ## 4. Pre-Commit Verification
 - Run typecheck: `pnpm exec tsc --noEmit`
 - Run UI tests: `pnpm run test`
+
+## 5. WebMCP Tool Registration Guidelines
+- **Component-Level Tools**: When creating or editing complex view components (e.g. `Editor`, `TemplateEditor`, `ThemeEditor`), invoke `useRegisterWebMCPTools` to register active tools on mount and clean them up on unmount.
+- **Naming Conventions**:
+  - Active editor tools MUST use prefix `editor_` (e.g. `editor_insert_content`, `editor_get_selection`).
+  - Template tools MUST use prefix `template_` (e.g. `template_update_markup`, `template_render_preview`).
+  - Theme tools MUST use prefix `theme_` (e.g. `theme_update_live_tokens`).
+  - Global CRUD tools MUST use resource naming (e.g. `list_entries`, `create_entry`, `list_section_templates`).
+- **Return Structured Content**: All WebMCP tool handlers must return `{ toolResult: ..., content: [{ type: "text", text: ... }] }` with informative human/agent readable text.
+- **Dry-Run & Confirmation**: Destructive tools (deletions, publishing live content) must accept an optional `dry_run: boolean` flag or require human confirmation.
+- **Subagent Handoff**: Ensure changes are handed off to the Code Review and UI QA subagents.
+
