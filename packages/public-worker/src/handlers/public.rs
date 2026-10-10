@@ -20,6 +20,7 @@ pub async fn index(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
 
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let total_posts = db::count_published_posts(&db).await?;
     let pagination = models::Pagination::new("/", page, per_page, total_posts);
@@ -30,7 +31,7 @@ pub async fn index(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = views::render_index(&section_templates, &posts, &origin, Some(pagination), &header_menu, &footer_menu)?;
+    let html = views::render_index(&section_templates, &posts, &origin, Some(pagination), &header_menu, &footer_menu, Some(&settings))?;
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -87,11 +88,12 @@ pub async fn post_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
 
     match post {
         Ok(p) => {
+            let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
             let section_templates = zygo_core::db::section_template::get_all(&db).await?;
             let menus = db::menu::get_all_menus(&db).await?;
             let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
             let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
-            let html = views::render_post(&section_templates, &p, &origin, &header_menu, &footer_menu)?;
+            let html = views::render_post(&section_templates, &p, &origin, &header_menu, &footer_menu, Some(&settings))?;
             let mut headers = Headers::new();
             headers.set("Content-Type", "text/html; charset=utf-8")?;
             cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
@@ -119,6 +121,7 @@ pub async fn tag_archive(req: Request, ctx: RouteContext<()>) -> Result<Response
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
 
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let total_posts = db::count_published_posts_by_tag(&db, tag).await?;
     let base_path = format!("/tag/{tag}");
@@ -131,7 +134,7 @@ pub async fn tag_archive(req: Request, ctx: RouteContext<()>) -> Result<Response
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = views::render_tag_index(&section_templates, &posts, &origin, tag, Some(pagination), &header_menu, &footer_menu)?;
+    let html = views::render_tag_index(&section_templates, &posts, &origin, tag, Some(pagination), &header_menu, &footer_menu, Some(&settings))?;
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -157,6 +160,7 @@ pub async fn category_archive(req: Request, ctx: RouteContext<()>) -> Result<Res
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;
 
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let total_posts = db::count_published_posts_by_category(&db, category).await?;
     let base_path = format!("/category/{category}");
@@ -170,7 +174,7 @@ pub async fn category_archive(req: Request, ctx: RouteContext<()>) -> Result<Res
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
     let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
     
-    let html = views::render_category_index(&section_templates, &posts, &origin, category, Some(pagination), &header_menu, &footer_menu)?;
+    let html = views::render_category_index(&section_templates, &posts, &origin, category, Some(pagination), &header_menu, &footer_menu, Some(&settings))?;
 
     let mut headers = Headers::new();
     headers.set("Content-Type", "text/html; charset=utf-8")?;
@@ -228,6 +232,7 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
 
     };
 
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let menus = db::menu::get_all_menus(&db).await?;
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
@@ -236,9 +241,9 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let html = if preview_entry.r#type == "page" {
         let breadcrumbs = db::find_page_ancestors(&db, preview_entry.id).await.unwrap_or_default();
         let children = db::find_published_children(&db, preview_entry.id).await.unwrap_or_default();
-        views::render_preview_page(&section_templates, &preview_entry, &origin, &breadcrumbs, &children, &rev, &header_menu, &footer_menu)?
+        views::render_preview_page(&section_templates, &preview_entry, &origin, &breadcrumbs, &children, &rev, &header_menu, &footer_menu, Some(&settings))?
     } else {
-        views::render_preview_post(&section_templates, &preview_entry, &origin, &rev, &header_menu, &footer_menu)?
+        views::render_preview_post(&section_templates, &preview_entry, &origin, &rev, &header_menu, &footer_menu, Some(&settings))?
     };
 
     let headers = Headers::new();
@@ -266,6 +271,7 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
 
     let page = db::find_published_page_by_path(&db, path).await?;
     if let Some(p) = page {
+        let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
         let section_templates = zygo_core::db::section_template::get_all(&db).await?;
         let breadcrumbs = db::find_page_ancestors(&db, p.id).await.unwrap_or_default();
         let children = db::find_published_children(&db, p.id).await.unwrap_or_default();
@@ -274,7 +280,7 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
         let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
         let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
 
-        let html = views::render_page(&section_templates, &p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu)?;
+        let html = views::render_page(&section_templates, &p, &origin, &breadcrumbs, &children, &header_menu, &footer_menu, Some(&settings))?;
         let mut headers = Headers::new();
         headers.set("Content-Type", "text/html; charset=utf-8")?;
         cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
@@ -286,6 +292,7 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
 
     let doc = db::find_published_doc_by_path(&db, path).await?;
     if let Some(d) = doc {
+        let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
         let section_templates = zygo_core::db::section_template::get_all(&db).await?;
         let all_docs = db::find_published_docs(&db).await.unwrap_or_default();
         
@@ -293,7 +300,7 @@ pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response
         let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
         let footer_menu = menus.get("footer").map(|m| m.parsed_items()).unwrap_or_default();
 
-        let html = views::render_doc(&section_templates, &d, &all_docs, &origin, &header_menu, &footer_menu)?;
+        let html = views::render_doc(&section_templates, &d, &all_docs, &origin, &header_menu, &footer_menu, Some(&settings))?;
         let mut headers = Headers::new();
         headers.set("Content-Type", "text/html; charset=utf-8")?;
         cache::add_cache_headers(&mut headers, &ctx.env, &req)?;
@@ -319,6 +326,7 @@ pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response
         zygo_core::db::search::search_entries(&db, &query, 50, entry_type.as_deref()).await?
     };
 
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let menus = zygo_core::db::menu::get_all_menus(&db).await?;
     let header_menu = menus.get("header").map(|m| m.parsed_items()).unwrap_or_default();
@@ -330,6 +338,7 @@ pub async fn search_page(req: Request, ctx: RouteContext<()>) -> Result<Response
         &entries,
         &header_menu,
         &footer_menu,
+        Some(&settings),
     )?;
     Response::from_html(html)
 }

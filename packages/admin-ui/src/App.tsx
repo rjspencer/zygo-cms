@@ -11,6 +11,7 @@ import Users from './pages/Users';
 import Navigation from './pages/Navigation';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
+import ThemePage from './pages/Theme';
 import NotFound from './pages/NotFound';
 import TemplatesList from './pages/TemplatesList';
 import TemplateEditor from './pages/TemplateEditor';
@@ -61,6 +62,7 @@ export const App: React.FC = () => {
           }
         />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="theme" element={<ThemePage />} />
         <Route path="settings" element={<Settings />} />
         <Route path="admin" element={<Navigate to="/" replace />} />
         <Route path="*" element={<NotFound />} />
