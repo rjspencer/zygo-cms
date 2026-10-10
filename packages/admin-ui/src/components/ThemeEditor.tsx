@@ -81,42 +81,42 @@ export const FONT_PRESETS: Array<{
   url: string;
   description: string;
 }> = [
-  {
-    name: 'Newsreader & Inter (Modern Editorial)',
-    headlineFont: "'Newsreader', Georgia, serif",
-    bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap',
-    description: 'Prestigious literary serif paired with a crisp, hyper-readable modern sans.',
-  },
-  {
-    name: 'Playfair Display & Source Sans (Vogue / Fashion)',
-    headlineFont: "'Playfair Display', Georgia, serif",
-    bodyFont: "'Source Sans 3', -apple-system, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Source+Sans+3:wght@400;500;600&display=swap',
-    description: 'High-contrast transitional serif headlines for an elegant editorial tone.',
-  },
-  {
-    name: 'Fraunces & Inter (Warm Contemporary)',
-    headlineFont: "'Fraunces', Georgia, serif",
-    bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;600&display=swap',
-    description: 'Characterful, warm old-style serif with expressive personality.',
-  },
-  {
-    name: 'Lora & Merriweather Sans (Classic Journal)',
-    headlineFont: "'Lora', Georgia, serif",
-    bodyFont: "'Merriweather Sans', -apple-system, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather+Sans:wght@400;500;600&display=swap',
-    description: 'Contemporary serif with roots in calligraphy, ideal for long essays.',
-  },
-  {
-    name: 'Space Mono & System Sans (Technical Original)',
-    headlineFont: "'Space Mono', monospace",
-    bodyFont: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    url: 'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap',
-    description: 'Original Zygo developer aesthetic with monospace headlines.',
-  },
-];
+    {
+      name: 'Newsreader & Inter (Modern Editorial)',
+      headlineFont: "'Newsreader', Georgia, serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap',
+      description: 'Prestigious literary serif paired with a crisp, hyper-readable modern sans.',
+    },
+    {
+      name: 'Playfair Display & Source Sans (Vogue / Fashion)',
+      headlineFont: "'Playfair Display', Georgia, serif",
+      bodyFont: "'Source Sans 3', -apple-system, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..700;1,400..700&family=Source+Sans+3:wght@400;500;600&display=swap',
+      description: 'High-contrast transitional serif headlines for an elegant editorial tone.',
+    },
+    {
+      name: 'Fraunces & Inter (Warm Contemporary)',
+      headlineFont: "'Fraunces', Georgia, serif",
+      bodyFont: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..700;1,9..144,400..700&family=Inter:wght@400;500;600&display=swap',
+      description: 'Characterful, warm old-style serif with expressive personality.',
+    },
+    {
+      name: 'Lora & Merriweather Sans (Classic Journal)',
+      headlineFont: "'Lora', Georgia, serif",
+      bodyFont: "'Merriweather Sans', -apple-system, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&family=Merriweather+Sans:wght@400;500;600&display=swap',
+      description: 'Contemporary serif with roots in calligraphy, ideal for long essays.',
+    },
+    {
+      name: 'Space Mono & System Sans (Technical Original)',
+      headlineFont: "'Space Mono', monospace",
+      bodyFont: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      url: 'https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap',
+      description: 'Original Zygo developer aesthetic with monospace headlines.',
+    },
+  ];
 
 // Helper to extract clean URL if user pastes a full <link> tag
 export function cleanGoogleFontUrl(input: string): string {
@@ -219,15 +219,15 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
     tokens.lineHeightBody !== (settingsData.theme_line_height || MODERN_EDITORIAL_PRESET.lineHeightBody) ||
     tokens.headerLayout !== (settingsData.theme_header_layout || MODERN_EDITORIAL_PRESET.headerLayout) ||
     tokens.headerBorderStyle !==
-      (settingsData.theme_header_border_style || MODERN_EDITORIAL_PRESET.headerBorderStyle) ||
+    (settingsData.theme_header_border_style || MODERN_EDITORIAL_PRESET.headerBorderStyle) ||
     tokens.headerTitleSize !==
-      (settingsData.theme_header_title_size || MODERN_EDITORIAL_PRESET.headerTitleSize) ||
+    (settingsData.theme_header_title_size || MODERN_EDITORIAL_PRESET.headerTitleSize) ||
     tokens.headerNavTransform !==
-      (settingsData.theme_header_nav_transform || MODERN_EDITORIAL_PRESET.headerNavTransform) ||
+    (settingsData.theme_header_nav_transform || MODERN_EDITORIAL_PRESET.headerNavTransform) ||
     tokens.headerPadding !==
-      (settingsData.theme_header_padding || MODERN_EDITORIAL_PRESET.headerPadding) ||
+    (settingsData.theme_header_padding || MODERN_EDITORIAL_PRESET.headerPadding) ||
     tokens.headerTagline !==
-      (settingsData.theme_header_tagline ?? MODERN_EDITORIAL_PRESET.headerTagline);
+    (settingsData.theme_header_tagline ?? MODERN_EDITORIAL_PRESET.headerTagline);
 
   const { blocker } = useUnsavedChangesBlocker(isDirty);
 
@@ -243,7 +243,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
         try {
           const errData = await res.json();
           if (errData?.error || errData?.message) msg = errData.error || errData.message;
-        } catch (_) {}
+        } catch (_) { }
         throw new Error(msg);
       }
       return res.json();
@@ -300,8 +300,8 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
     tokens.headerBorderStyle === 'double'
       ? `3px double ${tokens.colorBorder}`
       : tokens.headerBorderStyle === 'solid'
-      ? `1px solid ${tokens.colorBorder}`
-      : 'none';
+        ? `1px solid ${tokens.colorBorder}`
+        : 'none';
 
   const generatedCss = `:root {
   --font-headline: ${tokens.fontHeadline};
@@ -335,7 +335,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
   }
 
   return (
-    <Box style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '3rem' }}>
+    <Box style={{ maxWidth: '2000px', margin: '0 auto', paddingBottom: '3rem' }}>
       {/* Top Header */}
       <Flex justify="between" align="center" mb="5" wrap="wrap" gap="3">
         <Box>
@@ -385,7 +385,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
       )}
 
       {/* Main Grid: Form Controls Left, Live Editorial Preview Right */}
-      <Grid columns={{ initial: '1', md: '1fr 1fr' }} gap="5">
+      <Grid columns={{ initial: '1', md: '1fr 1fr', lg: '600px 1fr' }} gap="5">
         {/* Left Column: Fonts, Header Styles & Design Tokens */}
         <Flex direction="column" gap="4">
           {/* Section 1: Header Styling */}
@@ -1258,7 +1258,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = ({ initialTokens, onSaveS
 
               {/* Body Paragraph */}
               <p style={{ margin: '0 0 1rem 0' }}>
-                In an era dominated by relentless digital feeds, editorial craftsmanship demands intentional typographic rhythm. 
+                In an era dominated by relentless digital feeds, editorial craftsmanship demands intentional typographic rhythm.
                 When thoughtful proportions, harmonious typefaces, and balanced whitespace meet, reading transforms into an immersive sensory ritual.
               </p>
 
