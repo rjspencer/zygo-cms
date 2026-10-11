@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Theme } from '@radix-ui/themes';
 import { Media } from '../pages/Media';
+import { getPublicSiteUrl } from '../utils/api';
 
 const createTestQueryClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false } }
@@ -83,11 +84,11 @@ describe('Media Page Component', () => {
 
     const photoImg = screen.getByAltText('photo-1.jpg') as HTMLImageElement;
     expect(photoImg).toBeDefined();
-    expect(photoImg.getAttribute('src')).toBe('/media/photo-1.jpg');
+    expect(photoImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/photo-1.jpg'));
 
     const bannerImg = screen.getByAltText('banner.png') as HTMLImageElement;
     expect(bannerImg).toBeDefined();
-    expect(bannerImg.getAttribute('src')).toBe('/media/banner.png');
+    expect(bannerImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/banner.png'));
   });
 
   it('triggers file input click when "Upload Image" button is clicked', async () => {

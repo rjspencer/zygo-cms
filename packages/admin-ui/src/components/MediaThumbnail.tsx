@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Flex } from '@radix-ui/themes';
 import { ImageIcon } from '@radix-ui/react-icons';
+import { getPublicSiteUrl } from '../utils/api';
 
 export interface MediaThumbnailProps {
   src: string;
@@ -23,6 +24,8 @@ export const MediaThumbnail: React.FC<MediaThumbnailProps> = ({
 
   const isImage = !type || type.startsWith('image/');
   const isCompact = height === '100px';
+  const imageSrc =
+    src.startsWith('/') && !src.startsWith('//') ? getPublicSiteUrl(src) : src;
 
   if (!isImage || hasError) {
     return (
@@ -45,7 +48,7 @@ export const MediaThumbnail: React.FC<MediaThumbnailProps> = ({
 
   return (
     <img
-      src={src}
+      src={imageSrc}
       alt={alt}
       loading="lazy"
       onError={() => setHasError(true)}
