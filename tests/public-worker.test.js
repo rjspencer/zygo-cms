@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { unstable_dev } from 'wrangler';
 import { Window } from 'happy-dom';
+import { rmSync } from 'node:fs';
 
 describe('Public Worker Integration', () => {
     let worker;
 
     beforeAll(async () => {
         const { execSync } = require('child_process');
+        rmSync('./.wrangler/state/public-test', { recursive: true, force: true });
         execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/public-test -c packages/public-worker/wrangler.toml');
         execSync(`CI=true npx wrangler d1 execute zygo-cms-db --local --persist-to=./.wrangler/state/public-test -c packages/public-worker/wrangler.toml --command="INSERT OR REPLACE INTO entry_revisions (id, entry_id, title, body_html, body_json, preview_token) VALUES (999, 1, 'Preview Test Post', '<p>Preview Body</p>', '{}', 'test-valid-preview-token');"`);
         
@@ -34,8 +36,8 @@ describe('Public Worker Integration', () => {
         expect(html).toContain('<link rel="canonical"');
     });
 
-    it('simulates HappyDOM browser navigation from homepage to a post', async () => {
-        const res1 = await worker.fetch('/');
+    it('simulates HappyDOM browser navigation from post index to a post', async () => {
+        const res1 = await worker.fetch('/post');
         if (res1.status === 200) {
             const homeHtml = await res1.text();
             const window = new Window();
@@ -54,6 +56,15 @@ describe('Public Worker Integration', () => {
                 expect(postTitleEl.textContent.trim()).toBe(linkText);
             }
         }
+    });
+
+    it('GET /post responds with 200 and post-list canonical path', async () => {
+        const res = await worker.fetch('/post');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+        const html = await res.text();
+        expect(html).toContain('<link rel="canonical"');
+        expect(html).toContain('/post');
     });
 
     it('GET /sitemap.xml responds with 200 and valid XML', async () => {

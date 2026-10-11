@@ -130,6 +130,19 @@ CREATE TRIGGER IF NOT EXISTS entries_au AFTER UPDATE ON entries BEGIN
 END;
 
 -- 8. Initial Seed Entries
+INSERT INTO entries (slug, title, type, status, path, sort_order, search_text, published_at, body_html, body_json) VALUES (
+    'home',
+    'Home',
+    'page',
+    'published',
+    '/',
+    0,
+    'Home Welcome to Zygo CMS.',
+    CURRENT_TIMESTAMP,
+    '<h1>Welcome to Zygo CMS</h1><p>This is your home page. You can edit this content from the Admin UI.</p>',
+    '{}'
+);
+
 INSERT INTO entries (slug, title, type, status, category, tags, path, sort_order, search_text, published_at, body_html, body_json) VALUES (
     'hello-world',
     'Hello World!',
