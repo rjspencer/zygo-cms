@@ -28,7 +28,6 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
             {% endif %}
         </div>
         <nav aria-label="Main Navigation">
-            <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -38,7 +37,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
         {% if heading %}
         <div class="taxonomy-header">
             <h1>{{ heading }}</h1>
-            <a href="/">&larr; All posts</a>
+            <a href="/post">&larr; All posts</a>
         </div>
         {% endif %}
         <div class="posts-list">
@@ -103,7 +102,6 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
             {% endif %}
         </div>
         <nav aria-label="Main Navigation">
-            <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -169,7 +167,6 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
             {% endif %}
         </div>
         <nav aria-label="Main Navigation">
-            <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -248,7 +245,6 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
             {% endif %}
         </div>
         <nav aria-label="Main Navigation">
-            <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -751,7 +747,6 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             {% endif %}
         </div>
         <nav aria-label="Main Navigation">
-            <a href="/">Home</a>
             {% for item in header_menu %}
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
@@ -1244,7 +1239,7 @@ pub fn render_index(
         posts,
         origin,
         None,
-        None,
+        Some("/post"),
         pagination,
         header_menu,
         footer_menu,

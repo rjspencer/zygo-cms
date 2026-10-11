@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { unstable_dev } from 'wrangler';
+import { rmSync } from 'node:fs';
 
 describe('Admin API Worker Integration', () => {
     let worker;
 
     beforeAll(async () => {
         const { execSync } = require('child_process');
+        rmSync('./.wrangler/state/admin-test', { recursive: true, force: true });
         execSync('CI=true npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state/admin-test -c packages/admin-api-worker/wrangler.toml');
         
         worker = await unstable_dev('packages/admin-api-worker/build/index.js', {
@@ -115,6 +117,23 @@ describe('Admin API Worker Integration', () => {
             });
             expect(delRes.status).toBe(200);
         }
+    });
+
+    it('prevents deleting the seeded Home page at root', async () => {
+        const entriesRes = await worker.fetch('/api/entries', { headers: getHeaders() });
+        expect(entriesRes.status).toBe(200);
+        const entries = await entriesRes.json();
+        const homeEntry = entries.find((entry) => entry.type === 'page' && entry.path === '/');
+        expect(homeEntry).toBeDefined();
+
+        const deleteRes = await worker.fetch(`/api/entries/${homeEntry.id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+        expect(deleteRes.status).toBe(400);
+
+        const errorBody = await deleteRes.text();
+        expect(errorBody).toContain('Home page cannot be deleted');
     });
 
     it('manages users via admin API (list, create, update, soft-delete)', async () => {

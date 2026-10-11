@@ -23,7 +23,7 @@ pub async fn index(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
     let section_templates = zygo_core::db::section_template::get_all(&db).await?;
     let total_posts = db::count_published_posts(&db).await?;
-    let pagination = models::Pagination::new("/", page, per_page, total_posts);
+    let pagination = models::Pagination::new("/post", page, per_page, total_posts);
     let offset = (pagination.page - 1) * per_page;
     let posts = db::find_published_posts_paginated(&db, per_page, offset).await?;
     
@@ -256,15 +256,26 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     Response::ok(html).map(|res| res.with_headers(headers))
 }
 
-pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    if let Some(cached) = cache::get_cached(&req).await {
-        return Ok(cached);
-    }
+pub async fn root_page(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    render_page_or_doc_by_path(&req, &ctx, "/").await
+}
 
+pub async fn page_reader(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let path = match ctx.param("path") {
         Some(p) => p,
         None => return Response::error("Missing path", 400),
     };
+    render_page_or_doc_by_path(&req, &ctx, path).await
+}
+
+async fn render_page_or_doc_by_path(
+    req: &Request,
+    ctx: &RouteContext<()>,
+    path: &str,
+) -> Result<Response> {
+    if let Some(cached) = cache::get_cached(&req).await {
+        return Ok(cached);
+    }
 
     let origin = utils::get_canonical_origin(&req, &ctx.env);
     let db = ctx.env.d1("DB")?;

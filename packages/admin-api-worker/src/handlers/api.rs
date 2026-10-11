@@ -45,6 +45,7 @@ pub async fn put_menu(mut req: Request, ctx: RouteContext<()>) -> Result<Respons
         let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
         let mut purge_list = Vec::new();
         add_purge_target(&mut purge_list, &origin, "/");
+        add_purge_target(&mut purge_list, &origin, "/post");
         add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
         add_purge_target(&mut purge_list, &origin, "/rss.xml");
         add_purge_target(&mut purge_list, &origin, "/feed.xml");
@@ -62,6 +63,7 @@ pub async fn put_menu(mut req: Request, ctx: RouteContext<()>) -> Result<Respons
             let req_origin = req_url.origin().ascii_serialization();
             if req_origin != origin {
                 add_purge_target(&mut purge_list, &req_origin, "/");
+                add_purge_target(&mut purge_list, &req_origin, "/post");
                 add_purge_target(&mut purge_list, &req_origin, "/sitemap.xml");
                 add_purge_target(&mut purge_list, &req_origin, "/rss.xml");
             }
@@ -201,6 +203,7 @@ pub async fn create_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
 
     let mut purge_list = Vec::new();
     add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/post");
     add_purge_target(&mut purge_list, &origin, &entry_path);
     add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
     add_purge_target(&mut purge_list, &origin, "/rss.xml");
@@ -247,6 +250,13 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
 
     let existing_entry = db::find_entry_by_id(&db, id).await?;
     if let Some(ref e) = existing_entry {
+        let is_root_home_page = e.r#type == "page" && e.path() == "/";
+        if is_root_home_page {
+            payload.r#type = Some("page".to_string());
+            payload.parent_id = Some(None);
+            payload.sort_order = Some(0);
+        }
+
         if e.r#type == "doc" {
             let actual_path = if let Ok(Some(s)) = db::setting::get_setting(&db, "docs_path").await {
                 if s.value.is_empty() { "/docs".to_string() } else { s.value }
@@ -338,6 +348,7 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
     let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
     let mut purge_list = Vec::new();
     add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/post");
     add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
     add_purge_target(&mut purge_list, &origin, "/rss.xml");
     add_purge_target(&mut purge_list, &origin, "/feed.xml");
@@ -400,6 +411,10 @@ pub async fn delete_entry(req: Request, ctx: RouteContext<()>) -> Result<Respons
         if _user.role == "author" && e.author_id != Some(_user.id) {
             return AppError::Unauthorized("You do not have permission to delete this entry".into()).to_response();
         }
+
+        if e.r#type == "page" && e.path() == "/" {
+            return AppError::BadRequest("The Home page cannot be deleted.".into()).to_response();
+        }
         
         if e.r#type == "doc" {
             let actual_path = if let Ok(Some(s)) = db::setting::get_setting(&db, "docs_path").await {
@@ -426,6 +441,7 @@ pub async fn delete_entry(req: Request, ctx: RouteContext<()>) -> Result<Respons
     let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
     let mut purge_list = Vec::new();
     add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/post");
     add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
     add_purge_target(&mut purge_list, &origin, "/rss.xml");
     add_purge_target(&mut purge_list, &origin, "/feed.xml");
@@ -473,6 +489,7 @@ pub async fn restore_entry(req: Request, ctx: RouteContext<()>) -> Result<Respon
             let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
             let mut purge_list = Vec::new();
             add_purge_target(&mut purge_list, &origin, "/");
+            add_purge_target(&mut purge_list, &origin, "/post");
             add_purge_target(&mut purge_list, &origin, &entry.path());
             add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
             add_purge_target(&mut purge_list, &origin, "/rss.xml");
@@ -677,6 +694,7 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
 
     cache::purge_urls(&ctx.env, vec![
         format!("{}/", origin),
+        format!("{}/post", origin),
         format!("{}/sitemap.xml", origin),
         format!("{}/rss.xml", origin),
     ]).await;

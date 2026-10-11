@@ -9,7 +9,7 @@ Zygo CMS is optimized for blogging out of the box.
 1. **Setup Categories:** In the Admin UI, create categories like "Engineering" or "Design".
 2. **Write a Post:** Create a new Entry of type `post`. Use the rich-text editor to draft your content.
 3. **Apply Metadata:** In the sidebar, select your category, add relevant tags, and upload a cover image.
-4. **Publish:** Once published, the post automatically appears on the homepage feed and under its respective `/category/:name` route.
+4. **Publish:** Once published, the post automatically appears on the `/post` feed and under its respective `/category/:name` route.
 
 ## Recipe 2: Building a Landing Page
 

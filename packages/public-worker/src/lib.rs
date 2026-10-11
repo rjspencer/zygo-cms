@@ -19,7 +19,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         // Public routes - Blog/Pages
         .get_async("/search", handlers::public::search_page)
 
-        .get_async("/", handlers::public::index)
+        .get_async("/", handlers::public::root_page)
+        .get_async("/post", handlers::public::index)
         .get_async("/sitemap.xml", handlers::public::sitemap)
         .get_async("/rss.xml", handlers::public::rss)
         .get_async("/feed.xml", handlers::public::rss)
@@ -50,7 +51,7 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             Ok(published) => {
                 if !published.is_empty() {
                     worker::console_log!("Published {} scheduled entries.", published.len());
-                    let mut urls_to_purge = vec!["/".to_string(), "/rss.xml".to_string(), "/sitemap.xml".to_string()];
+                    let mut urls_to_purge = vec!["/".to_string(), "/post".to_string(), "/rss.xml".to_string(), "/sitemap.xml".to_string()];
                     for entry in published {
                         urls_to_purge.push(entry.path());
                     }

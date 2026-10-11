@@ -452,7 +452,9 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
     }
 
     // Compute updated path
-    let new_path = if new_type == "page" {
+    let new_path = if existing.r#type == "page" && existing.path() == "/" && new_type == "page" {
+        "/".to_string()
+    } else if new_type == "page" {
         if let Some(pid) = new_parent_id {
             let parent = find_entry_by_id(db, &pid.to_string())
                 .await?
@@ -548,6 +550,14 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
 }
 
 pub async fn delete_entry(db: &D1Database, id: &str) -> Result<bool> {
+    if let Some(entry) = find_entry_by_id(db, id).await? {
+        if entry.r#type == "page" && entry.path() == "/" {
+            return Err(worker::Error::RustError(
+                "The Home page cannot be deleted.".into(),
+            ));
+        }
+    }
+
     // Block deletion if any active child pages exist
     let count_stmt = db.prepare(
         "SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1 AND deleted_at IS NULL",
