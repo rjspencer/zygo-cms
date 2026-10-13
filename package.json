@@ -15,6 +15,8 @@
         "build:public": "cd packages/public-worker && worker-build --release",
         "build:ui": "pnpm --filter admin-ui run build",
         "db:migrate:local": "wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state -c packages/admin-api-worker/wrangler.toml",
+        "db:reset": "node scripts/db-reset.mjs --local",
+        "db:reset:remote": "node scripts/db-reset.mjs --remote",
         "deploy": "pnpm run deploy:public && pnpm run deploy:api && pnpm run deploy:ui",
         "deploy:public": "wrangler deploy -c packages/public-worker/wrangler.toml",
         "deploy:api": "wrangler deploy -c packages/admin-api-worker/wrangler.toml",
