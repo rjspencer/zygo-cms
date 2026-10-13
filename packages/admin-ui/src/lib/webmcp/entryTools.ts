@@ -3,6 +3,7 @@ import type { Editor as TipTapEditor } from '@tiptap/react';
 import { apiFetch } from '../../utils/api';
 import { useRegisterWebMCPTools } from '../../providers/WebMCPProvider';
 import type { WebMCPToolDefinition, WebMCPToolResult } from './types';
+import type { SectionInstance, SectionTemplate } from '../../types/sectionTemplate';
 
 export interface UseTipTapWebMCPOptions {
   editor: TipTapEditor | null;
@@ -21,7 +22,20 @@ export interface UseTipTapWebMCPOptions {
   setCategory?: (category: string) => void;
   tags?: string;
   setTags?: (tags: string) => void;
-  sections?: any[];
+  sections?: SectionInstance[];
+  setSections?: (sections: SectionInstance[]) => void;
+  sectionTemplates?: SectionTemplate[];
+  onExpandSection?: (index: number) => void;
+  coverImage?: string;
+  setCoverImage?: (coverImage: string) => void;
+  canonicalUrl?: string;
+  setCanonicalUrl?: (canonicalUrl: string) => void;
+  schemaJson?: string;
+  setSchemaJson?: (schemaJson: string) => void;
+  parentId?: string;
+  setParentId?: (parentId: string) => void;
+  sortOrder?: number;
+  setSortOrder?: (sortOrder: number) => void;
   onSaveDraft?: () => Promise<any> | any;
   onPublish?: () => Promise<any> | any;
 }
@@ -330,9 +344,14 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           description: opts.description || '',
           tags: opts.tags || '',
           category: opts.category || '',
+          cover_image: opts.coverImage || '',
+          canonical_url: opts.canonicalUrl || '',
+          schema_json: opts.schemaJson || '',
+          parent_id: opts.parentId || '',
+          sort_order: opts.sortOrder ?? 0,
         };
 
-        if (opts.entryType === 'page') {
+        if (opts.entryType === 'page' || opts.sections !== undefined) {
           result.sections = opts.sections || [];
         }
 
@@ -458,7 +477,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
 
     const setMetadataTool: WebMCPToolDefinition = {
       name: 'editor_set_metadata',
-      description: 'Update metadata for the current entry (title, slug, description, category, tags, status)',
+      description: 'Update metadata for the current entry (title, slug, description, category, tags, status, cover_image, canonical_url, schema_json, parent_id, sort_order)',
       inputSchema: {
         type: 'object',
         properties: {
@@ -474,6 +493,11 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
             enum: ['draft', 'published', 'scheduled'],
             description: 'Publication status',
           },
+          cover_image: { type: 'string', description: 'Cover image URL' },
+          canonical_url: { type: 'string', description: 'Canonical URL for SEO' },
+          schema_json: { type: 'string', description: 'JSON-LD schema string' },
+          parent_id: { type: 'string', description: 'Parent entry ID for hierarchical pages/docs' },
+          sort_order: { type: 'number', description: 'Sort order relative to siblings' },
         },
       },
       handler: (args: Record<string, any>): WebMCPToolResult => {
@@ -505,10 +529,401 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           opts.setStatus(args.status);
           updated.status = args.status;
         }
+        if (args.cover_image !== undefined && opts.setCoverImage) {
+          const val = String(args.cover_image);
+          opts.setCoverImage(val);
+          updated.cover_image = val;
+        }
+        if (args.canonical_url !== undefined && opts.setCanonicalUrl) {
+          const val = String(args.canonical_url);
+          opts.setCanonicalUrl(val);
+          updated.canonical_url = val;
+        }
+        if (args.schema_json !== undefined && opts.setSchemaJson) {
+          const val = typeof args.schema_json === 'string' ? args.schema_json : JSON.stringify(args.schema_json);
+          opts.setSchemaJson(val);
+          updated.schema_json = val;
+        }
+        if (args.parent_id !== undefined && opts.setParentId) {
+          const val = args.parent_id === null ? '' : String(args.parent_id);
+          opts.setParentId(val);
+          updated.parent_id = val;
+        }
+        if (args.sort_order !== undefined && opts.setSortOrder) {
+          const val = Number(args.sort_order);
+          if (!Number.isNaN(val)) {
+            opts.setSortOrder(val);
+            updated.sort_order = val;
+          }
+        }
 
         return {
           toolResult: updated,
           content: [{ type: 'text', text: `Updated metadata: ${Object.keys(updated).join(', ')}` }],
+        };
+      },
+    };
+
+    const getSectionTemplatesTool: WebMCPToolDefinition = {
+      name: 'editor_get_section_templates',
+      description: 'Get available page section templates and their field schemas for the page editor',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      handler: (): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        const rawTemplates = opts.sectionTemplates || [];
+        const templates = rawTemplates.map((tpl) => {
+          let fields: any[] = [];
+          if (tpl.schema_json) {
+            try {
+              fields = typeof tpl.schema_json === 'string' ? JSON.parse(tpl.schema_json) : tpl.schema_json;
+              if (!Array.isArray(fields)) {
+                fields = [];
+              }
+            } catch {
+              fields = [];
+            }
+          }
+          return {
+            ...tpl,
+            fields,
+          };
+        });
+
+        return {
+          toolResult: templates,
+          content: [{ type: 'text', text: JSON.stringify(templates, null, 2) }],
+        };
+      },
+    };
+
+    const addSectionTool: WebMCPToolDefinition = {
+      name: 'editor_add_section',
+      description: 'Add a new page section instance by template type_id with optional initial field data and position index',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          type_id: {
+            type: 'string',
+            description: 'The section template ID (e.g. hero, faq, features)',
+          },
+          data: {
+            type: 'object',
+            description: 'Initial key-value field data matching the template schema',
+          },
+          index: {
+            type: 'number',
+            description: 'Optional 0-based index to insert the section at (defaults to appending at the end)',
+          },
+        },
+        required: ['type_id'],
+      },
+      handler: (args: Record<string, any>): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        const typeId = typeof args.type_id === 'string' ? args.type_id.trim() : '';
+        if (!typeId) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Field "type_id" is required and must be a non-empty string.' }],
+          };
+        }
+        if (!opts.setSections) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Section editing is not available in the current editor.' }],
+          };
+        }
+
+        const newSection: SectionInstance = {
+          type_id: typeId,
+          data: args.data && typeof args.data === 'object' ? { ...args.data } : {},
+        };
+        const current = [...(opts.sections || [])];
+        let insertIndex = current.length;
+
+        if (typeof args.index === 'number' && !Number.isNaN(args.index)) {
+          insertIndex = Math.max(0, Math.min(current.length, Math.trunc(args.index)));
+          current.splice(insertIndex, 0, newSection);
+        } else {
+          current.push(newSection);
+        }
+
+        opts.setSections(current);
+        optionsRef.current.sections = current;
+        opts.onExpandSection?.(insertIndex);
+
+        return {
+          toolResult: {
+            success: true,
+            index: insertIndex,
+            section: newSection,
+            totalSections: current.length,
+          },
+          content: [{ type: 'text', text: `Added section "${newSection.type_id}" at index ${insertIndex}.` }],
+        };
+      },
+    };
+
+    const updateSectionTool: WebMCPToolDefinition = {
+      name: 'editor_update_section',
+      description: 'Update field data for an existing page section at a 0-based index',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          index: {
+            type: 'number',
+            description: '0-based index of the section to update',
+          },
+          data: {
+            type: 'object',
+            description: 'Field data to merge or replace on the section',
+          },
+          merge: {
+            type: 'boolean',
+            description: 'If true (default), shallow-merges data with existing section data; if false, replaces section data completely',
+          },
+          type_id: {
+            type: 'string',
+            description: 'Optional new template type_id for the section',
+          },
+        },
+        required: ['index', 'data'],
+      },
+      handler: (args: Record<string, any>): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        if (!opts.setSections) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Section editing is not available in the current editor.' }],
+          };
+        }
+
+        const current = [...(opts.sections || [])];
+        const idx = Number(args.index);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Section index ${args.index} is out of bounds (total sections: ${current.length}).`,
+              },
+            ],
+          };
+        }
+
+        if (!args.data || typeof args.data !== 'object') {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Field "data" is required and must be an object.' }],
+          };
+        }
+
+        const merge = args.merge !== false;
+        const existing = current[idx];
+        const updatedSection: SectionInstance = {
+          type_id:
+            typeof args.type_id === 'string' && args.type_id.trim()
+              ? args.type_id.trim()
+              : existing.type_id,
+          data: merge ? { ...(existing.data || {}), ...args.data } : { ...args.data },
+        };
+
+        current[idx] = updatedSection;
+        opts.setSections(current);
+        optionsRef.current.sections = current;
+
+        return {
+          toolResult: {
+            success: true,
+            index: idx,
+            section: updatedSection,
+          },
+          content: [{ type: 'text', text: `Updated section at index ${idx}.` }],
+        };
+      },
+    };
+
+    const removeSectionTool: WebMCPToolDefinition = {
+      name: 'editor_remove_section',
+      description: 'Remove a page section at a 0-based index',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          index: {
+            type: 'number',
+            description: '0-based index of the section to remove',
+          },
+        },
+        required: ['index'],
+      },
+      handler: (args: Record<string, any>): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        if (!opts.setSections) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Section editing is not available in the current editor.' }],
+          };
+        }
+
+        const current = [...(opts.sections || [])];
+        const idx = Number(args.index);
+        if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Section index ${args.index} is out of bounds (total sections: ${current.length}).`,
+              },
+            ],
+          };
+        }
+
+        const [removed] = current.splice(idx, 1);
+        opts.setSections(current);
+        optionsRef.current.sections = current;
+
+        return {
+          toolResult: {
+            success: true,
+            index: idx,
+            removed,
+            totalSections: current.length,
+          },
+          content: [{ type: 'text', text: `Removed section at index ${idx}.` }],
+        };
+      },
+    };
+
+    const moveSectionTool: WebMCPToolDefinition = {
+      name: 'editor_move_section',
+      description: 'Move a page section from one 0-based index to another',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          from_index: {
+            type: 'number',
+            description: 'Current 0-based index of the section',
+          },
+          to_index: {
+            type: 'number',
+            description: 'Target 0-based index for the section',
+          },
+        },
+        required: ['from_index', 'to_index'],
+      },
+      handler: (args: Record<string, any>): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        if (!opts.setSections) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Section editing is not available in the current editor.' }],
+          };
+        }
+
+        const current = [...(opts.sections || [])];
+        const fromIdx = Number(args.from_index);
+        const toIdx = Number(args.to_index);
+        if (
+          !Number.isInteger(fromIdx) ||
+          fromIdx < 0 ||
+          fromIdx >= current.length ||
+          !Number.isInteger(toIdx) ||
+          toIdx < 0 ||
+          toIdx >= current.length
+        ) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: `Section indices (${args.from_index} -> ${args.to_index}) are out of bounds (total sections: ${current.length}).`,
+              },
+            ],
+          };
+        }
+
+        const [moved] = current.splice(fromIdx, 1);
+        current.splice(toIdx, 0, moved);
+        opts.setSections(current);
+        optionsRef.current.sections = current;
+
+        return {
+          toolResult: {
+            success: true,
+            from_index: fromIdx,
+            to_index: toIdx,
+            sections: current,
+          },
+          content: [{ type: 'text', text: `Moved section from index ${fromIdx} to ${toIdx}.` }],
+        };
+      },
+    };
+
+    const setSectionsTool: WebMCPToolDefinition = {
+      name: 'editor_set_sections',
+      description: 'Replace the entire list of page sections in a single batch operation',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sections: {
+            type: 'array',
+            description: 'Complete ordered array of section instances ({ type_id, data })',
+            items: {
+              type: 'object',
+              properties: {
+                type_id: { type: 'string' },
+                data: { type: 'object' },
+              },
+              required: ['type_id'],
+            },
+          },
+        },
+        required: ['sections'],
+      },
+      handler: (args: Record<string, any>): WebMCPToolResult => {
+        const opts = optionsRef.current;
+        if (!opts.setSections) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Section editing is not available in the current editor.' }],
+          };
+        }
+        if (!Array.isArray(args.sections)) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Field "sections" must be an array.' }],
+          };
+        }
+
+        for (let i = 0; i < args.sections.length; i++) {
+          const item = args.sections[i];
+          if (!item || typeof item.type_id !== 'string' || !item.type_id.trim()) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Section at index ${i} is missing a valid "type_id".` }],
+            };
+          }
+        }
+
+        const normalized: SectionInstance[] = args.sections.map((s: any) => ({
+          type_id: String(s.type_id).trim(),
+          data: s.data && typeof s.data === 'object' ? { ...s.data } : {},
+        }));
+
+        opts.setSections(normalized);
+        optionsRef.current.sections = normalized;
+
+        return {
+          toolResult: {
+            success: true,
+            sections: normalized,
+            totalSections: normalized.length,
+          },
+          content: [{ type: 'text', text: `Replaced page sections with ${normalized.length} section(s).` }],
         };
       },
     };
@@ -565,6 +980,12 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
       insertContentTool,
       replaceSelectionTool,
       setMetadataTool,
+      getSectionTemplatesTool,
+      addSectionTool,
+      updateSectionTool,
+      removeSectionTool,
+      moveSectionTool,
+      setSectionsTool,
       saveDraftTool,
       publishTool,
     ];
@@ -572,3 +993,4 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
 
   useRegisterWebMCPTools(tools, []);
 }
+

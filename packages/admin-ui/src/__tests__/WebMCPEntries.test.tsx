@@ -244,6 +244,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
     initialContent?: string;
     initialType?: string;
     initialSections?: any[];
+    sectionTemplates?: any[];
     editorMock?: any;
     onSaveDraft?: any;
     onPublish?: any;
@@ -253,6 +254,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
     initialContent = '<p>Initial Content</p>',
     initialType = 'post',
     initialSections = [],
+    sectionTemplates = [],
     editorMock = null,
     onSaveDraft,
     onPublish,
@@ -264,6 +266,12 @@ describe('useTipTapWebMCP Contextual Tools', () => {
     const [description, setDescription] = useState('Initial Desc');
     const [category, setCategory] = useState('Tech');
     const [tags, setTags] = useState('react, vite');
+    const [sections, setSections] = useState<any[]>(initialSections);
+    const [coverImage, setCoverImage] = useState('');
+    const [canonicalUrl, setCanonicalUrl] = useState('');
+    const [schemaJson, setSchemaJson] = useState('');
+    const [parentId, setParentId] = useState('');
+    const [sortOrder, setSortOrder] = useState(0);
 
     useTipTapWebMCP({
       editor: editorMock,
@@ -282,7 +290,19 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       setCategory,
       tags,
       setTags,
-      sections: initialSections,
+      sections,
+      setSections,
+      sectionTemplates,
+      coverImage,
+      setCoverImage,
+      canonicalUrl,
+      setCanonicalUrl,
+      schemaJson,
+      setSchemaJson,
+      parentId,
+      setParentId,
+      sortOrder,
+      setSortOrder,
       onSaveDraft,
       onPublish,
     });
@@ -296,6 +316,12 @@ describe('useTipTapWebMCP Contextual Tools', () => {
         <div data-testid="val-description">{description}</div>
         <div data-testid="val-category">{category}</div>
         <div data-testid="val-tags">{tags}</div>
+        <div data-testid="val-sections">{JSON.stringify(sections)}</div>
+        <div data-testid="val-cover-image">{coverImage}</div>
+        <div data-testid="val-canonical-url">{canonicalUrl}</div>
+        <div data-testid="val-schema-json">{schemaJson}</div>
+        <div data-testid="val-parent-id">{parentId}</div>
+        <div data-testid="val-sort-order">{String(sortOrder)}</div>
       </div>
     );
   };
@@ -663,4 +689,281 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       });
     });
   });
+
+  describe('Page Section & Extended Metadata WebMCP Tools', () => {
+    const mockSectionTemplates = [
+      {
+        id: 'hero',
+        name: 'Hero Section',
+        description: 'Top banner section',
+        schema_json: JSON.stringify([
+          { name: 'heading', type: 'text', label: 'Heading', required: true },
+          { name: 'subheading', type: 'text', label: 'Subheading' },
+        ]),
+      },
+      {
+        id: 'cta',
+        name: 'Call to Action',
+        description: 'CTA block',
+        schema_json: JSON.stringify([
+          { name: 'button_text', type: 'text', label: 'Button Text' },
+        ]),
+      },
+    ];
+
+    it('editor_get_section_templates returns templates with parsed fields arrays from schema_json', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness initialType="page" sectionTemplates={mockSectionTemplates} />
+        </WebMCPProvider>
+      );
+
+      const res = await registry.callTool('editor_get_section_templates', {});
+      expect(res.isError).toBeFalsy();
+      const templates = Array.isArray(res.toolResult)
+        ? res.toolResult
+        : (res.toolResult as any).templates;
+      expect(templates).toHaveLength(2);
+      expect(templates[0].id).toBe('hero');
+      expect(Array.isArray(templates[0].fields)).toBe(true);
+      expect(templates[0].fields[0].name).toBe('heading');
+      expect(templates[1].id).toBe('cta');
+      expect(templates[1].fields[0].name).toBe('button_text');
+    });
+
+    it('editor_add_section appends a section when index is omitted, inserts at index when provided, and errors on empty type_id', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness
+            initialType="page"
+            initialSections={[{ type_id: 'existing', data: { title: 'First' } }]}
+          />
+        </WebMCPProvider>
+      );
+
+      // Append when index omitted
+      const appendRes = await act(async () => {
+        return await registry.callTool('editor_add_section', {
+          type_id: 'hero',
+          data: { heading: 'Hello WebMCP' },
+        });
+      });
+      expect(appendRes.isError).toBeFalsy();
+      let currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections).toHaveLength(2);
+      expect(currentSections[1]).toEqual({
+        type_id: 'hero',
+        data: { heading: 'Hello WebMCP' },
+      });
+
+      // Insert at specific index 0
+      const insertRes = await act(async () => {
+        return await registry.callTool('editor_add_section', {
+          type_id: 'cta',
+          data: { button_text: 'Click Here' },
+          index: 0,
+        });
+      });
+      expect(insertRes.isError).toBeFalsy();
+      currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections).toHaveLength(3);
+      expect(currentSections[0]).toEqual({
+        type_id: 'cta',
+        data: { button_text: 'Click Here' },
+      });
+
+      // Error when type_id is empty
+      const errRes = await act(async () => {
+        return await registry.callTool('editor_add_section', {
+          type_id: '   ',
+        });
+      });
+      expect(errRes.isError).toBe(true);
+    });
+
+    it('editor_update_section shallow-merges by default, replaces when merge is false, and errors on out-of-bounds index', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness
+            initialType="page"
+            initialSections={[
+              { type_id: 'hero', data: { heading: 'Original', subheading: 'Keep Me' } },
+            ]}
+          />
+        </WebMCPProvider>
+      );
+
+      // Shallow-merge by default
+      const mergeRes = await act(async () => {
+        return await registry.callTool('editor_update_section', {
+          index: 0,
+          data: { heading: 'Merged Heading' },
+        });
+      });
+      expect(mergeRes.isError).toBeFalsy();
+      let currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections[0].data).toEqual({
+        heading: 'Merged Heading',
+        subheading: 'Keep Me',
+      });
+
+      // Replace completely when merge: false
+      const replaceRes = await act(async () => {
+        return await registry.callTool('editor_update_section', {
+          index: 0,
+          data: { heading: 'Only Heading' },
+          merge: false,
+        });
+      });
+      expect(replaceRes.isError).toBeFalsy();
+      currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections[0].data).toEqual({
+        heading: 'Only Heading',
+      });
+
+      // Out of bounds index (-1 and 99)
+      const errNeg = await act(async () => {
+        return await registry.callTool('editor_update_section', {
+          index: -1,
+          data: { heading: 'Bad' },
+        });
+      });
+      expect(errNeg.isError).toBe(true);
+
+      const errHigh = await act(async () => {
+        return await registry.callTool('editor_update_section', {
+          index: 99,
+          data: { heading: 'Bad' },
+        });
+      });
+      expect(errHigh.isError).toBe(true);
+    });
+
+    it('editor_remove_section removes section at index and errors when out of bounds', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness
+            initialType="page"
+            initialSections={[
+              { type_id: 'hero', data: { heading: 'First' } },
+              { type_id: 'cta', data: { button_text: 'Second' } },
+            ]}
+          />
+        </WebMCPProvider>
+      );
+
+      const removeRes = await act(async () => {
+        return await registry.callTool('editor_remove_section', { index: 0 });
+      });
+      expect(removeRes.isError).toBeFalsy();
+      const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections).toHaveLength(1);
+      expect(currentSections[0].type_id).toBe('cta');
+
+      const errRes = await act(async () => {
+        return await registry.callTool('editor_remove_section', { index: 5 });
+      });
+      expect(errRes.isError).toBe(true);
+    });
+
+    it('editor_move_section reorders section from from_index to to_index and errors when out of bounds', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness
+            initialType="page"
+            initialSections={[
+              { type_id: 'sec-0', data: {} },
+              { type_id: 'sec-1', data: {} },
+              { type_id: 'sec-2', data: {} },
+            ]}
+          />
+        </WebMCPProvider>
+      );
+
+      const moveRes = await act(async () => {
+        return await registry.callTool('editor_move_section', {
+          from_index: 0,
+          to_index: 2,
+        });
+      });
+      expect(moveRes.isError).toBeFalsy();
+      const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections.map((s: any) => s.type_id)).toEqual(['sec-1', 'sec-2', 'sec-0']);
+
+      const errRes = await act(async () => {
+        return await registry.callTool('editor_move_section', {
+          from_index: 0,
+          to_index: 10,
+        });
+      });
+      expect(errRes.isError).toBe(true);
+    });
+
+    it('editor_set_sections replaces the entire sections array in a single batch call', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness
+            initialType="page"
+            initialSections={[{ type_id: 'old', data: {} }]}
+          />
+        </WebMCPProvider>
+      );
+
+      const batchSections = [
+        { type_id: 'hero', data: { heading: 'New Hero' } },
+        { type_id: 'features', data: { count: 3 } },
+      ];
+
+      const setRes = await act(async () => {
+        return await registry.callTool('editor_set_sections', {
+          sections: batchSections,
+        });
+      });
+      expect(setRes.isError).toBeFalsy();
+      const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
+      expect(currentSections).toEqual(batchSections);
+    });
+
+    it('updates extended metadata fields via editor_set_metadata and reflects them in editor_get_content', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <EditorHarness initialType="page" />
+        </WebMCPProvider>
+      );
+
+      const metaRes = await act(async () => {
+        return await registry.callTool('editor_set_metadata', {
+          cover_image: 'https://example.com/cover.png',
+          canonical_url: 'https://example.com/canonical-page',
+          schema_json: '{"@context":"https://schema.org"}',
+          parent_id: '42',
+          sort_order: 7,
+        });
+      });
+      expect(metaRes.isError).toBeFalsy();
+
+      expect(screen.getByTestId('val-cover-image').textContent).toBe('https://example.com/cover.png');
+      expect(screen.getByTestId('val-canonical-url').textContent).toBe('https://example.com/canonical-page');
+      expect(screen.getByTestId('val-schema-json').textContent).toBe('{"@context":"https://schema.org"}');
+      expect(screen.getByTestId('val-parent-id').textContent).toBe('42');
+      expect(screen.getByTestId('val-sort-order').textContent).toBe('7');
+
+      const contentRes = await registry.callTool('editor_get_content', {});
+      expect(contentRes.isError).toBeFalsy();
+      const data = contentRes.toolResult as any;
+      expect(data.cover_image).toBe('https://example.com/cover.png');
+      expect(data.canonical_url).toBe('https://example.com/canonical-page');
+      expect(data.schema_json).toBe('{"@context":"https://schema.org"}');
+      expect(data.parent_id).toBe('42');
+      expect(data.sort_order).toBe(7);
+    });
+  });
 });
+

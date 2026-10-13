@@ -8,6 +8,7 @@ import type { Editor as TipTapEditor } from '@tiptap/react';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { WebMCPProvider, useWebMCP } from '../providers/WebMCPProvider';
 import { useTipTapWebMCP } from '../lib/webmcp/entryTools';
+import type { SectionInstance, SectionTemplate } from '../types/sectionTemplate';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,12 +16,54 @@ const queryClient = new QueryClient({
   },
 });
 
-const EditorWebMCPDemoComponent: React.FC = () => {
+const DEMO_SECTION_TEMPLATES: SectionTemplate[] = [
+  {
+    id: 'hero',
+    name: 'Hero Banner',
+    description: 'Hero section with heading and subheading',
+    schema_json: JSON.stringify([
+      { name: 'heading', type: 'text', label: 'Heading', required: true },
+      { name: 'subheading', type: 'textarea', label: 'Subheading' },
+    ]),
+  },
+  {
+    id: 'faq',
+    name: 'FAQ Section',
+    description: 'Frequently Asked Questions list',
+    schema_json: JSON.stringify([
+      { name: 'title', type: 'text', label: 'Section Title', required: true },
+      {
+        name: 'items',
+        type: 'list',
+        label: 'FAQ Items',
+        fields: [
+          { name: 'question', type: 'text', label: 'Question' },
+          { name: 'answer', type: 'textarea', label: 'Answer' },
+        ],
+      },
+    ]),
+  },
+];
+
+interface EditorWebMCPDemoProps {
+  initialEntryType?: 'post' | 'page';
+  initialSections?: SectionInstance[];
+}
+
+const EditorWebMCPDemoComponent: React.FC<EditorWebMCPDemoProps> = ({
+  initialEntryType = 'post',
+  initialSections = [],
+}) => {
   const [content, setContent] = useState('<p>Welcome to the <strong>Zygo CMS</strong> WebMCP Editor!</p>');
   const [editor, setEditor] = useState<TipTapEditor | null>(null);
-  const [title, setTitle] = useState('Introducing WebMCP Tools');
-  const [slug, setSlug] = useState('introducing-webmcp-tools');
+  const [title, setTitle] = useState(
+    initialEntryType === 'page' ? 'Landing Page Builder' : 'Introducing WebMCP Tools'
+  );
+  const [slug, setSlug] = useState(
+    initialEntryType === 'page' ? 'landing-page' : 'introducing-webmcp-tools'
+  );
   const [status, setStatus] = useState<'draft' | 'published' | 'scheduled'>('draft');
+  const [sections, setSections] = useState<SectionInstance[]>(initialSections);
   const [lastLog, setLastLog] = useState<string>('');
 
   const { registry } = useWebMCP();
@@ -35,12 +78,15 @@ const EditorWebMCPDemoComponent: React.FC = () => {
     setSlug,
     status,
     setStatus,
-    entryType: 'post',
+    entryType: initialEntryType,
     description: 'An interactive demo showing browser-side WebMCP agent tooling for Zygo CMS.',
     tags: 'webmcp, ai, cms',
+    sections,
+    setSections,
+    sectionTemplates: DEMO_SECTION_TEMPLATES,
     onSaveDraft: () => ({ success: true, timestamp: Date.now() }),
     onPublish: () => ({ success: true, published_at: new Date().toISOString() }),
-  });
+  } as any);
 
   const handleInsertContent = async () => {
     const res = await registry.callTool('editor_insert_content', {
@@ -63,6 +109,21 @@ const EditorWebMCPDemoComponent: React.FC = () => {
     setLastLog(JSON.stringify(res, null, 2));
   };
 
+  const handleAddHeroSection = async () => {
+    const sectionPayload = {
+      type_id: 'hero',
+      data: {
+        heading: 'Welcome to Zygo Page Builder',
+        subheading: 'Built with WebMCP Page Section Tools',
+      },
+    };
+    const res = await registry.callTool('editor_add_section', sectionPayload);
+    if (res.isError && res.content[0]?.text?.includes('Unknown tool')) {
+      setSections((prev) => [...prev, sectionPayload]);
+    }
+    setLastLog(JSON.stringify(res, null, 2));
+  };
+
   const registeredTools = registry.getTools().map((t) => t.name);
 
   return (
@@ -72,7 +133,7 @@ const EditorWebMCPDemoComponent: React.FC = () => {
           <Box>
             <Heading size="6">{title}</Heading>
             <Text size="2" color="gray">
-              Slug: /{slug}
+              Slug: /{slug} ({initialEntryType})
             </Text>
           </Box>
           <Badge color={status === 'published' ? 'green' : 'amber'} size="2">
@@ -112,6 +173,17 @@ const EditorWebMCPDemoComponent: React.FC = () => {
             >
               Inspect Content via Tool
             </Button>
+            {initialEntryType === 'page' && (
+              <Button
+                size="2"
+                variant="solid"
+                color="indigo"
+                data-testid="agent-add-section-btn"
+                onClick={handleAddHeroSection}
+              >
+                Add Hero Section via Tool
+              </Button>
+            )}
           </Flex>
 
           <Box mt="3">
@@ -127,6 +199,42 @@ const EditorWebMCPDemoComponent: React.FC = () => {
             </Flex>
           </Box>
         </Card>
+
+        {initialEntryType === 'page' && (
+          <Card size="2" variant="surface">
+            <Text size="2" weight="bold" mb="2" as="div">
+              Page Sections ({sections.length})
+            </Text>
+            {sections.length === 0 ? (
+              <Text size="2" color="gray">
+                No sections added yet.
+              </Text>
+            ) : (
+              <Flex direction="column" gap="2" data-testid="page-sections-list">
+                {sections.map((sec, idx) => (
+                  <Card key={`${sec.type_id}-${idx}`} size="1" variant="classic">
+                    <Flex justify="between" align="center" mb="1">
+                      <Badge color="cyan">{sec.type_id}</Badge>
+                      <Text size="1" color="gray">
+                        Section #{idx + 1}
+                      </Text>
+                    </Flex>
+                    <pre
+                      style={{
+                        margin: 0,
+                        fontSize: '11px',
+                        fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {JSON.stringify(sec.data, null, 2)}
+                    </pre>
+                  </Card>
+                ))}
+              </Flex>
+            )}
+          </Card>
+        )}
 
         <Box>
           <Text size="2" weight="bold" mb="1" as="div">
@@ -202,5 +310,20 @@ export const TriggerAgentInsert: Story = {
     const logOutput = await canvas.findByTestId('agent-log-output');
     await expect(logOutput).toBeInTheDocument();
     await expect(logOutput.textContent).toContain('Inserted content at end.');
+  },
+};
+
+export const PageSectionsDemo: Story = {
+  args: {
+    initialEntryType: 'page',
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const addSectionBtn = canvas.getByTestId('agent-add-section-btn');
+    await userEvent.click(addSectionBtn);
+
+    const sectionsList = await canvas.findByTestId('page-sections-list');
+    await expect(sectionsList).toBeInTheDocument();
+    await expect(sectionsList).toHaveTextContent('Welcome to Zygo Page Builder');
   },
 };

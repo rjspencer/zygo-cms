@@ -378,6 +378,9 @@ export const Editor: React.FC = () => {
     setTitle: (newTitle: string) => {
       setTitle(newTitle);
       setTempTitle(newTitle);
+      if (newTitle.trim()) {
+        setIsEditingTitle(false);
+      }
     },
     slug,
     setSlug,
@@ -391,6 +394,19 @@ export const Editor: React.FC = () => {
     tags,
     setTags,
     sections,
+    setSections,
+    sectionTemplates,
+    onExpandSection: (idx: number) => setExpandedSections((prev) => ({ ...prev, [idx]: true })),
+    coverImage,
+    setCoverImage,
+    canonicalUrl,
+    setCanonicalUrl,
+    schemaJson,
+    setSchemaJson,
+    parentId,
+    setParentId,
+    sortOrder,
+    setSortOrder,
     onSaveDraft: () => handleSave(false),
     onPublish: () => handleSave(true),
   });
