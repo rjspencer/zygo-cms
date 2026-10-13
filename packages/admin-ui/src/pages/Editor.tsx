@@ -47,17 +47,42 @@ export const Editor: React.FC = () => {
 
   const [tiptapEditor, setTiptapEditor] = useState<TipTapEditor | null>(null);
   const isEditing = Boolean(id && id !== 'new');
+
+  const { data: sectionTemplates = [] } = useQuery<SectionTemplate[]>({
+    queryKey: ['sectionTemplates'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/section-templates');
+      if (!res.ok) throw new Error('Failed to fetch section templates');
+      return res.json();
+    },
+  });
+
+  const { data: entryData } = useQuery({
+    queryKey: ['editorEntry', id],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/admin/editor/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch entry');
+      return res.json();
+    },
+    enabled: isEditing,
+  });
+
+  // Derived directly from the URL so route changes immediately update entryType
+  const entryType = (() => {
+    if (location.pathname.startsWith('/pages') || location.pathname.startsWith('/page')) return 'page';
+    if (location.pathname.startsWith('/posts') || location.pathname.startsWith('/post')) return 'post';
+    if (location.pathname.startsWith('/docs') || location.pathname.startsWith('/doc')) return 'doc';
+    const typeParam = searchParams.get('type');
+    if (typeParam === 'page' || typeParam === 'post' || typeParam === 'doc') return typeParam;
+    if (entryData?.entry?.type) return entryData.entry.type;
+    return 'post';
+  })();
+
   const [title, setTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(!isEditing);
   const [tempTitle, setTempTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [status, setStatus] = useState<'published' | 'draft' | 'scheduled'>('draft');
-  const [entryType, setEntryType] = useState(() => {
-    if (location.pathname.startsWith('/pages')) return 'page';
-    if (location.pathname.startsWith('/posts')) return 'post';
-    if (location.pathname.startsWith('/docs')) return 'doc';
-    return searchParams.get('type') || 'post';
-  });
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
   const [isSaved, setIsSaved] = useState(false);
@@ -72,6 +97,25 @@ export const Editor: React.FC = () => {
   const [expandedSections, setExpandedSections] = useState<Record<number, boolean>>({});
   const [parentId, setParentId] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<number>(0);
+
+  const resetForm = React.useCallback(() => {
+    setTitle('');
+    setTempTitle('');
+    setIsEditingTitle(!isEditing);
+    setSlug('');
+    setStatus('draft');
+    setContent('');
+    setTags('');
+    setDescription('');
+    setCategory('');
+    setCoverImage('');
+    setCanonicalUrl('');
+    setSchemaJson('');
+    setSections([]);
+    setExpandedSections({});
+    setParentId('');
+    setSortOrder(0);
+  }, [isEditing]);
 
   // Unsaved-changes tracking: compare current fields against the last loaded/saved snapshot.
   const latestFields = React.useRef<Record<string, unknown>>({});
@@ -95,9 +139,28 @@ export const Editor: React.FC = () => {
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!isEditing) setSavedSnapshot((prev) => prev ?? currentSnapshot);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing]);
+    if (!isEditing) {
+      resetForm();
+      setSavedSnapshot(
+        JSON.stringify({
+          title: '',
+          slug: '',
+          status: 'draft',
+          entryType,
+          content: '',
+          tags: '',
+          description: '',
+          category: '',
+          coverImage: '',
+          canonicalUrl: '',
+          schemaJson: '',
+          sections: [],
+          parentId: '',
+          sortOrder: 0,
+        })
+      );
+    }
+  }, [isEditing, entryType, id, resetForm]);
 
   const isDirty = savedSnapshot !== null && currentSnapshot !== savedSnapshot;
   const { blocker, allowNextNavigation } = useUnsavedChangesBlocker(isDirty);
@@ -116,25 +179,6 @@ export const Editor: React.FC = () => {
     setMediaPickerCallback(null);
   };
 
-  const { data: sectionTemplates = [] } = useQuery<SectionTemplate[]>({
-    queryKey: ['sectionTemplates'],
-    queryFn: async () => {
-      const res = await apiFetch('/api/section-templates');
-      if (!res.ok) throw new Error('Failed to fetch section templates');
-      return res.json();
-    },
-  });
-
-  const { data: entryData } = useQuery({
-    queryKey: ['editorEntry', id],
-    queryFn: async () => {
-      const res = await apiFetch(`/api/admin/editor/${id}`);
-      if (!res.ok) throw new Error('Failed to fetch entry');
-      return res.json();
-    },
-    enabled: isEditing,
-  });
-
   const isInitialized = React.useRef(false);
 
   React.useEffect(() => {
@@ -144,7 +188,6 @@ export const Editor: React.FC = () => {
         setTitle(entryData.entry.title || '');
         setSlug(entryData.entry.slug || '');
         setStatus(entryData.entry.status || 'draft');
-        setEntryType(entryData.entry.type || 'post');
         setContent(entryData.entry.body_html || '');
         setTags(entryData.entry.tags || '');
         setDescription(entryData.entry.description || '');
@@ -171,7 +214,7 @@ export const Editor: React.FC = () => {
             title: entryData.entry.title || '',
             slug: entryData.entry.slug || '',
             status: entryData.entry.status || 'draft',
-            entryType: entryData.entry.type || 'post',
+            entryType,
             content: entryData.entry.body_html || '',
             tags: entryData.entry.tags || '',
             description: entryData.entry.description || '',
@@ -186,11 +229,11 @@ export const Editor: React.FC = () => {
         );
       }
     }
-  }, [entryData]);
+  }, [entryData, entryType]);
 
   React.useEffect(() => {
     isInitialized.current = false;
-  }, [id]);
+  }, [id, entryType]);
 
   // Wasm Preview State
   const workerRef = useRef<Worker | null>(null);
@@ -308,7 +351,12 @@ export const Editor: React.FC = () => {
       setIsSaved(true);
       setTimeout(() => setIsSaved(false), 2500);
       if (!isEditing && data.id) {
-        const targetPath = entryType === 'page' ? `/pages/editor/${data.id}` : `/posts/editor/${data.id}`;
+        const targetPath =
+          entryType === 'page'
+            ? `/pages/editor/${data.id}`
+            : entryType === 'doc'
+            ? `/docs/editor/${data.id}`
+            : `/posts/editor/${data.id}`;
         allowNextNavigation();
         navigate(targetPath, { replace: true });
       }
@@ -513,7 +561,7 @@ export const Editor: React.FC = () => {
         )}
 
         <Flex align="center" gap="2" mt="2">
-          <Badge color={entryType === 'post' ? 'crimson' : 'cyan'}>
+          <Badge color={entryType === 'post' ? 'crimson' : entryType === 'doc' ? 'blue' : 'cyan'}>
             {entryType.toUpperCase()}
           </Badge>
           <Badge color={status === 'published' ? 'green' : 'gray'}>
@@ -908,7 +956,13 @@ export const Editor: React.FC = () => {
                   </Text>
                   <Box style={{ fontFamily: 'Arial, sans-serif' }}>
                     <Text size="1" color="gray" style={{ display: 'block', marginBottom: '2px', wordBreak: 'break-all' }}>
-                      {`https://example.com › ${entryType === 'page' ? (slug || 'slug') : `post › ${slug || 'slug'}`}`}
+                      {`https://example.com › ${
+                        entryType === 'page'
+                          ? (slug || 'slug')
+                          : entryType === 'doc'
+                          ? `docs › ${slug || 'slug'}`
+                          : `post › ${slug || 'slug'}`
+                      }`}
                     </Text>
                     <Heading
                       size="3"
@@ -1011,7 +1065,12 @@ export const Editor: React.FC = () => {
             <Tabs.Content value="links">
               <LinksTab
                 entryId={id}
-                baseCanonicalUrl={canonicalUrl || getPublicSiteUrl(entryType === 'post' ? `/post/${slug}` : `/${slug}`)}
+                baseCanonicalUrl={
+                  canonicalUrl ||
+                  getPublicSiteUrl(
+                    entryType === 'post' ? `/post/${slug}` : entryType === 'doc' ? `/docs/${slug}` : `/${slug}`
+                  )
+                }
                 isSaved={isEditing && !isDirty}
               />
             </Tabs.Content>

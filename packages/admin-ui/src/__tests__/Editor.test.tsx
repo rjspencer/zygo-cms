@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
 import { Editor } from '../pages/Editor';
@@ -584,6 +584,137 @@ describe('Editor Component - Phase 3 Routing, Title UX & Metadata Previews', () 
     expect(screen.getByText('Google Search Result')).toBeDefined();
     expect(screen.getByText('Slack Link Preview')).toBeDefined();
     expect(screen.getByText('iMessage Preview')).toBeDefined();
+  });
+
+  describe('Dynamic URL Navigation & entryType Derivation', () => {
+    it('updates entryType, badge, slug prefix, and body UI when URL changes from /pages to /posts and /docs', async () => {
+      const testQueryClient = createTestQueryClient();
+      const router = createMemoryRouter(
+        [
+          { path: '/pages/editor/new', element: <Editor /> },
+          { path: '/posts/editor/new', element: <Editor /> },
+          { path: '/docs/editor/new', element: <Editor /> },
+        ],
+        { initialEntries: ['/pages/editor/new'] }
+      );
+
+      render(
+        <QueryClientProvider client={testQueryClient}>
+          <Theme>
+            <RouterProvider router={router} />
+          </Theme>
+        </QueryClientProvider>
+      );
+
+      // Initial state: page editor
+      expect(screen.getByText('PAGE')).toBeDefined();
+      expect(screen.getByText('/')).toBeDefined();
+      expect(screen.getByText('Page Sections')).toBeDefined();
+      expect(screen.queryByText('Body Content')).toBeNull();
+
+      // Navigate to /posts/editor/new
+      await act(async () => {
+        await router.navigate('/posts/editor/new');
+      });
+
+      // Updated state: post editor
+      await waitFor(() => {
+        expect(screen.getByText('POST')).toBeDefined();
+        expect(screen.getByText('/post/')).toBeDefined();
+        expect(screen.getByText('Body Content')).toBeDefined();
+        expect(screen.queryByText('Page Sections')).toBeNull();
+      });
+
+      // Navigate to /docs/editor/new
+      await act(async () => {
+        await router.navigate('/docs/editor/new');
+      });
+
+      // Updated state: doc editor
+      await waitFor(() => {
+        expect(screen.getByText('DOC')).toBeDefined();
+        expect(screen.getByText('/docs/')).toBeDefined();
+        expect(screen.getByText('Body Content')).toBeDefined();
+        expect(screen.queryByText('Page Sections')).toBeNull();
+      });
+    });
+
+    it('correctly derives entryType for singular /page and /post routes', async () => {
+      const testQueryClient = createTestQueryClient();
+      const router = createMemoryRouter(
+        [
+          { path: '/page/editor/new', element: <Editor /> },
+          { path: '/post/editor/new', element: <Editor /> },
+        ],
+        { initialEntries: ['/page/editor/new'] }
+      );
+
+      render(
+        <QueryClientProvider client={testQueryClient}>
+          <Theme>
+            <RouterProvider router={router} />
+          </Theme>
+        </QueryClientProvider>
+      );
+
+      expect(screen.getByText('PAGE')).toBeDefined();
+
+      await act(async () => {
+        await router.navigate('/post/editor/new');
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText('POST')).toBeDefined();
+      });
+    });
+
+    it('saves doc with doc entryType and navigates to /docs/editor/:id', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/entries')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, id: 88, preview_token: 'tok-doc' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const testQueryClient = createTestQueryClient();
+      const router = createMemoryRouter(
+        [
+          { path: '/docs/editor/new', element: <Editor /> },
+          { path: '/docs/editor/:id', element: <Editor /> },
+        ],
+        { initialEntries: ['/docs/editor/new'] }
+      );
+
+      render(
+        <QueryClientProvider client={testQueryClient}>
+          <Theme>
+            <RouterProvider router={router} />
+          </Theme>
+        </QueryClientProvider>
+      );
+
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      fireEvent.click(saveDraftBtn);
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith(
+          '/api/entries',
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringMatching(/"type":"doc"/),
+          })
+        );
+      });
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/docs/editor/88');
+      });
+      vi.restoreAllMocks();
+    });
   });
 });
 
