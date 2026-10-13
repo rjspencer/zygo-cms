@@ -52,7 +52,12 @@ jobs:
       - name: Build template-wasm
         run: pnpm --filter template-wasm run build
 
-      - name: Run Browser / DOM Test Suite
+      - name: Build Workers for Integration Tests
+        run: |
+          pnpm run build:api
+          pnpm run build:public
+
+      - name: Run Test Suite
         run: pnpm test
 
   deploy:

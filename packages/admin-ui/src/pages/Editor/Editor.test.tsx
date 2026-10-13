@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
-import { Editor } from '../pages/Editor';
+import { Editor } from './Editor';
 
 const createTestQueryClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false } }
@@ -578,7 +578,7 @@ describe('Editor Component - Phase 3 Routing, Title UX & Metadata Previews', () 
     renderEditor('/posts/editor/new');
 
     const metadataTab = screen.getByRole('tab', { name: /metadata/i });
-    fireEvent.click(metadataTab);
+    fireEvent.mouseDown(metadataTab, { button: 0, ctrlKey: false });
 
     expect(screen.getByText('Search & Social Previews')).toBeDefined();
     expect(screen.getByText('Google Search Result')).toBeDefined();
