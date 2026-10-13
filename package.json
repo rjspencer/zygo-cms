@@ -22,9 +22,12 @@
         "setup": "node scripts/setup.mjs",
         "create:component": "node scripts/create-component-module.mjs",
         "seed:docs:official": "node scripts/seed_official_docs.mjs",
-        "test": "vitest run packages/admin-ui/src/__tests__/Editor.test.tsx",
+        "test:admin": "vitest run packages/admin-ui/",
+        "test:api": "vitest run packages/admin-api-worker/",
+        "test:public": "vitest run packages/public-worker/",
         "test:e2e": "vitest run --no-file-parallelism tests/",
-        "test:all": "vitest run"
+        "test:all": "vitest run",
+        "test": "vitest run"
     },
     "devDependencies": {
         "@clack/prompts": "^1.8.1",
