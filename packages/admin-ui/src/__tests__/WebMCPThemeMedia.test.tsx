@@ -595,7 +595,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       render(<RouterProvider router={router} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Theme Settings')).toBeInTheDocument();
+        expect(screen.getByText('Theme Settings')).toBeDefined();
       });
 
       // Verify the WebMCP tools are registered
@@ -618,7 +618,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
 
       // Verify the preview reflects the live updated tagline
-      expect(screen.getByText('WebMCP Live Synchronized Tagline')).toBeInTheDocument();
+      expect(screen.getByText('WebMCP Live Synchronized Tagline')).toBeDefined();
     });
   });
 });

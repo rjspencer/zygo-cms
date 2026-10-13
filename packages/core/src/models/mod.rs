@@ -7,6 +7,7 @@ pub mod revision;
 pub mod user;
 pub mod setting;
 pub mod dashboard;
+pub mod theme;
 
 pub use section_template::*;
 pub use entry::*;
@@ -16,3 +17,4 @@ pub use revision::*;
 pub use user::*;
 pub use setting::*;
 pub use dashboard::*;
+pub use theme::*;

@@ -1,5 +1,8 @@
-use minijinja::{Environment};
-use zygo_core::models::{BreadcrumbItem, ContentType, SectionTemplate, Entry, EntryRevision, MenuItem, Pagination};
+use minijinja::Environment;
+use zygo_core::models::{
+    BreadcrumbItem, ContentType, Entry, EntryRevision, MenuItem, Pagination, SectionTemplate,
+    ThemeTokens,
+};
 
 const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
 <html lang="en">
@@ -299,9 +302,9 @@ const DEFAULT_SITEMAP: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 const DEFAULT_RSS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Zygo CMS</title>
+    <title>{{ site_title }}</title>
     <link>{{ origin }}/</link>
-    <description>Recent posts from Zygo CMS</description>
+    <description>Recent posts from {{ site_title }}</description>
     <language>en-us</language>
     <atom:link href="{{ origin }}/rss.xml" rel="self" type="application/rss+xml" />
     {% for post in posts %}
@@ -906,7 +909,6 @@ pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value 
     val
 }
 
-
 fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<Environment<'a>> {
     let mut env = Environment::new();
     zygo_core::template_engine::configure_env(&mut env);
@@ -939,19 +941,23 @@ fn build_docs_tree_html(docs: &[Entry], current_path: &str, parent_id: Option<i6
     if children.is_empty() {
         return String::new();
     }
-    
+
     // Sort by sort_order
     children.sort_by_key(|d| d.sort_order.unwrap_or(0));
-    
+
     let mut html = String::from("<ul>");
     for child in children {
         let path = child.path();
-        let current_attr = if path == current_path { " aria-current=\"page\"" } else { "" };
+        let current_attr = if path == current_path {
+            " aria-current=\"page\""
+        } else {
+            ""
+        };
         html.push_str(&format!(
             "<li><a href=\"{}\"{}>{}</a>",
             path, current_attr, child.title
         ));
-        
+
         let sub_tree = build_docs_tree_html(docs, current_path, Some(child.id));
         if !sub_tree.is_empty() {
             html.push_str(&sub_tree);
@@ -963,12 +969,10 @@ fn build_docs_tree_html(docs: &[Entry], current_path: &str, parent_id: Option<i6
 }
 
 fn flatten_docs<'a>(docs: &'a [Entry], parent_id: Option<i64>, flattened: &mut Vec<&'a Entry>) {
-    let mut children: Vec<&'a Entry> = docs.iter()
-        .filter(|d| d.parent_id == parent_id)
-        .collect();
-        
+    let mut children: Vec<&'a Entry> = docs.iter().filter(|d| d.parent_id == parent_id).collect();
+
     children.sort_by_key(|d| d.sort_order.unwrap_or(0));
-    
+
     for child in children {
         let cid = child.id;
         flattened.push(child);
@@ -980,58 +984,74 @@ pub fn inject_theme_context(
     ctx: &mut serde_json::Map<String, serde_json::Value>,
     settings: Option<&std::collections::HashMap<String, String>>,
 ) {
-    let get_setting = |key: &str| -> Option<&str> {
-        settings
-            .and_then(|s| s.get(key).map(|v| v.as_str()))
-            .filter(|v| !v.trim().is_empty())
-    };
+    let tokens = ThemeTokens::resolve_from_settings(settings);
 
-    let font_url = get_setting("theme_font_url").unwrap_or(
-        "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&display=swap",
-    );
-    let font_headline = get_setting("theme_font_headline").unwrap_or("'Newsreader', Georgia, serif");
-    let font_body = get_setting("theme_font_body")
-        .unwrap_or("'Inter', -apple-system, BlinkMacSystemFont, sans-serif");
-    let color_bg = get_setting("theme_color_bg").unwrap_or("#faf8f5");
-    let color_text = get_setting("theme_color_text").unwrap_or("#1c1917");
-    let color_text_muted = get_setting("theme_color_text_muted").unwrap_or("#78716c");
-    let color_accent = get_setting("theme_color_accent").unwrap_or("#991b1b");
-    let color_surface = get_setting("theme_color_surface").unwrap_or("#ffffff");
-    let color_border = get_setting("theme_color_border").unwrap_or("#e7e5e4");
-    let max_width = get_setting("theme_max_width").unwrap_or("740px");
-    let font_size_base = get_setting("theme_font_size_base").unwrap_or("18px");
-    let line_height = get_setting("theme_line_height").unwrap_or("1.75");
-    let header_layout = get_setting("theme_header_layout").unwrap_or("centered");
-    let header_border_style = get_setting("theme_header_border_style").unwrap_or("double");
-    let header_title_size = get_setting("theme_header_title_size").unwrap_or("2rem");
-    let header_nav_transform = get_setting("theme_header_nav_transform").unwrap_or("uppercase");
-    let header_padding = get_setting("theme_header_padding").unwrap_or("1.75rem 0 1.25rem 0");
-
-    let header_border = match header_border_style {
+    let header_border = match tokens.header_border_style.as_str() {
         "none" => "none".to_string(),
-        "solid" => format!("1px solid {color_border}"),
-        _ => format!("3px double {color_border}"),
+        "solid" => format!("1px solid {}", tokens.color_border),
+        _ => format!("3px double {}", tokens.color_border),
     };
 
-    let site_title = get_setting("site_title").unwrap_or("Zygo");
-    let site_tagline = settings
-        .and_then(|s| s.get("theme_header_tagline").or_else(|| s.get("site_tagline")))
-        .map(|s| s.as_str())
-        .unwrap_or("An Editorial Review & Journal");
+    let site_title = settings
+        .and_then(|s| s.get("site_title").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or("Zygo");
+
+    let site_tagline = if !tokens.header_tagline.trim().is_empty() {
+        tokens.header_tagline.as_str()
+    } else {
+        settings
+            .and_then(|s| s.get("site_tagline").map(|v| v.as_str()))
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("An Editorial Review & Journal")
+    };
 
     let theme_css = format!(
-        ":root {{\n  --font-headline: {font_headline};\n  --font-body: {font_body};\n  --color-bg: {color_bg};\n  --color-text: {color_text};\n  --color-text-muted: {color_text_muted};\n  --color-accent: {color_accent};\n  --color-surface: {color_surface};\n  --color-border: {color_border};\n  --content-max-width: {max_width};\n  --font-size-base: {font_size_base};\n  --line-height-body: {line_height};\n  --header-layout: {header_layout};\n  --header-border-style: {header_border_style};\n  --header-border: {header_border};\n  --header-title-size: {header_title_size};\n  --header-nav-transform: {header_nav_transform};\n  --header-padding: {header_padding};\n}}"
+        ":root {{\n  --font-headline: {};\n  --font-body: {};\n  --color-bg: {};\n  --color-text: {};\n  --color-text-muted: {};\n  --color-accent: {};\n  --color-surface: {};\n  --color-border: {};\n  --content-max-width: {};\n  --font-size-base: {};\n  --line-height-body: {};\n  --header-layout: {};\n  --header-border-style: {};\n  --header-border: {header_border};\n  --header-title-size: {};\n  --header-nav-transform: {};\n  --header-padding: {};\n  --border-radius: {};\n  --box-shadow: {};\n}}",
+        tokens.font_headline,
+        tokens.font_body,
+        tokens.color_bg,
+        tokens.color_text,
+        tokens.color_text_muted,
+        tokens.color_accent,
+        tokens.color_surface,
+        tokens.color_border,
+        tokens.max_width,
+        tokens.font_size_base,
+        tokens.line_height_body,
+        tokens.header_layout,
+        tokens.header_border_style,
+        tokens.header_title_size,
+        tokens.header_nav_transform,
+        tokens.header_padding,
+        tokens.border_radius,
+        tokens.box_shadow,
     );
 
-    if !font_url.trim().is_empty() {
-        ctx.insert("theme_font_url".to_string(), serde_json::Value::String(font_url.to_string()));
+    if !tokens.font_url.trim().is_empty() {
+        ctx.insert(
+            "theme_font_url".to_string(),
+            serde_json::Value::String(tokens.font_url),
+        );
     }
-    ctx.insert("theme_css".to_string(), serde_json::Value::String(theme_css));
-    ctx.insert("site_title".to_string(), serde_json::Value::String(site_title.to_string()));
+    ctx.insert(
+        "theme_css".to_string(),
+        serde_json::Value::String(theme_css),
+    );
+    ctx.insert(
+        "site_title".to_string(),
+        serde_json::Value::String(site_title.to_string()),
+    );
     if !site_tagline.trim().is_empty() {
-        ctx.insert("site_tagline".to_string(), serde_json::Value::String(site_tagline.to_string()));
+        ctx.insert(
+            "site_tagline".to_string(),
+            serde_json::Value::String(site_tagline.to_string()),
+        );
     }
-    ctx.insert("header_layout".to_string(), serde_json::Value::String(header_layout.to_string()));
+    ctx.insert(
+        "header_layout".to_string(),
+        serde_json::Value::String(tokens.header_layout),
+    );
 }
 
 pub fn render_doc(
@@ -1074,22 +1094,31 @@ pub fn render_doc(
     } else {
         ctx.insert("template_css".to_string(), serde_json::Value::Null);
     }
-    
+
     ctx.insert("is_preview".to_string(), serde_json::Value::Bool(false));
 
     let tree_html = build_docs_tree_html(all_docs, &doc.path(), None);
-    ctx.insert("docs_tree_html".to_string(), serde_json::Value::String(tree_html));
-    
+    ctx.insert(
+        "docs_tree_html".to_string(),
+        serde_json::Value::String(tree_html),
+    );
+
     let mut flat = Vec::new();
     flatten_docs(all_docs, None, &mut flat);
-    
+
     let current_index = flat.iter().position(|d| d.id == doc.id);
     if let Some(idx) = current_index {
         if idx > 0 {
-            ctx.insert("prev_doc".to_string(), entry_to_context_value(&flat[idx - 1], origin));
+            ctx.insert(
+                "prev_doc".to_string(),
+                entry_to_context_value(&flat[idx - 1], origin),
+            );
         }
         if idx < flat.len() - 1 {
-            ctx.insert("next_doc".to_string(), entry_to_context_value(&flat[idx + 1], origin));
+            ctx.insert(
+                "next_doc".to_string(),
+                entry_to_context_value(&flat[idx + 1], origin),
+            );
         }
     }
 
@@ -1136,7 +1165,10 @@ fn render_sections(
                 if let Ok(tmpl) = env.get_template(tid) {
                     let section_data = section.get("data").unwrap_or(section);
                     if let Ok(rendered) = tmpl.render(section_data) {
-                        sections_html.push_str(&format!("<div class=\"template-{}\" style=\"display: contents;\">{}</div>", tid, rendered));
+                        sections_html.push_str(&format!(
+                            "<div class=\"template-{}\" style=\"display: contents;\">{}</div>",
+                            tid, rendered
+                        ));
                         if !used_template_ids.iter().any(|id| id == tid) {
                             used_template_ids.push(tid.to_string());
                         }
@@ -1348,11 +1380,7 @@ fn render_index_internal(
     );
     ctx.insert(
         "canonical_url".to_string(),
-        serde_json::Value::String(canonical_url(
-            origin,
-            canonical_path,
-            pagination.as_ref(),
-        )),
+        serde_json::Value::String(canonical_url(origin, canonical_path, pagination.as_ref())),
     );
     ctx.insert(
         "header_menu".to_string(),
@@ -1376,7 +1404,15 @@ pub fn render_post(
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
 ) -> worker::Result<String> {
-    render_post_internal(content_types, post, origin, None, header_menu, footer_menu, settings)
+    render_post_internal(
+        content_types,
+        post,
+        origin,
+        None,
+        header_menu,
+        footer_menu,
+        settings,
+    )
 }
 
 pub fn render_preview_post(
@@ -1563,7 +1599,10 @@ fn render_page_internal(
         .iter()
         .map(|c| entry_to_context_value(c, origin))
         .collect();
-    ctx.insert("children".to_string(), serde_json::Value::Array(children_vals));
+    ctx.insert(
+        "children".to_string(),
+        serde_json::Value::Array(children_vals),
+    );
 
     let (sections_html, template_css) = render_sections(&env, content_types, &parsed_body);
     ctx.insert(
@@ -1738,7 +1777,8 @@ mod tests {
             tags: Some("rust, minijinja".to_string()),
             published_at: Some("2026-10-04 12:00:00".to_string()),
             body_html: "<p>Hello <strong>world</strong> content</p>".to_string(),
-            body_json: r#"{"headline": "Welcome to My Blog", "author_bio": "Rust Enthusiast"}"#.to_string(),
+            body_json: r#"{"headline": "Welcome to My Blog", "author_bio": "Rust Enthusiast"}"#
+                .to_string(),
             custom_fields_json: Some(r#"{"reading_time": 5}"#.to_string()),
             search_text: None,
             created_at: "2026-10-04 10:00:00".to_string(),
@@ -1787,7 +1827,16 @@ mod tests {
         };
         let content_types = vec![ct];
         let posts = vec![dummy_post()];
-        let html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], None).unwrap();
+        let html = render_index(
+            &content_types,
+            &posts,
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(html.contains("<ul class=\"posts\">"));
         assert!(html.contains("<a href=\"/post/hello-world\">Hello World</a>"));
         assert!(html.contains("2026-10-04"));
@@ -1803,7 +1852,8 @@ mod tests {
         };
         let content_types = vec![ct];
         let post = dummy_post();
-        let html = render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
+        let html =
+            render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
         assert!(html.contains("<h1>Hello World</h1>"));
         assert!(html.contains("<h2>Welcome to My Blog</h2>"));
         assert!(html.contains("<p>Rust Enthusiast</p>"));
@@ -1818,12 +1868,18 @@ mod tests {
         let ct = ContentType {
             id: "announcement".to_string(),
             name: "Announcement".to_string(),
-            template_html: Some("<div class=\"banner\">Announcement: {{ post.title }} - {{ headline }}</div>".to_string()),
+            template_html: Some(
+                "<div class=\"banner\">Announcement: {{ post.title }} - {{ headline }}</div>"
+                    .to_string(),
+            ),
             ..Default::default()
         };
         let content_types = vec![ct];
-        let html = render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
-        assert!(html.contains("<div class=\"banner\">Announcement: Hello World - Welcome to My Blog</div>"));
+        let html =
+            render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
+        assert!(html.contains(
+            "<div class=\"banner\">Announcement: Hello World - Welcome to My Blog</div>"
+        ));
     }
 
     #[test]
@@ -1836,9 +1892,22 @@ mod tests {
         };
         let content_types = vec![ct];
         let page = dummy_page();
-        let breadcrumbs = vec![BreadcrumbItem { title: "Home".to_string(), path: "/".to_string() }];
+        let breadcrumbs = vec![BreadcrumbItem {
+            title: "Home".to_string(),
+            path: "/".to_string(),
+        }];
         let children = vec![dummy_post()];
-        let html = render_page(&content_types, &page, "https://example.com", &breadcrumbs, &children, &[], &[], None).unwrap();
+        let html = render_page(
+            &content_types,
+            &page,
+            "https://example.com",
+            &breadcrumbs,
+            &children,
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(html.contains("<h1>About Us</h1>"));
         assert!(html.contains("<h3>Our Mission</h3>"));
         assert!(html.contains("<a href=\"/\">Home</a>"));
@@ -1869,7 +1938,16 @@ mod tests {
             created_at: "2026-10-04 12:00:00".to_string(),
             preview_token: "abc-123".to_string(),
         };
-        let html = render_preview_post(&content_types, &post, "https://example.com", &rev, &[], &[], None).unwrap();
+        let html = render_preview_post(
+            &content_types,
+            &post,
+            "https://example.com",
+            &rev,
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(html.contains("<span class=\"preview-tag\">PREVIEW</span>"));
         assert!(html.contains("<h1>Hello World</h1>"));
     }
@@ -1894,21 +1972,52 @@ mod tests {
         let posts = vec![dummy_post()];
         let page = dummy_page();
 
-        let index_html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], None).unwrap();
+        let index_html = render_index(
+            &content_types,
+            &posts,
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(index_html.contains("Hello World"));
         assert!(index_html.contains("<header class=\"header-centered\">"));
         assert!(index_html.contains("<a href=\"/\" class=\"site-title\">Zygo</a>"));
-        assert!(index_html.contains("<div class=\"site-tagline\">An Editorial Review &amp; Journal</div>"));
+        assert!(
+            index_html
+                .contains("<div class=\"site-tagline\">An Editorial Review &amp; Journal</div>")
+        );
 
-        let post_html = render_post(&content_types, &dummy_post(), "https://example.com", &[], &[], None).unwrap();
+        let post_html = render_post(
+            &content_types,
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(post_html.contains("Hello World"));
         assert!(post_html.contains("<header class=\"header-centered\">"));
 
-        let page_html = render_page(&content_types, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
+        let page_html = render_page(
+            &content_types,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(page_html.contains("About Us"));
         assert!(page_html.contains("<header class=\"header-centered\">"));
 
-        let search_html = render_search_html(&content_types, "test", &posts, &[], &[], None).unwrap();
+        let search_html =
+            render_search_html(&content_types, "test", &posts, &[], &[], None).unwrap();
         assert!(search_html.contains("Search"));
         assert!(search_html.contains("<header class=\"header-centered\">"));
     }
@@ -1919,26 +2028,77 @@ mod tests {
         let posts = vec![dummy_post()];
         let mut settings = std::collections::HashMap::new();
         settings.insert("site_title".to_string(), "The Daily Review".to_string());
-        settings.insert("theme_header_tagline".to_string(), "Notes on Architecture".to_string());
+        settings.insert(
+            "theme_header_tagline".to_string(),
+            "Notes on Architecture".to_string(),
+        );
         settings.insert("theme_header_layout".to_string(), "split".to_string());
         settings.insert("theme_header_border_style".to_string(), "none".to_string());
         settings.insert("theme_color_accent".to_string(), "#2563eb".to_string());
-        settings.insert("theme_font_url".to_string(), "https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap".to_string());
+        settings.insert(
+            "theme_font_url".to_string(),
+            "https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap".to_string(),
+        );
 
-        let html = render_index(&content_types, &posts, "https://example.com", None, &[], &[], Some(&settings)).unwrap();
+        let html = render_index(
+            &content_types,
+            &posts,
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            Some(&settings),
+        )
+        .unwrap();
         assert!(html.contains("<header class=\"header-split\">"));
         assert!(html.contains("<a href=\"/\" class=\"site-title\">The Daily Review</a>"));
         assert!(html.contains("<div class=\"site-tagline\">Notes on Architecture</div>"));
-        assert!(html.contains("https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap"));
+        assert!(
+            html.contains("https://fonts.googleapis.com/css2?family=Playfair+Display&display=swap")
+        );
         assert!(html.contains("--color-accent: #2563eb;"));
         assert!(html.contains("--header-border: none;"));
+    }
+
+    #[test]
+    fn test_active_theme_name_resolution() {
+        let content_types: Vec<ContentType> = vec![];
+        let posts = vec![dummy_post()];
+        let mut settings = std::collections::HashMap::new();
+        settings.insert(
+            "theme_active_name".to_string(),
+            "Bento-Brutalism".to_string(),
+        );
+
+        let html = render_index(
+            &content_types,
+            &posts,
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            Some(&settings),
+        )
+        .unwrap();
+        assert!(html.contains("<header class=\"header-split\">"));
+        assert!(html.contains("--color-accent: #007799;"));
+        assert!(html.contains(
+            "--font-headline: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;"
+        ));
+        assert!(
+            html.contains(
+                "<div class=\"site-tagline\">Specs, Dispatches &amp; Agentic Systems</div>"
+            )
+        );
     }
 
     #[test]
     fn test_video_embed_filter() {
         // YouTube formats
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+            ),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
@@ -1946,15 +2106,21 @@ mod tests {
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/embed/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://www.youtube.com/embed/dQw4w9WgXcQ"
+            ),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://www.youtube.com/shorts/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://www.youtube.com/shorts/dQw4w9WgXcQ"
+            ),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
+            ),
             "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"
         );
 
@@ -1964,17 +2130,27 @@ mod tests {
             "https://player.vimeo.com/video/123456789"
         );
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://player.vimeo.com/video/123456789?h=abcd"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://player.vimeo.com/video/123456789?h=abcd"
+            ),
             "https://player.vimeo.com/video/123456789"
         );
         assert_eq!(
-            zygo_core::template_engine::video_embed_filter("https://vimeo.com/123456789?param=value"),
+            zygo_core::template_engine::video_embed_filter(
+                "https://vimeo.com/123456789?param=value"
+            ),
             "https://player.vimeo.com/video/123456789"
         );
 
         // Non-video or unsupported URLs
-        assert_eq!(zygo_core::template_engine::video_embed_filter("https://example.com/video.mp4"), "");
-        assert_eq!(zygo_core::template_engine::video_embed_filter("https://dailymotion.com/video/x7"), "");
+        assert_eq!(
+            zygo_core::template_engine::video_embed_filter("https://example.com/video.mp4"),
+            ""
+        );
+        assert_eq!(
+            zygo_core::template_engine::video_embed_filter("https://dailymotion.com/video/x7"),
+            ""
+        );
         assert_eq!(zygo_core::template_engine::video_embed_filter(""), "");
         assert_eq!(zygo_core::template_engine::video_embed_filter("   "), "");
     }
@@ -1992,7 +2168,10 @@ mod tests {
         let text_st = SectionTemplate {
             id: "text".to_string(),
             name: "Text Section".to_string(),
-            template_html: Some("<section class=\"text-section\"><div>{{ content|safe }}</div></section>".to_string()),
+            template_html: Some(
+                "<section class=\"text-section\"><div>{{ content|safe }}</div></section>"
+                    .to_string(),
+            ),
             template_css: Some(".text-section { padding: 2rem; }".to_string()),
             ..Default::default()
         };
@@ -2000,7 +2179,9 @@ mod tests {
         let unused_st = SectionTemplate {
             id: "faq".to_string(),
             name: "FAQ Section".to_string(),
-            template_html: Some("<section class=\"faq-section\"><h2>FAQ</h2></section>".to_string()),
+            template_html: Some(
+                "<section class=\"faq-section\"><h2>FAQ</h2></section>".to_string(),
+            ),
             template_css: Some(".faq-section { background: yellow; }".to_string()),
             ..Default::default()
         };
@@ -2022,9 +2203,20 @@ mod tests {
                     "content": "<p>This is rendered from section template.</p>"
                 }
             }
-        ]).to_string();
+        ])
+        .to_string();
 
-        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
+        let html = render_page(
+            &templates,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
 
         // Check rendered section content
         assert!(html.contains("<section class=\"hero-section\"><h1>Welcome to Zygo</h1><p>Blazing fast edge CMS</p></section>"));
@@ -2058,10 +2250,21 @@ mod tests {
                 "type_id": "hero",
                 "data": { "headline": "Hero Survived" }
             }
-        ]).to_string();
+        ])
+        .to_string();
 
         // Rendering page must succeed and skip missing section
-        let html = render_page(&templates, &page, "https://example.com", &[], &[], &[], &[], None).unwrap();
+        let html = render_page(
+            &templates,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            None,
+        )
+        .unwrap();
         assert!(html.contains("<div class=\"hero\">Hero Survived</div>"));
         assert!(!html.contains("non_existent_section"));
     }
@@ -2084,7 +2287,10 @@ mod tests {
 
         let templates = vec![broken_st, valid_st];
         let env_res = create_env(&templates);
-        assert!(env_res.is_ok(), "create_env must succeed even with broken templates");
+        assert!(
+            env_res.is_ok(),
+            "create_env must succeed even with broken templates"
+        );
         let env = env_res.unwrap();
         assert!(env.get_template("valid").is_ok());
         assert!(env.get_template("broken").is_err());
@@ -2119,10 +2325,20 @@ mod tests {
 
     #[test]
     fn test_render_doc_page_styling_and_layout() {
-        let doc = dummy_doc(1, "Getting Started", "getting-started", "<h2>Introduction</h2><p>Welcome to Zygo CMS documentation.</p><h3>Configuration</h3><p>Details here.</p>");
+        let doc = dummy_doc(
+            1,
+            "Getting Started",
+            "getting-started",
+            "<h2>Introduction</h2><p>Welcome to {{ site_title }} documentation.</p><h3>Configuration</h3><p>Details here.</p>",
+        );
 
         let all_docs = vec![
-            dummy_doc(1, "Getting Started", "getting-started", "<h2>Introduction</h2><p>Welcome to Zygo CMS documentation.</p><h3>Configuration</h3><p>Details here.</p>"),
+            dummy_doc(
+                1,
+                "Getting Started",
+                "getting-started",
+                "<h2>Introduction</h2><p>Welcome to {{ site_title }} documentation.</p><h3>Configuration</h3><p>Details here.</p>",
+            ),
             dummy_doc(2, "Architecture", "architecture", "<p>Arch</p>"),
         ];
         let html = render_doc(&[], &doc, &all_docs, "https://example.com", &[], &[], None).unwrap();
