@@ -79,7 +79,8 @@ describe('Layout Component', () => {
 
   it('renders sidebar navigation and brand', () => {
     renderLayout();
-    expect(screen.getByText('Zygo CMS')).toBeDefined();
+    expect(screen.getByRole('img', { name: 'Zygo CMS' })).toBeDefined();
+    expect(screen.getByText('v0.1')).toBeDefined();
     expect(screen.getByText('Dashboard')).toBeDefined();
     expect(screen.getByText('Posts')).toBeDefined();
     expect(screen.getByText('Pages')).toBeDefined();
