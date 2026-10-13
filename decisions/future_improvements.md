@@ -95,11 +95,20 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Public Worker (Reader)**: Ultra-lean, minimal dependencies, read-only D1 queries, and aggressive edge caching.
 - **Admin Worker (Writer)**: Handles authentication, media uploads, and heavy authoring libraries.
 
+### WebMCP Browser Bridges & Page Section Tools
+- **Global Browser Bridges (`window.webmcp` & `navigator.modelContext`)**: Synchronized `WebMCPRegistry` with W3C/Chrome `navigator.modelContext` (`registerTool`, `unregisterTool`, `provideContext`, `executeTool`) and exposed `window.webmcp` for direct in-browser RPC tool execution.
+- **Page Editor Section & Metadata Parity**: Added `editor_get_section_templates`, `editor_add_section`, `editor_update_section`, `editor_remove_section`, `editor_move_section`, `editor_set_sections`, and full metadata coverage (`cover_image`, `canonical_url`, `schema_json`, `parent_id`, `sort_order`) in `entryTools.ts` and `Editor.tsx`.
+- **Interactive Tool Runner & Batch RPC Console**: Added inline per-tool execution and a JSON batch `RPC Console` tab in `WebMCPAssistantDrawer.tsx`.
+
 ---
 
 ## 2. Prioritized Roadmap & Future Work
 
 ### Priority
+
+### WebMCP Editor Parity Follow-Up (Template, Theme & Navigation Editors)
+- **Goal**: Close the remaining editor-specific WebMCP parity gaps across `TemplateEditor`, `ThemeEditor`, and `Navigation` so browser agents never need to fall back to UI clicks for saving templates, setting template metadata, saving custom themes, or syncing live menu state.
+- **Specification & Gap Analysis**: See [webmcp_editor_gaps.md](./webmcp_editor_gaps.md).
 
 ### `create-zygo-app` CLI Tool
 - **Concept**: Provide a frictionless developer experience (DX) for onboarding by distributing the CMS via an `npx create-zygo-app` CLI command.

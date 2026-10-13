@@ -13,6 +13,13 @@ Before committing any code or marking any task as complete, you MUST execute and
 
 ## 2. Subagent Workflows
 
+### Parallel Subagent Wave Pattern
+When a task spans implementation, UI/Storybook, and tests, prefer executing in three structured waves:
+1. **Define Shared Contracts First**: Before spawning parallel subagents, specify exact function signatures, tool names, JSON input schemas, accessible labels (`aria-label`), and `data-testid` attributes in the plan.
+2. **Wave 1 (Parallel Implementation & Test Authoring)**: Spawn implementation, UI/Storybook, and test subagents concurrently with **strictly disjoint file ownership** so no two subagents edit the same file.
+3. **Wave 2 (Automated Quality Gates)**: Run `tsc --noEmit`, `pnpm run test:all`, `cargo test`, and `pnpm run build` to verify integration.
+4. **Wave 3 (Parallel Verification Handoffs)**: Spawn the **Code Review Subagent** and **`ui-qa` Subagent** concurrently to verify code quality and 1+2+4 visual compliance.
+
 ### Backend Workflow
 For non-visual changes (Rust logic, D1 schema, REST APIs):
 1. Delegate feature implementation to a subagent or complete it cleanly.
