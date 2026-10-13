@@ -359,4 +359,46 @@ describe('Media Page Component', () => {
       expect((syncButton as HTMLButtonElement).disabled).toBe(false);
     });
   });
+
+  it('rejects files larger than 25MB with an error message and does not upload', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockMediaResponse) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { container } = renderMediaPage();
+    await screen.findByText('photo-1.jpg');
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const oversizedFile = new File(['x'.repeat(100)], 'huge-video.mp4', { type: 'video/mp4' });
+    Object.defineProperty(oversizedFile, 'size', { value: 30 * 1024 * 1024 });
+
+    fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
+
+    expect(await screen.findByText(/File is too large/i)).toBeDefined();
+    // fetch POST should not be called
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('huge-video.mp4'),
+      expect.anything()
+    );
+  });
+
+  it('warns user when video exceeds 10MB and cancels if user dismisses prompt', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockMediaResponse) });
+    vi.stubGlobal('fetch', fetchMock);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    const { container } = renderMediaPage();
+    await screen.findByText('photo-1.jpg');
+
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const largeVideo = new File(['x'.repeat(100)], 'large-bg.mp4', { type: 'video/mp4' });
+    Object.defineProperty(largeVideo, 'size', { value: 15 * 1024 * 1024 });
+
+    fireEvent.change(fileInput, { target: { files: [largeVideo] } });
+
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: This video is 15.0 MB'));
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('large-bg.mp4'),
+      expect.anything()
+    );
+  });
 });

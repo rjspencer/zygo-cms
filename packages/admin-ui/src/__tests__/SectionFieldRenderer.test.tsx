@@ -104,4 +104,30 @@ describe('SectionFieldRenderer Component', () => {
       expect.objectContaining({ avatar: '' })
     );
   });
+
+  it('renders "Select Video" button and triggers onOpenMediaPicker for video field type', () => {
+    const videoFields: SectionTemplateField[] = [
+      { name: 'promo_video', type: 'video', label: 'Promo Video' },
+    ];
+    const data = { promo_video: '' };
+    const onChange = vi.fn();
+    const onOpenMediaPicker = vi.fn();
+
+    render(
+      <Theme>
+        <SectionFieldRenderer
+          fields={videoFields}
+          data={data}
+          onChange={onChange}
+          onOpenMediaPicker={onOpenMediaPicker}
+        />
+      </Theme>
+    );
+
+    const selectVideoBtn = screen.getByRole('button', { name: /select video/i });
+    expect(selectVideoBtn).toBeDefined();
+    fireEvent.click(selectVideoBtn);
+
+    expect(onOpenMediaPicker).toHaveBeenCalledTimes(1);
+  });
 });

@@ -96,9 +96,36 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
     },
   });
 
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB edge worker upload limit
+  const WARN_VIDEO_SIZE = 10 * 1024 * 1024; // 10 MB
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileError(null);
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (file.size > MAX_FILE_SIZE) {
+      setFileError(
+        `File is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Maximum allowed upload size is 25 MB.`
+      );
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|ogv|ogg)$/i.test(file.name);
+    if (isVideo && file.size > WARN_VIDEO_SIZE) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const confirmed = window.confirm(
+        `Warning: This video is ${sizeMb} MB. Large background videos may cause slower page loading and buffering on mobile connections. We recommend videos under 5-10 MB.\n\nDo you want to continue uploading?`
+      );
+      if (!confirmed) {
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+    }
+
     uploadMutation.mutate(file);
   };
 
@@ -130,7 +157,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
         </Flex>
 
         <Dialog.Description size="2" color="gray" mb="3">
-          Choose an asset from your media library.
+          Choose an asset from your media library (Images & MP4/WebM/OGG videos).
         </Dialog.Description>
 
         <Flex gap="3" align="center" mb="3">
@@ -153,26 +180,26 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadMutation.isPending}
             loading={uploadMutation.isPending}
-            aria-label="Upload Image"
+            aria-label="Upload Image / Video"
           >
             <UploadIcon width="16" height="16" />
-            Upload Image
+            Upload Image / Video
           </Button>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm,video/ogg"
             style={{ display: 'none' }}
-            aria-label="Upload Image Input"
+            aria-label="Upload Media Input"
             data-testid="media-file-input"
           />
         </Flex>
 
-        {uploadMutation.isError && (
+        {(fileError || uploadMutation.isError) && (
           <Box mb="3">
             <Text color="red" size="2">
-              {uploadMutation.error?.message || 'Failed to upload image'}
+              {fileError || uploadMutation.error?.message || 'Failed to upload media'}
             </Text>
           </Box>
         )}

@@ -47,3 +47,16 @@ export const NonImageFallback: Story = {
     await expect(canvasElement.querySelector('svg')).not.toBeNull();
   },
 };
+
+export const Video: Story = {
+  args: {
+    src: '/media/sample-background.mp4',
+    alt: 'Background loop',
+    type: 'video/mp4',
+  },
+  play: async ({ canvasElement }) => {
+    const video = canvasElement.querySelector('video');
+    await expect(video).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-testid="media-video-badge"]')).not.toBeNull();
+  },
+};
