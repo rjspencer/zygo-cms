@@ -34,7 +34,7 @@ pub fn parse_filename_from_key(key: &str) -> String {
     key.to_string()
 }
 
-/// Infer a standard image MIME type from a filename extension
+/// Infer a standard image or video MIME type from a filename extension
 pub fn guess_mime_type(filename: &str) -> &'static str {
     let ext = filename.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
     match ext.as_str() {
@@ -45,6 +45,9 @@ pub fn guess_mime_type(filename: &str) -> &'static str {
         "svg" => "image/svg+xml",
         "avif" => "image/avif",
         "ico" => "image/x-icon",
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "ogv" | "ogg" => "video/ogg",
         _ => "application/octet-stream",
     }
 }
@@ -70,6 +73,9 @@ mod tests {
         assert_eq!(guess_mime_type("photo.JPG"), "image/jpeg");
         assert_eq!(guess_mime_type("diagram.svg"), "image/svg+xml");
         assert_eq!(guess_mime_type("modern.webp"), "image/webp");
+        assert_eq!(guess_mime_type("hero.mp4"), "video/mp4");
+        assert_eq!(guess_mime_type("background.webm"), "video/webm");
+        assert_eq!(guess_mime_type("clip.ogv"), "video/ogg");
         assert_eq!(guess_mime_type("unknown.xyz"), "application/octet-stream");
     }
 
