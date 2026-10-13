@@ -368,4 +368,150 @@ describe('WebMCP Foundation', () => {
       expect(capturedRegistry?.getTools()).toBeDefined();
     });
   });
+
+  describe('Browser Global Bridges (window.webmcp & navigator.modelContext)', () => {
+    it('attaches window.webmcp on WebMCPProvider mount and executes tools with activity logging', async () => {
+      const registry = new WebMCPRegistry();
+
+      render(
+        <MemoryRouter initialEntries={['/admin/dashboard']}>
+          <WebMCPProvider registry={registry}>
+            <div>App Mounted</div>
+          </WebMCPProvider>
+        </MemoryRouter>
+      );
+
+      const win = window as any;
+      expect(win.webmcp).toBeDefined();
+      expect(typeof win.webmcp.callTool).toBe('function');
+      expect(typeof win.webmcp.executeTool).toBe('function');
+      expect(typeof win.webmcp.getTools).toBe('function');
+      expect(typeof win.webmcp.listTools).toBe('function');
+      expect(typeof win.webmcp.getTool).toBe('function');
+      expect(typeof win.webmcp.getActivityLog).toBe('function');
+      expect(win.webmcp.registry).toBe(registry);
+
+      expect(win.webmcp.getTools().length).toBeGreaterThanOrEqual(3);
+      expect(win.webmcp.listTools().length).toBeGreaterThanOrEqual(3);
+      expect(win.webmcp.getTool('get_system_info')).toBeDefined();
+
+      const res1 = await win.webmcp.callTool('get_system_info', {});
+      expect(res1.isError).toBeFalsy();
+      expect((res1.toolResult as any).server).toBe('zygo-cms-webmcp');
+
+      const res2 = await win.webmcp.executeTool('get_system_info', {});
+      expect(res2.isError).toBeFalsy();
+
+      const log = win.webmcp.getActivityLog();
+      expect(log.length).toBeGreaterThanOrEqual(2);
+      expect(log.some((entry: any) => entry.toolName === 'get_system_info' && entry.status === 'success')).toBe(true);
+    });
+
+    it('defines and syncs navigator.modelContext with registered tools and routes execution through WebMCPRegistry', async () => {
+      const registry = new WebMCPRegistry();
+
+      const DynamicToolComp: React.FC = () => {
+        useRegisterWebMCPTools(
+          [
+            {
+              name: 'dynamic_tool',
+              description: 'Dynamic tool for navigator.modelContext test',
+              inputSchema: { type: 'object' },
+              handler: () => ({
+                toolResult: { ok: true },
+                content: [{ type: 'text', text: 'Dynamic executed' }],
+              }),
+            },
+          ],
+          []
+        );
+        return <div>Dynamic Mounted</div>;
+      };
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <WebMCPProvider registry={registry}>
+            <DynamicToolComp />
+          </WebMCPProvider>
+        </MemoryRouter>
+      );
+
+      const nav = navigator as any;
+      expect(nav.modelContext).toBeDefined();
+      expect(typeof nav.modelContext.getTools).toBe('function');
+      expect(typeof nav.modelContext.executeTool).toBe('function');
+
+      const mcTools = nav.modelContext.getTools();
+      const mcToolNames = mcTools.map((t: any) => t.name);
+      expect(mcToolNames).toContain('get_system_info');
+      expect(mcToolNames).toContain('navigate_to');
+      expect(mcToolNames).toContain('dynamic_tool');
+
+      // Execute via navigator.modelContext.executeTool
+      const execRes = await nav.modelContext.executeTool('dynamic_tool', {});
+      expect(execRes.isError).toBeFalsy();
+      expect(execRes.content[0].text).toBe('Dynamic executed');
+
+      // Execute via tool.execute({}) from navigator.modelContext.getTools()
+      const dynamicMcTool = mcTools.find((t: any) => t.name === 'dynamic_tool');
+      expect(dynamicMcTool).toBeDefined();
+      expect(typeof dynamicMcTool.execute).toBe('function');
+      const directRes = await dynamicMcTool.execute({});
+      expect(directRes.isError).toBeFalsy();
+      expect(directRes.content[0].text).toBe('Dynamic executed');
+
+      const log = registry.getActivityLog();
+      expect(log.filter((e) => e.toolName === 'dynamic_tool' && e.status === 'success')).toHaveLength(2);
+    });
+
+    it('invokes pre-existing navigator.modelContext registerTool, unregisterTool, and provideContext spies when bound', () => {
+      const registerToolSpy = vi.fn();
+      const unregisterToolSpy = vi.fn();
+      const provideContextSpy = vi.fn();
+
+      const originalModelContext = (navigator as any).modelContext;
+      Object.defineProperty(navigator, 'modelContext', {
+        value: {
+          registerTool: registerToolSpy,
+          unregisterTool: unregisterToolSpy,
+          provideContext: provideContextSpy,
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      try {
+        const registry = new WebMCPRegistry();
+        const unbind = (registry as any).bindBrowserGlobals();
+
+        const cleanup = registry.registerTool({
+          name: 'spy_test_tool',
+          description: 'Tool for spy test',
+          inputSchema: { type: 'object' },
+          handler: () => ({ content: [{ type: 'text', text: 'ok' }] }),
+        });
+
+        expect(
+          registerToolSpy.mock.calls.length > 0 || provideContextSpy.mock.calls.length > 0
+        ).toBe(true);
+
+        cleanup();
+
+        expect(
+          unregisterToolSpy.mock.calls.length > 0 || provideContextSpy.mock.calls.length > 0
+        ).toBe(true);
+
+        if (typeof unbind === 'function') {
+          unbind();
+        }
+      } finally {
+        Object.defineProperty(navigator, 'modelContext', {
+          value: originalModelContext,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
+  });
 });
+

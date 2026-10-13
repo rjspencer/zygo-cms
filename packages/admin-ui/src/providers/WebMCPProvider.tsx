@@ -277,6 +277,12 @@ export const WebMCPProvider: React.FC<WebMCPProviderProps> = ({
     return cleanup;
   }, [registry]);
 
+  React.useEffect(() => {
+    const unbind = registry.bindBrowserGlobals(host);
+    return unbind;
+  }, [registry, host]);
+
+
   const value = React.useMemo<WebMCPContextValue>(
     () => ({
       registry,

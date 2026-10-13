@@ -322,4 +322,115 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
 
     expect(await screen.findByText('WebMCP Assistant')).toBeInTheDocument();
   });
+
+  it('executes a tool inline via the Registered Tools tab tool runner', async () => {
+    const user = userEvent.setup();
+    const registry = new WebMCPRegistry();
+    const customHandler = vi.fn((args: Record<string, any>) => ({
+      toolResult: { echoed: args.msg },
+      content: [{ type: 'text' as const, text: `Executed with: ${args.msg}` }],
+    }));
+
+    registry.registerTool({
+      name: 'test_custom_tool',
+      description: 'A test custom tool description',
+      inputSchema: {
+        type: 'object',
+        properties: { msg: { type: 'string' } },
+      },
+      handler: customHandler,
+    });
+
+    render(
+      <Theme>
+        <MemoryRouter>
+          <WebMCPProvider registry={registry}>
+            <WebMCPAssistantDrawer open={true} onOpenChange={() => {}} />
+          </WebMCPProvider>
+        </MemoryRouter>
+      </Theme>
+    );
+
+    const toolsTab = screen.getByRole('tab', { name: /Registered Tools/i });
+    await user.click(toolsTab);
+
+    const runBtn = screen.getByRole('button', { name: /Run test_custom_tool/i });
+    await user.click(runBtn);
+
+    const argsInput = screen.getByLabelText('Tool Arguments JSON');
+    fireEvent.change(argsInput, {
+      target: { value: '{"msg": "Hello Inline Runner"}' },
+    });
+
+    const executeBtn = screen.getByRole('button', { name: /Execute Tool/i });
+    await user.click(executeBtn);
+
+    expect(customHandler).toHaveBeenCalledWith({ msg: 'Hello Inline Runner' });
+    const outputBox = await screen.findByTestId('tool-runner-output');
+    expect(outputBox.textContent).toContain('Hello Inline Runner');
+  });
+
+  it('executes a batch JSON array of tool calls in sequence via the RPC Console tab', async () => {
+    const user = userEvent.setup();
+    const registry = new WebMCPRegistry();
+    const callOrder: string[] = [];
+
+    registry.registerTool({
+      name: 'tool_a',
+      description: 'First batch tool',
+      inputSchema: { type: 'object' },
+      handler: (args) => {
+        callOrder.push(`tool_a:${args.x}`);
+        return {
+          toolResult: { step: 'a', x: args.x },
+          content: [{ type: 'text', text: `Result A: ${args.x}` }],
+        };
+      },
+    });
+
+    registry.registerTool({
+      name: 'tool_b',
+      description: 'Second batch tool',
+      inputSchema: { type: 'object' },
+      handler: (args) => {
+        callOrder.push(`tool_b:${args.y}`);
+        return {
+          toolResult: { step: 'b', y: args.y },
+          content: [{ type: 'text', text: `Result B: ${args.y}` }],
+        };
+      },
+    });
+
+    render(
+      <Theme>
+        <MemoryRouter>
+          <WebMCPProvider registry={registry}>
+            <WebMCPAssistantDrawer open={true} onOpenChange={() => {}} />
+          </WebMCPProvider>
+        </MemoryRouter>
+      </Theme>
+    );
+
+    const rpcTab = screen.getByRole('tab', { name: /RPC Console/i });
+    await user.click(rpcTab);
+
+    const payloadInput = screen.getByLabelText('RPC Payload JSON');
+    fireEvent.change(payloadInput, {
+      target: {
+        value: JSON.stringify([
+          { name: 'tool_a', arguments: { x: 1 } },
+          { name: 'tool_b', arguments: { y: 2 } },
+        ]),
+      },
+    });
+
+    const executeRpcBtn = screen.getByRole('button', { name: /Execute RPC/i });
+    await user.click(executeRpcBtn);
+
+    expect(callOrder).toEqual(['tool_a:1', 'tool_b:2']);
+    const rpcOutput = await screen.findByTestId('rpc-runner-output');
+    expect(rpcOutput.textContent).toContain('Result A: 1');
+    expect(rpcOutput.textContent).toContain('Result B: 2');
+  });
 });
+
