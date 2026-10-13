@@ -12,9 +12,18 @@ pub fn edge_ttl(env: &Env) -> u32 {
 }
 
 pub fn is_localhost(req: &Request) -> bool {
+    if let Ok(Some(host)) = req.headers().get("Host") {
+        let clean = host.split(':').next().unwrap_or("").trim();
+        if clean == "localhost" || clean == "127.0.0.1" || clean == "0.0.0.0" || clean.ends_with(".localhost") {
+            return true;
+        }
+    }
     if let Ok(url) = req.url() {
         if let Some(host) = url.host_str() {
-            return host == "localhost" || host == "127.0.0.1";
+            let clean = host.split(':').next().unwrap_or("").trim();
+            if clean == "localhost" || clean == "127.0.0.1" || clean == "0.0.0.0" || clean.ends_with(".localhost") {
+                return true;
+            }
         }
     }
     false

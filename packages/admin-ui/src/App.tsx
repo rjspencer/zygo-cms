@@ -22,45 +22,45 @@ export const App: React.FC = () => {
   return (
     <WebMCPProvider>
       <Routes>
-      <Route path="/" element={<Layout />}>
-        <Route index element={<Dashboard />} />
-        <Route path="posts" element={<Posts />} />
-        <Route path="posts/editor/new" element={<Editor />} />
-        <Route path="posts/editor/:id" element={<Editor />} />
-        <Route path="pages" element={<PagesList />} />
-        <Route path="pages/editor/new" element={<Editor />} />
-        <Route path="pages/editor/:id" element={<Editor />} />
-        <Route path="docs" element={<DocsList />} />
-        <Route path="docs/editor/new" element={<Editor />} />
-        <Route path="docs/editor/:id" element={<Editor />} />
-        <Route path="editor" element={<Editor />} />
-        <Route path="editor/:id" element={<Editor />} />
-        <Route path="media" element={<Media />} />
-        <Route path="users" element={<Users />} />
-        <Route path="navigation" element={<Navigation />} />
-        <Route
-          path="templates"
-          element={
-            <RoleGuard allowedRoles={['admin', 'designer']}>
-              <TemplatesList />
-            </RoleGuard>
-          }
-        />
-        <Route
-          path="templates/:id"
-          element={
-            <RoleGuard allowedRoles={['admin', 'designer']}>
-              <TemplateEditor />
-            </RoleGuard>
-          }
-        />
-        <Route path="analytics" element={<Analytics />} />
-        <Route path="theme" element={<ThemePage />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="admin" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<NotFound />} />
-      </Route>
-    </Routes>
+        <Route path="/" element={<Layout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="posts" element={<Posts />} />
+          <Route path="posts/editor/new" element={<Editor />} />
+          <Route path="posts/editor/:id" element={<Editor />} />
+          <Route path="pages" element={<PagesList />} />
+          <Route path="pages/editor/new" element={<Editor />} />
+          <Route path="pages/editor/:id" element={<Editor />} />
+          <Route path="docs" element={<DocsList />} />
+          <Route path="docs/editor/new" element={<Editor />} />
+          <Route path="docs/editor/:id" element={<Editor />} />
+          <Route path="editor" element={<Editor />} />
+          <Route path="editor/:id" element={<Editor />} />
+          <Route path="media" element={<Media />} />
+          <Route path="users" element={<Users />} />
+          <Route path="navigation" element={<Navigation />} />
+          <Route
+            path="templates"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <TemplatesList />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="templates/:id"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <TemplateEditor />
+              </RoleGuard>
+            }
+          />
+          <Route path="analytics" element={<Analytics />} />
+          <Route path="theme" element={<ThemePage />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="admin" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+      </Routes>
     </WebMCPProvider>
   );
 };

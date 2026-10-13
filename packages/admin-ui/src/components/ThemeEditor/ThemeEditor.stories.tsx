@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import '@radix-ui/themes/styles.css';
+import { ThemeEditor } from './ThemeEditor';
 import {
-  ThemeEditor,
   MODERN_EDITORIAL_PRESET,
   BENTO_BRUTALISM_PRESET,
-} from './ThemeEditor';
+} from './constants';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { WebMCPProvider } from '../providers/WebMCPProvider';
+import { WebMCPProvider } from '../../providers/WebMCPProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,4 +106,3 @@ export const WithWebMCPLiveUpdate: Story = {
     },
   },
 };
-

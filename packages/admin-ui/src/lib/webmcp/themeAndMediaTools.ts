@@ -23,6 +23,8 @@ export const DEFAULT_THEME_TOKENS: Record<string, any> = {
   headerNavTransform: 'uppercase',
   headerPadding: '1.75rem 0 1.25rem 0',
   headerTagline: 'An Editorial Review & Journal',
+  borderRadius: '8px',
+  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 };
 
 export const DEFAULT_THEME_SETTINGS: Record<string, string> = {
@@ -44,6 +46,8 @@ export const DEFAULT_THEME_SETTINGS: Record<string, string> = {
   theme_header_nav_transform: DEFAULT_THEME_TOKENS.headerNavTransform,
   theme_header_padding: DEFAULT_THEME_TOKENS.headerPadding,
   theme_header_tagline: DEFAULT_THEME_TOKENS.headerTagline,
+  theme_border_radius: DEFAULT_THEME_TOKENS.borderRadius,
+  theme_box_shadow: DEFAULT_THEME_TOKENS.boxShadow,
 };
 
 export interface ThemeEditorWebMCPOptions<T = any> {

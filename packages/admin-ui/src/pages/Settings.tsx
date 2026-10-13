@@ -75,7 +75,7 @@ export const Settings: React.FC = () => {
           if (errData?.error || errData?.message) {
             msg = errData.error || errData.message;
           }
-        } catch (_) {}
+        } catch (_) { }
         throw new Error(msg);
       }
       return res.json();
@@ -93,9 +93,9 @@ export const Settings: React.FC = () => {
         docs_mode_enabled: docsModeEnabled ? 'true' : 'false',
         docs_path: docsPath,
       });
-      
+
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      
+
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
@@ -108,7 +108,7 @@ export const Settings: React.FC = () => {
   }
 
   return (
-    <Box style={{ maxWidth: '900px', margin: '0 auto' }}>
+    <Box>
       <Flex justify="between" align="center" mb="5">
         <Box>
           <Heading size="6" weight="bold">
@@ -202,9 +202,9 @@ export const Settings: React.FC = () => {
             </Box>
 
             <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-              <Switch 
-                checked={analyticsEnabled} 
-                onCheckedChange={setAnalyticsEnabled} 
+              <Switch
+                checked={analyticsEnabled}
+                onCheckedChange={setAnalyticsEnabled}
               />
               <Text size="2">Enable Web Analytics</Text>
             </Flex>
@@ -224,9 +224,9 @@ export const Settings: React.FC = () => {
             </Box>
 
             <Flex align="center" gap="2" style={{ flexShrink: 0 }}>
-              <Switch 
-                checked={docsModeEnabled} 
-                onCheckedChange={setDocsModeEnabled} 
+              <Switch
+                checked={docsModeEnabled}
+                onCheckedChange={setDocsModeEnabled}
               />
               <Text size="2">Enable Docs Mode</Text>
             </Flex>
