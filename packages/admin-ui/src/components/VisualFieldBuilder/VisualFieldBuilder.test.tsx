@@ -8,8 +8,8 @@ import {
   slugify,
   FIELD_TYPES,
   SUBFIELD_TYPES,
-} from '../components/VisualFieldBuilder';
-import { SectionTemplateField } from '../types/sectionTemplate';
+} from './index';
+import { SectionTemplateField } from '../../types/sectionTemplate';
 
 describe('slugify utility', () => {
   it('converts labels to lowercase slug format', () => {
