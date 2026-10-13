@@ -21,6 +21,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     localStorage.setItem('zygo_admin_theme', mode);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', mode === 'dark');
+      document.documentElement.setAttribute('data-theme', mode);
+    }
   }, [mode]);
 
   const toggleTheme = () => {
