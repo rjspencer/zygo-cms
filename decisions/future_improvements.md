@@ -100,6 +100,11 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Page Editor Section & Metadata Parity**: Added `editor_get_section_templates`, `editor_add_section`, `editor_update_section`, `editor_remove_section`, `editor_move_section`, `editor_set_sections`, and full metadata coverage (`cover_image`, `canonical_url`, `schema_json`, `parent_id`, `sort_order`) in `entryTools.ts` and `Editor.tsx`.
 - **Interactive Tool Runner & Batch RPC Console**: Added inline per-tool execution and a JSON batch `RPC Console` tab in `WebMCPAssistantDrawer.tsx`.
 
+### Admin Editor `react-hook-form` Refactor & Modularization
+- **Form State**: Replaced ~15 `useState`s, manual `resetForm`, and hand-built dirty snapshots in the 1,100-line `pages/Editor.tsx` with a single `react-hook-form` instance (`EntryFormValues`); `isDirty` now comes from the form.
+- **Module Layout**: `pages/Editor/` with `EditorForm` -> `EditorLayout` -> `EditorHeader`, `EditorTabs` (`ContentTab`, `MetadataTab`, `SocialPreviews`), `LivePreviewPane`, plus hooks `useEditorData`, `useEntryType`, `useSaveEntry`, `useWasmPreview`, `useEditorWebMCP` and utils `slugify`, `buildEntryPayload`, `toFormValues`, `ENTRY_TYPE_CONFIG`.
+- **Fixes**: Stable `useFieldArray` ids for page sections (no index keys), save baseline reset from live values, removed duplicate tab handlers and a dead preview-save branch, and cleanup of the "Saved" flash timer.
+
 ---
 
 ## 2. Prioritized Roadmap & Future Work
@@ -153,6 +158,19 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Details**:
   - Add bulk-select capabilities to lists (posts, pages).
   - Support bulk publish/unpublish, bulk tagging, and move to trash.
+
+### Editor Module Follow-Ups (post `react-hook-form` refactor)
+- **Add validation**: The form now lives in `react-hook-form`, so rules can be added per field via `register(name, rules)` / `Controller rules`, or a resolver (e.g. zod). Candidates: slug format and uniqueness, `schemaJson` is valid JSON, `canonicalUrl` is a URL, `parentId` is numeric, and per-field `required` flags in section templates (`SectionTemplateField.required` is currently unenforced). Surface errors inline and block Save/Publish (not preview saves).
+- **Section expansion resets after save**: `useSaveEntry` calls `reset(getValues())` to set the new dirty baseline, which makes `useFieldArray` regenerate its field ids. `SectionList` keys expansion state by those ids, so every section returns to its default (expanded) state after a successful save. Fix by either lifting expansion state onto a stable id stored in the section data, or resetting with `{ keepValues: true }`/`updateDefaultValues` semantics and verifying ids survive.
+- **WebMCP `onExpandSection` is no longer wired**: Newly inserted sections default to expanded so behavior is the same today, but `useEditorWebMCP` no longer passes `onExpandSection`. If a collapsed section needs to be expanded by an agent, expansion state must be exposed outside `SectionList` (context or form-adjacent store).
+- **WebMCP `title` setter no longer exits title edit mode**: Previously `setTitle` from a tool closed the inline editor. `TitleEditor` now owns that state; expose it if agents should close it.
+- **Whole-form re-render per keystroke**: `EditorLayout` and `useEditorWebMCP` call `useWatch` on many fields (needed for the Wasm preview and tool snapshots). If typing gets sluggish, narrow subscriptions or move the WebMCP options to a ref read at tool-call time.
+- **Navigation after first save remounts the form**: Creating an entry navigates from `/…/editor/new` to `/…/editor/:id`, and `Editor` keys `EditorForm` by `id-entryType`, so the form briefly resets and reloads from the server. Consider seeding the query cache with the saved entry to avoid the flash.
+- **No loading/error state for the entry query**: `useEditorData` still renders an empty form while loading and silently on failure. Existing tests rely on synchronous first render, so add a loading state together with test updates.
+- **Missing Storybook coverage and UI QA**: The new `pages/Editor/components/*` have unit tests but no `.stories.tsx` files; the 1+2+4 protocol (stories, `test-storybook`, `ui-qa` subagent) is still outstanding.
+- **WebMCP parity test**: Add a Vitest integration test that mutates the editor through the WebMCP registry (e.g. `editor_set_sections`, `editor_get_content`) against the new RHF-backed `useEditorWebMCP`.
+- **Test-only nit**: `Editor.test.tsx` activates Radix tabs with `fireEvent.mouseDown`; prefer `userEvent.click` if the suite adopts `@testing-library/user-event` more broadly.
+- **Labels and accessibility**: Field labels are `<Text as="label">` without `htmlFor`, so they are not programmatically associated with their inputs. Wire `id`/`htmlFor` (or Radix `Label`) when validation messages are added, using `aria-describedby`/`aria-invalid` for errors.
 
 ---
 
