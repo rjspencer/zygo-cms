@@ -31,8 +31,9 @@ export const NavItem: React.FC<NavItemProps> = ({
         px={isCollapsed ? '0' : '3'}
         py="2"
         style={{
-          borderRadius: 'var(--radius-3)',
-          borderLeft: isActive ? '3px solid var(--cmyk-cyan)' : '3px solid transparent',
+          position: 'relative',
+          overflow: 'hidden',
+          borderRadius: 'var(--radius-1)',
           backgroundColor: isActive ? 'var(--accent-a4)' : 'transparent',
           color: isActive ? 'var(--accent-11)' : 'var(--gray-11)',
           fontWeight: isActive ? 600 : 400,
@@ -40,6 +41,7 @@ export const NavItem: React.FC<NavItemProps> = ({
           transition: 'all 0.15s ease',
         }}
       >
+        {isActive && <Box style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', backgroundColor: 'var(--cmyk-cyan)' }}></Box>}
         <Box style={{ display: 'flex', alignItems: 'center' }}>{icon}</Box>
         {!isCollapsed && <Text size="2">{label}</Text>}
       </Flex>
