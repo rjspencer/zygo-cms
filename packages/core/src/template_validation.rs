@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::models::section_template::SectionTemplateField;
 
 const ALLOWED_FIELD_TYPES: &[&str] = &[
-    "text", "textarea", "richtext", "url", "boolean", "image", "select", "list",
+    "text", "textarea", "richtext", "url", "boolean", "image", "video", "select", "list",
 ];
 
 const BUILTIN_WHITELIST: &[&str] = &[

@@ -16,8 +16,9 @@ pub async fn get_media(key: &str, ctx: &RouteContext<()>) -> Result<Response> {
                 headers.set("Content-Type", &ct)?;
             }
 
-            // Cache images in browser for 1 year (since filenames have unique timestamps)
+            // Cache images and media in browser for 1 year (since filenames have unique timestamps)
             headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
+            headers.set("Accept-Ranges", "bytes")?;
 
             let Some(body) = obj.body() else {
                 return AppError::NotFound.to_response();

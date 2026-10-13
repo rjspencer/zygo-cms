@@ -190,22 +190,37 @@ CREATE TABLE IF NOT EXISTS section_templates (
 INSERT INTO section_templates (id, name, description, schema_json, template_html, template_css, css_classes_json, is_locked) VALUES (
     'hero',
     'Hero',
-    'Eye-catching hero section with heading, subheading, call-to-action button, and background or featured image.',
-    '[{"name":"headline","type":"text","label":"Headline","required":true},{"name":"subheadline","type":"textarea","label":"Subheadline","required":false},{"name":"button_text","type":"text","label":"Button Text","required":false},{"name":"button_url","type":"url","label":"Button URL","required":false},{"name":"image","type":"image","label":"Image","required":false}]',
+    'Eye-catching hero section with heading, subheading, call-to-action button, and full-width background video or image.',
+    '[{"name":"headline","type":"text","label":"Headline","required":true},{"name":"subheadline","type":"textarea","label":"Subheadline","required":false},{"name":"button_text","type":"text","label":"Button Text","required":false},{"name":"button_url","type":"url","label":"Button URL","required":false},{"name":"image","type":"image","label":"Background Image (or Video Fallback)","required":false},{"name":"video_url","type":"video","label":"Background Video (mp4/webm/ogg)","required":false}]',
     '<section class="section-hero">
+  <div class="hero-background" aria-hidden="true">
+    {% if image %}
+    <img src="{{ image|safe }}" alt="" class="hero-media">
+    {% endif %}
+    {% if video_url %}
+    <video class="hero-media hero-video" autoplay loop muted playsinline{% if image %} poster="{{ image|safe }}"{% endif %}>
+      <source src="{{ video_url|safe }}">
+    </video>
+    {% endif %}
+    <div class="hero-overlay"></div>
+  </div>
   <div class="hero-content">
-    <h1>{{ headline }}</h1>
+    <h1 class="hero-headline">{{ headline }}</h1>
     {% if subheadline %}<p class="hero-subheadline">{{ subheadline }}</p>{% endif %}
     {% if button_text and button_url %}<a href="{{ button_url|safe }}" class="hero-btn">{{ button_text }}</a>{% endif %}
   </div>
-  {% if image %}<div class="hero-image"><img src="{{ image|safe }}" alt="{{ headline }}"></div>{% endif %}
 </section>',
-    '.section-hero { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 1.5rem; text-align: center; }
-.hero-content { max-width: 800px; margin: 0 auto; }
-.hero-subheadline { font-size: 1.25rem; color: #666; margin: 1rem 0; }
-.hero-btn { display: inline-block; padding: 0.75rem 1.5rem; background: #000; color: #fff; text-decoration: none; border-radius: 4px; }
-.hero-image img { max-width: 100%; height: auto; margin-top: 2rem; border-radius: 8px; }',
-    '["section-hero","hero-content","hero-subheadline","hero-btn","hero-image"]',
+    '.section-hero { position: relative; display: flex; align-items: center; justify-content: center; min-height: 70vh; padding: 6rem 1.5rem; overflow: hidden; text-align: center; box-sizing: border-box; }
+.hero-background { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
+.hero-media { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.hero-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 2; }
+.hero-content { position: relative; z-index: 3; max-width: 800px; margin: 0 auto; color: #ffffff; }
+.hero-headline { font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; line-height: 1.15; margin: 0 0 1rem; color: #ffffff; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
+.hero-subheadline { font-size: clamp(1.125rem, 2.5vw, 1.35rem); line-height: 1.5; color: rgba(255, 255, 255, 0.9); margin: 0 0 2rem; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); }
+.hero-btn { display: inline-block; padding: 0.875rem 2rem; background: #ffffff; color: #111111; font-weight: 600; text-decoration: none; border-radius: 6px; transition: transform 0.15s ease, background-color 0.15s ease; }
+.hero-btn:hover { background: #f4f4f5; transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .hero-video { display: none; } }',
+    '["section-hero","hero-background","hero-media","hero-video","hero-overlay","hero-content","hero-headline","hero-subheadline","hero-btn"]',
     1
 );
 

@@ -413,6 +413,7 @@ describe('VisualFieldBuilder Component', () => {
         'url',
         'boolean',
         'image',
+        'video',
         'select',
       ]);
 

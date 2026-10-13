@@ -60,7 +60,7 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
                 onCheckedChange={(checked) => updateField(field.name, checked)}
                 aria-label={field.label || field.name}
               />
-            ) : field.type === 'image' ? (
+            ) : field.type === 'image' || field.type === 'video' ? (
               <Flex gap="2" align="center" wrap="wrap">
                 <Button
                   type="button"
@@ -71,7 +71,7 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
                     }
                   }}
                 >
-                  Select Image
+                  {field.type === 'video' ? 'Select Video' : 'Select Image'}
                 </Button>
                 {data[field.name] && (
                   <Flex align="center" gap="2">

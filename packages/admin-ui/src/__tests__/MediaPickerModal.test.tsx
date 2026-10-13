@@ -197,7 +197,7 @@ describe('MediaPickerModal Component', () => {
 
       const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
       expect(fileInput).not.toBeNull();
-      expect(fileInput.accept).toBe('image/*');
+      expect(fileInput.accept).toBe('image/*,video/mp4,video/webm,video/ogg');
       expect(fileInput.style.display).toBe('none');
     });
 

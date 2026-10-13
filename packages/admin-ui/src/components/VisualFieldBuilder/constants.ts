@@ -5,6 +5,7 @@ export const FIELD_TYPES = [
   { value: 'url', label: 'URL' },
   { value: 'boolean', label: 'Boolean' },
   { value: 'image', label: 'Image' },
+  { value: 'video', label: 'Video' },
   { value: 'select', label: 'Select' },
   { value: 'list', label: 'List' },
 ] as const;
@@ -16,5 +17,6 @@ export const SUBFIELD_TYPES = [
   { value: 'url', label: 'URL' },
   { value: 'boolean', label: 'Boolean' },
   { value: 'image', label: 'Image' },
+  { value: 'video', label: 'Video' },
   { value: 'select', label: 'Select' },
 ] as const;

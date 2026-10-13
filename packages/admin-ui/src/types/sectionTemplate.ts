@@ -1,6 +1,6 @@
 export interface SectionTemplateField {
   name: string;
-  type: string; // 'text' | 'textarea' | 'richtext' | 'url' | 'boolean' | 'image' | 'select' | 'list'
+  type: string; // 'text' | 'textarea' | 'richtext' | 'url' | 'boolean' | 'image' | 'video' | 'select' | 'list'
   label: string;
   required?: boolean;
   options?: string[];
