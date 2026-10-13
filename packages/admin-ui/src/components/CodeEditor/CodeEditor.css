@@ -1,0 +1,230 @@
+/* ==========================================================================
+   Zygo CodeEditor Styles & VS Code Default Theme (Dark+ & Light+)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Theme Tokens: Default (VS Code Light+)
+   -------------------------------------------------------------------------- */
+.zygo-code-editor,
+.zygo-code-editor--light,
+.light .zygo-code-editor,
+.light-theme .zygo-code-editor,
+.radix-themes.light .zygo-code-editor,
+[data-theme="light"] .zygo-code-editor,
+[data-theme="light"].zygo-code-editor {
+  --editor-bg: #ffffff;
+  --editor-fg: #000000;
+  --editor-border: var(--gray-6, #e5e5e5);
+
+  /* VS Code Light+ Syntax Highlighting */
+  --editor-tag: #800000;
+  --editor-tag-punct: #800000;
+  --editor-attr-name: #e50000;
+  --editor-attr-value: #0000ff;
+  --editor-string: #0000ff;
+  --editor-property: #e50000;
+  --editor-selector: #800000;
+  --editor-keyword: #af00db;
+  --editor-delimiter: #af00db;
+  --editor-variable: #001080;
+  --editor-function: #795e26;
+  --editor-comment: #008000;
+  --editor-punctuation: #000000;
+  --editor-number: #098658;
+  --editor-boolean: #0000ff;
+  --editor-operator: #000000;
+}
+
+/* --------------------------------------------------------------------------
+   Theme Tokens: VS Code Dark+
+   -------------------------------------------------------------------------- */
+.zygo-code-editor--dark,
+.dark .zygo-code-editor,
+.dark-theme .zygo-code-editor,
+.radix-themes.dark .zygo-code-editor,
+[data-theme="dark"] .zygo-code-editor,
+[data-theme="dark"].zygo-code-editor {
+  --editor-bg: #1e1e1e;
+  --editor-fg: #d4d4d4;
+  --editor-border: var(--gray-6, #3c3c3c);
+
+  /* VS Code Dark+ Syntax Highlighting */
+  --editor-tag: #569cd6;
+  --editor-tag-punct: #808080;
+  --editor-attr-name: #9cdcfe;
+  --editor-attr-value: #ce9178;
+  --editor-string: #ce9178;
+  --editor-property: #9cdcfe;
+  --editor-selector: #d7ba7d;
+  --editor-keyword: #c586c0;
+  --editor-delimiter: #ffd700;
+  --editor-variable: #9cdcfe;
+  --editor-function: #dcdcaa;
+  --editor-comment: #6a9955;
+  --editor-punctuation: #d4d4d4;
+  --editor-number: #b5cea8;
+  --editor-boolean: #569cd6;
+  --editor-operator: #d4d4d4;
+}
+
+/* Explicit light override (e.g. inside dark ancestor) */
+.zygo-code-editor--light {
+  --editor-bg: #ffffff !important;
+  --editor-fg: #000000 !important;
+  --editor-border: var(--gray-6, #e5e5e5) !important;
+  --editor-tag: #800000 !important;
+  --editor-tag-punct: #800000 !important;
+  --editor-attr-name: #e50000 !important;
+  --editor-attr-value: #0000ff !important;
+  --editor-string: #0000ff !important;
+  --editor-property: #e50000 !important;
+  --editor-selector: #800000 !important;
+  --editor-keyword: #af00db !important;
+  --editor-delimiter: #af00db !important;
+  --editor-variable: #001080 !important;
+  --editor-function: #795e26 !important;
+  --editor-comment: #008000 !important;
+  --editor-punctuation: #000000 !important;
+  --editor-number: #098658 !important;
+  --editor-boolean: #0000ff !important;
+  --editor-operator: #000000 !important;
+}
+
+/* --------------------------------------------------------------------------
+   Container & Textarea Layout
+   -------------------------------------------------------------------------- */
+.zygo-code-editor {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  border-radius: var(--radius-2, 6px);
+  border: 1px solid var(--editor-border);
+  background-color: var(--editor-bg);
+  color: var(--editor-fg);
+  font-family: Consolas, 'Courier New', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 8px;
+  overflow: auto;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.zygo-code-editor:focus-within {
+  border-color: var(--accent-8, var(--color-accent, #3b82f6));
+  outline: 2px solid var(--accent-a5, rgba(59, 130, 246, 0.25));
+  outline-offset: -1px;
+}
+
+.zygo-code-editor--disabled,
+.zygo-code-editor[data-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Visually hidden label for accessibility and screen reader queries */
+.zygo-code-editor__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Base text inside editor textarea and pre (CSS values, plain HTML text) */
+.zygo-code-editor textarea,
+.zygo-code-editor pre,
+.zygo-code-editor code {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  color: var(--editor-fg) !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+.zygo-code-editor textarea {
+  outline: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Prism Token Colors (Mapped to CSS Variables)
+   -------------------------------------------------------------------------- */
+.zygo-code-editor .token.tag {
+  color: var(--editor-tag);
+}
+
+.zygo-code-editor .token.tag .token.punctuation {
+  color: var(--editor-tag-punct);
+}
+
+.zygo-code-editor .token.attr-name {
+  color: var(--editor-attr-name);
+}
+
+.zygo-code-editor .token.attr-value,
+.zygo-code-editor .token.string {
+  color: var(--editor-attr-value);
+}
+
+.zygo-code-editor .token.property {
+  color: var(--editor-property);
+}
+
+.zygo-code-editor .token.selector {
+  color: var(--editor-selector);
+}
+
+.zygo-code-editor .token.keyword {
+  color: var(--editor-keyword);
+}
+
+.zygo-code-editor .token.delimiter {
+  color: var(--editor-delimiter);
+}
+
+.zygo-code-editor .token.django {
+  color: var(--editor-keyword);
+}
+
+.zygo-code-editor .token.variable {
+  color: var(--editor-variable);
+}
+
+.zygo-code-editor .token.function,
+.zygo-code-editor .token.filter {
+  color: var(--editor-function);
+}
+
+.zygo-code-editor .token.comment {
+  color: var(--editor-comment);
+  font-style: italic;
+}
+
+.zygo-code-editor .token.punctuation {
+  color: var(--editor-punctuation);
+}
+
+.zygo-code-editor .token.number {
+  color: var(--editor-number);
+}
+
+.zygo-code-editor .token.boolean {
+  color: var(--editor-boolean);
+}
+
+.zygo-code-editor .token.operator {
+  color: var(--editor-operator);
+}
+
+/* Strip legacy Dabblet text-shadows */
+.zygo-code-editor code[class*="language-"],
+.zygo-code-editor pre[class*="language-"],
+.zygo-code-editor .token {
+  text-shadow: none !important;
+}

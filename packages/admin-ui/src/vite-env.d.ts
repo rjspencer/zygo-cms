@@ -6,4 +6,6 @@ declare module 'prismjs/components/prism-core' {
 }
 
 declare module 'prismjs/components/prism-markup';
+declare module 'prismjs/components/prism-markup-templating';
+declare module 'prismjs/components/prism-django';
 declare module 'prismjs/components/prism-css';

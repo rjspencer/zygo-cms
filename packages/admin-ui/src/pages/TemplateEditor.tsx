@@ -34,12 +34,7 @@ import { UnsavedChangesDialog } from '../components/UnsavedChangesDialog';
 import { useDebounce } from '../hooks/useDebounce';
 import { generateDummyDataFromSchema } from '../utils/dummyData';
 import { useTemplateEditorWebMCP } from '../lib/webmcp/templateTools';
-import Editor from 'react-simple-code-editor';
-import Prism from 'prismjs';
-import 'prismjs/components/prism-core';
-import 'prismjs/components/prism-markup';
-import 'prismjs/components/prism-css';
-import 'prismjs/themes/prism.css';
+import { CodeEditor, formatCode } from '../components/CodeEditor';
 
 export const TemplateEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -132,8 +127,30 @@ export const TemplateEditor: React.FC = () => {
       } catch {
         setFields([]);
       }
-      setFormTemplateHtml(template.template_html || '');
-      setFormTemplateCss(template.template_css || '');
+      const initialHtml = template.template_html || '';
+      const initialCss = template.template_css || '';
+      setFormTemplateHtml(initialHtml);
+      setFormTemplateCss(initialCss);
+      Promise.all([
+        formatCode(initialHtml, 'html'),
+        formatCode(initialCss, 'css'),
+      ]).then(([fmtHtml, fmtCss]) => {
+        if (fmtHtml !== initialHtml) setFormTemplateHtml(fmtHtml);
+        if (fmtCss !== initialCss) setFormTemplateCss(fmtCss);
+        if (fmtHtml !== initialHtml || fmtCss !== initialCss) {
+          setSavedSnapshot(
+            JSON.stringify({
+              formId: template.id || '',
+              formName: template.name || '',
+              formDescription: template.description || '',
+              formSchemaJson: rawSchema,
+              formTemplateHtml: fmtHtml,
+              formTemplateCss: fmtCss,
+              isLocked: Boolean(template.is_locked),
+            })
+          );
+        }
+      });
       setIsLocked(Boolean(template.is_locked));
       setSavedSnapshot(
         JSON.stringify({
@@ -141,8 +158,8 @@ export const TemplateEditor: React.FC = () => {
           formName: template.name || '',
           formDescription: template.description || '',
           formSchemaJson: rawSchema,
-          formTemplateHtml: template.template_html || '',
-          formTemplateCss: template.template_css || '',
+          formTemplateHtml: initialHtml,
+          formTemplateCss: initialCss,
           isLocked: Boolean(template.is_locked),
         })
       );
@@ -339,18 +356,12 @@ export const TemplateEditor: React.FC = () => {
     let finalHtml = formTemplateHtml;
     let finalCss = formTemplateCss;
     try {
-      const [prettier, htmlPlugin, cssPlugin] = await Promise.all([
-        import('prettier/standalone'),
-        import('prettier/plugins/html'),
-        import('prettier/plugins/postcss')
-      ]);
-
       if (finalHtml) {
-        finalHtml = await prettier.format(finalHtml, { parser: 'html', plugins: [htmlPlugin] });
+        finalHtml = await formatCode(finalHtml, 'html');
         setFormTemplateHtml(finalHtml);
       }
       if (finalCss) {
-        finalCss = await prettier.format(finalCss, { parser: 'css', plugins: [cssPlugin] });
+        finalCss = await formatCode(finalCss, 'css');
         setFormTemplateCss(finalCss);
       }
     } catch (e) {
@@ -673,32 +684,30 @@ export const TemplateEditor: React.FC = () => {
               <Tabs.Content value="html" forceMount hidden={activeTab !== 'html'}>
                 <Box mb="2" id="editor-html" data-panel="html">
                   <Text as="div" size="2" weight="bold" mb="1">HTML Template (MiniJinja)</Text>
-                  <div style={{ border: '1px solid var(--gray-6)', borderRadius: 'var(--radius-2)', backgroundColor: '#fff', minHeight: '300px', overflow: 'hidden' }}>
-                    <Editor
-                      value={formTemplateHtml}
-                      onValueChange={setFormTemplateHtml}
-                      highlight={code => Prism.highlight(code, Prism.languages.markup, 'markup')}
-                      padding={10}
-                      disabled={isLockedForDesigner}
-                      style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '300px' }}
-                    />
-                  </div>
+                  <CodeEditor
+                    value={formTemplateHtml}
+                    onChange={setFormTemplateHtml}
+                    language="html"
+                    disabled={isLockedForDesigner}
+                    formatOnBlur
+                    ariaLabel="HTML Template (MiniJinja)"
+                    dataTestId="code-editor-html"
+                  />
                 </Box>
               </Tabs.Content>
 
               <Tabs.Content value="css" forceMount hidden={activeTab !== 'css'}>
                 <Box mb="2" id="editor-css" data-panel="css">
                   <Text as="div" size="2" weight="bold" mb="1">CSS Stylesheet</Text>
-                  <div style={{ border: '1px solid var(--gray-6)', borderRadius: 'var(--radius-2)', backgroundColor: '#fff', minHeight: '300px', overflow: 'hidden' }}>
-                    <Editor
-                      value={formTemplateCss}
-                      onValueChange={setFormTemplateCss}
-                      highlight={code => Prism.highlight(code, Prism.languages.css, 'css')}
-                      padding={10}
-                      disabled={isLockedForDesigner}
-                      style={{ fontFamily: 'monospace', fontSize: '13px', minHeight: '300px' }}
-                    />
-                  </div>
+                  <CodeEditor
+                    value={formTemplateCss}
+                    onChange={setFormTemplateCss}
+                    language="css"
+                    disabled={isLockedForDesigner}
+                    formatOnBlur
+                    ariaLabel="CSS Stylesheet"
+                    dataTestId="code-editor-css"
+                  />
                 </Box>
               </Tabs.Content>
             </Tabs.Root>

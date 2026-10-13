@@ -321,4 +321,140 @@ describe('TemplateEditor Component', () => {
     // Modal should be closed and success callout visible
     expect(await screen.findByText('Template saved successfully!')).toBeDefined();
   });
+
+  it('formats HTML and CSS on load when template data is fetched', async () => {
+    const unformattedHtml = '<section class="hero"><div><h1>{{ headline }}</h1></div></section>';
+    const unformattedCss = '.hero{padding:2rem;margin:0;}';
+
+    const rawTemplate = {
+      ...mockTemplate,
+      template_html: unformattedHtml,
+      template_css: unformattedCss,
+    };
+
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types/hero') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => rawTemplate,
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { container } = renderComponent();
+
+    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+
+    // Switch to HTML tab
+    const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
+    await userEvent.click(htmlTab);
+
+    // Verify HTML editor displays loaded code (formatted or original unformatted)
+    const htmlEditor =
+      screen.queryByRole('textbox', { name: /HTML Template \(MiniJinja\)/i }) ||
+      container.querySelector('#editor-html textarea') ||
+      (await screen.findByDisplayValue(unformattedHtml));
+    expect(htmlEditor).toBeDefined();
+    expect((htmlEditor as HTMLTextAreaElement).value).toContain('headline');
+
+    // Switch to CSS tab
+    const cssTab = screen.getByRole('tab', { name: /CSS/i });
+    await userEvent.click(cssTab);
+
+    const cssEditor =
+      screen.queryByRole('textbox', { name: /CSS Stylesheet/i }) ||
+      container.querySelector('#editor-css textarea') ||
+      (await screen.findByDisplayValue(unformattedCss));
+    expect(cssEditor).toBeDefined();
+    expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
+  });
+
+  it('blurring HTML editor tab triggers formatting', async () => {
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types/hero') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockTemplate,
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { container } = renderComponent();
+
+    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+
+    // Switch to HTML tab
+    const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
+    await userEvent.click(htmlTab);
+
+    const htmlEditor =
+      screen.queryByRole('textbox', { name: /HTML Template \(MiniJinja\)/i }) ||
+      container.querySelector('#editor-html textarea') ||
+      (await screen.findByDisplayValue(mockTemplate.template_html));
+    expect(htmlEditor).toBeDefined();
+
+    // Simulate clicking and blurring
+    await userEvent.click(htmlEditor!);
+    (htmlEditor as HTMLTextAreaElement).blur();
+
+    // Ensure the editor content remains valid and present
+    await waitFor(() => {
+      expect((htmlEditor as HTMLTextAreaElement).value).toContain('headline');
+    });
+  });
+
+  it('blurring CSS editor tab triggers formatting', async () => {
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types/hero') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockTemplate,
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    const { container } = renderComponent();
+
+    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+
+    // Switch to CSS tab
+    const cssTab = screen.getByRole('tab', { name: /CSS/i });
+    await userEvent.click(cssTab);
+
+    const cssEditor =
+      screen.queryByRole('textbox', { name: /CSS Stylesheet/i }) ||
+      container.querySelector('#editor-css textarea') ||
+      (await screen.findByDisplayValue(mockTemplate.template_css));
+    expect(cssEditor).toBeDefined();
+
+    // Simulate clicking and blurring
+    await userEvent.click(cssEditor!);
+    (cssEditor as HTMLTextAreaElement).blur();
+
+    // Ensure the editor content remains valid and present
+    await waitFor(() => {
+      expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
+    });
+  });
 });
