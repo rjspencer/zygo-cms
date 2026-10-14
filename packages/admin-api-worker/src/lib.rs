@@ -85,6 +85,15 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/content-types/:id/revisions", handlers::section_templates::list_section_template_revisions)
         .post_async("/api/content-types/:id/restore/:revision_id", handlers::section_templates::restore_section_template_revision)
 
+        // API routes - Layout Templates (Docs Template, Posts Template, Page Template)
+        .get_async("/api/layout-templates", handlers::layout_templates::list_layout_templates)
+        .get_async("/api/layout-templates/:id", handlers::layout_templates::get_layout_template)
+        .put_async("/api/layout-templates/:id", handlers::layout_templates::update_layout_template)
+        .post_async("/api/layout-templates/:id", handlers::layout_templates::update_layout_template)
+        .get_async("/api/layout-templates/:id/revisions", handlers::layout_templates::list_layout_template_revisions)
+        .post_async("/api/layout-templates/:id/restore/:revision_id", handlers::layout_templates::restore_layout_template_revision)
+        .post_async("/api/layout-templates/:id/reset", handlers::layout_templates::reset_layout_template)
+
         // API routes - Media
         .post_async("/api/media", handlers::api::upload_media)
         .get_async("/api/media", handlers::api::list_media)

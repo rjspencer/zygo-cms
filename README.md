@@ -70,7 +70,9 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 Initialize the local D1 SQLite database:
 
 ```bash
-npx wrangler d1 migrations apply zygo-cms-db --local -c packages/public-worker/wrangler.toml
+pnpm run db:migrate:local
+# or directly:
+npx wrangler d1 migrations apply zygo-cms-db --local --persist-to=./.wrangler/state
 ```
 
 ### 3. Run Automated Tests
@@ -213,7 +215,9 @@ Configure your custom domain routes in each package's `wrangler.toml`.
 Run database migrations against the production D1 database:
 
 ```bash
-npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/public-worker/wrangler.toml
+pnpm run db:migrate
+# or directly:
+npx wrangler d1 migrations apply zygo-cms-db --remote
 ```
 
 #### 4. Build and Deploy All Workers

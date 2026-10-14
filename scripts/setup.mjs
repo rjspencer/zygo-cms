@@ -284,7 +284,7 @@ function provisionR2Bucket() {
 function applyRemoteMigrations() {
   console.log('\n[4/5] Applying remote D1 database migrations...');
   try {
-    execSync('npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/public-worker/wrangler.toml', {
+    execSync('npx wrangler d1 migrations apply zygo-cms-db --remote', {
       stdio: 'inherit',
       env: { ...process.env, CI: 'true' }
     });
@@ -292,7 +292,7 @@ function applyRemoteMigrations() {
   } catch (err) {
     console.error(`⚠️  Failed to apply remote migrations automatically: ${err.message}`);
     console.log('You can apply migrations manually later using:');
-    console.log('  npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/public-worker/wrangler.toml');
+    console.log('  npx wrangler d1 migrations apply zygo-cms-db --remote');
   }
 }
 

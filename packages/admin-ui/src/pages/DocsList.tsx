@@ -150,10 +150,21 @@ export const DocsList: React.FC = () => {
             Manage your site's documentation hierarchy
           </Text>
         </Box>
-        <Button variant="solid" color="cyan" onClick={() => navigate('/docs/editor/new')}>
-          <PlusIcon width="18" height="18" />
-          Create Doc
-        </Button>
+        <Flex gap="2">
+          <Button
+            variant="outline"
+            color="gray"
+            onClick={() => navigate('/templates/docs')}
+            data-testid="edit-docs-template-btn"
+          >
+            <Pencil1Icon width="16" height="16" />
+            Edit Template &amp; Styles
+          </Button>
+          <Button variant="solid" color="cyan" onClick={() => navigate('/docs/editor/new')}>
+            <PlusIcon width="18" height="18" />
+            Create Doc
+          </Button>
+        </Flex>
       </Flex>
 
       <Card size="2">

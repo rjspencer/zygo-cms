@@ -7,6 +7,7 @@ pub mod user;
 pub mod menu;
 pub mod search;
 pub mod setting;
+pub mod layout_template;
 
 pub use entry::*;
 pub use media::*;

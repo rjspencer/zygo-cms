@@ -109,7 +109,10 @@ describe('TemplatesList Component', () => {
     expect(lockToggles.length).toBe(2);
 
     // Edit and Delete buttons should be enabled for all items
-    const editButtons = screen.getAllByRole('button', { name: /Edit/i });
+    const editButtons = [
+      screen.getByRole('button', { name: 'Edit Post Template' }),
+      screen.getByRole('button', { name: 'Edit Promo Banner' }),
+    ];
     expect(editButtons.length).toBe(2);
     editButtons.forEach((btn) => {
       expect((btn as HTMLButtonElement).disabled).toBe(false);
