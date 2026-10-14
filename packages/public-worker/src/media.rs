@@ -1,9 +1,10 @@
 use zygo_core::db;
 use zygo_core::error::AppError;
 use zygo_core::models::{MediaSyncReport, guess_mime_type, parse_filename_from_key};
-use worker::{Date, Headers, Response, Result, RouteContext};
+use crate::utils;
+use worker::{Date, Headers, Request, Response, Result, RouteContext};
 
-pub async fn get_media(key: &str, ctx: &RouteContext<()>) -> Result<Response> {
+pub async fn get_media(key: &str, req: &Request, ctx: &RouteContext<()>) -> Result<Response> {
     let bucket = ctx.env.bucket("MEDIA")?;
     let object = bucket.get(key).execute().await?.ok_or(AppError::NotFound);
 
@@ -19,6 +20,12 @@ pub async fn get_media(key: &str, ctx: &RouteContext<()>) -> Result<Response> {
             // Cache images and media in browser for 1 year (since filenames have unique timestamps)
             headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
             headers.set("Accept-Ranges", "bytes")?;
+
+            if let Some(origin) = utils::get_allowed_cors_origin(req, &ctx.env) {
+                headers.set("Access-Control-Allow-Origin", &origin)?;
+                headers.set("Vary", "Origin")?;
+                headers.set("Access-Control-Allow-Methods", "GET, OPTIONS")?;
+            }
 
             let Some(body) = obj.body() else {
                 return AppError::NotFound.to_response();

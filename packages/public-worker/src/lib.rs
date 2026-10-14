@@ -38,6 +38,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         
         // Catch-all Page Reader
         .get_async("/*path", handlers::public::page_reader)
+
+        // CORS preflight catch-all
+        .options("/*catchall", handlers::public::options_preflight)
         
         .run(req, env)
         .await
