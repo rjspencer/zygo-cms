@@ -1,12 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Navigation } from '../pages/Navigation';
+import { Navigation } from './Navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
+import { MemoryRouter } from 'react-router-dom';
 
-import { apiFetch } from '../utils/api';
-vi.mock('../utils/api', () => ({
+import { apiFetch } from '../../utils/api';
+vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
 }));
 
@@ -59,17 +60,22 @@ describe('Navigation component', () => {
     });
   };
 
+  const renderNavigation = (initialEntries = ['/navigation']) => {
+    const queryClient = createTestQueryClient();
+    return render(
+      <MemoryRouter initialEntries={initialEntries}>
+        <QueryClientProvider client={queryClient}>
+          <Theme>
+            <Navigation />
+          </Theme>
+        </QueryClientProvider>
+      </MemoryRouter>
+    );
+  };
+
   it('fetches menus and displays them', async () => {
     setupMockApi();
-
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <Navigation />
-        </Theme>
-      </QueryClientProvider>
-    );
+    renderNavigation();
 
     await waitFor(() => {
       expect(screen.getByText('Home')).toBeTruthy();
@@ -83,17 +89,18 @@ describe('Navigation component', () => {
     });
   });
 
+  it('initializes to footer menu tab when tab search param is present', async () => {
+    setupMockApi();
+    renderNavigation(['/navigation?tab=footer']);
+
+    await waitFor(() => {
+      expect(screen.getByText('Privacy')).toBeTruthy();
+    });
+  });
+
   it('selects a page from dropdown and auto-fills label if label is empty', async () => {
     setupMockApi();
-
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <Navigation />
-        </Theme>
-      </QueryClientProvider>
-    );
+    renderNavigation();
 
     await waitFor(() => {
       expect(screen.getByText('Home')).toBeTruthy();
@@ -136,15 +143,7 @@ describe('Navigation component', () => {
 
   it('does not overwrite existing label when page is selected', async () => {
     setupMockApi();
-
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <Navigation />
-        </Theme>
-      </QueryClientProvider>
-    );
+    renderNavigation();
 
     await waitFor(() => {
       expect(screen.getByText('Home')).toBeTruthy();
@@ -166,15 +165,7 @@ describe('Navigation component', () => {
 
   it('selects custom option, reveals external URL field, and warns if not absolute', async () => {
     setupMockApi();
-
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <Navigation />
-        </Theme>
-      </QueryClientProvider>
-    );
+    renderNavigation();
 
     await waitFor(() => {
       expect(screen.getByText('Home')).toBeTruthy();
@@ -218,5 +209,20 @@ describe('Navigation component', () => {
 
     expect(screen.getByText('Google')).toBeTruthy();
     expect(screen.getByText('https://google.com')).toBeTruthy();
+  });
+
+  it('deletes an item from the menu list', async () => {
+    setupMockApi();
+    renderNavigation();
+
+    await waitFor(() => {
+      expect(screen.getByText('Home')).toBeTruthy();
+    });
+
+    const removeBtn = screen.getByRole('button', { name: /Remove Home/i });
+    await userEvent.click(removeBtn);
+
+    expect(screen.queryByText('Home')).toBeNull();
+    expect(screen.getByText('No items in this menu.')).toBeTruthy();
   });
 });
