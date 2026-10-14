@@ -8,6 +8,8 @@ pub mod user;
 pub mod setting;
 pub mod dashboard;
 pub mod theme;
+pub mod layout_template;
+pub mod layout_defaults;
 
 pub use section_template::*;
 pub use entry::*;
@@ -18,3 +20,5 @@ pub use user::*;
 pub use setting::*;
 pub use dashboard::*;
 pub use theme::*;
+pub use layout_template::*;
+pub use layout_defaults::*;
