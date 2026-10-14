@@ -1,13 +1,13 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { TemplateEditor } from '../pages/TemplateEditor';
+import { TemplateEditor } from './TemplateEditor';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { apiFetch } from '../utils/api';
+import { apiFetch } from '../../utils/api';
 
-vi.mock('../utils/api', () => ({
+vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
 }));
 
