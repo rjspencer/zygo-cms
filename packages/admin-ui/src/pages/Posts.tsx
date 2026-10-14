@@ -104,10 +104,21 @@ export const Posts: React.FC = () => {
             Manage your blog posts and articles
           </Text>
         </Box>
-        <Button variant="solid" color="cyan" onClick={() => navigate('/posts/editor/new')}>
-          <PlusIcon width="18" height="18" />
-          Create Post
-        </Button>
+        <Flex gap="2">
+          <Button
+            variant="outline"
+            color="gray"
+            onClick={() => navigate('/templates/posts')}
+            data-testid="edit-posts-template-btn"
+          >
+            <Pencil1Icon width="16" height="16" />
+            Edit Template &amp; Styles
+          </Button>
+          <Button variant="solid" color="cyan" onClick={() => navigate('/posts/editor/new')}>
+            <PlusIcon width="18" height="18" />
+            Create Post
+          </Button>
+        </Flex>
       </Flex>
 
       <Card size="2">

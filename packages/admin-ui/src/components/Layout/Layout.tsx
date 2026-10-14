@@ -23,6 +23,8 @@ import {
   SectionIcon,
   ArchiveIcon,
   BlendingModeIcon,
+  ReaderIcon,
+  LayoutIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../../context/ThemeModeContext';
 import { useWebMCP } from '../../providers/WebMCPProvider';
@@ -50,7 +52,24 @@ export const Layout: React.FC = () => {
     ...(docsModeEnabled ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
     { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
     { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
-    { to: '/templates', icon: <SectionIcon width="18" height="18" />, label: 'Page Templates' },
+    {
+      to: '/templates',
+      icon: <SectionIcon width="18" height="18" />,
+      label: 'Page Templates',
+      excludePrefixes: ['/templates/posts', '/templates/post', '/templates/docs', '/templates/doc'],
+    },
+    {
+      to: '/templates/posts',
+      icon: <ReaderIcon width="18" height="18" />,
+      label: 'Posts Template',
+      aliases: ['/templates/post'],
+    },
+    {
+      to: '/templates/docs',
+      icon: <LayoutIcon width="18" height="18" />,
+      label: 'Docs Template',
+      aliases: ['/templates/doc'],
+    },
     { to: '/theme', icon: <BlendingModeIcon width="18" height="18" />, label: 'Theme' },
     { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
     { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
@@ -141,6 +160,8 @@ export const Layout: React.FC = () => {
                 icon={item.icon}
                 label={item.label}
                 exact={item.exact}
+                aliases={item.aliases}
+                excludePrefixes={item.excludePrefixes}
                 isCollapsed={isCollapsed}
               />
             ))}

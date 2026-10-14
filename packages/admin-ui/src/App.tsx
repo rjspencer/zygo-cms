@@ -15,6 +15,8 @@ import ThemePage from './pages/Theme';
 import NotFound from './pages/NotFound';
 import TemplatesList from './pages/TemplatesList';
 import TemplateEditor from './pages/TemplateEditor';
+import PostsTemplateEditor from './pages/PostsTemplateEditor';
+import DocsTemplateEditor from './pages/DocsTemplateEditor';
 import RoleGuard from './components/RoleGuard';
 import { WebMCPProvider } from './providers/WebMCPProvider';
 
@@ -43,6 +45,38 @@ export const App: React.FC = () => {
             element={
               <RoleGuard allowedRoles={['admin', 'designer']}>
                 <TemplatesList />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="templates/posts"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <PostsTemplateEditor />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="templates/post"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <PostsTemplateEditor />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="templates/docs"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <DocsTemplateEditor />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="templates/doc"
+            element={
+              <RoleGuard allowedRoles={['admin', 'designer']}>
+                <DocsTemplateEditor />
               </RoleGuard>
             }
           />

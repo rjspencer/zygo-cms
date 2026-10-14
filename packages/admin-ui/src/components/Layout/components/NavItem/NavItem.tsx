@@ -7,6 +7,8 @@ export interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   exact?: boolean;
+  aliases?: string[];
+  excludePrefixes?: string[];
   isCollapsed?: boolean;
 }
 
@@ -15,12 +17,18 @@ export const NavItem: React.FC<NavItemProps> = ({
   icon,
   label,
   exact = false,
+  aliases = [],
+  excludePrefixes = [],
   isCollapsed = false,
 }) => {
   const location = useLocation();
-  const isActive = exact
-    ? location.pathname === to
-    : location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
+  const matchesPath = (path: string) =>
+    exact
+      ? location.pathname === path
+      : location.pathname === path || (path !== '/' && location.pathname.startsWith(path));
+
+  const isExcluded = excludePrefixes.some((p) => location.pathname.startsWith(p));
+  const isActive = !isExcluded && (matchesPath(to) || aliases.some((alias) => matchesPath(alias)));
 
   return (
     <NavLink to={to} style={{ textDecoration: 'none', width: '100%' }} title={isCollapsed ? label : undefined}>
