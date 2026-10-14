@@ -2,12 +2,24 @@ use worker::*;
 use crate::{cache, media, utils, views};
 use zygo_core::{db, error::AppError, models};
 
-pub async fn stream_media(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn stream_media(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let key = match ctx.param("key") {
         Some(k) => k,
         None => return Response::error("Missing key", 400),
     };
-    media::get_media(key, &ctx).await
+    media::get_media(key, &req, &ctx).await
+}
+
+pub fn options_preflight(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let headers = Headers::new();
+    if let Some(origin) = utils::get_allowed_cors_origin(&req, &ctx.env) {
+        headers.set("Access-Control-Allow-Origin", &origin)?;
+        headers.set("Vary", "Origin")?;
+        headers.set("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS")?;
+        headers.set("Access-Control-Allow-Headers", "*")?;
+        headers.set("Access-Control-Max-Age", "86400")?;
+    }
+    Response::empty().map(|res| res.with_headers(headers))
 }
 
 pub async fn serve_styles(req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -24,6 +36,15 @@ pub async fn serve_styles(req: Request, ctx: RouteContext<()>) -> Result<Respons
     css.push_str("\n\n/* --- Dynamic Theme Tokens --- */\n");
     css.push_str(&views::generate_theme_root_css(Some(&settings)));
 
+    let headers = Headers::new();
+    headers.set("Content-Type", "text/css; charset=utf-8")?;
+
+    if let Some(origin) = utils::get_allowed_cors_origin(&req, &ctx.env) {
+        headers.set("Access-Control-Allow-Origin", &origin)?;
+        headers.set("Vary", "Origin")?;
+        headers.set("Access-Control-Allow-Methods", "GET, OPTIONS")?;
+    }
+
     css.push_str("\n\n/* --- Layout Templates CSS --- */\n");
     for lt in &layout_templates {
         if !lt.template_css.trim().is_empty() {
@@ -32,9 +53,6 @@ pub async fn serve_styles(req: Request, ctx: RouteContext<()>) -> Result<Respons
             css.push('\n');
         }
     }
-
-    let headers = Headers::new();
-    headers.set("Content-Type", "text/css; charset=utf-8")?;
 
     let url = req.url()?;
     let path = url.path();

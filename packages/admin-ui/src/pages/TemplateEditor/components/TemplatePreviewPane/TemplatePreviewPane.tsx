@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Card, Flex, Text, Badge } from '@radix-ui/themes';
+import { getPublicSiteUrl } from '../../../../utils/api';
 import type { TemplatePreviewPaneProps } from '../../types';
 
 export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
@@ -11,6 +12,9 @@ export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
   isStatusCompiling,
   renderCount,
 }) => {
+  const publicBaseUrl = getPublicSiteUrl();
+  const publicCssUrl = getPublicSiteUrl('/style.css');
+
   return (
     <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
       <Card size="2" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -44,7 +48,8 @@ export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
                 <head>
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <link rel="stylesheet" href="/styles/main.css" />
+                  <base href="${publicBaseUrl}">
+                  <link rel="stylesheet" href="${publicCssUrl}" />
                   <style>
                     /* ${debouncedWasmHtml !== formTemplateHtml ? formTemplateCss : debouncedWasmHtml} reactivity trigger */
                     .template-${formId} {
@@ -56,6 +61,12 @@ export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
                   <div class="template-${formId}" style="display: contents;">
                     ${previewHtml || '<div style="padding: 20px; color: #888; font-family: sans-serif;">Waiting for template render...</div>'}
                   </div>
+                  <script>
+                    document.addEventListener('click', function(e) {
+                      var a = e.target.closest('a');
+                      if (a) e.preventDefault();
+                    });
+                  </script>
                 </body>
               </html>
             `}

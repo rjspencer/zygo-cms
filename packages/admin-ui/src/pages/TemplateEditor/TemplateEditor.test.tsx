@@ -9,6 +9,7 @@ import { apiFetch } from '../../utils/api';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
+  getPublicSiteUrl: vi.fn((path = '') => (path ? `https://example.com/${path.replace(/^\/+/, '')}` : 'https://example.com/')),
 }));
 
 const createTestQueryClient = () =>
