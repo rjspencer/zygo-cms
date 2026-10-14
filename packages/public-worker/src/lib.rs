@@ -13,6 +13,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     Router::new()
 
         
+        // Dynamic Stylesheet with Cache Busting
+        .get_async("/style-:hash.css", handlers::public::serve_styles)
+        .get_async("/style.css", handlers::public::serve_styles)
+
         // Public routes - Media stream
         .get_async("/media/:key", handlers::public::stream_media)
         
@@ -20,7 +24,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/search", handlers::public::search_page)
 
         .get_async("/", handlers::public::root_page)
-        .get_async("/post", handlers::public::index)
+        .get_async("/posts", handlers::public::posts_index)
+        .get_async("/post", handlers::public::posts_index)
         .get_async("/sitemap.xml", handlers::public::sitemap)
         .get_async("/rss.xml", handlers::public::rss)
         .get_async("/feed.xml", handlers::public::rss)
@@ -51,7 +56,13 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
             Ok(published) => {
                 if !published.is_empty() {
                     worker::console_log!("Published {} scheduled entries.", published.len());
-                    let mut urls_to_purge = vec!["/".to_string(), "/post".to_string(), "/rss.xml".to_string(), "/sitemap.xml".to_string()];
+                    let mut urls_to_purge = vec![
+                        "/".to_string(),
+                        "/posts".to_string(),
+                        "/post".to_string(),
+                        "/rss.xml".to_string(),
+                        "/sitemap.xml".to_string(),
+                    ];
                     for entry in published {
                         urls_to_purge.push(entry.path());
                     }

@@ -1,7 +1,7 @@
 use minijinja::Environment;
 use zygo_core::models::{
-    BreadcrumbItem, ContentType, Entry, EntryRevision, MenuItem, Pagination, SectionTemplate,
-    ThemeTokens,
+    BreadcrumbItem, ContentType, Entry, EntryRevision, LayoutTemplate, MenuItem, Pagination,
+    SectionTemplate, ThemeTokens,
 };
 
 const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
@@ -16,7 +16,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ theme_font_url|safe }}">
     {% endif %}
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style-{{ styles_hash }}.css">
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
@@ -40,7 +40,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
         {% if heading %}
         <div class="taxonomy-header">
             <h1>{{ heading }}</h1>
-            <a href="/post">&larr; All posts</a>
+            <a href="/posts">&larr; All posts</a>
         </div>
         {% endif %}
         <div class="posts-list">
@@ -87,7 +87,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ theme_font_url|safe }}">
     {% endif %}
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style-{{ styles_hash }}.css">
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
@@ -152,7 +152,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ theme_font_url|safe }}">
     {% endif %}
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style-{{ styles_hash }}.css">
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
@@ -233,7 +233,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ theme_font_url|safe }}">
     {% endif %}
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style-{{ styles_hash }}.css">
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
@@ -332,413 +332,13 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ theme_font_url|safe }}">
     {% endif %}
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style-{{ styles_hash }}.css">
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
-    <style>
-        body:has(.docs-layout),
-        body.docs-page {
-            max-width: 100%;
-            margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        body:has(.docs-layout) header,
-        body.docs-page header {
-            max-width: var(--docs-max-width, 1440px);
-            margin: 0 auto;
-            padding: var(--header-padding, 1.75rem 2rem 1.25rem 2rem);
-            width: 100%;
-            box-sizing: border-box;
-        }
-        body:has(.docs-layout) footer,
-        body.docs-page footer {
-            max-width: var(--docs-max-width, 1440px);
-            margin: auto auto 0 auto;
-            padding: 2rem;
-            width: 100%;
-            box-sizing: border-box;
-            border-top: 1px solid var(--color-border, #e7e5e4);
-        }
-        body:has(.docs-layout) footer nav,
-        body.docs-page footer nav {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
-        }
-        body:has(.docs-layout) footer nav a,
-        body.docs-page footer nav a {
-            font-family: var(--font-body, system-ui, sans-serif);
-            font-size: 0.825rem;
-            font-weight: 600;
-            text-transform: var(--header-nav-transform, uppercase);
-            letter-spacing: 0.08em;
-            color: var(--color-text-muted, #78716c);
-            text-decoration: none;
-            transition: color 0.15s ease;
-        }
-        body:has(.docs-layout) footer nav a:hover,
-        body.docs-page footer nav a:hover {
-            color: var(--color-accent, #991b1b);
-        }
-        .docs-layout {
-            display: flex;
-            gap: 3rem;
-            max-width: var(--docs-max-width, 1440px);
-            margin: 0 auto;
-            padding: 2rem;
-            width: 100%;
-            box-sizing: border-box;
-            flex: 1;
-        }
-        .docs-sidebar {
-            width: 260px;
-            flex-shrink: 0;
-            position: sticky;
-            top: 2rem;
-            align-self: flex-start;
-            max-height: calc(100vh - 4rem);
-            overflow-y: auto;
-            padding: 1.25rem;
-            background: color-mix(in srgb, var(--color-surface, #ffffff) 88%, transparent);
-            border: 1px solid var(--color-border, #e7e5e4);
-            border-radius: 8px;
-            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent);
-            scrollbar-width: thin;
-        }
-        .docs-search {
-            margin-bottom: 1.25rem;
-        }
-        .docs-search form {
-            margin: 0;
-        }
-        .docs-search input {
-            width: 100%;
-            padding: 0.6rem 0.85rem;
-            border: 1px solid var(--color-border, #e7e5e4);
-            border-radius: 6px;
-            background: var(--color-surface, #ffffff);
-            color: var(--color-text, #1c1917);
-            font-family: var(--font-body, system-ui, sans-serif);
-            font-size: 0.875rem;
-            line-height: 1.4;
-            box-sizing: border-box;
-            transition: border-color 0.15s ease, box-shadow 0.15s ease;
-        }
-        .docs-search input:focus {
-            outline: none;
-            border-color: var(--color-accent, #991b1b);
-            box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent, #991b1b) 15%, transparent);
-        }
-        .docs-search input::placeholder {
-            color: var(--color-text-muted, #78716c);
-        }
-        .docs-nav ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .docs-nav > ul > li {
-            margin-bottom: 0.75rem;
-        }
-        .docs-nav ul ul {
-            padding-left: 0.85rem;
-            margin-top: 0.25rem;
-            border-left: 1.5px solid var(--color-border, #e7e5e4);
-            margin-left: 0.5rem;
-        }
-        .docs-nav li {
-            margin: 0.25rem 0;
-        }
-        .docs-nav a {
-            display: block;
-            padding: 0.4rem 0.65rem;
-            border-radius: 0 5px 5px 0;
-            border-left: 3px solid transparent;
-            text-decoration: none;
-            color: var(--color-text-muted, #78716c);
-            font-size: 0.875rem;
-            font-weight: 500;
-            line-height: 1.4;
-            transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-        }
-        .docs-nav a:hover {
-            color: var(--color-text, #1c1917);
-            background: color-mix(in srgb, var(--color-text, #1c1917) 5%, transparent);
-        }
-        .docs-nav a[aria-current="page"] {
-            font-weight: 700;
-            color: var(--color-accent, #991b1b);
-            border-left-color: var(--color-accent, #991b1b);
-            background: color-mix(in srgb, var(--color-accent, #991b1b) 10%, var(--color-surface, #ffffff));
-        }
-        .docs-main {
-            flex: 1;
-            min-width: 0;
-            padding-bottom: 3rem;
-        }
-        .docs-main > article {
-            background: var(--color-surface, #ffffff);
-            border: 1px solid var(--color-border, #e7e5e4);
-            border-radius: 8px;
-            padding: 2.25rem 2.5rem;
-            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent);
-        }
-        .docs-main article > h1 {
-            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
-            font-size: 2.25rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
-            line-height: 1.2;
-            margin-top: 0;
-            margin-bottom: 1.5rem;
-            color: var(--color-text, #1c1917);
-        }
-        .docs-content {
-            font-size: 1.05rem;
-            line-height: 1.8;
-            color: var(--color-text, #1c1917);
-        }
-        .docs-content > p,
-        .docs-content > ul,
-        .docs-content > ol {
-            max-width: 78ch;
-            margin-bottom: 1.5rem;
-        }
-        .docs-content > ul,
-        .docs-content > ol {
-            padding-left: 1.5rem;
-        }
-        .docs-content li {
-            margin-bottom: 0.5rem;
-        }
-        .docs-content h2 {
-            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
-            font-size: 1.65rem;
-            font-weight: 700;
-            margin-top: 2.75rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--color-border, #e7e5e4);
-            scroll-margin-top: 2rem;
-            letter-spacing: -0.01em;
-        }
-        .docs-content h3 {
-            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
-            font-size: 1.3rem;
-            font-weight: 600;
-            margin-top: 2rem;
-            margin-bottom: 0.75rem;
-            scroll-margin-top: 2rem;
-        }
-        .docs-content h4 {
-            font-family: var(--font-headline, 'Newsreader', Georgia, serif);
-            font-size: 1.1rem;
-            font-weight: 600;
-            margin-top: 1.5rem;
-            margin-bottom: 0.5rem;
-            scroll-margin-top: 2rem;
-        }
-        .docs-content a {
-            color: var(--color-accent, #991b1b);
-            text-decoration: underline;
-            text-underline-offset: 3px;
-            transition: color 0.15s ease;
-        }
-        .docs-content a:hover {
-            color: color-mix(in srgb, var(--color-accent, #991b1b) 80%, black);
-        }
-        .docs-content blockquote {
-            border-left: 4px solid var(--color-accent, #991b1b);
-            background: color-mix(in srgb, var(--color-accent, #991b1b) 5%, transparent);
-            margin: 1.75rem 0;
-            padding: 1rem 1.5rem;
-            border-radius: 0 6px 6px 0;
-            color: var(--color-text, #1c1917);
-            font-style: italic;
-            max-width: 78ch;
-        }
-        .docs-content blockquote p {
-            margin-bottom: 0;
-        }
-        .docs-content pre {
-            background: #18181b;
-            color: #f4f4f5;
-            padding: 1.25rem 1.5rem;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 1.75rem 0;
-            font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-            font-size: 0.9rem;
-            line-height: 1.6;
-            border: 1px solid #27272a;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-        .docs-content code {
-            font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
-        }
-        .docs-content :not(pre) > code {
-            background: color-mix(in srgb, var(--color-text, #1c1917) 6%, transparent);
-            color: var(--color-accent, #991b1b);
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            font-size: 0.88em;
-            font-weight: 500;
-        }
-        .docs-content table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 2rem 0;
-            font-size: 0.95rem;
-        }
-        .docs-content th,
-        .docs-content td {
-            border: 1px solid var(--color-border, #e7e5e4);
-            padding: 0.75rem 1rem;
-            text-align: left;
-        }
-        .docs-content th {
-            background: color-mix(in srgb, var(--color-text, #1c1917) 3%, transparent);
-            font-family: var(--font-body, system-ui, sans-serif);
-            font-weight: 600;
-            color: var(--color-text, #1c1917);
-        }
-        .docs-content hr {
-            border: 0;
-            border-top: 1px solid var(--color-border, #e7e5e4);
-            margin: 2.5rem 0;
-        }
-        .docs-toc {
-            width: 240px;
-            flex-shrink: 0;
-            position: sticky;
-            top: 2rem;
-            align-self: flex-start;
-            max-height: calc(100vh - 4rem);
-            overflow-y: auto;
-            padding-left: 1.25rem;
-            border-left: 1px solid var(--color-border, #e7e5e4);
-            scrollbar-width: thin;
-        }
-        .docs-toc h3 {
-            font-family: var(--font-body, system-ui, sans-serif);
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--color-text-muted, #78716c);
-            margin-top: 0;
-            margin-bottom: 0.75rem;
-            font-weight: 700;
-        }
-        .toc-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .toc-list li {
-            margin: 0.35rem 0;
-            line-height: 1.4;
-        }
-        .toc-list a {
-            color: var(--color-text-muted, #78716c);
-            text-decoration: none;
-            font-size: 0.85rem;
-            transition: color 0.15s ease, border-color 0.15s ease;
-            display: block;
-            padding: 0.2rem 0 0.2rem 0.5rem;
-            margin-left: -1.25rem;
-            border-left: 2px solid transparent;
-        }
-        .toc-list a:hover {
-            color: var(--color-text, #1c1917);
-        }
-        .toc-list a.active {
-            color: var(--color-accent, #991b1b);
-            border-left-color: var(--color-accent, #991b1b);
-            font-weight: 600;
-        }
-        .toc-h2 {
-            margin-left: 0;
-        }
-        .toc-h3 {
-            margin-left: 0.75rem;
-        }
-        .docs-footer-nav {
-            display: flex;
-            justify-content: space-between;
-            gap: 1.5rem;
-            margin-top: 2.5rem;
-            padding-top: 1.5rem;
-        }
-        .docs-footer-nav a {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.65rem 1.15rem;
-            border: 1px solid var(--color-border, #e7e5e4);
-            border-radius: 6px;
-            background: var(--color-surface, #ffffff);
-            color: var(--color-text, #1c1917);
-            font-family: var(--font-body, system-ui, sans-serif);
-            font-size: 0.875rem;
-            font-weight: 600;
-            text-decoration: none;
-            box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 22%, transparent);
-            transition: all 0.15s ease;
-        }
-        .docs-footer-nav a:hover {
-            border-color: var(--color-accent, #991b1b);
-            color: var(--color-accent, #991b1b);
-            transform: translate(-1px, -1px);
-            box-shadow: 4px 4px 0px color-mix(in srgb, var(--color-accent, #991b1b) 35%, var(--color-border, #e7e5e4));
-        }
-        @media (max-width: 1100px) {
-            .docs-toc {
-                display: none;
-            }
-            .docs-layout {
-                gap: 2rem;
-            }
-        }
-        @media (max-width: 768px) {
-            body:has(.docs-layout) header,
-            body.docs-page header {
-                padding: 1.25rem 1rem 1rem 1rem;
-            }
-            .docs-layout {
-                flex-direction: column;
-                padding: 1rem;
-                gap: 2rem;
-            }
-            .docs-sidebar {
-                width: 100%;
-                position: static;
-                max-height: none;
-                box-sizing: border-box;
-            }
-            .docs-main > article {
-                padding: 1.5rem 1.25rem;
-            }
-            body:has(.docs-layout) footer,
-            body.docs-page footer {
-                padding: 1.5rem 1rem;
-            }
-            .docs-footer-nav {
-                flex-direction: column;
-                gap: 0.75rem;
-            }
-            .docs-footer-nav a {
-                justify-content: center;
-            }
-        }
-    </style>
 </head>
 <body class="docs-page">
     <a href="#main-content" class="skip-link">Skip to content</a>
@@ -909,15 +509,35 @@ pub fn entry_to_context_value(entry: &Entry, origin: &str) -> serde_json::Value 
     val
 }
 
-fn create_env<'a>(section_templates: &'a [SectionTemplate]) -> worker::Result<Environment<'a>> {
+fn create_env<'a>(
+    section_templates: &'a [SectionTemplate],
+    layout_templates: Option<&'a [LayoutTemplate]>,
+) -> worker::Result<Environment<'a>> {
     let mut env = Environment::new();
     zygo_core::template_engine::configure_env(&mut env);
 
-    // Register built-in default templates
-    let _ = env.add_template("index", DEFAULT_INDEX);
-    let _ = env.add_template("post", DEFAULT_POST);
-    let _ = env.add_template("page", DEFAULT_PAGE);
-    let _ = env.add_template("doc", DEFAULT_DOC);
+    let index_tmpl = layout_templates
+        .and_then(|lt| lt.iter().find(|t| t.id == "index"))
+        .map(|t| t.template_html.as_str())
+        .unwrap_or(DEFAULT_INDEX);
+    let post_tmpl = layout_templates
+        .and_then(|lt| lt.iter().find(|t| t.id == "post"))
+        .map(|t| t.template_html.as_str())
+        .unwrap_or(DEFAULT_POST);
+    let page_tmpl = layout_templates
+        .and_then(|lt| lt.iter().find(|t| t.id == "page"))
+        .map(|t| t.template_html.as_str())
+        .unwrap_or(DEFAULT_PAGE);
+    let doc_tmpl = layout_templates
+        .and_then(|lt| lt.iter().find(|t| t.id == "doc"))
+        .map(|t| t.template_html.as_str())
+        .unwrap_or(DEFAULT_DOC);
+
+    // Register built-in default templates or database overrides
+    let _ = env.add_template("index", index_tmpl);
+    let _ = env.add_template("post", post_tmpl);
+    let _ = env.add_template("page", page_tmpl);
+    let _ = env.add_template("doc", doc_tmpl);
     let _ = env.add_template("search", DEFAULT_SEARCH);
     let _ = env.add_template("sitemap", DEFAULT_SITEMAP);
     let _ = env.add_template("rss", DEFAULT_RSS);
@@ -980,10 +600,9 @@ fn flatten_docs<'a>(docs: &'a [Entry], parent_id: Option<i64>, flattened: &mut V
     }
 }
 
-pub fn inject_theme_context(
-    ctx: &mut serde_json::Map<String, serde_json::Value>,
+pub fn generate_theme_root_css(
     settings: Option<&std::collections::HashMap<String, String>>,
-) {
+) -> String {
     let tokens = ThemeTokens::resolve_from_settings(settings);
 
     let header_border = match tokens.header_border_style.as_str() {
@@ -992,21 +611,7 @@ pub fn inject_theme_context(
         _ => format!("3px double {}", tokens.color_border),
     };
 
-    let site_title = settings
-        .and_then(|s| s.get("site_title").map(|v| v.as_str()))
-        .filter(|v| !v.trim().is_empty())
-        .unwrap_or("Zygo");
-
-    let site_tagline = if !tokens.header_tagline.trim().is_empty() {
-        tokens.header_tagline.as_str()
-    } else {
-        settings
-            .and_then(|s| s.get("site_tagline").map(|v| v.as_str()))
-            .filter(|v| !v.trim().is_empty())
-            .unwrap_or("An Editorial Review & Journal")
-    };
-
-    let theme_css = format!(
+    format!(
         ":root {{\n  --font-headline: {};\n  --font-body: {};\n  --color-bg: {};\n  --color-text: {};\n  --color-text-muted: {};\n  --color-accent: {};\n  --color-surface: {};\n  --color-border: {};\n  --content-max-width: {};\n  --font-size-base: {};\n  --line-height-body: {};\n  --header-layout: {};\n  --header-border-style: {};\n  --header-border: {header_border};\n  --header-title-size: {};\n  --header-nav-transform: {};\n  --header-padding: {};\n  --border-radius: {};\n  --box-shadow: {};\n}}",
         tokens.font_headline,
         tokens.font_body,
@@ -1026,7 +631,35 @@ pub fn inject_theme_context(
         tokens.header_padding,
         tokens.border_radius,
         tokens.box_shadow,
-    );
+    )
+}
+
+pub fn inject_theme_context(
+    ctx: &mut serde_json::Map<String, serde_json::Value>,
+    settings: Option<&std::collections::HashMap<String, String>>,
+) {
+    let tokens = ThemeTokens::resolve_from_settings(settings);
+
+    let site_title = settings
+        .and_then(|s| s.get("site_title").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or("Zygo");
+
+    let site_tagline = if !tokens.header_tagline.trim().is_empty() {
+        tokens.header_tagline.as_str()
+    } else {
+        settings
+            .and_then(|s| s.get("site_tagline").map(|v| v.as_str()))
+            .filter(|v| !v.trim().is_empty())
+            .unwrap_or("An Editorial Review & Journal")
+    };
+
+    let theme_css = generate_theme_root_css(settings);
+
+    let styles_hash = settings
+        .and_then(|s| s.get("styles_hash").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or("default");
 
     if !tokens.font_url.trim().is_empty() {
         ctx.insert(
@@ -1037,6 +670,10 @@ pub fn inject_theme_context(
     ctx.insert(
         "theme_css".to_string(),
         serde_json::Value::String(theme_css),
+    );
+    ctx.insert(
+        "styles_hash".to_string(),
+        serde_json::Value::String(styles_hash.to_string()),
     );
     ctx.insert(
         "site_title".to_string(),
@@ -1062,8 +699,9 @@ pub fn render_doc(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
-    let env = create_env(content_types)?;
+    let env = create_env(content_types, layout_templates)?;
     let entry_val = entry_to_context_value(doc, origin);
 
     let parsed_body: serde_json::Value =
@@ -1265,17 +903,19 @@ pub fn render_index(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     render_index_internal(
         content_types,
         posts,
         origin,
         None,
-        Some("/post"),
+        Some("/posts"),
         pagination,
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1288,6 +928,7 @@ pub fn render_tag_index(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     let heading = format!("Tag: #{tag}");
     let canonical = format!("/tag/{tag}");
@@ -1301,6 +942,7 @@ pub fn render_tag_index(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1313,6 +955,7 @@ pub fn render_category_index(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     let heading = format!("Category: {category}");
     let canonical = format!("/category/{category}");
@@ -1326,6 +969,7 @@ pub fn render_category_index(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1339,8 +983,9 @@ fn render_index_internal(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
-    let env = create_env(content_types)?;
+    let env = create_env(content_types, layout_templates)?;
 
     let posts_vals: Vec<serde_json::Value> = posts
         .iter()
@@ -1403,6 +1048,7 @@ pub fn render_post(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     render_post_internal(
         content_types,
@@ -1412,6 +1058,7 @@ pub fn render_post(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1423,6 +1070,7 @@ pub fn render_preview_post(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     render_post_internal(
         content_types,
@@ -1432,6 +1080,7 @@ pub fn render_preview_post(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1443,8 +1092,9 @@ fn render_post_internal(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
-    let env = create_env(content_types)?;
+    let env = create_env(content_types, layout_templates)?;
     let entry_val = entry_to_context_value(post, origin);
 
     let parsed_body: serde_json::Value =
@@ -1519,6 +1169,7 @@ pub fn render_page(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     render_page_internal(
         content_types,
@@ -1530,6 +1181,7 @@ pub fn render_page(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1543,6 +1195,7 @@ pub fn render_preview_page(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
     render_page_internal(
         content_types,
@@ -1554,6 +1207,7 @@ pub fn render_preview_page(
         header_menu,
         footer_menu,
         settings,
+        layout_templates,
     )
 }
 
@@ -1567,8 +1221,9 @@ fn render_page_internal(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
-    let env = create_env(content_types)?;
+    let env = create_env(content_types, layout_templates)?;
     let entry_val = entry_to_context_value(page, origin);
 
     let parsed_body: serde_json::Value =
@@ -1655,7 +1310,7 @@ pub fn render_sitemap(
     env: &worker::Env,
     req: &worker::Request,
 ) -> worker::Result<worker::Response> {
-    let minijinja_env = create_env(content_types)?;
+    let minijinja_env = create_env(content_types, None)?;
     let entries_vals: Vec<serde_json::Value> = posts
         .iter()
         .map(|p| entry_to_context_value(p, origin))
@@ -1693,7 +1348,7 @@ pub fn render_rss(
     env: &worker::Env,
     req: &worker::Request,
 ) -> worker::Result<worker::Response> {
-    let minijinja_env = create_env(content_types)?;
+    let minijinja_env = create_env(content_types, None)?;
     let posts_vals: Vec<serde_json::Value> = posts
         .iter()
         .map(|p| entry_to_context_value(p, origin))
@@ -1727,8 +1382,9 @@ pub fn render_search_html(
     header_menu: &[MenuItem],
     footer_menu: &[MenuItem],
     settings: Option<&std::collections::HashMap<String, String>>,
+    layout_templates: Option<&[LayoutTemplate]>,
 ) -> worker::Result<String> {
-    let env = create_env(content_types)?;
+    let env = create_env(content_types, layout_templates)?;
     let posts_vals: Vec<serde_json::Value> = posts
         .iter()
         .map(|p| entry_to_context_value(p, ""))
@@ -1835,6 +1491,7 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
         assert!(html.contains("<ul class=\"posts\">"));
@@ -1853,7 +1510,7 @@ mod tests {
         let content_types = vec![ct];
         let post = dummy_post();
         let html =
-            render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
+            render_post(&content_types, &post, "https://example.com", &[], &[], None, None).unwrap();
         assert!(html.contains("<h1>Hello World</h1>"));
         assert!(html.contains("<h2>Welcome to My Blog</h2>"));
         assert!(html.contains("<p>Rust Enthusiast</p>"));
@@ -1876,7 +1533,7 @@ mod tests {
         };
         let content_types = vec![ct];
         let html =
-            render_post(&content_types, &post, "https://example.com", &[], &[], None).unwrap();
+            render_post(&content_types, &post, "https://example.com", &[], &[], None, None).unwrap();
         assert!(html.contains(
             "<div class=\"banner\">Announcement: Hello World - Welcome to My Blog</div>"
         ));
@@ -1905,6 +1562,7 @@ mod tests {
             &children,
             &[],
             &[],
+            None,
             None,
         )
         .unwrap();
@@ -1946,6 +1604,7 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
         assert!(html.contains("<span class=\"preview-tag\">PREVIEW</span>"));
@@ -1962,7 +1621,7 @@ mod tests {
         };
         let content_types = vec![ct];
         let posts = vec![dummy_post()];
-        let html = render_search_html(&content_types, "rust", &posts, &[], &[], None).unwrap();
+        let html = render_search_html(&content_types, "rust", &posts, &[], &[], None, None).unwrap();
         assert!(html.contains("Query: rust - Count: 1"));
     }
 
@@ -1979,6 +1638,7 @@ mod tests {
             None,
             &[],
             &[],
+            None,
             None,
         )
         .unwrap();
@@ -1997,6 +1657,7 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
         assert!(post_html.contains("Hello World"));
@@ -2011,13 +1672,14 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
         assert!(page_html.contains("About Us"));
         assert!(page_html.contains("<header class=\"header-centered\">"));
 
         let search_html =
-            render_search_html(&content_types, "test", &posts, &[], &[], None).unwrap();
+            render_search_html(&content_types, "test", &posts, &[], &[], None, None).unwrap();
         assert!(search_html.contains("Search"));
         assert!(search_html.contains("<header class=\"header-centered\">"));
     }
@@ -2048,6 +1710,7 @@ mod tests {
             &[],
             &[],
             Some(&settings),
+            None,
         )
         .unwrap();
         assert!(html.contains("<header class=\"header-split\">"));
@@ -2078,6 +1741,7 @@ mod tests {
             &[],
             &[],
             Some(&settings),
+            None,
         )
         .unwrap();
         assert!(html.contains("<header class=\"header-split\">"));
@@ -2215,6 +1879,7 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
 
@@ -2263,6 +1928,7 @@ mod tests {
             &[],
             &[],
             None,
+            None,
         )
         .unwrap();
         assert!(html.contains("<div class=\"hero\">Hero Survived</div>"));
@@ -2286,7 +1952,7 @@ mod tests {
         };
 
         let templates = vec![broken_st, valid_st];
-        let env_res = create_env(&templates);
+        let env_res = create_env(&templates, None);
         assert!(
             env_res.is_ok(),
             "create_env must succeed even with broken templates"
@@ -2341,7 +2007,7 @@ mod tests {
             ),
             dummy_doc(2, "Architecture", "architecture", "<p>Arch</p>"),
         ];
-        let html = render_doc(&[], &doc, &all_docs, "https://example.com", &[], &[], None).unwrap();
+        let html = render_doc(&[], &doc, &all_docs, "https://example.com", &[], &[], None, None).unwrap();
 
         assert!(html.contains("<body class=\"docs-page\">"));
         assert!(html.contains("class=\"docs-layout\""));
@@ -2351,7 +2017,40 @@ mod tests {
         assert!(html.contains("class=\"prose docs-content\""));
         assert!(html.contains("Getting Started"));
         assert!(html.contains("Architecture"));
-        assert!(html.contains("max-width: 100%"));
-        assert!(html.contains("max-width: var(--docs-max-width, 1440px)"));
+        assert!(html.contains("/style-"));
+    }
+
+    #[test]
+    fn test_layout_template_db_override() {
+        use zygo_core::models::LayoutTemplate;
+
+        let custom_template = LayoutTemplate {
+            id: "post".to_string(),
+            name: "Custom Post Template".to_string(),
+            description: Some("Customized post layout".to_string()),
+            template_html: "<main class=\"custom-post\"><h1>{{ post.title }}</h1><div class=\"custom-content\">{{ post.body_html|safe }}</div></main>".to_string(),
+            template_css: ".custom-post { margin: 2rem; }".to_string(),
+            is_locked: false,
+            created_at: "2026-10-14 10:00:00".to_string(),
+            updated_at: "2026-10-14 10:00:00".to_string(),
+        };
+
+        let post = dummy_post();
+        let templates = vec![custom_template];
+
+        let html = render_post(
+            &[],
+            &post,
+            "https://example.com",
+            &[],
+            &[],
+            None,
+            Some(&templates),
+        )
+        .unwrap();
+
+        assert!(html.contains("<main class=\"custom-post\">"));
+        assert!(html.contains("<h1>Hello World</h1>"));
+        assert!(html.contains("<div class=\"custom-content\"><p>Hello <strong>world</strong> content</p></div>"));
     }
 }
