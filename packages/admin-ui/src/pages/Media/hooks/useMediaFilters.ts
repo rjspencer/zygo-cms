@@ -1,0 +1,33 @@
+import { useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
+
+export interface UseMediaFiltersReturn {
+  search: string;
+  setSearch: (value: string) => void;
+}
+
+export function useMediaFilters(): UseMediaFiltersReturn {
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const search = useMemo(() => searchParams.get('q') ?? '', [searchParams]);
+
+  const setSearch = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) {
+          next.set('q', value);
+        } else {
+          next.delete('q');
+        }
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
+  return {
+    search,
+    setSearch,
+  };
+}

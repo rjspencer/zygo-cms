@@ -1,13 +1,15 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Theme } from '@radix-ui/themes';
-import { Media } from '../pages/Media';
-import { getPublicSiteUrl } from '../utils/api';
+import { MemoryRouter } from 'react-router-dom';
+import { Media } from './Media';
+import { getPublicSiteUrl } from '../../utils/api';
 
-const createTestQueryClient = () => new QueryClient({
-  defaultOptions: { queries: { retry: false } }
-});
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
 
 describe('Media Page Component', () => {
   const mockMediaResponse = {
@@ -60,14 +62,16 @@ describe('Media Page Component', () => {
     vi.unstubAllEnvs();
   });
 
-  const renderMediaPage = () => {
+  const renderMediaPage = (initialEntries: string[] = ['/admin/media']) => {
     const testQueryClient = createTestQueryClient();
     return render(
-      <QueryClientProvider client={testQueryClient}>
-        <Theme>
-          <Media />
-        </Theme>
-      </QueryClientProvider>
+      <MemoryRouter initialEntries={initialEntries}>
+        <QueryClientProvider client={testQueryClient}>
+          <Theme>
+            <Media />
+          </Theme>
+        </QueryClientProvider>
+      </MemoryRouter>
     );
   };
 
@@ -208,7 +212,9 @@ describe('Media Page Component', () => {
       if (options?.method === 'DELETE') {
         deleteCalledWith = url;
         const idFromUrl = url.split('/').pop() || '';
-        const idx = mediaList.findIndex(m => String(m.id) === idFromUrl || m.key === idFromUrl || url.includes(m.key));
+        const idx = mediaList.findIndex(
+          (m) => String(m.id) === idFromUrl || m.key === idFromUrl || url.includes(m.key)
+        );
         if (idx > -1) mediaList.splice(idx, 1);
         return Promise.resolve({ ok: true });
       }
@@ -374,7 +380,6 @@ describe('Media Page Component', () => {
     fireEvent.change(fileInput, { target: { files: [oversizedFile] } });
 
     expect(await screen.findByText(/File is too large/i)).toBeDefined();
-    // fetch POST should not be called
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining('huge-video.mp4'),
       expect.anything()
@@ -400,5 +405,19 @@ describe('Media Page Component', () => {
       expect.stringContaining('large-bg.mp4'),
       expect.anything()
     );
+  });
+
+  it('filters media items based on search input and URL search parameters', async () => {
+    renderMediaPage(['/admin/media?q=banner']);
+
+    expect(await screen.findByText('banner.png')).toBeDefined();
+    expect(screen.queryByText('photo-1.jpg')).toBeNull();
+
+    const searchInput = screen.getByPlaceholderText('Search media by filename...');
+    expect((searchInput as HTMLInputElement).value).toBe('banner');
+
+    fireEvent.change(searchInput, { target: { value: 'photo' } });
+    expect(await screen.findByText('photo-1.jpg')).toBeDefined();
+    expect(screen.queryByText('banner.png')).toBeNull();
   });
 });
