@@ -9,7 +9,7 @@ import readline from 'node:readline';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const CONFIG_PATH = path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
+const CONFIG_PATH = path.resolve(ROOT_DIR, 'wrangler.toml');
 
 const args = process.argv.slice(2);
 const isRemote = args.includes('--remote');
