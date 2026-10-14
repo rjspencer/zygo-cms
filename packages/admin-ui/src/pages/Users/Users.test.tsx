@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { render } from '../test/test-utils';
+import { render } from '../../test/test-utils';
 import { Theme } from '@radix-ui/themes';
-import { Users, UserItem } from '../pages/Users';
+import { Users, UserItem } from './index';
 
 describe('Users Page Component', () => {
   let mockUsers: UserItem[] = [];
@@ -85,7 +85,7 @@ describe('Users Page Component', () => {
             avatar_url: body.avatar_url,
             updated_at: '2026-10-01 12:30:00',
           };
-          const index = mockUsers.findIndex(u => u.id === 1);
+          const index = mockUsers.findIndex((u) => u.id === 1);
           if (index !== -1) mockUsers[index] = updatedUser;
           return Promise.resolve({
             ok: true,
@@ -95,7 +95,7 @@ describe('Users Page Component', () => {
 
         // DELETE /api/admin/users/2
         if (url.includes('/api/admin/users/2') && method === 'DELETE') {
-          const index = mockUsers.findIndex(u => u.id === 2);
+          const index = mockUsers.findIndex((u) => u.id === 2);
           if (index !== -1) mockUsers.splice(index, 1);
           return Promise.resolve({
             ok: true,
