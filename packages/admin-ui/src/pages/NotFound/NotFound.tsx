@@ -2,8 +2,9 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flex, Heading, Text, Button } from '@radix-ui/themes';
 import { DashboardIcon } from '@radix-ui/react-icons';
+import type { NotFoundProps } from './types';
 
-export const NotFound: React.FC = () => {
+export const NotFound: React.FC<NotFoundProps> = () => {
   const navigate = useNavigate();
 
   return (
