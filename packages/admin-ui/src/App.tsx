@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Posts from './pages/Posts';
+import PostsList from './pages/PostsList';
 import PagesList from './pages/PagesList';
 import DocsList from './pages/DocsList';
 import Editor from './pages/Editor';
@@ -26,7 +26,7 @@ export const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />
-          <Route path="posts" element={<Posts />} />
+          <Route path="posts" element={<PostsList />} />
           <Route path="posts/editor/new" element={<Editor />} />
           <Route path="posts/editor/:id" element={<Editor />} />
           <Route path="pages" element={<PagesList />} />

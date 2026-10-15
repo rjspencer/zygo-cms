@@ -27,8 +27,8 @@ packages/admin-ui/
 │   │   ├── Media.tsx       # Media library manager
 │   │   ├── Navigation.tsx  # Menu builder (header & footer menus)
 │   │   ├── NotFound.tsx    # 404 handler
-│   │   ├── PagesList.tsx   # Static/landing pages list
-│   │   ├── Posts.tsx       # Blog post management with search and delete dialog
+│   │   ├── PagesList/      # Static/landing pages list module
+│   │   ├── PostsList/      # Blog post management module with search and delete dialog
 │   │   └── Settings.tsx    # CMS configuration & edge runtime settings
 │   ├── App.tsx             # Route definitions
 │   ├── index.css           # Global resets and typography
