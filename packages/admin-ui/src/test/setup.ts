@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { beforeAll, afterEach, afterAll } from 'vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+import { expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { server } from './mocks/server';
+
+expect.extend(matchers);
 
 // Mock localStorage for Node 22+ / HappyDOM
 const createStorageMock = () => {

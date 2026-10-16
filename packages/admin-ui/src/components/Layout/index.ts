@@ -1,2 +1,2 @@
-export { Layout } from './Layout';
-export { default } from './Layout';
+export { Layout, default } from './Layout';
+export type { NavItemConfig, LayoutSidebarProps } from './types';
