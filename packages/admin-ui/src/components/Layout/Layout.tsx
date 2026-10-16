@@ -23,7 +23,7 @@ import { StagedDiffModal } from '../assistant/StagedDiffModal';
 import { LayoutSidebar } from './components/LayoutSidebar';
 import { TopHeader } from './components/TopHeader';
 import { useLayoutData } from './hooks/useLayoutData';
-import type { NavItemConfig } from './types';
+import type { NavSectionConfig } from './types';
 
 export const Layout: React.FC = () => {
   const { mode, toggleTheme } = useThemeMode();
@@ -32,36 +32,56 @@ export const Layout: React.FC = () => {
   const { stagedChange, resolveStagedChange, externalBridgeEnabled } = useWebMCP();
   const { logoutUrl, userEmail, docsModeEnabled } = useLayoutData();
 
-  const navItems = useMemo<NavItemConfig[]>(
+  const navSections = useMemo<NavSectionConfig[]>(
     () => [
-      { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
-      { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },
-      { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
-      { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
-      ...(docsModeEnabled ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
-      { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
-      { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
       {
-        to: '/templates',
-        icon: <SectionIcon width="18" height="18" />,
-        label: 'Page Templates',
-        excludePrefixes: ['/templates/posts', '/templates/post', '/templates/docs', '/templates/doc'],
+        title: 'Overview',
+        items: [
+          { to: '/', icon: <DashboardIcon width="18" height="18" />, label: 'Dashboard', exact: true },
+          { to: '/analytics', icon: <BarChartIcon width="18" height="18" />, label: 'Analytics' },
+        ],
       },
       {
-        to: '/templates/posts',
-        icon: <ReaderIcon width="18" height="18" />,
-        label: 'Posts Template',
-        aliases: ['/templates/post'],
+        title: 'Content',
+        items: [
+          { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
+          { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
+          ...(docsModeEnabled ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
+          { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
+          { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
+        ],
       },
       {
-        to: '/templates/docs',
-        icon: <LayoutIcon width="18" height="18" />,
-        label: 'Docs Template',
-        aliases: ['/templates/doc'],
+        title: 'Design',
+        items: [
+          {
+            to: '/templates',
+            icon: <SectionIcon width="18" height="18" />,
+            label: 'Page Templates',
+            excludePrefixes: ['/templates/posts', '/templates/post', '/templates/docs', '/templates/doc'],
+          },
+          {
+            to: '/templates/posts',
+            icon: <ReaderIcon width="18" height="18" />,
+            label: 'Posts Template',
+            aliases: ['/templates/post'],
+          },
+          {
+            to: '/templates/docs',
+            icon: <LayoutIcon width="18" height="18" />,
+            label: 'Docs Template',
+            aliases: ['/templates/doc'],
+          },
+          { to: '/theme', icon: <BlendingModeIcon width="18" height="18" />, label: 'Theme' },
+        ],
       },
-      { to: '/theme', icon: <BlendingModeIcon width="18" height="18" />, label: 'Theme' },
-      { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
-      { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
+      {
+        title: 'Admin',
+        items: [
+          { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
+          { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
+        ],
+      },
     ],
     [docsModeEnabled]
   );
@@ -71,7 +91,7 @@ export const Layout: React.FC = () => {
       <LayoutSidebar
         isCollapsed={isCollapsed}
         onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
-        navItems={navItems}
+        navSections={navSections}
         userEmail={userEmail}
         logoutUrl={logoutUrl}
         mode={mode}
