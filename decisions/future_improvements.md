@@ -105,6 +105,13 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Module Layout**: `pages/Editor/` with `EditorForm` -> `EditorLayout` -> `EditorHeader`, `EditorTabs` (`ContentTab`, `MetadataTab`, `SocialPreviews`), `LivePreviewPane`, plus hooks `useEditorData`, `useEntryType`, `useSaveEntry`, `useWasmPreview`, `useEditorWebMCP` and utils `slugify`, `buildEntryPayload`, `toFormValues`, `ENTRY_TYPE_CONFIG`.
 - **Fixes**: Stable `useFieldArray` ids for page sections (no index keys), save baseline reset from live values, removed duplicate tab handlers and a dead preview-save branch, and cleanup of the "Saved" flash timer.
 
+### Admin UI Full Page Modularization & State Modernization
+- **100% Page Module Coverage**: Completely decomposed all remaining flat page files into colocated, modular packages under `packages/admin-ui/src/pages/` (`Analytics`, `Dashboard`, `DocsList`, `DocsTemplateEditor`, `Editor`, `Media`, `Navigation`, `NotFound`, `PagesList`, `PostsList`, `PostsTemplateEditor`, `Settings`, `TemplateEditor`, `TemplatesList`, `Theme`, `Users`).
+- **File Length & Decomposition Hygiene**: Enforced `<200` line soft limit (`<300` hard limit) across every component file by extracting local subcomponents (`components/`) and isolating state/effects into custom hooks (`hooks/`).
+- **URL-Driven State Modernization**: Migrated search and filter states across list views (`DocsList`, `TemplatesList`, `PagesList`, `PostsList`) from local `useState` to React Router `useSearchParams` (`?q=...`), providing bookmarkable URLs, browser back/forward history support, and reload resilience.
+- **Form Modernization**: Applied `react-hook-form` patterns with `FormProvider` and context hooks across multi-field views.
+- **Colocated Testing & Storybook (1+2+4 Protocol)**: Colocated Vitest unit/integration tests (`<Page>.test.tsx`) and Storybook stories (`<Page>.stories.tsx`) with memory data router configurations for every page module, exporting public APIs cleanly via `index.ts` barrel files to guarantee zero import regressions.
+
 ---
 
 ## 2. Prioritized Roadmap & Future Work

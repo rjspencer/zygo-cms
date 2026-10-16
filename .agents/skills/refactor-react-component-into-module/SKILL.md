@@ -103,7 +103,12 @@ Once the directory structure is scaffolded, migrate the existing implementation 
 - Check if a unit test exists in `packages/admin-ui/src/__tests__/<ComponentName>.test.tsx` or adjacent to the old component.
 - Move the test into `<ComponentName>/<ComponentName>.test.tsx`.
 - Update relative import paths in the test file (e.g., `import { Foo } from '../components/Foo'` becomes `import { Foo } from './Foo'`).
+- **Watch Relative Path Depth (`../../` vs `../../../`)**:
+  - `<ComponentName>/<ComponentName>.test.tsx` is 2 levels deep from `src/` -> use `../../utils/api` and `../../test/test-utils`.
+  - `<ComponentName>/hooks/use<ComponentName>.ts` is 3 levels deep from `src/` -> use `../../../utils/api`.
+  - Do not copy `../../../utils/api` from a hook into `<ComponentName>.test.tsx`.
 - If no test previously existed, write comprehensive tests covering primary user interactions.
+- Use portable Vitest assertions (`.toBeDefined()`, `.toBeNull()`, `btn.hasAttribute('disabled')`) rather than `.toBeInTheDocument()` or `.toBeDisabled()` so tests pass under both `pnpm --filter admin-ui test` and root `pnpm run test:all`.
 
 ### 3. Colocate Storybook Stories
 - Check if a story exists in `packages/admin-ui/src/stories/<ComponentName>.stories.tsx` or adjacent to the old component.
@@ -340,7 +345,12 @@ export const useItemListFilters = () => {
    - Change imports to relative paths (`./types`, `./hooks/...`, `./components/...`).
 2. Outside `<ComponentName>/`:
    - Ensure existing files importing `from '../components/<ComponentName>'` still compile cleanly via `index.ts`.
-   - If any files imported directly from `.../<ComponentName>.tsx`, update them to import from `.../<ComponentName>`.
+- If any files imported directly from `.../<ComponentName>.tsx`, update them to import from `.../<ComponentName>`.
+
+### Parallel Subagent Refactoring Tip
+When refactoring multiple components concurrently with Wave 1 subagents:
+1. Assign strictly disjoint component folders (and their corresponding legacy flat files in `src/components/` and `src/__tests__/`) to each subagent.
+2. Instruct Wave 1 subagents **not** to run `pnpm`, `node`, or `npx` commands individually; have them perform file edits and sandbox-safe `rm -f` cleanup only, then run `tsc --noEmit`, `vitest`, and `pnpm run build` centrally in Wave 2.
 
 ---
 
