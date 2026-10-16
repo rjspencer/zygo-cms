@@ -36,6 +36,23 @@ describe('Public Worker Integration', () => {
         expect(html).toContain('<link rel="canonical"');
     });
 
+    it('serves dynamic stylesheet with 1920px max-width and no obsolete body padding/margin', async () => {
+        const homeRes = await worker.fetch('/');
+        const html = await homeRes.text();
+        const styleMatch = html.match(/href="(\/style-[^"]+\.css)"/);
+        expect(styleMatch).not.toBeNull();
+        const styleUrl = styleMatch[1];
+        expect(styleUrl).not.toBe('/style-default.css');
+
+        const styleRes = await worker.fetch(styleUrl);
+        expect(styleRes.status).toBe(200);
+        const css = await styleRes.text();
+        expect(css).toContain('--content-max-width: 1920px');
+        expect(css).toContain('max-width: var(--content-max-width, 1920px)');
+        expect(css).not.toContain('max-width: var(--content-max-width, 740px)');
+        expect(css).not.toContain('margin: 3rem auto');
+    });
+
     it('simulates HappyDOM browser navigation from post index to a post', async () => {
         const res1 = await worker.fetch('/post');
         if (res1.status === 200) {
@@ -100,5 +117,46 @@ describe('Public Worker Integration', () => {
     it('GET /preview/invalid-token-xyz responds with 404', async () => {
         const res = await worker.fetch('/preview/invalid-token-xyz');
         expect(res.status).toBe(404);
+    });
+
+    it('GET /theme-preview responds with 200 and renders all 10 section templates with theme tokens', async () => {
+        const res = await worker.fetch('/theme-preview');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+        const html = await res.text();
+
+        // Title and canonical
+        expect(html).toContain('Theme &amp; Section Showcase');
+
+        // Verify all 10 section templates rendered
+        expect(html).toContain('template-hero');
+        expect(html).toContain('Designing Autonomous Systems with Elegance');
+        expect(html).toContain('template-text');
+        expect(html).toContain('The Philosophy of Edge-First Publishing');
+        expect(html).toContain('template-text-image');
+        expect(html).toContain('Engineered for Extreme Performance');
+        expect(html).toContain('template-gallery');
+        expect(html).toContain('Visual Design &amp; System Architecture');
+        expect(html).toContain('template-image-carousel');
+        expect(html).toContain('Curated Workspaces &amp; Editorial Showcase');
+        expect(html).toContain('template-call-to-action');
+        expect(html).toContain('Ready to Transform Your Content Workflow?');
+        expect(html).toContain('template-feature-grid');
+        expect(html).toContain('Core Capabilities');
+        expect(html).toContain('template-testimonial');
+        expect(html).toContain('Elena Rostova');
+        expect(html).toContain('template-faq');
+        expect(html).toContain('Frequently Asked Questions');
+        expect(html).toContain('template-video-embed');
+        expect(html).toContain('Platform Architecture Walkthrough');
+
+        // Verify theme CSS custom properties are applied
+        expect(html).toContain('var(--color-surface');
+        expect(html).toContain('var(--border-radius');
+        expect(html).toContain('var(--color-border');
+
+        // Verify feature-grid darker background and image-carousel light muted background
+        expect(html).toContain('color-mix(in srgb, var(--color-text, #1c1917) 6%, var(--color-bg, #faf8f5))');
+        expect(html).toContain('color-mix(in srgb, var(--color-accent, #991b1b) 7%, var(--color-bg, #faf8f5))');
     });
 });

@@ -179,7 +179,10 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
         {% if is_preview %}
         <div class="preview-banner" role="status">Preview Mode</div>
         {% endif %}
-        <article>
+        <article class="{% if sections_html %}page-sections{% else %}page-standard{% endif %}">
+            {% if sections_html %}
+            {{ sections_html|safe }}
+            {% else %}
             <nav class="breadcrumbs" aria-label="Breadcrumb">
                 <a href="/">Home</a>
                 {% for crumb in breadcrumbs %}
@@ -193,9 +196,6 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
             <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}">
             {% endif %}
             <h1>{{ page.title }}</h1>
-            {% if sections_html %}
-            {{ sections_html|safe }}
-            {% else %}
             <div class="prose">
                 {{ page.body_html|safe }}
             </div>
@@ -656,10 +656,12 @@ pub fn inject_theme_context(
 
     let theme_css = generate_theme_root_css(settings);
 
+    let default_hash = zygo_core::models::compute_styles_hash(&[include_str!("style.css")]);
+
     let styles_hash = settings
         .and_then(|s| s.get("styles_hash").map(|v| v.as_str()))
         .filter(|v| !v.trim().is_empty())
-        .unwrap_or("default");
+        .unwrap_or(&default_hash);
 
     if !tokens.font_url.trim().is_empty() {
         ctx.insert(
@@ -2052,5 +2054,144 @@ mod tests {
         assert!(html.contains("<main class=\"custom-post\">"));
         assert!(html.contains("<h1>Hello World</h1>"));
         assert!(html.contains("<div class=\"custom-content\"><p>Hello <strong>world</strong> content</p></div>"));
+    }
+
+    #[test]
+    fn test_render_all_10_section_templates_under_shipped_themes() {
+        let templates = vec![
+            SectionTemplate {
+                id: "hero".to_string(),
+                name: "Hero".to_string(),
+                template_html: Some(r#"<section class="section-hero"><h1>{{ headline }}</h1></section>"#.to_string()),
+                template_css: Some(".section-hero { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "text".to_string(),
+                name: "Text".to_string(),
+                template_html: Some(r#"<section class="section-text"><h2>{{ title }}</h2>{{ body|safe }}</section>"#.to_string()),
+                template_css: Some(".section-text { color: var(--color-text); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "text-image".to_string(),
+                name: "Text + Image".to_string(),
+                template_html: Some(r#"<section class="section-text-image"><h2>{{ title }}</h2><img src="{{ image }}"></section>"#.to_string()),
+                template_css: Some(".section-text-image { border-color: var(--color-border); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "gallery".to_string(),
+                name: "Gallery".to_string(),
+                template_html: Some(r#"<section class="section-gallery"><h2>{{ title }}</h2>{% for img in images %}<figure><img src="{{ img.image }}"></figure>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-gallery { background: var(--color-surface); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "image-carousel".to_string(),
+                name: "Carousel".to_string(),
+                template_html: Some(r#"<section class="section-carousel"><h2>{{ title }}</h2>{% for s in slides %}<img src="{{ s.image }}">{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-carousel { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "call-to-action".to_string(),
+                name: "CTA".to_string(),
+                template_html: Some(r#"<section class="section-cta"><h2>{{ heading }}</h2><a href="{{ button_url }}">{{ button_label }}</a></section>"#.to_string()),
+                template_css: Some(".section-cta { background: var(--color-accent); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "feature-grid".to_string(),
+                name: "Features".to_string(),
+                template_html: Some(r#"<section class="section-features"><h2>{{ title }}</h2>{% for f in features %}<h3>{{ f.title }}</h3>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-features { border-color: var(--color-border); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "testimonial".to_string(),
+                name: "Testimonial".to_string(),
+                template_html: Some(r#"<section class="section-testimonial"><blockquote>{{ quote }}</blockquote><cite>{{ author }}</cite></section>"#.to_string()),
+                template_css: Some(".section-testimonial { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "faq".to_string(),
+                name: "FAQ".to_string(),
+                template_html: Some(r#"<section class="section-faq"><h2>{{ title }}</h2>{% for q in questions %}<details><summary>{{ q.question }}</summary>{{ q.answer|safe }}</details>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-faq { background: var(--color-surface); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "video-embed".to_string(),
+                name: "Video Embed".to_string(),
+                template_html: Some(r#"<section class="section-video"><h2>{{ title }}</h2><iframe src="{{ video_url|video_embed }}"></iframe></section>"#.to_string()),
+                template_css: Some(".section-video { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+        ];
+
+        let mut page = dummy_page();
+        page.body_json = serde_json::json!([
+            { "type_id": "hero", "data": { "headline": "Hero Title" } },
+            { "type_id": "text", "data": { "title": "Text Title", "body": "<p>Prose</p>" } },
+            { "type_id": "text-image", "data": { "title": "TI Title", "image": "/test.jpg" } },
+            { "type_id": "gallery", "data": { "title": "Gallery Title", "images": [{ "image": "/1.jpg" }] } },
+            { "type_id": "image-carousel", "data": { "title": "Carousel Title", "slides": [{ "image": "/2.jpg" }] } },
+            { "type_id": "call-to-action", "data": { "heading": "CTA Title", "button_label": "Go", "button_url": "/start" } },
+            { "type_id": "feature-grid", "data": { "title": "Features Title", "features": [{ "title": "Feat 1" }] } },
+            { "type_id": "testimonial", "data": { "quote": "Great platform", "author": "Alice" } },
+            { "type_id": "faq", "data": { "title": "FAQ Title", "questions": [{ "question": "Q1", "answer": "<p>A1</p>" }] } },
+            { "type_id": "video-embed", "data": { "title": "Video Title", "video_url": "https://www.youtube.com/watch?v=123" } },
+        ]).to_string();
+
+        // 1. Render under Modern Editorial
+        let mut modern_settings = std::collections::HashMap::new();
+        modern_settings.insert("theme_active_name".to_string(), "Modern Editorial".to_string());
+        let modern_html = render_page(
+            &templates,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&modern_settings),
+            None,
+        ).unwrap();
+
+        assert!(modern_html.contains("header-centered"));
+        assert!(modern_html.contains("#991b1b")); // Modern editorial accent
+        assert!(modern_html.contains("Hero Title"));
+        assert!(modern_html.contains("Text Title"));
+        assert!(modern_html.contains("TI Title"));
+        assert!(modern_html.contains("Gallery Title"));
+        assert!(modern_html.contains("Carousel Title"));
+        assert!(modern_html.contains("CTA Title"));
+        assert!(modern_html.contains("Features Title"));
+        assert!(modern_html.contains("Great platform"));
+        assert!(modern_html.contains("Alice"));
+        assert!(modern_html.contains("FAQ Title"));
+        assert!(modern_html.contains("Video Title"));
+
+        // 2. Render under Bento-Brutalism
+        let mut bento_settings = std::collections::HashMap::new();
+        bento_settings.insert("theme_active_name".to_string(), "Bento-Brutalism".to_string());
+        let bento_html = render_page(
+            &templates,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&bento_settings),
+            None,
+        ).unwrap();
+
+        assert!(bento_html.contains("header-split"));
+        assert!(bento_html.contains("#007799")); // Bento brutalism cyan accent
+        assert!(bento_html.contains("Hero Title"));
+        assert!(bento_html.contains("Video Title"));
     }
 }
