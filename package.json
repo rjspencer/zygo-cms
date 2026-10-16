@@ -25,6 +25,7 @@
         "setup": "node scripts/setup.mjs",
         "create:component": "node scripts/create-component-module.mjs",
         "seed:docs:official": "node scripts/seed_official_docs.mjs",
+        "seed:theme-preview": "node scripts/seed_theme_preview.mjs",
         "test:admin": "vitest run packages/admin-ui/",
         "test:api": "vitest run tests/admin-api-worker.test.js",
         "test:public": "vitest run tests/public-worker.test.js",

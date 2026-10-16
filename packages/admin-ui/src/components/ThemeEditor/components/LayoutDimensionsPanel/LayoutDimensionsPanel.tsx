@@ -23,7 +23,7 @@ export const LayoutDimensionsPanel: React.FC<LayoutDimensionsPanelProps> = ({
           </Text>
           <TextField.Root
             value={tokens.maxWidth}
-            placeholder="740px"
+            placeholder="1920px"
             onChange={(e) => setTokens((prev) => ({ ...prev, maxWidth: e.target.value }))}
           />
         </Box>

@@ -181,7 +181,10 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
         {% if is_preview %}
         <div class="preview-banner" role="status">Preview Mode</div>
         {% endif %}
-        <article>
+        <article class="{% if sections_html %}page-sections{% else %}page-standard{% endif %}">
+            {% if sections_html %}
+            {{ sections_html|safe }}
+            {% else %}
             <nav class="breadcrumbs" aria-label="Breadcrumb">
                 <a href="/">Home</a>
                 {% for crumb in breadcrumbs %}
@@ -195,9 +198,6 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
             <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}">
             {% endif %}
             <h1>{{ page.title }}</h1>
-            {% if sections_html %}
-            {{ sections_html|safe }}
-            {% else %}
             <div class="prose">
                 {{ page.body_html|safe }}
             </div>

@@ -56,7 +56,9 @@ pub async fn serve_styles(req: Request, ctx: RouteContext<()>) -> Result<Respons
 
     let url = req.url()?;
     let path = url.path();
-    if path.starts_with("/style-") && path.ends_with(".css") {
+    if cache::is_localhost(&req) {
+        headers.set("Cache-Control", "no-cache, no-store, must-revalidate")?;
+    } else if path.starts_with("/style-") && path.ends_with(".css") && path != "/style-default.css" {
         headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
     } else {
         headers.set("Cache-Control", "public, max-age=300")?;

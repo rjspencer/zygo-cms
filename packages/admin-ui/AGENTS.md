@@ -15,6 +15,8 @@
 
 ## 3. Testing Strategy
 - **Frameworks**: Vitest alongside `@testing-library/react`.
+- **Portable Assertions (Avoid `jest-dom` Matchers in `.test.tsx`)**: Because root `pnpm run test:all` uses the root `vitest.config.js` without `packages/admin-ui/src/test/setup.ts`, prefer standard Vitest/Chai assertions (`.toBeDefined()`, `.toBeNull()`, `expect(btn.hasAttribute('disabled')).toBe(true)`) over `@testing-library/jest-dom` matchers (`.toBeInTheDocument()`, `.toBeDisabled()`) in unit tests (`*.test.tsx`).
+- **HappyDOM Browser API Mocking**: Properties like `navigator.clipboard` are getter-only in HappyDOM (`Object.assign(navigator, { clipboard })` throws a `TypeError`). Always mock getter-only globals with `Object.defineProperty(navigator, 'clipboard', { value: { ... }, configurable: true })`.
 - **Integration Tests**: Focus heavily on integration tests. Render pages with necessary providers (such as `QueryClientProvider` and `createMemoryRouter` from `src/test/test-utils.tsx`).
 - **Data Routers**: When testing components using `useBlocker` or navigation blockers, use `createMemoryRouter` + `RouterProvider` instead of standard `MemoryRouter`.
 - **API Mocking**: Use Mock Service Worker (MSW) or stub the `apiFetch` layer to mock network requests. Do not mock internal React Query hooks.
@@ -22,7 +24,7 @@
 
 ## 4. Pre-Commit Verification
 - Run typecheck: `pnpm --filter admin-ui exec tsc --noEmit`
-- Run targeted UI unit tests (from workspace root): `pnpm exec vitest run packages/admin-ui/src/__tests__/<File>.test.tsx`
+- Run targeted UI unit tests (from workspace root): `pnpm exec vitest run packages/admin-ui/src/components/<Name>/<Name>.test.tsx` (or `src/pages/<Name>/<Name>.test.tsx`)
 - Run full test suite: `pnpm run test:all`
 
 ## 5. WebMCP Tool Registration Guidelines
