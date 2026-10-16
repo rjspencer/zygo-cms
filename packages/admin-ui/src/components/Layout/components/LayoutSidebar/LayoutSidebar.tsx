@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Flex, IconButton, Badge } from '@radix-ui/themes';
+import { Box, Flex, IconButton, Badge, Text, Separator } from '@radix-ui/themes';
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons';
 import { BrandLogo } from '../BrandLogo';
 import { QuickCreateMenu } from '../QuickCreateMenu';
@@ -10,7 +10,7 @@ import type { LayoutSidebarProps } from '../../types';
 export const LayoutSidebar: React.FC<LayoutSidebarProps> = ({
   isCollapsed,
   onToggleCollapse,
-  navItems,
+  navSections,
   userEmail,
   logoutUrl,
   mode,
@@ -29,6 +29,7 @@ export const LayoutSidebar: React.FC<LayoutSidebarProps> = ({
         justifyContent: 'space-between',
         padding: isCollapsed ? '16px 8px' : '16px',
         position: 'relative',
+        height: '100%',
       }}
     >
       <IconButton
@@ -52,9 +53,9 @@ export const LayoutSidebar: React.FC<LayoutSidebarProps> = ({
       >
         {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
       </IconButton>
-      <Box>
+      <Box style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
         {/* Brand Header */}
-        <Flex align="center" justify={isCollapsed ? 'center' : 'between'} mb="5" px={isCollapsed ? '0' : '2'}>
+        <Flex align="center" justify={isCollapsed ? 'center' : 'between'} mb="5" px={isCollapsed ? '0' : '2'} style={{ flexShrink: 0 }}>
           <BrandLogo isCollapsed={isCollapsed} />
           {!isCollapsed && (
             <Badge color="crimson" variant="soft" size="1">
@@ -64,23 +65,54 @@ export const LayoutSidebar: React.FC<LayoutSidebarProps> = ({
         </Flex>
 
         {/* Quick Create Dropdown */}
-        <QuickCreateMenu isCollapsed={isCollapsed} />
+        <Box style={{ flexShrink: 0 }}>
+          <QuickCreateMenu isCollapsed={isCollapsed} />
+        </Box>
 
-        {/* Nav Items */}
-        <Flex direction="column" gap="1">
-          {navItems.map((item) => (
-            <NavItem
-              key={item.to}
-              to={item.to}
-              icon={item.icon}
-              label={item.label}
-              exact={item.exact}
-              aliases={item.aliases}
-              excludePrefixes={item.excludePrefixes}
-              isCollapsed={isCollapsed}
-            />
-          ))}
-        </Flex>
+        {/* Nav Sections */}
+        <Box style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+          <Flex direction="column" gap={isCollapsed ? '0' : '4'}>
+            {navSections.map((section, index) => (
+              <Box key={section.title}>
+                {isCollapsed ? (
+                  index > 0 && <Separator size="4" my="2" />
+                ) : (
+                  <Text
+                    size="1"
+                    weight="bold"
+                    as="div"
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      color: 'var(--gray-9)',
+                      paddingLeft: 'var(--space-3)',
+                      paddingRight: 'var(--space-3)',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    {section.title}
+                  </Text>
+                )}
+                <Flex direction="column" gap="1">
+                  {section.items.map((item) => (
+                    <NavItem
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      exact={item.exact}
+                      aliases={item.aliases}
+                      excludePrefixes={item.excludePrefixes}
+                      isCollapsed={isCollapsed}
+                    />
+                  ))}
+                </Flex>
+              </Box>
+            ))}
+          </Flex>
+        </Box>
       </Box>
 
       <SidebarFooter

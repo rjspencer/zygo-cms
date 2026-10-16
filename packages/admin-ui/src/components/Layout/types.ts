@@ -9,10 +9,15 @@ export interface NavItemConfig {
   excludePrefixes?: string[];
 }
 
+export interface NavSectionConfig {
+  title: string;
+  items: NavItemConfig[];
+}
+
 export interface LayoutSidebarProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
-  navItems: NavItemConfig[];
+  navSections: NavSectionConfig[];
   userEmail: string;
   logoutUrl: string;
   mode: 'light' | 'dark';

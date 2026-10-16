@@ -21,6 +21,7 @@ export const NavItem: React.FC<NavItemProps> = ({
   excludePrefixes = [],
   isCollapsed = false,
 }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
   const location = useLocation();
   const matchesPath = (path: string) =>
     exact
@@ -31,7 +32,13 @@ export const NavItem: React.FC<NavItemProps> = ({
   const isActive = !isExcluded && (matchesPath(to) || aliases.some((alias) => matchesPath(alias)));
 
   return (
-    <NavLink to={to} style={{ textDecoration: 'none', width: '100%' }} title={isCollapsed ? label : undefined}>
+    <NavLink
+      to={to}
+      style={{ textDecoration: 'none', width: '100%' }}
+      title={isCollapsed ? label : undefined}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       <Flex
         align="center"
         justify={isCollapsed ? 'center' : 'start'}
@@ -42,8 +49,8 @@ export const NavItem: React.FC<NavItemProps> = ({
           position: 'relative',
           overflow: 'hidden',
           borderRadius: 'var(--radius-1)',
-          backgroundColor: isActive ? 'var(--accent-a4)' : 'transparent',
-          color: isActive ? 'var(--accent-11)' : 'var(--gray-11)',
+          backgroundColor: isActive ? 'var(--accent-a4)' : isHovered ? 'var(--gray-a3)' : 'transparent',
+          color: isActive ? 'var(--accent-11)' : isHovered ? 'var(--gray-12)' : 'var(--gray-11)',
           fontWeight: isActive ? 600 : 400,
           cursor: 'pointer',
           transition: 'all 0.15s ease',

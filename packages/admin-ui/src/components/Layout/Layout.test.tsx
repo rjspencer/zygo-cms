@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 import { render } from '../../test/test-utils';
 import { Layout } from './Layout';
 
@@ -81,6 +81,10 @@ describe('Layout Component', () => {
     renderLayout();
     expect(screen.getByRole('img', { name: 'Zygo CMS' })).toBeDefined();
     expect(screen.getByText('v0.1')).toBeDefined();
+    expect(screen.getByText('Overview')).toBeDefined();
+    expect(screen.getByText('Content')).toBeDefined();
+    expect(screen.getByText('Design')).toBeDefined();
+    expect(screen.getByText('Admin')).toBeDefined();
     expect(screen.getByText('Dashboard')).toBeDefined();
     expect(screen.getByText('Posts')).toBeDefined();
     expect(screen.getByText('Pages')).toBeDefined();
@@ -91,6 +95,56 @@ describe('Layout Component', () => {
     expect(screen.getByText('Users')).toBeDefined();
     expect(screen.getByText('Theme')).toBeDefined();
     expect(screen.queryByText('Content Types')).toBeNull();
+  });
+
+  it('hides section header text labels when sidebar is collapsed while keeping navigation links accessible', () => {
+    renderLayout();
+
+    // Verify all 4 section headers are rendered initially
+    expect(screen.getByText('Overview')).toBeDefined();
+    expect(screen.getByText('Content')).toBeDefined();
+    expect(screen.getByText('Design')).toBeDefined();
+    expect(screen.getByText('Admin')).toBeDefined();
+
+    // Click collapse button
+    const collapseButton = screen.getByRole('button', { name: 'Collapse sidebar' });
+    fireEvent.click(collapseButton);
+
+    // Verify section header text labels are hidden
+    expect(screen.queryByText('Overview')).toBeNull();
+    expect(screen.queryByText('Content')).toBeNull();
+    expect(screen.queryByText('Design')).toBeNull();
+    expect(screen.queryByText('Admin')).toBeNull();
+
+    // Verify navigation links remain accessible by title
+    expect(screen.getByTitle('Dashboard')).toBeDefined();
+    expect(screen.getByTitle('Analytics')).toBeDefined();
+    expect(screen.getByTitle('Pages')).toBeDefined();
+    expect(screen.getByTitle('Posts')).toBeDefined();
+    expect(screen.getByTitle('Media Library')).toBeDefined();
+    expect(screen.getByTitle('Site Navigation')).toBeDefined();
+    expect(screen.getByTitle('Page Templates')).toBeDefined();
+    expect(screen.getByTitle('Posts Template')).toBeDefined();
+    expect(screen.getByTitle('Docs Template')).toBeDefined();
+    expect(screen.getByTitle('Theme')).toBeDefined();
+    expect(screen.getByTitle('Users')).toBeDefined();
+    expect(screen.getByTitle('Settings')).toBeDefined();
+  });
+
+  it('applies subtle gray background highlight on hover for inactive nav items', () => {
+    renderLayout();
+
+    const pagesText = screen.getByText('Pages');
+    const pagesLink = pagesText.closest('a')!;
+    const pagesFlex = pagesLink.firstElementChild as HTMLElement;
+
+    expect(pagesFlex.style.backgroundColor).toBe('transparent');
+
+    fireEvent.mouseEnter(pagesLink);
+    expect(pagesFlex.style.backgroundColor).toBe('var(--gray-a3)');
+
+    fireEvent.mouseLeave(pagesLink);
+    expect(pagesFlex.style.backgroundColor).toBe('transparent');
   });
 
   it('fetches user info and updates user email and logout link', async () => {

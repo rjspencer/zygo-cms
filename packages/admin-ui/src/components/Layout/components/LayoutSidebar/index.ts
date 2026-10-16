@@ -1,2 +1,2 @@
 export { LayoutSidebar, default } from './LayoutSidebar';
-export type { LayoutSidebarProps } from '../../types';
+export type { LayoutSidebarProps, NavSectionConfig } from '../../types';
