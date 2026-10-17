@@ -10,21 +10,36 @@ import type { EntryFormValues, EntryType } from '../../types';
 import { ContentTab } from '../ContentTab/ContentTab';
 import { MetadataTab } from '../MetadataTab/MetadataTab';
 
-interface EditorTabsProps {
+export interface EditorTabsProps {
   id: string | undefined;
   entryType: EntryType;
   sectionTemplates: SectionTemplate[];
   /** True when the entry exists on the server and has no unsaved edits. */
   isSaved: boolean;
   onEditorReady: (editor: TipTapEditor) => void;
+  activeTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const EditorTabs: React.FC<EditorTabsProps> = ({ id, entryType, sectionTemplates, isSaved, onEditorReady }) => {
+export const EditorTabs: React.FC<EditorTabsProps> = ({
+  id,
+  entryType,
+  sectionTemplates,
+  isSaved,
+  onEditorReady,
+  activeTab,
+  onTabChange,
+}) => {
   const { control } = useFormContext<EntryFormValues>();
   const [canonicalUrl, slug] = useWatch({ control, name: ['canonicalUrl', 'slug'] });
 
+  const rootProps =
+    activeTab !== undefined
+      ? { value: activeTab, onValueChange: onTabChange }
+      : { defaultValue: 'content' };
+
   return (
-    <Tabs.Root defaultValue="content">
+    <Tabs.Root {...rootProps}>
       <Tabs.List mb="4">
         <Tabs.Trigger value="content">Content</Tabs.Trigger>
         <Tabs.Trigger value="metadata">Metadata</Tabs.Trigger>

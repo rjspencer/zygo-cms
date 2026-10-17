@@ -27,9 +27,28 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({ id, isEditing, entry
   const { isDirty } = useFormState({ control });
   const [title, content, sections] = useWatch({ control, name: ['title', 'content', 'sections'] });
   const [tiptapEditor, setTiptapEditor] = useState<TipTapEditor | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('content');
 
   const { blocker, allowNextNavigation } = useUnsavedChangesBlocker(isDirty);
-  const { save, isSaved } = useSaveEntry({ id, isEditing, entryType, allowNextNavigation });
+
+  const handleValidationFailure = () => {
+    const errors = control._formState.errors;
+    const hasContentErrors = Boolean(errors.slug || errors.sections);
+    const hasMetadataErrors = Boolean(errors.canonicalUrl || errors.schemaJson || errors.parentId);
+    if (activeTab === 'content' && !hasContentErrors && hasMetadataErrors) {
+      setActiveTab('metadata');
+    } else if (activeTab !== 'content' && hasContentErrors && !hasMetadataErrors) {
+      setActiveTab('content');
+    }
+  };
+
+  const { save, isSaved } = useSaveEntry({
+    id,
+    isEditing,
+    entryType,
+    allowNextNavigation,
+    onValidationFailure: handleValidationFailure,
+  });
   const { previewHtml, previewCss } = useWasmPreview({ entryType, title, content, sections, sectionTemplates });
 
   const saveDraft = () => save(false);
@@ -65,6 +84,8 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({ id, isEditing, entry
               sectionTemplates={sectionTemplates}
               isSaved={isEditing && !isDirty}
               onEditorReady={setTiptapEditor}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
             />
           </Box>
           <LivePreviewPane previewHtml={previewHtml} previewCss={previewCss} />

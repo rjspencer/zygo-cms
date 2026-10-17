@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../../utils/api';
 import { ENTRY_TYPE_CONFIG } from '../constants';
@@ -12,6 +12,7 @@ interface UseSaveEntryOptions {
   isEditing: boolean;
   entryType: EntryType;
   allowNextNavigation: () => void;
+  onValidationFailure?: () => void;
 }
 
 interface SaveVariables {
@@ -28,8 +29,15 @@ interface SaveResponse {
 }
 
 /** Saves the form as draft / published / preview-only and handles post-save form + route updates. */
-export const useSaveEntry = ({ id, isEditing, entryType, allowNextNavigation }: UseSaveEntryOptions) => {
-  const { getValues, setValue, reset } = useFormContext<EntryFormValues>();
+export const useSaveEntry = ({
+  id,
+  isEditing,
+  entryType,
+  allowNextNavigation,
+  onValidationFailure,
+}: UseSaveEntryOptions) => {
+  const queryClient = useQueryClient();
+  const { getValues, setValue, reset, trigger, setError } = useFormContext<EntryFormValues>();
   const navigate = useNavigate();
   const [isSaved, setIsSaved] = useState(false);
 
@@ -52,12 +60,22 @@ export const useSaveEntry = ({ id, isEditing, entryType, allowNextNavigation }: 
       }
       return res.json();
     },
-    onSuccess: (data, { finalStatus, draftOnly }) => {
+    onSuccess: (data, { payload, finalStatus, draftOnly }) => {
       setValue('status', finalStatus);
       // A real save becomes the new baseline, so the form is no longer dirty.
-      if (!draftOnly) reset(getValues());
+      if (!draftOnly) {
+        reset(getValues(), { keepValues: true, keepErrors: false });
+      }
       setIsSaved(true);
       if (!isEditing && data.id) {
+        queryClient.setQueryData(['editorEntry', String(data.id)], {
+          entry: {
+            id: data.id,
+            ...payload,
+            type: entryType,
+            status: finalStatus,
+          },
+        });
         allowNextNavigation();
         navigate(`${ENTRY_TYPE_CONFIG[entryType].editorPath}/${data.id}`, { replace: true });
       }
@@ -78,6 +96,14 @@ export const useSaveEntry = ({ id, isEditing, entryType, allowNextNavigation }: 
       setValue('slug', String(payload.slug), { shouldDirty: true });
     }
 
+    if (!isPreview) {
+      const isValid = await trigger();
+      if (!isValid) {
+        onValidationFailure?.();
+        return null;
+      }
+    }
+
     try {
       const data = await mutation.mutateAsync({
         payload,
@@ -89,6 +115,19 @@ export const useSaveEntry = ({ id, isEditing, entryType, allowNextNavigation }: 
       return data.preview_token || null;
     } catch (err) {
       console.error(err);
+      if (err instanceof Error && /slug/i.test(err.message)) {
+        let message = err.message;
+        try {
+          const parsed = JSON.parse(err.message);
+          if (parsed && typeof parsed.error === 'string') {
+            message = parsed.error;
+          }
+        } catch {
+          // not json, use err.message
+        }
+        setError('slug', { type: 'server', message });
+        onValidationFailure?.();
+      }
       return null;
     }
   };

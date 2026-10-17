@@ -1,7 +1,12 @@
-import { fireEvent, screen } from '@testing-library/react';
+import React, { useEffect } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { Theme } from '@radix-ui/themes';
 import { describe, expect, it, vi } from 'vitest';
 import { MediaPickerContext } from '../../context/MediaPickerContext';
 import { renderWithForm } from '../../testUtils/renderWithForm';
+import type { EntryFormValues } from '../../types';
+import { EMPTY_FORM_VALUES } from '../../utils/entryForm';
 import { MetadataTab } from './MetadataTab';
 
 vi.mock('../SocialPreviews/SocialPreviews', () => ({
@@ -11,6 +16,27 @@ vi.mock('../SocialPreviews/SocialPreviews', () => ({
     </div>
   ),
 }));
+
+const FormWithErrorHarness: React.FC<{
+  errors: Partial<Record<keyof EntryFormValues, string>>;
+  children: React.ReactNode;
+}> = ({ errors, children }) => {
+  const methods = useForm<EntryFormValues>({ defaultValues: EMPTY_FORM_VALUES });
+  useEffect(() => {
+    Object.entries(errors).forEach(([field, msg]) => {
+      methods.setError(field as keyof EntryFormValues, {
+        type: 'validation',
+        message: msg,
+      });
+    });
+  }, [errors, methods]);
+
+  return (
+    <Theme>
+      <FormProvider {...methods}>{children}</FormProvider>
+    </Theme>
+  );
+};
 
 describe('MetadataTab', () => {
   it('renders all standard metadata fields and SocialPreviews', () => {
@@ -137,5 +163,38 @@ describe('MetadataTab', () => {
 
     expect(screen.queryByText('https://example.com/banner.png')).toBeNull();
     expect(screen.queryByAltText('Cover Thumbnail')).toBeNull();
+  });
+
+  it('renders inline error alerts and aria-invalid attributes for canonicalUrl and schemaJson', () => {
+    render(
+      <FormWithErrorHarness
+        errors={{
+          canonicalUrl: 'Canonical URL must be a valid HTTP/HTTPS URL',
+          schemaJson: 'Schema JSON must be a valid JSON object',
+        }}
+      >
+        <MediaPickerContext.Provider value={vi.fn()}>
+          <MetadataTab entryType="post" />
+        </MediaPickerContext.Provider>
+      </FormWithErrorHarness>
+    );
+
+    const canonicalAlert = screen.getByText('Canonical URL must be a valid HTTP/HTTPS URL');
+    expect(canonicalAlert).toBeDefined();
+    expect(canonicalAlert.getAttribute('role')).toBe('alert');
+
+    const canonicalInput = document.getElementById('editor-canonical-url-input');
+    expect(canonicalInput).not.toBeNull();
+    expect(canonicalInput?.getAttribute('aria-invalid')).toBe('true');
+    expect(canonicalInput?.getAttribute('aria-describedby')).toBe('editor-canonical-url-error');
+
+    const schemaAlert = screen.getByText('Schema JSON must be a valid JSON object');
+    expect(schemaAlert).toBeDefined();
+    expect(schemaAlert.getAttribute('role')).toBe('alert');
+
+    const schemaInput = document.getElementById('editor-schema-json-input');
+    expect(schemaInput).not.toBeNull();
+    expect(schemaInput?.getAttribute('aria-invalid')).toBe('true');
+    expect(schemaInput?.getAttribute('aria-describedby')).toBe('editor-schema-json-error');
   });
 });

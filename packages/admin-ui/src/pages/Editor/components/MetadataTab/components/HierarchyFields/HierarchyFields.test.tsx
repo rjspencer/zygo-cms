@@ -1,7 +1,31 @@
-import { fireEvent, screen } from '@testing-library/react';
+import React, { useEffect } from 'react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { FormProvider, useForm } from 'react-hook-form';
+import { Theme } from '@radix-ui/themes';
 import { describe, expect, it } from 'vitest';
 import { renderWithForm } from '../../../../testUtils/renderWithForm';
+import type { EntryFormValues } from '../../../../types';
+import { EMPTY_FORM_VALUES } from '../../../../utils/entryForm';
 import { HierarchyFields } from './HierarchyFields';
+
+const FormWithErrorHarness: React.FC<{
+  errorMessage: string;
+  children: React.ReactNode;
+}> = ({ errorMessage, children }) => {
+  const methods = useForm<EntryFormValues>({ defaultValues: EMPTY_FORM_VALUES });
+  useEffect(() => {
+    methods.setError('parentId', {
+      type: 'validation',
+      message: errorMessage,
+    });
+  }, [errorMessage, methods]);
+
+  return (
+    <Theme>
+      <FormProvider {...methods}>{children}</FormProvider>
+    </Theme>
+  );
+};
 
 describe('HierarchyFields', () => {
   it('renders Parent ID and Sort Order inputs with labels and helper texts', () => {
@@ -36,5 +60,23 @@ describe('HierarchyFields', () => {
     fireEvent.change(sortOrderInput, { target: { value: '5' } });
 
     expect(sortOrderInput.value).toBe('5');
+  });
+
+  it('renders inline error alert and aria-invalid attribute when parentId has an error', () => {
+    const errorMessage = 'Parent ID must be a positive integer';
+    render(
+      <FormWithErrorHarness errorMessage={errorMessage}>
+        <HierarchyFields />
+      </FormWithErrorHarness>
+    );
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toBeDefined();
+    expect(alert.textContent).toBe(errorMessage);
+
+    const parentIdInput = document.getElementById('editor-parent-id-input');
+    expect(parentIdInput).not.toBeNull();
+    expect(parentIdInput?.getAttribute('aria-invalid')).toBe('true');
+    expect(parentIdInput?.getAttribute('aria-describedby')).toBe('editor-parent-id-error');
   });
 });
