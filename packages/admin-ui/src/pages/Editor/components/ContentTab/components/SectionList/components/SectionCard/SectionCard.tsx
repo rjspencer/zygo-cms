@@ -18,6 +18,7 @@ export interface SectionCardProps {
   totalSections: number;
   template?: SectionTemplate;
   isExpanded: boolean;
+  fieldErrors?: Record<string, string>;
   onToggleExpand: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -31,6 +32,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   totalSections,
   template,
   isExpanded,
+  fieldErrors,
   onToggleExpand,
   onMoveUp,
   onMoveDown,
@@ -131,6 +133,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
               data={section.data || {}}
               onChange={onChangeData}
               onOpenMediaPicker={openMediaPicker}
+              errors={fieldErrors}
             />
           )}
         </Box>

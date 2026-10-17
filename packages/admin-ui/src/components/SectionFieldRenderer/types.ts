@@ -8,6 +8,7 @@ export interface SectionFieldRendererProps {
   onChange: (data: Record<string, any>) => void;
   onOpenMediaPicker?: (callback: (url: string, alt?: string) => void) => void;
   isNested?: boolean;
+  errors?: Record<string, string>;
 }
 
 export interface SectionFieldControlProps {

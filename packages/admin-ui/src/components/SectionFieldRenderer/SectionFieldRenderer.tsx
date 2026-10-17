@@ -9,6 +9,7 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
   onChange,
   onOpenMediaPicker,
   isNested = false,
+  errors,
 }) => {
   const updateField = (name: string, value: any) => {
     onChange({
@@ -29,6 +30,8 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
           return null;
         }
 
+        const fieldError = errors?.[field.name];
+
         return (
           <Box key={field.name}>
             <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
@@ -42,6 +45,12 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
               onChange={(value) => updateField(field.name, value)}
               onOpenMediaPicker={onOpenMediaPicker}
             />
+
+            {fieldError && (
+              <Text role="alert" size="1" color="red" mt="1" style={{ display: 'block' }}>
+                {fieldError}
+              </Text>
+            )}
           </Box>
         );
       })}

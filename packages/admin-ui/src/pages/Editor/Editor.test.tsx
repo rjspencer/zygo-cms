@@ -5,12 +5,44 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
 import { Editor } from './Editor';
 
+vi.mock('./components/ContentTab/components/SectionList/components/AddSectionSelect', () => ({
+  AddSectionSelect: ({ sectionTemplates, onAddSection }: any) => (
+    <div>
+      <button
+        type="button"
+        onClick={() => {
+          if (sectionTemplates.length > 0) {
+            onAddSection(sectionTemplates[0].id);
+          }
+        }}
+      >
+        Add Section...
+      </button>
+      {sectionTemplates.map((st: any) => (
+        <button
+          key={st.id}
+          type="button"
+          data-testid={`add-section-${st.id}`}
+          onClick={() => onAddSection(st.id)}
+        >
+          Add {st.name}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 const createTestQueryClient = () => new QueryClient({
   defaultOptions: { queries: { retry: false } }
 });
 
-const renderEditor = (initialPath = '/editor') => {
-  const testQueryClient = createTestQueryClient();
+const renderEditor = (initialPath = '/editor', customQueryClient?: QueryClient) => {
+  const testQueryClient = customQueryClient ?? createTestQueryClient();
+  if (initialPath === '/editor/1' && !testQueryClient.getQueryData(['editorEntry', '1'])) {
+    testQueryClient.setQueryData(['editorEntry', '1'], {
+      entry: { id: 1, title: '', slug: '', status: 'draft', type: 'post', body_html: '', body_json: '{}' },
+    });
+  }
   const router = createMemoryRouter(
     [
       '/editor',
@@ -22,13 +54,17 @@ const renderEditor = (initialPath = '/editor') => {
     ].map((path) => ({ path, element: <Editor /> })),
     { initialEntries: [initialPath] }
   );
-  return render(
-    <QueryClientProvider client={testQueryClient}>
-      <Theme>
-        <RouterProvider router={router} />
-      </Theme>
-    </QueryClientProvider>
-  );
+  return {
+    ...render(
+      <QueryClientProvider client={testQueryClient}>
+        <Theme>
+          <RouterProvider router={router} />
+        </Theme>
+      </QueryClientProvider>
+    ),
+    router,
+    queryClient: testQueryClient,
+  };
 };
 
 describe('Editor Component - Phase 1 Refinements', () => {
@@ -718,5 +754,291 @@ describe('Editor Component - Phase 3 Routing, Title UX & Metadata Previews', () 
   });
 });
 
+describe('Editor Component - Phase 4 Functional & Data Integrity', () => {
+  beforeEach(() => {
+    import.meta.env.VITE_PUBLIC_SITE_URL = '';
+  });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
+  describe('Loading & Error states', () => {
+    it('renders role="status" (Loading entry...) while entry fetch is pending', async () => {
+      let resolveFetch: any;
+      const pendingPromise = new Promise((resolve) => {
+        resolveFetch = resolve;
+      });
+
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (url.includes('/api/admin/editor/77')) {
+            return pendingPromise;
+          }
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([]),
+          });
+        })
+      );
+
+      renderEditor('/posts/editor/77');
+
+      const status = screen.getByRole('status');
+      expect(status).toBeDefined();
+      expect(screen.getByText('Loading entry...')).toBeDefined();
+
+      resolveFetch({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            entry: {
+              id: 77,
+              title: 'Loaded',
+              slug: 'loaded',
+              type: 'post',
+              status: 'draft',
+              body_html: '',
+              body_json: '{}',
+            },
+          }),
+      });
+    });
+
+    it('renders role="alert" (Failed to load entry) and a Retry button when fetch fails, and re-fetches on click', async () => {
+      let attempts = 0;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (url.includes('/api/section-templates')) {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+          }
+          if (url.includes('/api/admin/editor/77')) {
+            attempts++;
+            if (attempts === 1) {
+              return Promise.resolve({ ok: false, status: 500 });
+            }
+            return Promise.resolve({
+              ok: true,
+              json: () =>
+                Promise.resolve({
+                  entry: {
+                    id: 77,
+                    title: 'Recovered Post',
+                    slug: 'recovered-post',
+                    status: 'draft',
+                    type: 'post',
+                    body_html: '',
+                    body_json: '{}',
+                  },
+                }),
+            });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        })
+      );
+
+      renderEditor('/posts/editor/77');
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toBeDefined();
+      expect(screen.getByText(/Failed to load entry/)).toBeDefined();
+
+      const retryButton = screen.getByRole('button', { name: /retry/i });
+      expect(retryButton).toBeDefined();
+
+      fireEvent.click(retryButton);
+
+      expect(await screen.findByRole('heading', { level: 1 })).toBeDefined();
+      expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Recovered Post');
+    });
+  });
+
+  describe('Form & Section Validation Blocking Save/Publish', () => {
+    it('blocks Save Draft and Publish when slug is invalid and displays error alert without calling API', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      renderEditor('/posts/editor/new');
+
+      const slugInput = screen.getByPlaceholderText('url-friendly-slug') as HTMLInputElement;
+      fireEvent.change(slugInput, { target: { value: 'bad slug!' } });
+
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      fireEvent.click(saveDraftBtn);
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toBeDefined();
+      expect(alert.textContent).toBe('Slug must contain only alphanumeric characters and hyphens');
+      expect(fetchSpy).not.toHaveBeenCalledWith('/api/entries', expect.anything());
+
+      const publishBtn = screen.getByRole('button', { name: /publish/i });
+      fireEvent.click(publishBtn);
+
+      expect(screen.getByRole('alert').textContent).toBe('Slug must contain only alphanumeric characters and hyphens');
+      expect(fetchSpy).not.toHaveBeenCalledWith('/api/entries', expect.anything());
+    });
+
+    it('blocks Publish when page section required field is blank, auto-expands section, and renders required error alert', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                {
+                  id: 'hero_banner',
+                  name: 'Hero Banner',
+                  schema_json: JSON.stringify([
+                    { name: 'headline', type: 'text', label: 'Headline', required: true },
+                  ]),
+                },
+              ]),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      renderEditor('/pages/editor/new');
+
+      const addBtn = await screen.findByTestId('add-section-hero_banner');
+      fireEvent.click(addBtn);
+
+      expect(await screen.findByText('Hero Banner')).toBeDefined();
+
+      const collapseBtn = screen.getByRole('button', { name: 'Collapse section' });
+      fireEvent.click(collapseBtn);
+      expect(screen.getByRole('button', { name: 'Expand section' })).toBeDefined();
+      expect(screen.queryByText('Headline is required')).toBeNull();
+
+      const publishBtn = screen.getByRole('button', { name: /publish/i });
+      fireEvent.click(publishBtn);
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toBeDefined();
+      expect(alert.textContent).toBe('Headline is required');
+      expect(screen.getByRole('button', { name: 'Collapse section' })).toBeDefined();
+      expect(fetchSpy).not.toHaveBeenCalledWith('/api/entries', expect.anything());
+    });
+
+    it('blocks Save Draft and auto-switches active tab to Metadata when cross-tab validation error occurs', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      renderEditor('/posts/editor/new');
+
+      const metadataTab = screen.getByRole('tab', { name: /metadata/i });
+      fireEvent.mouseDown(metadataTab, { button: 0, ctrlKey: false });
+
+      const canonicalInput = screen.getByPlaceholderText('https://example.com/...') as HTMLInputElement;
+      fireEvent.change(canonicalInput, { target: { value: 'not-a-valid-url' } });
+
+      const contentTab = screen.getByRole('tab', { name: /content/i });
+      fireEvent.mouseDown(contentTab, { button: 0, ctrlKey: false });
+      expect(screen.getByPlaceholderText('url-friendly-slug')).toBeDefined();
+
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      fireEvent.click(saveDraftBtn);
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toBeDefined();
+      expect(alert.textContent).toBe('Canonical URL must be a valid HTTP/HTTPS URL');
+      expect(screen.getByPlaceholderText('https://example.com/...')).toBeDefined();
+      expect(fetchSpy).not.toHaveBeenCalledWith('/api/entries', expect.anything());
+    });
+  });
+
+  describe('Section Expansion State Survives Save', () => {
+    it('preserves section collapsed state after Save Draft completes', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve([
+                {
+                  id: 'plain_section',
+                  name: 'Plain Section',
+                  schema_json: JSON.stringify([
+                    { name: 'subtitle', type: 'text', label: 'Subtitle', required: false },
+                  ]),
+                },
+              ]),
+          });
+        }
+        if (url.includes('/api/entries')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, id: 105, preview_token: 'tok-105' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      renderEditor('/pages/editor/new');
+
+      const addBtn = await screen.findByTestId('add-section-plain_section');
+      fireEvent.click(addBtn);
+
+      expect(await screen.findByText('Plain Section')).toBeDefined();
+
+      const collapseBtn = screen.getByRole('button', { name: 'Collapse section' });
+      fireEvent.click(collapseBtn);
+      expect(screen.getByRole('button', { name: 'Expand section' })).toBeDefined();
+
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      fireEvent.click(saveDraftBtn);
+
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledWith('/api/entries', expect.anything());
+      });
+
+      expect(screen.getByRole('button', { name: 'Expand section' })).toBeDefined();
+      expect(screen.queryByRole('button', { name: 'Collapse section' })).toBeNull();
+    });
+  });
+
+  describe('First Save Seeds Cache Without Flash/Unmount', () => {
+    it('navigates to /posts/editor/:id, seeds query cache without loading spinner, and keeps Saved to Edge visible', async () => {
+      const fetchSpy = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/section-templates')) {
+          return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+        }
+        if (url.includes('/api/entries')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, id: 202, preview_token: 'tok-202' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+      vi.stubGlobal('fetch', fetchSpy);
+
+      const { router } = renderEditor('/posts/editor/new');
+
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      fireEvent.click(saveDraftBtn);
+
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/posts/editor/202');
+      });
+
+      expect(await screen.findByText('Saved to Edge')).toBeDefined();
+      expect(screen.queryByRole('status')).toBeNull();
+      expect(screen.queryByText('Loading entry...')).toBeNull();
+    });
+  });
+});
