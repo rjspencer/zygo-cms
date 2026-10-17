@@ -1,0 +1,31 @@
+{
+  "name": "create-zygo-app",
+  "version": "0.1.0",
+  "description": "Scaffold a clean, standalone Zygo CMS project on Cloudflare Workers, D1, and R2.",
+  "type": "module",
+  "bin": {
+    "create-zygo-app": "./index.mjs"
+  },
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "keywords": [
+    "zygo-cms",
+    "cloudflare-workers",
+    "d1",
+    "r2",
+    "rust",
+    "wasm",
+    "cms",
+    "scaffolder"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "picocolors": "^1.1.1"
+  }
+}
