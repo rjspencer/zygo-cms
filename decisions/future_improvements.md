@@ -119,6 +119,12 @@ A persistent record of architectural decisions, completed enhancements, and prio
 - **Zero-Flash First Save Navigation (`useSaveEntry.ts` & `Editor.tsx`)**: Seeds `['editorEntry', id]` in React Query cache and preserves the `EditorForm` session key on `/editor/new` -> `/editor/:id` transitions so the form stays mounted without flashing empty values or losing the `"Saved to Edge"` badge.
 - **Accessible Labels & Error Announcements**: Wired `htmlFor`/`id`, `aria-invalid`, `aria-describedby`, and `role="alert"` across `SlugField`, `MetadataTab`, `HierarchyFields`, and `SectionFieldRenderer`.
 
+### `create-zygo-app` CLI Scaffolder
+- **Standalone Project Bootstrapping (`packages/create-zygo-app`)**: Interactive `@clack/prompts` CLI (`npx create-zygo-app <project-dir>`) with non-interactive (`--yes`) and offline/local template (`--template-dir`) modes, fetching via shallow `git clone` with automatic GitHub tarball fallback.
+- **Monorepo Sanitization (`sanitizeProject`)**: Automatically strips internal directories and scripts (`decisions/`, `docs/official/`, `docs/github-ruleset-setup.md`, `scripts/seed_official_docs.mjs`, `.github/`, `packages/create-zygo-app/`, `tests/create-zygo-app.test.js`, `HANDOFF_*.md`, and root scratch scripts) and updates `package.json`.
+- **Clean `wrangler.toml` & Local Dev Defaults**: Strips hardcoded `zygodactylstudios.com` routes and replaces internal `database_id`s with `00000000-0000-0000-0000-000000000000` while remaining 100% compatible with `scripts/setup.mjs` for production provisioning; generates `.dev.vars` (`ENVIRONMENT=dev`) and `.env.development` out of the box.
+- **Automated Local Initialization**: Runs `pnpm install`, compiles `template-wasm` and worker/UI bundles (`pnpm run build`), applies local D1 migrations (`pnpm run db:migrate:local`), and initializes a fresh Git repository (`git init`), with granular `--skip-*` flags.
+
 ---
 
 ## 2. Prioritized Roadmap & Future Work
@@ -128,14 +134,6 @@ A persistent record of architectural decisions, completed enhancements, and prio
 ### WebMCP Editor Parity Follow-Up (Template, Theme & Navigation Editors)
 - **Goal**: Close the remaining editor-specific WebMCP parity gaps across `TemplateEditor`, `ThemeEditor`, and `Navigation` so browser agents never need to fall back to UI clicks for saving templates, setting template metadata, saving custom themes, or syncing live menu state.
 - **Specification & Gap Analysis**: See [webmcp_editor_gaps.md](./webmcp_editor_gaps.md).
-
-### `create-zygo-app` CLI Tool
-- **Concept**: Provide a frictionless developer experience (DX) for onboarding by distributing the CMS via an `npx create-zygo-app` CLI command.
-- **Goal**: Enable users to bootstrap a generic, pristine Zygo CMS project without cloning the main repository (which contains Zygo's official docs, marketing assets, and internal CI scripts).
-- **Details**:
-  - The CLI script acts as a sanitizing scaffolder. It pulls the core project but explicitly strips out internal directories (like `docs/` and official seed scripts).
-  - Initializes the local D1 database, updates `wrangler.toml` securely, and installs dependencies.
-  - **Important Distinction**: The `create` script (scaffolding a fresh local codebase) should remain strictly separate from the existing `setup.mjs` script (which is focused on provisioning production Cloudflare resources and assigning custom domains).
 
 
 ### Soon

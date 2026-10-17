@@ -38,6 +38,7 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 │   ├── admin-api-worker/      # Authenticated REST API worker (Cloudflare Access + D1)
 │   ├── admin-ui/              # Modern React + Vite SPA admin dashboard
 │   ├── core/                  # Shared Rust data models and sanitization (zygo-core)
+│   ├── create-zygo-app/       # CLI scaffolder for bootstrapping new Zygo CMS projects
 │   └── zygo-mcp/              # MCP server bridge for AI agents
 ├── migrations/                # D1 SQLite SQL migration scripts
 ├── scripts/                   # CLI automation scripts
@@ -50,6 +51,18 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 ---
 
 ## Local Development
+
+### Quick Start: Bootstrap a New Project (`create-zygo-app`)
+
+To scaffold a fresh, standalone Zygo CMS project without internal monorepo docs or CI workflows:
+
+```bash
+npx create-zygo-app my-zygo-site
+cd my-zygo-site
+pnpm run dev
+```
+
+`create-zygo-app` automatically downloads the starter template, strips internal files, sanitizes `wrangler.toml` configurations, configures local `.dev.vars`, installs dependencies, builds the Rust WebAssembly workers and Admin UI, and initializes your local D1 database.
 
 ### 1. Prerequisites
 

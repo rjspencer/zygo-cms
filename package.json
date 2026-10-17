@@ -29,6 +29,7 @@
         "test:admin": "vitest run packages/admin-ui/",
         "test:api": "vitest run tests/admin-api-worker.test.js",
         "test:public": "vitest run tests/public-worker.test.js",
+        "test:create": "vitest run tests/create-zygo-app.test.js",
         "test:e2e": "vitest run --no-file-parallelism tests/",
         "test:all": "vitest run",
         "test": "vitest run"
