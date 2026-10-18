@@ -38,7 +38,7 @@
 ## Users
 
 - After adding a user, present a dialog with a short email template that the admin can copy/paste.
-- Add to 'future_improvements.md` icebox: Connect an email sender
+- Add to `ROADMAP.md` icebox: Connect an email sender
 
 ## Navigation Menus
 

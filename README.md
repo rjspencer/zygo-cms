@@ -45,7 +45,12 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 │   └── setup.mjs              # Interactive setup & deployment wizard
 ├── templates/                 # Shared Askama HTML templates
 ├── public/                    # Shared static assets served at edge
-└── decisions/                 # Architectural decision records
+├── docs/                      # Documentation, technical specs, and architecture audits
+│   ├── official/              # End-user & administrator guides
+│   ├── specs/                 # Technical specifications & RFCs
+│   └── audits/                # Architecture audits and security reviews
+├── ROADMAP.md                 # Project roadmap, upcoming priorities, and backlog
+└── CHANGELOG.md               # Completed features and architectural enhancements
 ```
 
 ---

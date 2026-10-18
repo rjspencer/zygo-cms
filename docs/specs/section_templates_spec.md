@@ -71,7 +71,7 @@ Hero · Text · Text + Image · Gallery · Image Carousel (CSS scroll-snap, no J
 ### Cleanup
 - Delete `public/page-builder.js`, `replace_editor.py`, `replace_editor.ts`, `check_out.txt`.
 
-## Icebox (added to `decisions/future_improvements.md`)
+## Icebox (added to `ROADMAP.md`)
 - Hosted section template store
 - Post and page layout CSS customization
 - Strict validation of nested `list` sub-fields

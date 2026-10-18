@@ -14,9 +14,13 @@ const PLACEHOLDER_DB_ID = '00000000-0000-0000-0000-000000000000';
 
 const STRIP_PATHS = [
   'decisions',
+  'docs/specs',
+  'docs/audits',
   'docs/official',
   'docs/AGENTS.md',
   'docs/github-ruleset-setup.md',
+  'ROADMAP.md',
+  'CHANGELOG.md',
   'scripts/seed_official_docs.mjs',
   '.github/workflows',
   '.github',

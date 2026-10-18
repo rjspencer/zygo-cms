@@ -18,7 +18,7 @@ npx create-zygo-app my-zygo-site --yes
 
 1. **Downloads Core Project**: Fetches the latest Zygo CMS starter files without git history.
 2. **Sanitizes & Strips Internal Files**:
-   - Removes internal architectural records (`decisions/`), official documentation markdown & seeds (`docs/official/`, `scripts/seed_official_docs.mjs`), internal CI workflows (`.github/workflows/`), handoff notes, and the scaffolder package itself (`packages/create-zygo-app/`).
+   - Removes internal planning & architectural records (`ROADMAP.md`, `CHANGELOG.md`, `docs/specs/`, `docs/audits/`), official documentation markdown & seeds (`docs/official/`, `scripts/seed_official_docs.mjs`), internal CI workflows (`.github/workflows/`), handoff notes, and the scaffolder package itself (`packages/create-zygo-app/`).
    - Cleans `wrangler.toml` files by removing hardcoded production routes (`zygodactylstudios.com`) and replacing the internal `database_id` with a clean placeholder (`00000000-0000-0000-0000-000000000000`).
    - Updates `package.json` with your project name.
 3. **Configures Local Dev Environment**:

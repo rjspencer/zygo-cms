@@ -108,3 +108,14 @@ The workspace is organized into discrete packages:
 
 - **Context Monitoring**: Monitor conversation context usage. Notify the user if the conversation context approaches limits or if system auto-summarization begins, recommending a fresh session to maintain peak execution accuracy.
 - **Development Conventions**: Focus strictly on implementing requested features cleanly without introducing speculative or unneeded dependencies.
+
+---
+
+## 8. Documentation, Progress & Roadmap Tracking
+
+- **Upcoming Priorities & Backlog (`ROADMAP.md`)**: Consult [`ROADMAP.md`](ROADMAP.md) at the repository root for active priorities, near-term tasks, and the icebox backlog. When planning new work or completing tasks, keep `ROADMAP.md` lean and actionable. Do NOT record completed work here.
+- **Recording Completed Work (`CHANGELOG.md`)**: When features, architectural milestones, or significant bug fixes are completed and verified, record them under [`CHANGELOG.md`](CHANGELOG.md) at the repository root following [Keep a Changelog](https://keepachangelog.com/) conventions.
+- **Technical Specifications & RFCs (`docs/specs/`)**: Store detailed technical design specifications, RFCs, and feature plans in `docs/specs/<feature>_spec.md`. Link to these specs from `ROADMAP.md`.
+- **Architecture Reviews & Audits (`docs/audits/`)**: Store security audits, code reviews, and quality punchlists in `docs/audits/<topic>.md`.
+- **User-Facing Documentation (`docs/official/`)**: When adding or updating CMS functionality, maintain corresponding reference guides in `docs/official/` per [`docs/AGENTS.md`](docs/AGENTS.md).
+
