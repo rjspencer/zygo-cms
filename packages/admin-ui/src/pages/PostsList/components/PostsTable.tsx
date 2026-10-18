@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Table, Text, Badge, Flex, IconButton } from '@radix-ui/themes';
+import { Table, Text, Badge, Flex, IconButton, Checkbox } from '@radix-ui/themes';
 import { Pencil1Icon, TrashIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { getPublicSiteUrl } from '../../../utils/api';
 import type { PostItem, PostStatus } from '../types';
@@ -9,6 +9,9 @@ export interface PostsTableProps {
   posts: PostItem[];
   isLoading?: boolean;
   onDeleteClick: (post: PostItem) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
+  onToggleSelectAll?: () => void;
 }
 
 const getStatusColor = (status: PostStatus) => {
@@ -26,13 +29,30 @@ export const PostsTable: React.FC<PostsTableProps> = ({
   posts,
   isLoading,
   onDeleteClick,
+  selectedIds,
+  onToggleSelect,
+  onToggleSelectAll,
 }) => {
   const navigate = useNavigate();
+
+  const isAllSelected =
+    posts.length > 0 && selectedIds && selectedIds.size === posts.length;
+  const isSomeSelected =
+    selectedIds && selectedIds.size > 0 && selectedIds.size < posts.length;
 
   return (
     <Table.Root variant="surface">
       <Table.Header>
         <Table.Row>
+          {onToggleSelectAll && (
+            <Table.ColumnHeaderCell width="40px">
+              <Checkbox
+                checked={isAllSelected ? true : isSomeSelected ? 'indeterminate' : false}
+                onCheckedChange={onToggleSelectAll}
+                aria-label="Select all posts"
+              />
+            </Table.ColumnHeaderCell>
+          )}
           <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
           <Table.ColumnHeaderCell>Slug</Table.ColumnHeaderCell>
           <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
@@ -43,19 +63,29 @@ export const PostsTable: React.FC<PostsTableProps> = ({
       <Table.Body>
         {isLoading ? (
           <Table.Row>
-            <Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>
+            <Table.Cell colSpan={onToggleSelectAll ? 6 : 5} style={{ textAlign: 'center', padding: '24px' }}>
               <Text color="gray">Loading posts...</Text>
             </Table.Cell>
           </Table.Row>
         ) : posts.length === 0 ? (
           <Table.Row>
-            <Table.Cell colSpan={5} style={{ textAlign: 'center', padding: '24px' }}>
+            <Table.Cell colSpan={onToggleSelectAll ? 6 : 5} style={{ textAlign: 'center', padding: '24px' }}>
               <Text color="gray">No posts found</Text>
             </Table.Cell>
           </Table.Row>
         ) : (
           posts.map((post) => (
             <Table.Row key={post.id}>
+              {onToggleSelect && selectedIds && (
+                <Table.Cell>
+                  <Checkbox
+                    checked={selectedIds.has(post.id)}
+                    onCheckedChange={() => onToggleSelect(post.id)}
+                    aria-label={`Select post ${post.title}`}
+                    data-testid={`select-post-${post.id}`}
+                  />
+                </Table.Cell>
+              )}
               <Table.RowHeaderCell>
                 <Text weight="medium">{post.title}</Text>
               </Table.RowHeaderCell>
