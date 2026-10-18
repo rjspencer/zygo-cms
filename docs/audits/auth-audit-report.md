@@ -194,10 +194,10 @@ This was updated from the PropelAuth URL to a Cloudflare Access logout URL, but 
 
 Multiple docs/decision records still reference PropelAuth:
 - [`docs/domain-and-dns-setup.md:108`](file:///Users/ryan/Code/zygodactyl/static-site/docs/domain-and-dns-setup.md#L108)
-- [`decisions/agent_integration.md:28`](file:///Users/ryan/Code/zygodactyl/static-site/decisions/agent_integration.md#L28)
-- [`decisions/feature_set_review.md:18-19`](file:///Users/ryan/Code/zygodactyl/static-site/decisions/feature_set_review.md#L18-L19)
-- [`decisions/future_improvements.md:25, 62, 124`](file:///Users/ryan/Code/zygodactyl/static-site/decisions/future_improvements.md)
-- [`decisions/open_source_strategy.md:14, 30-31, 37, 59, 72`](file:///Users/ryan/Code/zygodactyl/static-site/decisions/open_source_strategy.md)
+- [`docs/specs/agent_integration.md:28`](file:///Users/ryan/Code/zygodactyl/static-site/docs/specs/agent_integration.md#L28)
+- [`docs/audits/feature_set_review.md:18-19`](file:///Users/ryan/Code/zygodactyl/static-site/docs/audits/feature_set_review.md#L18-L19)
+- [`CHANGELOG.md`](file:///Users/ryan/Code/zygodactyl/static-site/CHANGELOG.md)
+- [`docs/audits/open_source_strategy.md:14, 30-31, 37, 59, 72`](file:///Users/ryan/Code/zygodactyl/static-site/docs/audits/open_source_strategy.md)
 
 **Fix**: Update documentation to reflect Cloudflare Access.
 

@@ -317,6 +317,8 @@ describe('create-zygo-app CLI Scaffolder', () => {
 
       const dirsToCreate = [
         'decisions',
+        'docs/specs',
+        'docs/audits',
         'docs/official',
         '.github/workflows',
         'packages/create-zygo-app',
@@ -354,6 +356,10 @@ describe('create-zygo-app CLI Scaffolder', () => {
 
       // Populate internal files that MUST be stripped
       fs.writeFileSync(path.join(mockTpl, 'decisions/future_improvements.md'), '# Roadmap');
+      fs.writeFileSync(path.join(mockTpl, 'ROADMAP.md'), '# Roadmap');
+      fs.writeFileSync(path.join(mockTpl, 'CHANGELOG.md'), '# Changelog');
+      fs.writeFileSync(path.join(mockTpl, 'docs/specs/spec.md'), '# Spec');
+      fs.writeFileSync(path.join(mockTpl, 'docs/audits/audit.md'), '# Audit');
       fs.writeFileSync(path.join(mockTpl, 'docs/official/introduction.md'), '# Intro');
       fs.writeFileSync(path.join(mockTpl, 'docs/AGENTS.md'), '# Docs Agents');
       fs.writeFileSync(path.join(mockTpl, 'docs/github-ruleset-setup.md'), '# Ruleset');
@@ -381,6 +387,10 @@ describe('create-zygo-app CLI Scaffolder', () => {
 
       // Internal artifacts must be stripped
       expect(fs.existsSync(path.join(targetDir, 'decisions'))).toBe(false);
+      expect(fs.existsSync(path.join(targetDir, 'ROADMAP.md'))).toBe(false);
+      expect(fs.existsSync(path.join(targetDir, 'CHANGELOG.md'))).toBe(false);
+      expect(fs.existsSync(path.join(targetDir, 'docs/specs'))).toBe(false);
+      expect(fs.existsSync(path.join(targetDir, 'docs/audits'))).toBe(false);
       expect(fs.existsSync(path.join(targetDir, 'docs/official'))).toBe(false);
       expect(fs.existsSync(path.join(targetDir, 'docs/AGENTS.md'))).toBe(false);
       expect(fs.existsSync(path.join(targetDir, 'docs/github-ruleset-setup.md'))).toBe(false);
