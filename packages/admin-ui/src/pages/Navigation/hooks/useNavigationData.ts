@@ -46,6 +46,16 @@ export function useNavigationData() {
     }
   }, [menus]);
 
+  useEffect(() => {
+    const handleMenusUpdated = () => {
+      queryClient.invalidateQueries({ queryKey: ['menus'] });
+    };
+    window.addEventListener('zygo:menus-updated', handleMenusUpdated);
+    return () => {
+      window.removeEventListener('zygo:menus-updated', handleMenusUpdated);
+    };
+  }, [queryClient]);
+
   const updateMenuMutation = useMutation({
     mutationFn: async ({ name, items }: { name: string; items: MenuItem[] }) => {
       const res = await apiFetch(`/api/menus/${name}`, {
@@ -78,9 +88,16 @@ export function useNavigationData() {
     });
   }, []);
 
+  const setItems = useCallback((tab: MenuType, items: MenuItem[]) => {
+    setLocalMenus((prev) => ({
+      ...prev,
+      [tab]: items,
+    }));
+  }, []);
+
   const saveMenu = useCallback(
-    (tab: MenuType) => {
-      updateMenuMutation.mutate({
+    async (tab: MenuType) => {
+      return updateMenuMutation.mutateAsync({
         name: tab,
         items: localMenus[tab] || [],
       });
@@ -90,12 +107,14 @@ export function useNavigationData() {
 
   return {
     localMenus,
+    setLocalMenus,
     sitePages,
     isLoading,
     isSaving: updateMenuMutation.isPending,
     isSaved: updateMenuMutation.isSuccess,
     addItem,
     deleteItem,
+    setItems,
     saveMenu,
   };
 }

@@ -5,3 +5,5 @@ export * from './server';
 export * from './entryTools';
 export * from './templateTools';
 export * from './themeAndMediaTools';
+export * from './navigationTools';
+export * from './layoutTemplateTools';

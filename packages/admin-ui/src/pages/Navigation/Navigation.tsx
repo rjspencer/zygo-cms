@@ -4,6 +4,7 @@ import { NavigationHeader } from './components/NavigationHeader';
 import { NavigationTabs } from './components/NavigationTabs';
 import { useNavigationData } from './hooks/useNavigationData';
 import { useNavigationTab } from './hooks/useNavigationTab';
+import { useNavigationEditorWebMCP } from '../../lib/webmcp/navigationTools';
 import type { NavigationProps } from './types';
 
 export const Navigation: React.FC<NavigationProps> = () => {
@@ -16,8 +17,22 @@ export const Navigation: React.FC<NavigationProps> = () => {
     isSaved,
     addItem,
     deleteItem,
+    setItems,
     saveMenu,
   } = useNavigationData();
+
+  useNavigationEditorWebMCP({
+    activeTab,
+    setActiveTab,
+    localMenus,
+    sitePages,
+    addItem,
+    deleteItem,
+    setItems,
+    saveMenu,
+    isSaving,
+    isSaved,
+  });
 
   return (
     <Box>

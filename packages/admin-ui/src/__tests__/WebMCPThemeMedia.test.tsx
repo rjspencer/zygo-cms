@@ -16,6 +16,7 @@ import {
   DEFAULT_THEME_SETTINGS,
   DEFAULT_THEME_TOKENS,
 } from '../lib/webmcp/themeAndMediaTools';
+import { useNavigationEditorWebMCP } from '../lib/webmcp/navigationTools';
 import { ThemeEditor, MODERN_EDITORIAL_PRESET } from '../components/ThemeEditor';
 
 describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
@@ -492,14 +493,32 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
   describe('useThemeEditorWebMCP Hook and Live ThemeEditor Integration', () => {
     function MockThemeEditorHarness({
       initialTokens = DEFAULT_THEME_TOKENS,
+      onSave,
+      onSaveAsCustom,
+      onSelectPreset,
+      onApplyFontPreset,
+      selectedThemeName = 'Modern Editorial',
+      activeThemeName = 'Modern Editorial',
     }: {
       initialTokens?: Record<string, any>;
+      onSave?: () => Promise<any> | void;
+      onSaveAsCustom?: (e?: any, name?: string) => Promise<any> | void;
+      onSelectPreset?: (themeName: string) => void;
+      onApplyFontPreset?: (preset: any) => void;
+      selectedThemeName?: string;
+      activeThemeName?: string;
     }) {
       const [tokens, setTokens] = React.useState(initialTokens);
       useThemeEditorWebMCP({
         tokens,
         setTokens,
         onReset: () => setTokens(DEFAULT_THEME_TOKENS),
+        onSave,
+        onSaveAsCustom,
+        onSelectPreset,
+        onApplyFontPreset,
+        selectedThemeName,
+        activeThemeName,
       });
 
       return (
@@ -553,11 +572,86 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       expect(screen.getByTestId('live-color-accent').textContent).toBe(DEFAULT_THEME_TOKENS.colorAccent);
 
+      // Verify all 6 theme editor tools are registered
+      expect(testRegistry.getTool('theme_save_active')).toBeDefined();
+      expect(testRegistry.getTool('theme_save_as_custom')).toBeDefined();
+      expect(testRegistry.getTool('theme_select_preset')).toBeDefined();
+
       // Unmount should deregister tools
       unmount();
       expect(testRegistry.getTool('theme_get_active_tokens')).toBeUndefined();
       expect(testRegistry.getTool('theme_update_live_tokens')).toBeUndefined();
       expect(testRegistry.getTool('theme_reset_live_tokens')).toBeUndefined();
+      expect(testRegistry.getTool('theme_save_active')).toBeUndefined();
+      expect(testRegistry.getTool('theme_save_as_custom')).toBeUndefined();
+      expect(testRegistry.getTool('theme_select_preset')).toBeUndefined();
+    });
+
+    it('theme_save_active invokes onSave handler and reports success', async () => {
+      const testRegistry = new WebMCPRegistry();
+      const mockSave = vi.fn().mockResolvedValue({ success: true });
+
+      render(
+        <WebMCPProvider registry={testRegistry}>
+          <MockThemeEditorHarness onSave={mockSave} selectedThemeName="Warm Contemporary" />
+        </WebMCPProvider>
+      );
+
+      const result = await testRegistry.callTool('theme_save_active', {});
+      expect(result.isError).toBeFalsy();
+      expect(mockSave).toHaveBeenCalled();
+      expect(result.toolResult).toMatchObject({ success: true, theme: 'Warm Contemporary' });
+    });
+
+    it('theme_save_as_custom invokes onSaveAsCustom with custom theme name', async () => {
+      const testRegistry = new WebMCPRegistry();
+      const mockSaveAsCustom = vi.fn().mockResolvedValue({ success: true });
+
+      render(
+        <WebMCPProvider registry={testRegistry}>
+          <MockThemeEditorHarness onSaveAsCustom={mockSaveAsCustom} />
+        </WebMCPProvider>
+      );
+
+      const emptyResult = await testRegistry.callTool('theme_save_as_custom', { name: '' });
+      expect(emptyResult.isError).toBe(true);
+      expect(emptyResult.content[0].text).toContain('non-empty custom theme name is required');
+
+      const result = await testRegistry.callTool('theme_save_as_custom', { name: 'My Cyber Theme' });
+      expect(result.isError).toBeFalsy();
+      expect(mockSaveAsCustom).toHaveBeenCalledWith(undefined, 'My Cyber Theme');
+      expect(result.toolResult).toMatchObject({ success: true, themeName: 'My Cyber Theme' });
+    });
+
+    it('theme_select_preset invokes onSelectPreset and onApplyFontPreset', async () => {
+      const testRegistry = new WebMCPRegistry();
+      const mockSelectPreset = vi.fn();
+      const mockApplyFont = vi.fn();
+
+      render(
+        <WebMCPProvider registry={testRegistry}>
+          <MockThemeEditorHarness
+            onSelectPreset={mockSelectPreset}
+            onApplyFontPreset={mockApplyFont}
+          />
+        </WebMCPProvider>
+      );
+
+      const result = await testRegistry.callTool('theme_select_preset', {
+        theme_name: 'Bento-Brutalism',
+        font_preset: 'Space Grotesk & IBM Plex Mono',
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(mockSelectPreset).toHaveBeenCalledWith('Bento-Brutalism');
+      expect(mockApplyFont).toHaveBeenCalledWith('Space Grotesk & IBM Plex Mono');
+      expect(result.toolResult).toMatchObject({
+        success: true,
+        applied: {
+          theme_name: 'Bento-Brutalism',
+          font_preset: 'Space Grotesk & IBM Plex Mono',
+        },
+      });
     });
 
     it('integrates seamlessly with the real ThemeEditor component', async () => {
@@ -602,6 +696,9 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       expect(testRegistry.getTool('theme_get_active_tokens')).toBeDefined();
       expect(testRegistry.getTool('theme_update_live_tokens')).toBeDefined();
       expect(testRegistry.getTool('theme_reset_live_tokens')).toBeDefined();
+      expect(testRegistry.getTool('theme_save_active')).toBeDefined();
+      expect(testRegistry.getTool('theme_save_as_custom')).toBeDefined();
+      expect(testRegistry.getTool('theme_select_preset')).toBeDefined();
 
       // Inspect live tokens
       const inspect = await testRegistry.callTool('theme_get_active_tokens');
@@ -619,6 +716,169 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       // Verify the preview reflects the live updated tagline
       expect(screen.getByText('WebMCP Live Synchronized Tagline')).toBeDefined();
+    });
+  });
+
+  describe('useNavigationEditorWebMCP Hook and Navigation Integration', () => {
+    function MockNavigationHarness() {
+      const [activeTab, setActiveTab] = React.useState<'header' | 'footer'>('header');
+      const [localMenus, setLocalMenus] = React.useState({
+        header: [{ title: 'Home', url: '/', target: '_self', children: [] }],
+        footer: [{ title: 'Privacy', url: '/privacy', target: '_self', children: [] }],
+      });
+      const saveMenu = vi.fn().mockResolvedValue({ success: true });
+      const addItem = (tab: 'header' | 'footer', item: any) => {
+        setLocalMenus((prev) => ({
+          ...prev,
+          [tab]: [...prev[tab], item],
+        }));
+      };
+      const deleteItem = (tab: 'header' | 'footer', index: number) => {
+        setLocalMenus((prev) => {
+          const next = [...prev[tab]];
+          next.splice(index, 1);
+          return { ...prev, [tab]: next };
+        });
+      };
+      const setItems = (tab: 'header' | 'footer', items: any[]) => {
+        setLocalMenus((prev) => ({ ...prev, [tab]: items }));
+      };
+
+      useNavigationEditorWebMCP({
+        activeTab,
+        setActiveTab,
+        localMenus,
+        sitePages: [{ id: 1, title: 'About Us', path: '/about' }],
+        addItem,
+        deleteItem,
+        setItems,
+        saveMenu,
+        isSaving: false,
+        isSaved: false,
+      });
+
+      return (
+        <div>
+          <span data-testid="active-nav-tab">{activeTab}</span>
+          <span data-testid="header-count">{localMenus.header.length}</span>
+          <span data-testid="footer-count">{localMenus.footer.length}</span>
+        </div>
+      );
+    }
+
+    it('registers and unregisters all 6 navigation tools on mount/unmount', () => {
+      const navRegistry = new WebMCPRegistry();
+      const { unmount } = render(
+        <WebMCPProvider registry={navRegistry}>
+          <MockNavigationHarness />
+        </WebMCPProvider>
+      );
+
+      expect(navRegistry.getTool('navigation_get_active_state')).toBeDefined();
+      expect(navRegistry.getTool('navigation_set_tab')).toBeDefined();
+      expect(navRegistry.getTool('navigation_add_item')).toBeDefined();
+      expect(navRegistry.getTool('navigation_delete_item')).toBeDefined();
+      expect(navRegistry.getTool('navigation_set_items')).toBeDefined();
+      expect(navRegistry.getTool('navigation_save')).toBeDefined();
+
+      unmount();
+
+      expect(navRegistry.getTool('navigation_get_active_state')).toBeUndefined();
+      expect(navRegistry.getTool('navigation_set_tab')).toBeUndefined();
+      expect(navRegistry.getTool('navigation_add_item')).toBeUndefined();
+      expect(navRegistry.getTool('navigation_delete_item')).toBeUndefined();
+      expect(navRegistry.getTool('navigation_set_items')).toBeUndefined();
+      expect(navRegistry.getTool('navigation_save')).toBeUndefined();
+    });
+
+    it('navigation_get_active_state returns full editor snapshot', async () => {
+      const navRegistry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={navRegistry}>
+          <MockNavigationHarness />
+        </WebMCPProvider>
+      );
+
+      const res = await navRegistry.callTool('navigation_get_active_state', {});
+      expect(res.isError).toBeFalsy();
+      expect(res.toolResult).toMatchObject({
+        activeTab: 'header',
+        header: [{ title: 'Home', url: '/' }],
+        footer: [{ title: 'Privacy', url: '/privacy' }],
+        sitePages: [{ id: 1, title: 'About Us', path: '/about' }],
+      });
+    });
+
+    it('navigation_set_tab switches the active tab', async () => {
+      const navRegistry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={navRegistry}>
+          <MockNavigationHarness />
+        </WebMCPProvider>
+      );
+
+      await act(async () => {
+        const res = await navRegistry.callTool('navigation_set_tab', { tab: 'footer' });
+        expect(res.isError).toBeFalsy();
+      });
+
+      expect(screen.getByTestId('active-nav-tab').textContent).toBe('footer');
+    });
+
+    it('navigation_add_item and navigation_delete_item manipulate menu items', async () => {
+      const navRegistry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={navRegistry}>
+          <MockNavigationHarness />
+        </WebMCPProvider>
+      );
+
+      await act(async () => {
+        const addRes = await navRegistry.callTool('navigation_add_item', {
+          tab: 'header',
+          title: 'Docs',
+          url: '/docs',
+        });
+        expect(addRes.isError).toBeFalsy();
+      });
+
+      expect(screen.getByTestId('header-count').textContent).toBe('2');
+
+      await act(async () => {
+        const delRes = await navRegistry.callTool('navigation_delete_item', {
+          tab: 'header',
+          index: 1,
+        });
+        expect(delRes.isError).toBeFalsy();
+      });
+
+      expect(screen.getByTestId('header-count').textContent).toBe('1');
+    });
+
+    it('navigation_set_items and navigation_save invoke handlers correctly', async () => {
+      const navRegistry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={navRegistry}>
+          <MockNavigationHarness />
+        </WebMCPProvider>
+      );
+
+      await act(async () => {
+        const setRes = await navRegistry.callTool('navigation_set_items', {
+          tab: 'header',
+          items: [
+            { title: 'Page 1', url: '/p1' },
+            { title: 'Page 2', url: '/p2' },
+          ],
+          save: true,
+        });
+        expect(setRes.isError).toBeFalsy();
+      });
+
+      expect(screen.getByTestId('header-count').textContent).toBe('2');
+
+      const saveRes = await navRegistry.callTool('navigation_save', { tab: 'header' });
+      expect(saveRes.isError).toBeFalsy();
     });
   });
 });
