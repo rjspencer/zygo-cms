@@ -237,6 +237,105 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       expect(res.content[0].text).toContain('Failed to delete entry 1: Cannot delete protected entry');
     });
   });
+
+  describe('bulk_entries_operation tool', () => {
+    it('returns preview confirmation when dry_run is true without calling API', async () => {
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1, 2, 3],
+        action: 'publish',
+        dry_run: true,
+      });
+      expect(res.isError).toBeFalsy();
+      expect((res.toolResult as any).dry_run).toBe(true);
+      expect(res.content[0].text).toContain('[Dry Run] Bulk action "publish" would be performed on 3 entries');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('calls POST /api/entries/bulk when dry_run is false or omitted', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, affected: 2, skipped: 0, errors: [] }),
+      });
+
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1, 2],
+        action: 'trash',
+      });
+      expect(res.isError).toBeFalsy();
+      expect((res.toolResult as any).success).toBe(true);
+      expect((res.toolResult as any).affected).toBe(2);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/entries/bulk'),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ ids: [1, 2], action: 'trash' }),
+        })
+      );
+    });
+
+    it('supports add_tags action with tags parameter', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, affected: 3, skipped: 0, errors: [] }),
+      });
+
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1, 2, 3],
+        action: 'add_tags',
+        tags: 'news, update',
+      });
+      expect(res.isError).toBeFalsy();
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/entries/bulk'),
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ ids: [1, 2, 3], action: 'add_tags', tags: 'news, update' }),
+        })
+      );
+    });
+
+    it('returns error when ids array is empty', async () => {
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [],
+        action: 'publish',
+      });
+      expect(res.isError).toBe(true);
+      expect(res.content[0].text).toContain('At least one valid numeric entry ID is required.');
+    });
+
+    it('returns error when action is invalid', async () => {
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1],
+        action: 'invalid_action',
+      });
+      expect(res.isError).toBe(true);
+      expect(res.content[0].text).toContain('Invalid action "invalid_action"');
+    });
+
+    it('returns error when tags is missing for tag action', async () => {
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1],
+        action: 'add_tags',
+      });
+      expect(res.isError).toBe(true);
+      expect(res.content[0].text).toContain('Tags parameter is required for tag operations.');
+    });
+
+    it('handles API failure gracefully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Internal Server Error',
+        text: async () => 'Database failure',
+      });
+
+      const res = await registry.callTool('bulk_entries_operation', {
+        ids: [1],
+        action: 'publish',
+      });
+      expect(res.isError).toBe(true);
+      expect(res.content[0].text).toContain('Bulk operation failed: Database failure');
+    });
+  });
 });
 
 describe('useTipTapWebMCP Contextual Tools', () => {

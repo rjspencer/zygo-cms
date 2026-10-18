@@ -292,7 +292,107 @@ export function createGlobalEntryTools(): WebMCPToolDefinition[] {
     },
   };
 
-  return [listEntriesTool, getEntryTool, createEntryTool, deleteEntryTool];
+  const bulkEntriesOperationTool: WebMCPToolDefinition = {
+    name: 'bulk_entries_operation',
+    description: 'Perform bulk operations (publish, unpublish, trash, add_tags, remove_tags) on multiple entries by IDs',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: {
+            type: 'number',
+          },
+          description: 'Array of entry IDs to operate on',
+        },
+        action: {
+          type: 'string',
+          enum: ['publish', 'unpublish', 'trash', 'add_tags', 'remove_tags'],
+          description: 'The bulk action to perform',
+        },
+        tags: {
+          type: 'string',
+          description: 'Comma-separated tags for add_tags or remove_tags actions',
+        },
+        dry_run: {
+          type: 'boolean',
+          description: 'If true, returns preview confirmation without executing changes',
+        },
+      },
+      required: ['ids', 'action'],
+    },
+    handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+      const rawIds = Array.isArray(args.ids) ? args.ids : [];
+      const ids = rawIds.map((id: any) => Number(id)).filter((n: number) => !isNaN(n) && n > 0);
+      const action = String(args.action || '').trim();
+      const tags = args.tags !== undefined ? String(args.tags).trim() : undefined;
+
+      if (ids.length === 0) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: 'At least one valid numeric entry ID is required.' }],
+        };
+      }
+
+      const validActions = ['publish', 'unpublish', 'trash', 'add_tags', 'remove_tags'];
+      if (!validActions.includes(action)) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Invalid action "${action}". Must be one of: ${validActions.join(', ')}` }],
+        };
+      }
+
+      if ((action === 'add_tags' || action === 'remove_tags') && (!tags || tags.length === 0)) {
+        return {
+          isError: true,
+          content: [{ type: 'text', text: 'Tags parameter is required for tag operations.' }],
+        };
+      }
+
+      if (args.dry_run) {
+        const message = `[Dry Run] Bulk action "${action}" would be performed on ${ids.length} entries (IDs: ${ids.join(', ')})${tags ? ` with tags "${tags}"` : ''}.`;
+        return {
+          toolResult: { dry_run: true, dryRun: true, ids, action, tags, message },
+          content: [{ type: 'text', text: message }],
+        };
+      }
+
+      try {
+        const payload: Record<string, any> = { ids, action };
+        if (tags !== undefined) {
+          payload.tags = tags;
+        }
+
+        const res = await apiFetch('/api/entries/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Bulk operation failed: ${errText || res.statusText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return {
+          isError: true,
+          content: [{ type: 'text', text: `Error during bulk entries operation: ${msg}` }],
+        };
+      }
+    },
+  };
+
+  return [listEntriesTool, getEntryTool, createEntryTool, deleteEntryTool, bulkEntriesOperationTool];
 }
 
 /**

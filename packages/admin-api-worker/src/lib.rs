@@ -109,6 +109,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
         .get_async("/api/entries", handlers::api::get_entries)
+        .post_async("/api/entries/bulk", handlers::api::bulk_entries)
         .get_async("/api/posts", handlers::api::get_posts)
         .post_async("/api/entries", handlers::api::create_entry)
         .put_async("/api/entries/:id", handlers::api::update_entry)

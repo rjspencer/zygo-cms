@@ -513,6 +513,129 @@ pub async fn restore_entry(req: Request, ctx: RouteContext<()>) -> Result<Respon
     Response::from_json(&json!({ "success": true, "restored": id }))
 }
 
+pub async fn bulk_entries(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
+
+    let payload = match req.json::<models::BulkEntriesRequest>().await {
+        Ok(p) => p,
+        Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
+    };
+
+    if let Err(err) = payload.validate() {
+        return err.to_response();
+    }
+
+    let db = ctx.env.d1("DB")?;
+
+    let target_entries = db::find_entries_by_ids(&db, &payload.ids).await?;
+    if target_entries.is_empty() {
+        return Response::from_json(&models::BulkEntriesResponse {
+            success: false,
+            affected: 0,
+            skipped: payload.ids.len(),
+            errors: vec!["No matching entries found".to_string()],
+        });
+    }
+
+    let (authorized_ids, mut errors) = if _user.role == "author" {
+        let mut auth_ids = Vec::new();
+        let mut errs = Vec::new();
+        for entry in &target_entries {
+            if entry.author_id == Some(_user.id) {
+                auth_ids.push(entry.id);
+            } else {
+                errs.push(format!("You do not have permission to modify '{}'.", entry.title));
+            }
+        }
+        (auth_ids, errs)
+    } else {
+        (payload.ids.clone(), Vec::new())
+    };
+
+    let skipped_init = payload.ids.len().saturating_sub(authorized_ids.len());
+
+    let (affected, skipped, mut op_errors) = match payload.action {
+        models::BulkActionType::Publish => {
+            let aff = db::bulk_update_status(&db, &authorized_ids, "published").await?;
+            (aff, skipped_init, Vec::new())
+        }
+        models::BulkActionType::Unpublish => {
+            let aff = db::bulk_update_status(&db, &authorized_ids, "draft").await?;
+            (aff, skipped_init, Vec::new())
+        }
+        models::BulkActionType::Trash => {
+            let (aff, skp, errs) = db::bulk_delete_entries(&db, &authorized_ids, &_user.role, _user.id).await?;
+            (aff, skp + skipped_init, errs)
+        }
+        models::BulkActionType::AddTags => {
+            let tags = payload.tags.as_deref().unwrap_or("");
+            let aff = db::bulk_modify_tags(&db, &authorized_ids, tags, true).await?;
+            (aff, skipped_init, Vec::new())
+        }
+        models::BulkActionType::RemoveTags => {
+            let tags = payload.tags.as_deref().unwrap_or("");
+            let aff = db::bulk_modify_tags(&db, &authorized_ids, tags, false).await?;
+            (aff, skipped_init, Vec::new())
+        }
+    };
+
+    errors.append(&mut op_errors);
+
+    let origin = resolve_canonical_origin(&req, &ctx.env, &db).await?;
+    let mut purge_list = Vec::new();
+    add_purge_target(&mut purge_list, &origin, "/");
+    add_purge_target(&mut purge_list, &origin, "/post");
+    add_purge_target(&mut purge_list, &origin, "/sitemap.xml");
+    add_purge_target(&mut purge_list, &origin, "/rss.xml");
+    add_purge_target(&mut purge_list, &origin, "/feed.xml");
+
+    for entry in &target_entries {
+        if authorized_ids.contains(&entry.id) {
+            add_purge_target(&mut purge_list, &origin, &entry.path());
+            let old_prefix = format!("{}/", entry.path());
+            if entry.r#type == "page" {
+                if let Ok(all_entries) = db::find_all_entries(&db).await {
+                    for e in all_entries {
+                        if e.path().starts_with(&old_prefix) {
+                            add_purge_target(&mut purge_list, &origin, &e.path());
+                        }
+                    }
+                }
+            }
+            if let Some(ref cat) = entry.category {
+                let trimmed = cat.trim();
+                if !trimmed.is_empty() {
+                    add_purge_target(&mut purge_list, &origin, &format!("/category/{}", trimmed));
+                }
+            }
+            for tag in entry.tag_list() {
+                let trimmed = tag.trim();
+                if !trimmed.is_empty() {
+                    add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
+                }
+            }
+        }
+    }
+
+    if let Some(ref tags) = payload.tags {
+        for tag in tags.split(',') {
+            let trimmed = tag.trim();
+            if !trimmed.is_empty() {
+                add_purge_target(&mut purge_list, &origin, &format!("/tag/{}", trimmed));
+            }
+        }
+    }
+
+    cache::purge_urls(&ctx.env, purge_list).await;
+
+    Response::from_json(&models::BulkEntriesResponse {
+        success: affected > 0 || (errors.is_empty() && skipped == 0),
+        affected,
+        skipped,
+        errors,
+    })
+}
+
 pub async fn get_revisions(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
     let id = match ctx.param("id") {
