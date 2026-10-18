@@ -59,7 +59,7 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
           </Dialog.Description>
 
           {error && (
-            <Callout.Root color="red" size="1" mb="3">
+            <Callout.Root id="invite-user-error-alert" role="alert" color="red" size="1" mb="3">
               <Callout.Icon>
                 <InfoCircledIcon />
               </Callout.Icon>
@@ -69,10 +69,13 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
 
           <Flex direction="column" gap="3" mb="4">
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="invite-user-email-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Email Address *
               </Text>
               <TextField.Root
+                id="invite-user-email-input"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'invite-user-error-alert' : undefined}
                 type="email"
                 placeholder="colleague@example.com"
                 value={inviteEmail}
@@ -82,10 +85,11 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="invite-user-display-name-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Display Name
               </Text>
               <TextField.Root
+                id="invite-user-display-name-input"
                 placeholder="e.g. Jane Doe"
                 value={inviteDisplayName}
                 onChange={(e) => setInviteDisplayName(e.target.value)}
@@ -93,11 +97,11 @@ export const InviteUserDialog: React.FC<InviteUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text id="invite-user-role-label" as="label" htmlFor="invite-user-role-trigger" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Role
               </Text>
               <Select.Root value={inviteRole} onValueChange={setInviteRole}>
-                <Select.Trigger style={{ width: '100%' }} aria-label="Select role" />
+                <Select.Trigger id="invite-user-role-trigger" style={{ width: '100%' }} aria-label="Select role" />
                 <Select.Content>
                   <Select.Item value="admin">Admin</Select.Item>
                   <Select.Item value="editor">Editor</Select.Item>

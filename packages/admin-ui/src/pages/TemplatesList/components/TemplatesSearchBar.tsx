@@ -11,6 +11,8 @@ export const TemplatesSearchBar: React.FC<TemplatesSearchBarProps> = ({ value, o
   return (
     <Box mb="4">
       <TextField.Root
+        id="templates-search-input"
+        aria-label="Search templates by name, slug, or description"
         placeholder="Search templates by name, slug, or description..."
         value={value}
         onChange={(e) => onChange(e.target.value)}

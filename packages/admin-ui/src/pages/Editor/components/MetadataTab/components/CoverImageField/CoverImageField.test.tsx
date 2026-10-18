@@ -17,6 +17,7 @@ describe('CoverImageField', () => {
     );
 
     expect(screen.getByText('Cover Image URL')).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Cover Image URL' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Select Image' })).toBeDefined();
     expect(screen.queryByAltText('Cover Thumbnail')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();

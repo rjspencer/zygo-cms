@@ -13,7 +13,7 @@ export const AnalyticsSettingsCard: React.FC = () => {
           <Heading size="3" mb="1">
             Cloudflare Web Analytics
           </Heading>
-          <Text size="2" color="gray">
+          <Text id="settings-analytics-description" size="2" color="gray">
             Enable pageview tracking using Cloudflare's privacy-first web analytics. You must also configure CF_API_TOKEN and CF_ZONE_ID in your worker secrets.
           </Text>
         </Box>
@@ -24,12 +24,14 @@ export const AnalyticsSettingsCard: React.FC = () => {
             name="analyticsEnabled"
             render={({ field }) => (
               <Switch
+                id="settings-analytics-switch"
+                aria-describedby="settings-analytics-description"
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
             )}
           />
-          <Text size="2">Enable Web Analytics</Text>
+          <Text as="label" htmlFor="settings-analytics-switch" size="2">Enable Web Analytics</Text>
         </Flex>
       </Flex>
     </Card>

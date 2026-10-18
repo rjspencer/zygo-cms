@@ -9,15 +9,16 @@ export const StatusField: React.FC = () => {
 
   return (
     <Box>
-      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+      <Text as="div" id="editor-status-label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
         Status
       </Text>
-      <Flex gap="2">
+      <Flex gap="2" role="group" aria-labelledby="editor-status-label">
         <Button
           type="button"
           size="1"
           variant={status === 'draft' ? 'solid' : 'soft'}
           color="gray"
+          aria-pressed={status === 'draft'}
           onClick={() => setValue('status', 'draft', { shouldDirty: true })}
         >
           Draft
@@ -27,6 +28,7 @@ export const StatusField: React.FC = () => {
           size="1"
           variant={status === 'published' ? 'solid' : 'soft'}
           color="green"
+          aria-pressed={status === 'published'}
           onClick={() => setValue('status', 'published', { shouldDirty: true })}
         >
           Published

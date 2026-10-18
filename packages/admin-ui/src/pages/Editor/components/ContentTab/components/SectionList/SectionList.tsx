@@ -115,7 +115,7 @@ export const SectionList: React.FC<SectionListProps> = ({ sectionTemplates }) =>
   return (
     <Box>
       <Flex justify="between" align="center" mb="4">
-        <Text as="label" size="2" weight="bold">
+        <Text as="div" size="2" weight="bold">
           Page Sections
         </Text>
         <AddSectionSelect

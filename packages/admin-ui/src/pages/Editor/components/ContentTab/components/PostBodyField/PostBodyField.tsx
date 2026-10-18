@@ -17,7 +17,7 @@ export const PostBodyField: React.FC<PostBodyFieldProps> = ({ entryType, onEdito
 
   return (
     <Box>
-      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+      <Text as="div" id="post-body-content-label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
         Body Content
       </Text>
       <Controller

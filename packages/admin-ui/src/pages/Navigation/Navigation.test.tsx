@@ -107,6 +107,8 @@ describe('Navigation component', () => {
     });
 
     const urlInput = screen.getByRole('combobox', { name: /URL/i });
+    expect(urlInput.getAttribute('id')).toBe('page-select-combobox-input');
+    expect(urlInput.getAttribute('aria-controls')).toBe('page-select-listbox');
     await userEvent.click(urlInput);
 
     // Click on 'About Us' option in dropdown
@@ -115,6 +117,7 @@ describe('Navigation component', () => {
 
     // Label should be auto-filled with 'About Us'
     const labelInput = screen.getByLabelText(/Label/i) as HTMLInputElement;
+    expect(labelInput.getAttribute('id')).toBe('menu-item-label-input');
     expect(labelInput.value).toBe('About Us');
 
     // Add link
@@ -173,7 +176,12 @@ describe('Navigation component', () => {
 
     // Click on URL field to open dropdown
     const urlInput = screen.getByRole('combobox', { name: /URL/i });
+    expect(urlInput.getAttribute('id')).toBe('page-select-combobox-input');
+    expect(urlInput.getAttribute('aria-controls')).toBe('page-select-listbox');
     await userEvent.click(urlInput);
+
+    // Listbox should be visible
+    expect(document.getElementById('page-select-listbox')).not.toBeNull();
 
     // Select custom option
     const customOption = await screen.findByText(/Custom \(External URL\)/i);
@@ -182,14 +190,18 @@ describe('Navigation component', () => {
     // External URL text field should be revealed
     const externalUrlInput = screen.getByLabelText(/External URL/i);
     expect(externalUrlInput).toBeTruthy();
+    expect(externalUrlInput.getAttribute('id')).toBe('custom-url-input');
 
     // Type non-absolute URL
     await userEvent.type(externalUrlInput, 'google.com');
 
     // Warning should be displayed
-    expect(
-      screen.getByText(/Warning: External URLs should be absolute/i)
-    ).toBeTruthy();
+    const warning = screen.getByText(/Warning: External URLs should be absolute/i);
+    expect(warning).toBeTruthy();
+    expect(screen.getByRole('alert')).toBeDefined();
+    expect(warning.getAttribute('id')).toBe('custom-url-warning');
+    expect(externalUrlInput.getAttribute('aria-invalid')).toBe('true');
+    expect(externalUrlInput.getAttribute('aria-describedby')).toBe('custom-url-warning');
 
     // Fix to absolute URL
     await userEvent.clear(externalUrlInput);
@@ -199,9 +211,12 @@ describe('Navigation component', () => {
     expect(
       screen.queryByText(/Warning: External URLs should be absolute/i)
     ).toBeNull();
+    expect(externalUrlInput.getAttribute('aria-invalid')).toBe('false');
+    expect(externalUrlInput.getAttribute('aria-describedby')).toBeNull();
 
     // Fill label and add
     const labelInput = screen.getByLabelText(/Label/i);
+    expect(labelInput.getAttribute('id')).toBe('menu-item-label-input');
     await userEvent.type(labelInput, 'Google');
 
     const addButton = screen.getByRole('button', { name: /Add Link/i });

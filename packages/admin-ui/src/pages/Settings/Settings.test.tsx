@@ -209,4 +209,77 @@ describe('Settings component', () => {
 
     import.meta.env.VITE_PUBLIC_SITE_URL = '';
   });
+
+  it('associates form labels with inputs and configures aria-describedby for accessibility', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        site_title: 'Test Title',
+        canonical_origin: 'https://test.example.com',
+        description: 'Test Description',
+        analytics_enabled: 'false',
+        docs_mode_enabled: 'true',
+        docs_path: '/docs',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
+    });
+
+    // Site Title
+    const siteTitleInput = screen.getByLabelText('Site Title');
+    expect(siteTitleInput).toBeDefined();
+    expect(siteTitleInput.getAttribute('id')).toBe('settings-site-title-input');
+
+    // Canonical Origin
+    const canonicalInput = screen.getByLabelText('Canonical Origin');
+    expect(canonicalInput).toBeDefined();
+    expect(canonicalInput.getAttribute('id')).toBe('settings-canonical-origin-input');
+    expect(canonicalInput.getAttribute('aria-describedby')).toBe('settings-canonical-origin-description');
+    const canonicalDesc = document.getElementById('settings-canonical-origin-description');
+    expect(canonicalDesc).toBeDefined();
+    expect(canonicalDesc?.textContent).toContain('Used to generate canonical URLs');
+
+    // Meta Description
+    const metaDescriptionInput = screen.getByLabelText('Meta Description');
+    expect(metaDescriptionInput).toBeDefined();
+    expect(metaDescriptionInput.getAttribute('id')).toBe('settings-meta-description-input');
+
+    // Analytics Switch
+    const analyticsSwitch = screen.getByLabelText('Enable Web Analytics');
+    expect(analyticsSwitch).toBeDefined();
+    expect(analyticsSwitch.getAttribute('id')).toBe('settings-analytics-switch');
+    expect(analyticsSwitch.getAttribute('aria-describedby')).toBe('settings-analytics-description');
+    const analyticsDesc = document.getElementById('settings-analytics-description');
+    expect(analyticsDesc).toBeDefined();
+    expect(analyticsDesc?.textContent).toContain('Enable pageview tracking');
+
+    // Docs Mode Switch
+    const docsSwitch = screen.getByLabelText('Enable Docs Mode');
+    expect(docsSwitch).toBeDefined();
+    expect(docsSwitch.getAttribute('id')).toBe('settings-docs-mode-switch');
+    expect(docsSwitch.getAttribute('aria-describedby')).toBe('settings-docs-mode-description');
+    const docsDesc = document.getElementById('settings-docs-mode-description');
+    expect(docsDesc).toBeDefined();
+    expect(docsDesc?.textContent).toContain('Enable product documentation features');
+
+    // Docs Base Path
+    const docsPathInput = screen.getByLabelText('Docs Base Path');
+    expect(docsPathInput).toBeDefined();
+    expect(docsPathInput.getAttribute('id')).toBe('settings-docs-path-input');
+    expect(docsPathInput.getAttribute('aria-describedby')).toBe('settings-docs-path-description');
+    const docsPathDesc = document.getElementById('settings-docs-path-description');
+    expect(docsPathDesc).toBeDefined();
+    expect(docsPathDesc?.textContent).toContain('The path where the documentation will be served');
+  });
 });

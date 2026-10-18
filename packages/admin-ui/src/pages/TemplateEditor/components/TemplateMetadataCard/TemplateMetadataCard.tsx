@@ -17,10 +17,11 @@ export const TemplateMetadataCard: React.FC<TemplateMetadataCardProps> = ({
       <Flex direction="column" gap="3">
         <Flex gap="4">
           <Box style={{ flex: 1 }}>
-            <Text as="div" size="2" mb="1" weight="bold">
+            <Text as="label" htmlFor="template-id-input" size="2" mb="1" weight="bold" style={{ display: 'block' }}>
               Identifier (Slug)
             </Text>
             <TextField.Root
+              id="template-id-input"
               value={formId}
               onChange={(e) => onFormIdChange(e.target.value)}
               placeholder="e.g. hero-banner"
@@ -30,10 +31,11 @@ export const TemplateMetadataCard: React.FC<TemplateMetadataCardProps> = ({
           </Box>
 
           <Box style={{ flex: 2 }}>
-            <Text as="div" size="2" mb="1" weight="bold">
+            <Text as="label" htmlFor="template-name-input" size="2" mb="1" weight="bold" style={{ display: 'block' }}>
               Template Name
             </Text>
             <TextField.Root
+              id="template-name-input"
               value={formName}
               onChange={(e) => onFormNameChange(e.target.value)}
               placeholder="e.g. Hero Banner"
@@ -44,10 +46,11 @@ export const TemplateMetadataCard: React.FC<TemplateMetadataCardProps> = ({
         </Flex>
 
         <Box>
-          <Text as="div" size="2" mb="1" weight="bold">
+          <Text as="label" htmlFor="template-description-input" size="2" mb="1" weight="bold" style={{ display: 'block' }}>
             Description
           </Text>
           <TextField.Root
+            id="template-description-input"
             value={formDescription}
             onChange={(e) => onFormDescriptionChange(e.target.value)}
             placeholder="Optional summary or usage instructions"
