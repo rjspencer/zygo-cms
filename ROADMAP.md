@@ -37,13 +37,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Add custom states such as "In Review", "Ready for Publish", or "Archived".
   - Integrate with RBAC to restrict who can transition between states.
 
-### Editor Module Follow-Ups (post `react-hook-form` refactor)
-- **WebMCP `onExpandSection` is no longer wired**: Newly inserted sections default to expanded so behavior is the same today, but `useEditorWebMCP` no longer passes `onExpandSection`. If a collapsed section needs to be expanded by an agent, expansion state must be exposed outside `SectionList` (context or form-adjacent store).
-- **WebMCP `title` setter no longer exits title edit mode**: Previously `setTitle` from a tool closed the inline editor. `TitleEditor` now owns that state; expose it if agents should close it.
-- **Whole-form re-render per keystroke**: `EditorLayout` and `useEditorWebMCP` call `useWatch` on many fields (needed for the Wasm preview and tool snapshots). If typing gets sluggish, narrow subscriptions or move the WebMCP options to a ref read at tool-call time.
-- **Subcomponent Storybook coverage**: `Editor.stories.tsx` and `EditorStatusView.stories.tsx` are in place; individual subcomponents under `pages/Editor/components/*` can add dedicated `.stories.tsx` files as needed.
-- **WebMCP parity test**: Add a Vitest integration test that mutates the editor through the WebMCP registry (e.g. `editor_set_sections`, `editor_get_content`) against the new RHF-backed `useEditorWebMCP`.
-- **Test-only nit**: `Editor.test.tsx` activates Radix tabs with `fireEvent.mouseDown`; prefer `userEvent.click` if the suite adopts `@testing-library/user-event` more broadly.
 
 ---
 
