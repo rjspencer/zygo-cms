@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Flex, Heading, IconButton, TextField } from '@radix-ui/themes';
 import { CheckIcon, Cross2Icon, Pencil1Icon } from '@radix-ui/react-icons';
 import { useFormContext, useWatch } from 'react-hook-form';
 import type { EntryFormValues } from '../../types';
 import { slugify } from '../../utils/slugify';
+import { useEditorUIState } from '../../context/EditorUIStateContext';
 
 interface TitleEditorProps {
   /** New entries start in edit mode, and always derive their slug from the committed title. */
@@ -17,8 +18,17 @@ interface TitleEditorProps {
 export const TitleEditor: React.FC<TitleEditorProps> = ({ isNewEntry }) => {
   const { register, setValue, getValues, control } = useFormContext<EntryFormValues>();
   const title = useWatch({ control, name: 'title' });
-  const [isEditing, setIsEditing] = useState(isNewEntry);
+  const uiState = useEditorUIState();
+  const [localIsEditing, setLocalIsEditing] = useState(isNewEntry);
+  const isEditing = uiState ? uiState.isTitleEditing : localIsEditing;
+  const setIsEditing = uiState ? uiState.setIsTitleEditing : setLocalIsEditing;
   const [committedTitle, setCommittedTitle] = useState(title);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setCommittedTitle(title);
+    }
+  }, [title, isEditing]);
 
   const fillSlugFromTitle = () => {
     const { title: current, slug } = getValues();

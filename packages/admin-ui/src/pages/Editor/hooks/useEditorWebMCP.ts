@@ -1,8 +1,9 @@
-import { useFormContext, useWatch } from 'react-hook-form';
+import { useFormContext } from 'react-hook-form';
 import type { Editor as TipTapEditor } from '@tiptap/react';
 import { useTipTapWebMCP } from '../../../lib/webmcp/entryTools';
 import type { SectionTemplate } from '../../../types/sectionTemplate';
 import type { EntryFormValues, EntryType } from '../types';
+import { useEditorUIState } from '../context/EditorUIStateContext';
 
 interface UseEditorWebMCPOptions {
   editor: TipTapEditor | null;
@@ -14,8 +15,8 @@ interface UseEditorWebMCPOptions {
 
 /** Registers the editor's WebMCP tools, backed by the react-hook-form state. */
 export const useEditorWebMCP = ({ editor, entryType, sectionTemplates, saveDraft, publish }: UseEditorWebMCPOptions) => {
-  const { control, setValue } = useFormContext<EntryFormValues>();
-  const values = useWatch({ control }) as EntryFormValues;
+  const { setValue, getValues } = useFormContext<EntryFormValues>();
+  const uiState = useEditorUIState();
 
   const setField =
     <K extends keyof EntryFormValues>(name: K) =>
@@ -23,35 +24,31 @@ export const useEditorWebMCP = ({ editor, entryType, sectionTemplates, saveDraft
       // RHF cannot resolve PathValue for a generic key; callers are still typed by K.
       setValue(name, value as never, { shouldDirty: true });
 
+  const handleSetTitle = (newTitle: string) => {
+    setValue('title', newTitle, { shouldDirty: true });
+    uiState?.setIsTitleEditing(false);
+  };
+
   useTipTapWebMCP({
     editor,
     entryType,
     sectionTemplates,
-    content: values.content,
+    getFormValues: () => getValues(),
     setContent: setField('content'),
-    title: values.title,
-    setTitle: setField('title'),
-    slug: values.slug,
+    setTitle: handleSetTitle,
     setSlug: setField('slug'),
-    status: values.status,
     setStatus: setField('status'),
-    description: values.description,
     setDescription: setField('description'),
-    category: values.category,
     setCategory: setField('category'),
-    tags: values.tags,
     setTags: setField('tags'),
-    sections: values.sections,
     setSections: setField('sections'),
-    coverImage: values.coverImage,
+    onExpandSection: (index: number) => {
+      uiState?.setSectionExpanded(index, true);
+    },
     setCoverImage: setField('coverImage'),
-    canonicalUrl: values.canonicalUrl,
     setCanonicalUrl: setField('canonicalUrl'),
-    schemaJson: values.schemaJson,
     setSchemaJson: setField('schemaJson'),
-    parentId: values.parentId,
     setParentId: setField('parentId'),
-    sortOrder: values.sortOrder,
     setSortOrder: setField('sortOrder'),
     onSaveDraft: saveDraft,
     onPublish: publish,

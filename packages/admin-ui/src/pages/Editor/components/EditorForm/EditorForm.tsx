@@ -5,6 +5,7 @@ import type { EntryFormValues, EntryType } from '../../types';
 import { EMPTY_FORM_VALUES, toFormValues } from '../../utils/entryForm';
 import { createEntryFormResolver, type ValidationContext } from '../../utils/validateEntryForm';
 import { EditorLayout } from '../EditorLayout/EditorLayout';
+import { EditorUIStateProvider } from '../../context/EditorUIStateContext';
 
 interface EditorFormProps {
   id: string | undefined;
@@ -50,7 +51,9 @@ export const EditorForm: React.FC<EditorFormProps> = ({ id, isEditing, entryType
 
   return (
     <FormProvider {...methods}>
-      <EditorLayout id={id} isEditing={isEditing} entryType={entryType} sectionTemplates={sectionTemplates} />
+      <EditorUIStateProvider initialTitleEditing={!isEditing}>
+        <EditorLayout id={id} isEditing={isEditing} entryType={entryType} sectionTemplates={sectionTemplates} />
+      </EditorUIStateProvider>
     </FormProvider>
   );
 };

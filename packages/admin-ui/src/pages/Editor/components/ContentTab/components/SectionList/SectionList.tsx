@@ -3,6 +3,7 @@ import { Box, Flex, Text } from '@radix-ui/themes';
 import { useFieldArray, useFormContext, useFormState, useWatch } from 'react-hook-form';
 import type { EntryFormValues } from '../../../../types';
 import type { SectionTemplate } from '../../../../../../types/sectionTemplate';
+import { useEditorUIState } from '../../../../context/EditorUIStateContext';
 import { AddSectionSelect } from './components/AddSectionSelect';
 import { SectionCard } from './components/SectionCard';
 
@@ -40,7 +41,10 @@ export const SectionList: React.FC<SectionListProps> = ({ sectionTemplates }) =>
   });
   const sections = watchedSections ?? [];
 
-  const [expandedByIndex, setExpandedByIndex] = useState<Record<number, boolean>>({});
+  const uiState = useEditorUIState();
+  const [localExpandedByIndex, setLocalExpandedByIndex] = useState<Record<number, boolean>>({});
+  const expandedByIndex = uiState ? uiState.expandedByIndex : localExpandedByIndex;
+  const setExpandedByIndex = uiState ? uiState.setExpandedMap : setLocalExpandedByIndex;
 
   useEffect(() => {
     if (!errors.sections) return;
@@ -70,42 +74,54 @@ export const SectionList: React.FC<SectionListProps> = ({ sectionTemplates }) =>
     if (hasUpdates) {
       setExpandedByIndex((prev) => ({ ...prev, ...updates }));
     }
-  }, [errors.sections]);
+  }, [errors.sections, setExpandedByIndex]);
 
   const handleToggleExpand = (index: number) => {
-    setExpandedByIndex((prev) => ({
-      ...prev,
-      [index]: !(prev[index] ?? true),
-    }));
+    if (uiState) {
+      uiState.toggleSectionExpanded(index);
+    } else {
+      setLocalExpandedByIndex((prev) => ({
+        ...prev,
+        [index]: !(prev[index] ?? true),
+      }));
+    }
   };
 
   const handleMove = (from: number, to: number) => {
     move(from, to);
-    setExpandedByIndex((prev) => {
-      const fromExpanded = prev[from] ?? true;
-      const toExpanded = prev[to] ?? true;
-      return {
-        ...prev,
-        [from]: toExpanded,
-        [to]: fromExpanded,
-      };
-    });
+    if (uiState) {
+      uiState.handleMoveSectionExpansion(from, to);
+    } else {
+      setLocalExpandedByIndex((prev) => {
+        const fromExpanded = prev[from] ?? true;
+        const toExpanded = prev[to] ?? true;
+        return {
+          ...prev,
+          [from]: toExpanded,
+          [to]: fromExpanded,
+        };
+      });
+    }
   };
 
   const handleRemove = (index: number) => {
     remove(index);
-    setExpandedByIndex((prev) => {
-      const next: Record<number, boolean> = {};
-      Object.entries(prev).forEach(([keyStr, val]) => {
-        const k = Number(keyStr);
-        if (k < index) {
-          next[k] = val;
-        } else if (k > index) {
-          next[k - 1] = val;
-        }
+    if (uiState) {
+      uiState.handleRemoveSectionExpansion(index);
+    } else {
+      setLocalExpandedByIndex((prev) => {
+        const next: Record<number, boolean> = {};
+        Object.entries(prev).forEach(([keyStr, val]) => {
+          const k = Number(keyStr);
+          if (k < index) {
+            next[k] = val;
+          } else if (k > index) {
+            next[k - 1] = val;
+          }
+        });
+        return next;
       });
-      return next;
-    });
+    }
   };
 
   const handleAddSection = (typeId: string) => {
