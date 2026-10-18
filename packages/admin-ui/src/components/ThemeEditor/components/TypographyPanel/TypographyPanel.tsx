@@ -108,10 +108,19 @@ export const TypographyPanel: React.FC<TypographyPanelProps> = ({
 
       {/* Font Inputs */}
       <Box mb="3">
-        <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+        <Text
+          as="label"
+          htmlFor="typography-font-url"
+          size="2"
+          weight="bold"
+          mb="1"
+          style={{ display: 'block' }}
+        >
           Google Fonts Embed URL
         </Text>
         <TextField.Root
+          id="typography-font-url"
+          aria-describedby="typography-font-url-desc"
           value={tokens.fontUrl}
           placeholder="https://fonts.googleapis.com/css2?family=..."
           onChange={(e) =>
@@ -121,17 +130,25 @@ export const TypographyPanel: React.FC<TypographyPanelProps> = ({
             }))
           }
         />
-        <Text size="1" color="gray" mt="1" as="div">
+        <Text id="typography-font-url-desc" size="1" color="gray" mt="1" as="div">
           Accepts either the direct URL or a full <code>&lt;link href=&quot;...&quot;&gt;</code> tag.
         </Text>
       </Box>
 
       <Grid columns="2" gap="3">
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="label"
+            htmlFor="typography-headline-font"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Headline Font Family (<code>--font-headline</code>)
           </Text>
           <TextField.Root
+            id="typography-headline-font"
             value={tokens.fontHeadline}
             placeholder="'Newsreader', Georgia, serif"
             onChange={(e) =>
@@ -140,10 +157,18 @@ export const TypographyPanel: React.FC<TypographyPanelProps> = ({
           />
         </Box>
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="label"
+            htmlFor="typography-body-font"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Body Font Family (<code>--font-body</code>)
           </Text>
           <TextField.Root
+            id="typography-body-font"
             value={tokens.fontBody}
             placeholder="'Inter', sans-serif"
             onChange={(e) =>

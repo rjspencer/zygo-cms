@@ -109,7 +109,14 @@ export const ColorTokensPanel: React.FC<ColorTokensPanelProps> = ({
       <Grid columns="2" gap="3">
         {COLOR_FIELDS.map(({ label, cssVar, key, ariaLabel }) => (
           <Box key={key}>
-            <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+            <Text
+              as="label"
+              htmlFor={`color-input-${key}`}
+              size="2"
+              weight="bold"
+              mb="1"
+              style={{ display: 'block' }}
+            >
               {label} (<code>{cssVar}</code>)
             </Text>
             <Flex gap="2" align="center">
@@ -130,6 +137,8 @@ export const ColorTokensPanel: React.FC<ColorTokensPanelProps> = ({
                 }}
               />
               <TextField.Root
+                id={`color-input-${key}`}
+                aria-label={`${label} hex code`}
                 style={{ flex: 1 }}
                 value={tokens[key]}
                 onChange={(e) =>

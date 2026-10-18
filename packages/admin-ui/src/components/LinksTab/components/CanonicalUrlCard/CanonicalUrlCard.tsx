@@ -11,11 +11,11 @@ export const CanonicalUrlCard: React.FC<CanonicalUrlCardProps> = ({
 }) => {
   return (
     <Box p="4" style={{ background: 'var(--gray-2)', borderRadius: '8px', border: '1px solid var(--gray-4)' }}>
-      <Text as="label" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
+      <Text as="label" htmlFor="canonical-url-input" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
         Canonical URL
       </Text>
       <Flex gap="3" align="center">
-        <TextField.Root size="2" value={absoluteCanonicalUrl} readOnly style={{ flex: 1 }}>
+        <TextField.Root id="canonical-url-input" aria-label="Canonical URL" size="2" value={absoluteCanonicalUrl} readOnly style={{ flex: 1 }}>
           <TextField.Slot>
             <IconButton
               size="1"

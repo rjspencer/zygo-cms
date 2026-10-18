@@ -66,7 +66,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
           </Dialog.Description>
 
           {error && (
-            <Callout.Root color="red" size="1" mb="3">
+            <Callout.Root id="edit-user-error-alert" role="alert" color="red" size="1" mb="3">
               <Callout.Icon>
                 <InfoCircledIcon />
               </Callout.Icon>
@@ -76,10 +76,13 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
           <Flex direction="column" gap="3" mb="4">
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="edit-user-display-name-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Display Name
               </Text>
               <TextField.Root
+                id="edit-user-display-name-input"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'edit-user-error-alert' : undefined}
                 placeholder="e.g. Jane Doe"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
@@ -87,11 +90,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text id="edit-user-role-label" as="label" htmlFor="edit-user-role-trigger" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Role
               </Text>
               <Select.Root value={role} onValueChange={setRole}>
-                <Select.Trigger style={{ width: '100%' }} aria-label="Select role" />
+                <Select.Trigger id="edit-user-role-trigger" style={{ width: '100%' }} aria-label="Select role" />
                 <Select.Content>
                   <Select.Item value="admin">Admin</Select.Item>
                   <Select.Item value="editor">Editor</Select.Item>
@@ -101,10 +104,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="edit-user-avatar-url-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Avatar URL
               </Text>
               <TextField.Root
+                id="edit-user-avatar-url-input"
                 placeholder="https://example.com/avatar.png"
                 value={avatarUrl}
                 onChange={(e) => setAvatarUrl(e.target.value)}
@@ -112,10 +116,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="edit-user-website-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Website
               </Text>
               <TextField.Root
+                id="edit-user-website-input"
                 placeholder="https://example.com"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
@@ -123,10 +128,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </Box>
 
             <Box>
-              <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+              <Text as="label" htmlFor="edit-user-bio-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
                 Bio
               </Text>
               <TextArea
+                id="edit-user-bio-input"
                 placeholder="Short bio about the user..."
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}

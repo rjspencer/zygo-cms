@@ -443,5 +443,131 @@ describe('ThemeEditor component', () => {
     ).toBeTruthy();
     expect(screen.getByTestId('editorial-preview-container')).toBeTruthy();
   });
+
+  it('programmatically associates labels with inputs and configures accessible radiogroups and button groups', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <ThemeWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText('The Zygo Review');
+
+    // 1. Color Tokens Panel
+    const colorKeys = [
+      'colorBg',
+      'colorText',
+      'colorAccent',
+      'colorTextMuted',
+      'colorSurface',
+      'colorBorder',
+    ];
+    for (const key of colorKeys) {
+      const label = container.querySelector(`label[for="color-input-${key}"]`);
+      expect(label).toBeTruthy();
+      const input = container.querySelector(`#color-input-${key}`);
+      expect(input).toBeTruthy();
+      expect(input?.getAttribute('aria-label')).toMatch(/hex code/);
+    }
+
+    // 2. Typography Panel
+    const fontUrlLabel = container.querySelector('label[for="typography-font-url"]');
+    expect(fontUrlLabel).toBeTruthy();
+    const fontUrlInput = container.querySelector('#typography-font-url');
+    expect(fontUrlInput).toBeTruthy();
+    expect(fontUrlInput?.getAttribute('aria-describedby')).toBe('typography-font-url-desc');
+    const fontUrlDesc = container.querySelector('#typography-font-url-desc');
+    expect(fontUrlDesc).toBeTruthy();
+
+    const headlineFontLabel = container.querySelector('label[for="typography-headline-font"]');
+    expect(headlineFontLabel).toBeTruthy();
+    const headlineFontInput = container.querySelector('#typography-headline-font');
+    expect(headlineFontInput).toBeTruthy();
+
+    const bodyFontLabel = container.querySelector('label[for="typography-body-font"]');
+    expect(bodyFontLabel).toBeTruthy();
+    const bodyFontInput = container.querySelector('#typography-body-font');
+    expect(bodyFontInput).toBeTruthy();
+
+    // 3. Layout Dimensions Panel
+    const maxWidthLabel = container.querySelector('label[for="dimension-max-width"]');
+    expect(maxWidthLabel).toBeTruthy();
+    const maxWidthInput = container.querySelector('#dimension-max-width');
+    expect(maxWidthInput).toBeTruthy();
+
+    const fontSizeLabel = container.querySelector('label[for="dimension-font-size-base"]');
+    expect(fontSizeLabel).toBeTruthy();
+    const fontSizeInput = container.querySelector('#dimension-font-size-base');
+    expect(fontSizeInput).toBeTruthy();
+
+    const lineHeightLabel = container.querySelector('label[for="dimension-line-height-body"]');
+    expect(lineHeightLabel).toBeTruthy();
+    const lineHeightInput = container.querySelector('#dimension-line-height-body');
+    expect(lineHeightInput).toBeTruthy();
+
+    // 4. Header Styling Panel
+    const layoutLabel = container.querySelector('#header-layout-label');
+    expect(layoutLabel).toBeTruthy();
+    const layoutGroup = screen.getByRole('radiogroup', { name: 'Header Layout' });
+    expect(layoutGroup).toBeTruthy();
+    expect(layoutGroup.getAttribute('aria-labelledby')).toBe('header-layout-label');
+    const layoutRadios = layoutGroup.querySelectorAll('[role="radio"]');
+    expect(layoutRadios.length).toBe(3);
+    expect(layoutRadios[0].getAttribute('aria-checked')).toBe('true');
+
+    const borderStyleLabel = container.querySelector('#header-border-style-label');
+    expect(borderStyleLabel).toBeTruthy();
+    const borderStyleGroup = screen.getByRole('radiogroup', { name: 'Header Border Style' });
+    expect(borderStyleGroup).toBeTruthy();
+    expect(borderStyleGroup.getAttribute('aria-labelledby')).toBe('header-border-style-label');
+    const borderRadios = borderStyleGroup.querySelectorAll('[role="radio"]');
+    expect(borderRadios.length).toBe(3);
+
+    const titleSizeLabel = container.querySelector('label[for="header-title-size"]');
+    expect(titleSizeLabel).toBeTruthy();
+    const titleSizeInput = container.querySelector('#header-title-size');
+    expect(titleSizeInput).toBeTruthy();
+
+    const navTransformLabel = container.querySelector('#header-nav-transform-label');
+    expect(navTransformLabel).toBeTruthy();
+    const navTransformGroup = screen.getByRole('group', { name: /Navigation Lettering/i });
+    expect(navTransformGroup).toBeTruthy();
+    expect(navTransformGroup.getAttribute('aria-labelledby')).toBe('header-nav-transform-label');
+    const uppercaseBtn = screen.getByRole('button', { name: 'UPPERCASE' });
+    const normalCaseBtn = screen.getByRole('button', { name: 'Normal Case' });
+    expect(uppercaseBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(normalCaseBtn.getAttribute('aria-pressed')).toBe('false');
+
+    await user.click(normalCaseBtn);
+    expect(uppercaseBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(normalCaseBtn.getAttribute('aria-pressed')).toBe('true');
+
+    const taglineLabel = container.querySelector('label[for="header-tagline"]');
+    expect(taglineLabel).toBeTruthy();
+    const taglineInput = container.querySelector('#header-tagline');
+    expect(taglineInput).toBeTruthy();
+
+    const headerPaddingLabel = container.querySelector('label[for="header-padding"]');
+    expect(headerPaddingLabel).toBeTruthy();
+    const headerPaddingInput = container.querySelector('#header-padding');
+    expect(headerPaddingInput).toBeTruthy();
+
+    // 5. Save As Dialog
+    const saveAsBtn = screen.getByRole('button', { name: /Save As\.\.\./i });
+    await user.click(saveAsBtn);
+    const saveAsNameLabel = document.querySelector('label[for="save-as-theme-name"]');
+    expect(saveAsNameLabel).toBeTruthy();
+    const saveAsNameInput = document.querySelector('#save-as-theme-name');
+    expect(saveAsNameInput).toBeTruthy();
+  });
 });
 

@@ -10,6 +10,8 @@ export const MediaSearchBar: React.FC<MediaSearchBarProps> = ({
   return (
     <Card size="2" mb="4">
       <TextField.Root
+        id="media-search-input"
+        aria-label="Search media by filename"
         placeholder="Search media by filename..."
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}

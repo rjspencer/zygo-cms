@@ -27,10 +27,18 @@ export const SaveAsDialog: React.FC<SaveAsDialogProps> = ({
         </Dialog.Description>
         <form onSubmit={onConfirmSaveAs}>
           <Box mb="4">
-            <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+            <Text
+              as="label"
+              htmlFor="save-as-theme-name"
+              size="2"
+              weight="bold"
+              mb="1"
+              style={{ display: 'block' }}
+            >
               Theme Name
             </Text>
             <TextField.Root
+              id="save-as-theme-name"
               aria-label="Theme Name"
               value={saveAsName}
               onChange={(e) => onSaveAsNameChange(e.target.value)}

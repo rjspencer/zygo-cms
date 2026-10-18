@@ -16,4 +16,8 @@ export interface SectionFieldControlProps {
   value: any;
   onChange: (value: any) => void;
   onOpenMediaPicker?: (callback: (url: string, alt?: string) => void) => void;
+  id?: string;
+  labelId?: string;
+  ariaInvalid?: boolean;
+  ariaDescribedBy?: string;
 }

@@ -19,5 +19,6 @@ describe('AddSectionSelect', () => {
     );
 
     expect(screen.getByText('Add Section...')).toBeDefined();
+    expect(screen.getByRole('combobox', { name: 'Add Section' })).toBeDefined();
   });
 });

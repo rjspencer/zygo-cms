@@ -11,6 +11,8 @@ export const PagesSearchBar: React.FC<PagesSearchBarProps> = ({ value, onChange 
   return (
     <Box mb="4">
       <TextField.Root
+        id="pages-search-input"
+        aria-label="Search pages by title or slug"
         placeholder="Search pages by title or slug..."
         value={value}
         onChange={(e) => onChange(e.target.value)}

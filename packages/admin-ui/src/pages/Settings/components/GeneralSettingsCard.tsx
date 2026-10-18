@@ -13,33 +13,37 @@ export const GeneralSettingsCard: React.FC = () => {
       </Heading>
 
       <Box mb="4">
-        <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+        <Text as="label" htmlFor="settings-site-title-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
           Site Title
         </Text>
         <TextField.Root
+          id="settings-site-title-input"
           {...register('siteTitle')}
           placeholder="e.g. My Awesome Site"
         />
       </Box>
 
       <Box mb="4">
-        <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+        <Text as="label" htmlFor="settings-canonical-origin-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
           Canonical Origin
         </Text>
         <TextField.Root
+          id="settings-canonical-origin-input"
+          aria-describedby="settings-canonical-origin-description"
           {...register('canonicalOrigin')}
           placeholder="https://example.com"
         />
-        <Text size="1" color="gray" mt="1" style={{ display: 'block' }}>
+        <Text id="settings-canonical-origin-description" size="1" color="gray" mt="1" style={{ display: 'block' }}>
           Used to generate canonical URLs, Open Graph tags, and sitemap entries.
         </Text>
       </Box>
 
       <Box mb="2">
-        <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+        <Text as="label" htmlFor="settings-meta-description-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
           Meta Description
         </Text>
         <TextArea
+          id="settings-meta-description-input"
           {...register('description')}
           placeholder="Default description for search engines..."
         />

@@ -11,7 +11,9 @@ describe('PostBodyField', () => {
       { content: '<p>Initial post content</p>' }
     );
 
-    expect(screen.getByText('Body Content')).toBeDefined();
+    const bodyContentLabel = screen.getByText('Body Content');
+    expect(bodyContentLabel).toBeDefined();
+    expect(bodyContentLabel.getAttribute('id')).toBe('post-body-content-label');
     expect(screen.getByRole('textbox', { name: 'Post Body' })).toBeDefined();
     expect(screen.getByText('Initial post content')).toBeDefined();
     expect(onEditorReady).toHaveBeenCalled();

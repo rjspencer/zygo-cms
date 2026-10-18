@@ -11,6 +11,7 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
   isNested = false,
   errors,
 }) => {
+  const baseId = React.useId();
   const updateField = (name: string, value: any) => {
     onChange({
       ...data,
@@ -31,10 +32,22 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
         }
 
         const fieldError = errors?.[field.name];
+        const controlId = `${baseId}-field-${field.name}`;
+        const labelId = `${baseId}-label-${field.name}`;
+        const errorId = `${baseId}-error-${field.name}`;
+        const isLabelableControl = !['richtext', 'list', 'image', 'video'].includes(field.type);
 
         return (
           <Box key={field.name}>
-            <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+            <Text
+              as={isLabelableControl ? 'label' : 'div'}
+              id={labelId}
+              htmlFor={isLabelableControl ? controlId : undefined}
+              size="2"
+              weight="bold"
+              mb="1"
+              style={{ display: 'block' }}
+            >
               {field.label || field.name}
               {field.required && <Text color="red"> *</Text>}
             </Text>
@@ -44,10 +57,14 @@ export const SectionFieldRenderer: React.FC<SectionFieldRendererProps> = ({
               value={data[field.name]}
               onChange={(value) => updateField(field.name, value)}
               onOpenMediaPicker={onOpenMediaPicker}
+              id={controlId}
+              labelId={labelId}
+              ariaInvalid={Boolean(fieldError)}
+              ariaDescribedBy={fieldError ? errorId : undefined}
             />
 
             {fieldError && (
-              <Text role="alert" size="1" color="red" mt="1" style={{ display: 'block' }}>
+              <Text id={errorId} role="alert" size="1" color="red" mt="1" style={{ display: 'block' }}>
                 {fieldError}
               </Text>
             )}

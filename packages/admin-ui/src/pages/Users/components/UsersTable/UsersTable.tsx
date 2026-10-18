@@ -26,6 +26,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
       {/* Search */}
       <Box mb="4">
         <TextField.Root
+          id="users-search-input"
+          aria-label="Search users by name, email, or role"
           placeholder="Search users by name, email, or role..."
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}

@@ -23,6 +23,7 @@ export const AddMenuItemForm: React.FC<AddMenuItemFormProps> = ({
   const { control } = methods;
   const isCustom = useWatch({ control, name: 'isCustom' }) || false;
   const customUrl = useWatch({ control, name: 'customUrl' }) || '';
+  const hasWarning = !isAbsoluteUrl(customUrl) && customUrl.trim() !== '';
 
   return (
     <FormProvider {...methods}>
@@ -60,6 +61,8 @@ export const AddMenuItemForm: React.FC<AddMenuItemFormProps> = ({
             {isCustom && (
               <Box style={{ flex: 1, minWidth: '240px' }}>
                 <Text
+                  as="label"
+                  htmlFor="custom-url-input"
                   size="1"
                   color="gray"
                   weight="bold"
@@ -73,16 +76,21 @@ export const AddMenuItemForm: React.FC<AddMenuItemFormProps> = ({
                   name="customUrl"
                   render={({ field }) => (
                     <TextField.Root
+                      id="custom-url-input"
                       size="2"
                       placeholder="https://example.com"
                       value={field.value}
                       onChange={field.onChange}
                       aria-label="External URL"
+                      aria-invalid={hasWarning}
+                      aria-describedby={hasWarning ? 'custom-url-warning' : undefined}
                     />
                   )}
                 />
-                {!isAbsoluteUrl(customUrl) && customUrl.trim() !== '' && (
+                {hasWarning && (
                   <Text
+                    id="custom-url-warning"
+                    role="alert"
                     size="1"
                     color="amber"
                     weight="medium"
@@ -97,6 +105,8 @@ export const AddMenuItemForm: React.FC<AddMenuItemFormProps> = ({
             {/* 3. Label Field (SECOND) */}
             <Box style={{ flex: 1, minWidth: '200px' }}>
               <Text
+                as="label"
+                htmlFor="menu-item-label-input"
                 size="1"
                 color="gray"
                 weight="bold"
@@ -110,6 +120,7 @@ export const AddMenuItemForm: React.FC<AddMenuItemFormProps> = ({
                 name="title"
                 render={({ field }) => (
                   <TextField.Root
+                    id="menu-item-label-input"
                     size="2"
                     placeholder="e.g. Documentation"
                     value={field.value}

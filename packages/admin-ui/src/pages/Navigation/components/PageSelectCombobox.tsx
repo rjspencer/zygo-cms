@@ -32,10 +32,12 @@ export const PageSelectCombobox: React.FC<PageSelectComboboxProps> = ({
 
   return (
     <Box style={{ flex: 1, minWidth: '240px', position: 'relative' }} ref={dropdownRef}>
-      <Text size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
+      <Text as="label" htmlFor="page-select-combobox-input" size="1" color="gray" weight="bold" mb="1" style={{ display: 'block' }}>
         URL
       </Text>
       <TextField.Root
+        id="page-select-combobox-input"
+        aria-controls="page-select-listbox"
         size="2"
         placeholder="Select or search a page..."
         value={urlSearchQuery}
@@ -73,6 +75,7 @@ export const PageSelectCombobox: React.FC<PageSelectComboboxProps> = ({
       {/* Dropdown Menu */}
       {isDropdownOpen && (
         <Box
+          id="page-select-listbox"
           role="listbox"
           style={{
             position: 'absolute',

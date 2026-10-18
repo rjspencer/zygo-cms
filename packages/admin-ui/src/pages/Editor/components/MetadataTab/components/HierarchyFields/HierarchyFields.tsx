@@ -21,7 +21,7 @@ export const HierarchyFields: React.FC = () => {
           size="2"
           placeholder="Leave blank for root"
           aria-invalid={Boolean(errors.parentId)}
-          aria-describedby={errors.parentId ? 'editor-parent-id-error' : undefined}
+          aria-describedby={errors.parentId ? 'editor-parent-id-error editor-parent-id-help' : 'editor-parent-id-help'}
           {...register('parentId')}
         />
         {errors.parentId?.message && (
@@ -29,7 +29,7 @@ export const HierarchyFields: React.FC = () => {
             {errors.parentId.message}
           </Text>
         )}
-        <Text size="1" color="gray">
+        <Text id="editor-parent-id-help" size="1" color="gray">
           ID of the parent entry
         </Text>
       </Box>
@@ -45,12 +45,13 @@ export const HierarchyFields: React.FC = () => {
               id="editor-sort-order-input"
               type="number"
               size="2"
+              aria-describedby="editor-sort-order-help"
               value={(field.value ?? 0).toString()}
               onChange={(e) => field.onChange(Number(e.target.value) || 0)}
             />
           )}
         />
-        <Text size="1" color="gray">
+        <Text id="editor-sort-order-help" size="1" color="gray">
           Order relative to siblings
         </Text>
       </Box>

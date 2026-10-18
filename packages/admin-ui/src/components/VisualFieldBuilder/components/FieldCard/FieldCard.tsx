@@ -98,6 +98,7 @@ export const FieldCard: React.FC<FieldCardProps> = ({
         <Box style={{ width: '140px' }}>
           <Text
             as="label"
+            htmlFor={`field-type-${index}`}
             size="1"
             weight="bold"
             color="gray"
@@ -112,6 +113,7 @@ export const FieldCard: React.FC<FieldCardProps> = ({
             disabled={disabled}
           >
             <Select.Trigger
+              id={`field-type-${index}`}
               aria-label="Field Type"
               style={{ width: '100%' }}
             />

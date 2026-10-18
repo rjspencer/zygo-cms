@@ -8,6 +8,7 @@ describe('StatusField', () => {
     renderWithForm(<StatusField />, { status: 'draft' });
 
     expect(screen.getByText('Status')).toBeDefined();
+    expect(screen.getByRole('group', { name: 'Status' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Draft' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Published' })).toBeDefined();
   });
@@ -21,15 +22,21 @@ describe('StatusField', () => {
     // Draft is initially solid, Published is soft
     expect(draftBtn.className).toContain('rt-variant-solid');
     expect(publishedBtn.className).toContain('rt-variant-soft');
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(publishedBtn.getAttribute('aria-pressed')).toBe('false');
 
     // Click Published
     fireEvent.click(publishedBtn);
     expect(draftBtn.className).toContain('rt-variant-soft');
     expect(publishedBtn.className).toContain('rt-variant-solid');
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('false');
+    expect(publishedBtn.getAttribute('aria-pressed')).toBe('true');
 
     // Click Draft
     fireEvent.click(draftBtn);
     expect(draftBtn.className).toContain('rt-variant-solid');
     expect(publishedBtn.className).toContain('rt-variant-soft');
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(publishedBtn.getAttribute('aria-pressed')).toBe('false');
   });
 });

@@ -130,4 +130,84 @@ describe('SectionFieldRenderer Component', () => {
 
     expect(onOpenMediaPicker).toHaveBeenCalledTimes(1);
   });
+
+  it('correctly associates labels with form controls and avoids orphan labels for non-input controls', () => {
+    const data = {
+      headline: 'My Headline',
+      bio: 'My bio content',
+      website: 'https://example.com',
+      is_featured: true,
+      avatar: '/media/avatar.png',
+      role: 'Editor',
+      items: [{ item_name: 'Sub Item 1' }],
+    };
+
+    render(
+      <Theme>
+        <SectionFieldRenderer fields={fields} data={data} onChange={vi.fn()} />
+      </Theme>
+    );
+
+    // Labelable fields use <label> with htmlFor matching control id
+    const headlineLabel = screen.getByText(/Headline/);
+    expect(headlineLabel.tagName.toLowerCase()).toBe('label');
+    const headlineInput = screen.getByDisplayValue('My Headline');
+    expect(headlineLabel.getAttribute('for')).toBe(headlineInput.getAttribute('id'));
+
+    const bioLabel = screen.getByText('Bio');
+    expect(bioLabel.tagName.toLowerCase()).toBe('label');
+    const bioInput = screen.getByDisplayValue('My bio content');
+    expect(bioLabel.getAttribute('for')).toBe(bioInput.getAttribute('id'));
+
+    const websiteLabel = screen.getByText('Website');
+    expect(websiteLabel.tagName.toLowerCase()).toBe('label');
+    const websiteInput = screen.getByDisplayValue('https://example.com');
+    expect(websiteLabel.getAttribute('for')).toBe(websiteInput.getAttribute('id'));
+
+    const featuredLabel = screen.getByText('Featured');
+    expect(featuredLabel.tagName.toLowerCase()).toBe('label');
+    const switchControl = screen.getByRole('switch', { name: 'Featured' });
+    expect(featuredLabel.getAttribute('for')).toBe(switchControl.getAttribute('id'));
+
+    // Non-labelable fields render as <div> without htmlFor
+    const avatarLabel = screen.getByText('Avatar');
+    expect(avatarLabel.tagName.toLowerCase()).toBe('div');
+    expect(avatarLabel.getAttribute('for')).toBeNull();
+
+    // Image control group is labeled by the labelId
+    const imageGroup = screen.getByRole('group');
+    expect(imageGroup.getAttribute('aria-labelledby')).toBe(avatarLabel.getAttribute('id'));
+  });
+
+  it('sets aria-invalid and aria-describedby on inputs when field errors exist', () => {
+    const data = { headline: '', bio: '' };
+    const errors = {
+      headline: 'Headline is required',
+    };
+
+    render(
+      <Theme>
+        <SectionFieldRenderer
+          fields={fields}
+          data={data}
+          onChange={vi.fn()}
+          errors={errors}
+        />
+      </Theme>
+    );
+
+    const errorMessage = screen.getByText('Headline is required');
+    expect(errorMessage.getAttribute('role')).toBe('alert');
+    const errorId = errorMessage.getAttribute('id');
+    expect(errorId).toBeDefined();
+
+    const headlineInput = screen.getByPlaceholderText('Enter Headline');
+    expect(headlineInput.getAttribute('aria-invalid')).toBe('true');
+    expect(headlineInput.getAttribute('aria-describedby')).toBe(errorId);
+
+    // Un-errored field should not have aria-invalid true or aria-describedby
+    const bioInput = screen.getByPlaceholderText('Enter Bio');
+    expect(bioInput.getAttribute('aria-invalid')).toBe('false');
+    expect(bioInput.getAttribute('aria-describedby')).toBeNull();
+  });
 });

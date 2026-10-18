@@ -14,7 +14,7 @@ export const DocsSettingsCard: React.FC = () => {
           <Heading size="3" mb="1">
             Docs Mode
           </Heading>
-          <Text size="2" color="gray">
+          <Text id="settings-docs-mode-description" size="2" color="gray">
             Enable product documentation features including tree navigation and table of contents
           </Text>
         </Box>
@@ -25,25 +25,29 @@ export const DocsSettingsCard: React.FC = () => {
             name="docsModeEnabled"
             render={({ field }) => (
               <Switch
+                id="settings-docs-mode-switch"
+                aria-describedby="settings-docs-mode-description"
                 checked={field.value}
                 onCheckedChange={field.onChange}
               />
             )}
           />
-          <Text size="2">Enable Docs Mode</Text>
+          <Text as="label" htmlFor="settings-docs-mode-switch" size="2">Enable Docs Mode</Text>
         </Flex>
       </Flex>
 
       {docsModeEnabled && (
         <Box mb="2">
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text as="label" htmlFor="settings-docs-path-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
             Docs Base Path
           </Text>
           <TextField.Root
+            id="settings-docs-path-input"
+            aria-describedby="settings-docs-path-description"
             {...register('docsPath')}
             placeholder="/docs"
           />
-          <Text size="1" color="gray" mt="1" style={{ display: 'block' }}>
+          <Text id="settings-docs-path-description" size="1" color="gray" mt="1" style={{ display: 'block' }}>
             The path where the documentation will be served. E.g., /docs
           </Text>
         </Box>

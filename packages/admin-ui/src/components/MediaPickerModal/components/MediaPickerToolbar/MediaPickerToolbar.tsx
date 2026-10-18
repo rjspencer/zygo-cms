@@ -28,6 +28,8 @@ export const MediaPickerToolbar: React.FC<MediaPickerToolbarProps> = ({
       <Box style={{ flex: 1 }}>
         <Card size="1">
           <TextField.Root
+            id="media-picker-search-input"
+            aria-label="Search media by filename"
             placeholder="Search media by filename..."
             value={search}
             onChange={handleSearchChange}

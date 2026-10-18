@@ -68,15 +68,17 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
 
       {/* Header Layout Selector */}
       <Box mb="4">
-        <Text as="label" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
+        <Text as="div" id="header-layout-label" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
           Header Layout
         </Text>
-        <Grid columns="3" gap="2">
+        <Grid columns="3" gap="2" role="radiogroup" aria-labelledby="header-layout-label">
           {LAYOUT_OPTIONS.map((item) => {
             const isSelected = tokens.headerLayout === item.id;
             return (
               <Box
                 key={item.id}
+                role="radio"
+                aria-checked={tokens.headerLayout === item.id}
                 p="2"
                 onClick={() =>
                   setTokens((prev) => ({
@@ -109,15 +111,17 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
 
       {/* Header Border Style */}
       <Box mb="4">
-        <Text as="label" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
+        <Text as="div" id="header-border-style-label" size="2" weight="bold" mb="2" style={{ display: 'block' }}>
           Header Border Style
         </Text>
-        <Grid columns="3" gap="2">
+        <Grid columns="3" gap="2" role="radiogroup" aria-labelledby="header-border-style-label">
           {BORDER_STYLE_OPTIONS.map((border) => {
             const isSelected = tokens.headerBorderStyle === border.id;
             return (
               <Box
                 key={border.id}
+                role="radio"
+                aria-checked={tokens.headerBorderStyle === border.id}
                 p="2"
                 onClick={() =>
                   setTokens((prev) => ({
@@ -148,10 +152,18 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
       <Grid columns="2" gap="3" mb="3">
         {/* Brand Title Size */}
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="label"
+            htmlFor="header-title-size"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Masthead Title Size (<code>--header-title-size</code>)
           </Text>
           <TextField.Root
+            id="header-title-size"
             value={tokens.headerTitleSize}
             placeholder="2rem"
             onChange={(e) =>
@@ -162,15 +174,23 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
 
         {/* Nav Text Transform */}
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="div"
+            id="header-nav-transform-label"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Navigation Lettering (<code>--header-nav-transform</code>)
           </Text>
-          <Flex gap="2" mt="1">
+          <Flex gap="2" mt="1" role="group" aria-labelledby="header-nav-transform-label">
             <Button
               size="2"
               variant={tokens.headerNavTransform === 'uppercase' ? 'solid' : 'outline'}
               color="cyan"
               style={{ flex: 1 }}
+              aria-pressed={tokens.headerNavTransform === 'uppercase'}
               onClick={() =>
                 setTokens((prev) => ({ ...prev, headerNavTransform: 'uppercase' }))
               }
@@ -182,6 +202,7 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
               variant={tokens.headerNavTransform === 'none' ? 'solid' : 'outline'}
               color="cyan"
               style={{ flex: 1 }}
+              aria-pressed={tokens.headerNavTransform === 'none'}
               onClick={() =>
                 setTokens((prev) => ({ ...prev, headerNavTransform: 'none' }))
               }
@@ -195,10 +216,18 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
       <Grid columns="2" gap="3">
         {/* Header Tagline / Subtitle */}
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="label"
+            htmlFor="header-tagline"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Editorial Tagline
           </Text>
           <TextField.Root
+            id="header-tagline"
             value={tokens.headerTagline}
             placeholder="An Editorial Review & Journal"
             onChange={(e) =>
@@ -209,10 +238,18 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
 
         {/* Header Padding */}
         <Box>
-          <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+          <Text
+            as="label"
+            htmlFor="header-padding"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
             Header Padding (<code>--header-padding</code>)
           </Text>
           <TextField.Root
+            id="header-padding"
             value={tokens.headerPadding}
             placeholder="1.75rem 0 1.25rem 0"
             onChange={(e) =>

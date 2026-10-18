@@ -130,6 +130,9 @@ describe('Users Page Component', () => {
     expect(screen.getByRole('heading', { name: 'Users' })).toBeDefined();
     expect(screen.getByText('Manage user accounts, roles, and profiles')).toBeDefined();
     expect(screen.getByPlaceholderText('Search users by name, email, or role...')).toBeDefined();
+    const searchInput = screen.getByLabelText('Search users by name, email, or role');
+    expect(searchInput).toBeDefined();
+    expect(searchInput.getAttribute('id')).toBe('users-search-input');
     expect(screen.getByRole('button', { name: /invite user/i })).toBeDefined();
   });
 
@@ -177,8 +180,19 @@ describe('Users Page Component', () => {
     expect(screen.getByRole('heading', { name: 'Invite User' })).toBeDefined();
 
     // Fill in form fields
-    const emailInput = screen.getByPlaceholderText('colleague@example.com');
-    const nameInput = screen.getByPlaceholderText('e.g. Jane Doe');
+    const emailInput = screen.getByLabelText(/Email Address/i);
+    expect(emailInput.getAttribute('id')).toBe('invite-user-email-input');
+    expect(emailInput.getAttribute('aria-invalid')).toBe('false');
+
+    const nameInput = screen.getByLabelText('Display Name');
+    expect(nameInput.getAttribute('id')).toBe('invite-user-display-name-input');
+
+    const roleTrigger = screen.getByLabelText('Select role');
+    expect(roleTrigger.getAttribute('id')).toBe('invite-user-role-trigger');
+
+    const roleLabel = document.getElementById('invite-user-role-label');
+    expect(roleLabel).toBeDefined();
+    expect(roleLabel?.getAttribute('for')).toBe('invite-user-role-trigger');
 
     fireEvent.change(emailInput, { target: { value: 'charlie@zygodactyl.io' } });
     fireEvent.change(nameInput, { target: { value: 'Charlie Editor' } });
@@ -256,7 +270,13 @@ describe('Users Page Component', () => {
     const submitBtn = screen.getByRole('button', { name: 'Invite User' });
     fireEvent.click(submitBtn);
 
-    expect(await screen.findByText('User with this email already exists')).toBeDefined();
+    const errorAlert = await screen.findByRole('alert');
+    expect(errorAlert.getAttribute('id')).toBe('invite-user-error-alert');
+    expect(screen.getByText('User with this email already exists')).toBeDefined();
+
+    const emailInputWithErr = screen.getByLabelText(/Email Address/i);
+    expect(emailInputWithErr.getAttribute('aria-invalid')).toBe('true');
+    expect(emailInputWithErr.getAttribute('aria-describedby')).toBe('invite-user-error-alert');
   });
 
   it('opens Edit User dialog and updates user profile and role', async () => {
@@ -272,8 +292,25 @@ describe('Users Page Component', () => {
     expect(screen.getByRole('heading', { name: 'Edit User' })).toBeDefined();
 
     // Verify inputs populated with Alice's info
-    const nameInput = screen.getByDisplayValue('Alice Admin');
-    const websiteInput = screen.getByDisplayValue('https://zygodactyl.io');
+    const nameInput = screen.getByLabelText('Display Name');
+    expect(nameInput.getAttribute('id')).toBe('edit-user-display-name-input');
+    expect(nameInput.getAttribute('aria-invalid')).toBe('false');
+
+    const roleTrigger = screen.getByLabelText('Select role');
+    expect(roleTrigger.getAttribute('id')).toBe('edit-user-role-trigger');
+
+    const roleLabel = document.getElementById('edit-user-role-label');
+    expect(roleLabel).toBeDefined();
+    expect(roleLabel?.getAttribute('for')).toBe('edit-user-role-trigger');
+
+    const avatarUrlInput = screen.getByLabelText('Avatar URL');
+    expect(avatarUrlInput.getAttribute('id')).toBe('edit-user-avatar-url-input');
+
+    const websiteInput = screen.getByLabelText('Website');
+    expect(websiteInput.getAttribute('id')).toBe('edit-user-website-input');
+
+    const bioInput = screen.getByLabelText('Bio');
+    expect(bioInput.getAttribute('id')).toBe('edit-user-bio-input');
 
     fireEvent.change(nameInput, { target: { value: 'Alice Senior Admin' } });
     fireEvent.change(websiteInput, { target: { value: 'https://alice.dev' } });
@@ -301,6 +338,46 @@ describe('Users Page Component', () => {
 
     // Check table updated
     expect(await screen.findByText('Alice Senior Admin')).toBeDefined();
+  });
+
+  it('displays error in Edit User dialog with role alert and aria-invalid', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, options: any = {}) => {
+        const method = options.method || 'GET';
+        if (url.includes('/api/admin/users') && method === 'GET') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve([...mockUsers]),
+          });
+        }
+        if (url.includes('/api/admin/users/1') && method === 'PUT') {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ error: 'Failed to update user' }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      })
+    );
+
+    renderUsersPage();
+    expect(await screen.findByText('Alice Admin')).toBeDefined();
+
+    const editButton = screen.getByRole('button', { name: 'Edit Alice Admin' });
+    fireEvent.click(editButton);
+
+    const saveBtn = screen.getByRole('button', { name: 'Save Changes' });
+    fireEvent.click(saveBtn);
+
+    const errorAlert = await screen.findByRole('alert');
+    expect(errorAlert.getAttribute('id')).toBe('edit-user-error-alert');
+    expect(screen.getByText('Failed to update user')).toBeDefined();
+
+    const nameInput = screen.getByLabelText('Display Name');
+    expect(nameInput.getAttribute('aria-invalid')).toBe('true');
+    expect(nameInput.getAttribute('aria-describedby')).toBe('edit-user-error-alert');
   });
 
   it('opens Delete dialog and soft deletes a user', async () => {

@@ -38,10 +38,12 @@ describe('HierarchyFields', () => {
 
     const parentIdInput = screen.getByPlaceholderText('Leave blank for root') as HTMLInputElement;
     expect(parentIdInput.value).toBe('12');
+    expect(parentIdInput.getAttribute('aria-describedby')).toBe('editor-parent-id-help');
 
     const sortOrderInput = screen.getByDisplayValue('3') as HTMLInputElement;
     expect(sortOrderInput).toBeDefined();
     expect(sortOrderInput.type).toBe('number');
+    expect(sortOrderInput.getAttribute('aria-describedby')).toBe('editor-sort-order-help');
   });
 
   it('updates Parent ID input value on change', () => {
@@ -77,6 +79,6 @@ describe('HierarchyFields', () => {
     const parentIdInput = document.getElementById('editor-parent-id-input');
     expect(parentIdInput).not.toBeNull();
     expect(parentIdInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(parentIdInput?.getAttribute('aria-describedby')).toBe('editor-parent-id-error');
+    expect(parentIdInput?.getAttribute('aria-describedby')).toBe('editor-parent-id-error editor-parent-id-help');
   });
 });

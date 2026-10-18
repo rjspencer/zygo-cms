@@ -10,8 +10,8 @@ export const CoverImageField: React.FC = () => {
   const openMediaPicker = useOpenMediaPicker();
 
   return (
-    <Box>
-      <Text as="label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+    <Box role="group" aria-labelledby="editor-cover-image-label">
+      <Text as="div" id="editor-cover-image-label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
         Cover Image URL
       </Text>
       <Flex align="center" gap="2" wrap="wrap">

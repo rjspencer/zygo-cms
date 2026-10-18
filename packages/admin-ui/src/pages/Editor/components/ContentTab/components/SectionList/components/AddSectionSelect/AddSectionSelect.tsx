@@ -13,7 +13,7 @@ export const AddSectionSelect: React.FC<AddSectionSelectProps> = ({
 }) => {
   return (
     <Select.Root onValueChange={onAddSection}>
-      <Select.Trigger placeholder="Add Section..." />
+      <Select.Trigger placeholder="Add Section..." aria-label="Add Section" />
       <Select.Content>
         {sectionTemplates.map((st) => (
           <Select.Item key={st.id} value={st.id}>
