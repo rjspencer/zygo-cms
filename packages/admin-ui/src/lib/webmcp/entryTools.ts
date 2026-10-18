@@ -7,14 +7,15 @@ import type { SectionInstance, SectionTemplate } from '../../types/sectionTempla
 
 export interface UseTipTapWebMCPOptions {
   editor: TipTapEditor | null;
-  content: string;
-  setContent: (content: string) => void;
-  title: string;
-  setTitle: (title: string) => void;
-  slug: string;
-  setSlug: (slug: string) => void;
-  status: 'draft' | 'published' | 'scheduled';
-  setStatus: (status: 'draft' | 'published' | 'scheduled') => void;
+  getFormValues?: () => Record<string, any>;
+  content?: string;
+  setContent?: (content: string) => void;
+  title?: string;
+  setTitle?: (title: string) => void;
+  slug?: string;
+  setSlug?: (slug: string) => void;
+  status?: 'draft' | 'published' | 'scheduled';
+  setStatus?: (status: 'draft' | 'published' | 'scheduled') => void;
   entryType: string;
   description?: string;
   setDescription?: (description: string) => void;
@@ -403,6 +404,26 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
   const optionsRef = React.useRef(options);
   optionsRef.current = options;
 
+  const getResolvedValues = () => {
+    const opts = optionsRef.current;
+    const dyn = opts.getFormValues ? opts.getFormValues() : undefined;
+    return {
+      content: dyn?.content !== undefined ? dyn.content : opts.content,
+      title: dyn?.title !== undefined ? dyn.title : opts.title,
+      slug: dyn?.slug !== undefined ? dyn.slug : opts.slug,
+      status: dyn?.status !== undefined ? dyn.status : opts.status,
+      description: dyn?.description !== undefined ? dyn.description : opts.description,
+      tags: dyn?.tags !== undefined ? dyn.tags : opts.tags,
+      category: dyn?.category !== undefined ? dyn.category : opts.category,
+      coverImage: dyn?.coverImage !== undefined ? dyn.coverImage : opts.coverImage,
+      canonicalUrl: dyn?.canonicalUrl !== undefined ? dyn.canonicalUrl : opts.canonicalUrl,
+      schemaJson: dyn?.schemaJson !== undefined ? dyn.schemaJson : opts.schemaJson,
+      parentId: dyn?.parentId !== undefined ? dyn.parentId : opts.parentId,
+      sortOrder: dyn?.sortOrder !== undefined ? dyn.sortOrder : opts.sortOrder,
+      sections: dyn?.sections !== undefined ? dyn.sections : opts.sections,
+    };
+  };
+
   const tools: WebMCPToolDefinition[] = React.useMemo(() => {
     const getContentTool: WebMCPToolDefinition = {
       name: 'editor_get_content',
@@ -419,6 +440,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
       },
       handler: (args: Record<string, any>): WebMCPToolResult => {
         const opts = optionsRef.current;
+        const resolved = getResolvedValues();
         const format = args.format || 'html';
         let contentVal: any = '';
 
@@ -431,28 +453,28 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
             contentVal = opts.editor.getHTML();
           }
         } else {
-          contentVal = opts.content || '';
+          contentVal = resolved.content || '';
         }
 
         const result: Record<string, any> = {
           content: contentVal,
           format,
-          title: opts.title,
-          slug: opts.slug,
-          status: opts.status,
+          title: resolved.title,
+          slug: resolved.slug,
+          status: resolved.status,
           entryType: opts.entryType,
-          description: opts.description || '',
-          tags: opts.tags || '',
-          category: opts.category || '',
-          cover_image: opts.coverImage || '',
-          canonical_url: opts.canonicalUrl || '',
-          schema_json: opts.schemaJson || '',
-          parent_id: opts.parentId || '',
-          sort_order: opts.sortOrder ?? 0,
+          description: resolved.description || '',
+          tags: resolved.tags || '',
+          category: resolved.category || '',
+          cover_image: resolved.coverImage || '',
+          canonical_url: resolved.canonicalUrl || '',
+          schema_json: resolved.schemaJson || '',
+          parent_id: resolved.parentId || '',
+          sort_order: resolved.sortOrder ?? 0,
         };
 
-        if (opts.entryType === 'page' || opts.sections !== undefined) {
-          result.sections = opts.sections || [];
+        if (opts.entryType === 'page' || resolved.sections !== undefined) {
+          result.sections = resolved.sections || [];
         }
 
         return {
@@ -525,15 +547,15 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
             opts.editor.chain().focus().insertContent(insertText).run();
           }
           const updatedHtml = opts.editor.getHTML();
-          opts.setContent(updatedHtml);
+          opts.setContent?.(updatedHtml);
         } else {
-          let updated = opts.content || '';
+          let updated = getResolvedValues().content || '';
           if (position === 'start') {
             updated = insertText + updated;
           } else {
             updated = updated + insertText;
           }
-          opts.setContent(updated);
+          opts.setContent?.(updated);
         }
 
         return {
@@ -563,9 +585,9 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
         if (opts.editor) {
           opts.editor.chain().focus().insertContent(repText).run();
           const updatedHtml = opts.editor.getHTML();
-          opts.setContent(updatedHtml);
+          opts.setContent?.(updatedHtml);
         } else {
-          opts.setContent(repText);
+          opts.setContent?.(repText);
         }
 
         return {
@@ -740,7 +762,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           type_id: typeId,
           data: args.data && typeof args.data === 'object' ? { ...args.data } : {},
         };
-        const current = [...(opts.sections || [])];
+        const current = [...(getResolvedValues().sections || [])];
         let insertIndex = current.length;
 
         if (typeof args.index === 'number' && !Number.isNaN(args.index)) {
@@ -800,7 +822,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           };
         }
 
-        const current = [...(opts.sections || [])];
+        const current = [...(getResolvedValues().sections || [])];
         const idx = Number(args.index);
         if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) {
           return {
@@ -868,7 +890,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           };
         }
 
-        const current = [...(opts.sections || [])];
+        const current = [...(getResolvedValues().sections || [])];
         const idx = Number(args.index);
         if (!Number.isInteger(idx) || idx < 0 || idx >= current.length) {
           return {
@@ -924,7 +946,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           };
         }
 
-        const current = [...(opts.sections || [])];
+        const current = [...(getResolvedValues().sections || [])];
         const fromIdx = Number(args.from_index);
         const toIdx = Number(args.to_index);
         if (
