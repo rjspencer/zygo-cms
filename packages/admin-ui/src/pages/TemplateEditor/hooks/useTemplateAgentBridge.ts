@@ -16,6 +16,12 @@ export function useTemplateAgentBridge({
   setFormTemplateCss,
   setFormSchemaJson,
   setFields,
+  setFormId,
+  setFormName,
+  setFormDescription,
+  setIsLocked,
+  handleSave,
+  discardDraft,
 }: {
   formId: string;
   formName: string;
@@ -30,6 +36,12 @@ export function useTemplateAgentBridge({
   setFormTemplateCss: (val: string) => void;
   setFormSchemaJson: (val: string) => void;
   setFields: (fields: SectionTemplateField[]) => void;
+  setFormId?: (id: string) => void;
+  setFormName?: (name: string) => void;
+  setFormDescription?: (desc: string) => void;
+  setIsLocked?: (locked: boolean) => void;
+  handleSave?: (force?: boolean) => Promise<any> | void;
+  discardDraft?: () => void;
 }) {
   // Window Editor Bridge for AI Agents
   useEffect(() => {
@@ -84,5 +96,11 @@ export function useTemplateAgentBridge({
     setFormTemplateCss,
     setFormSchemaJson,
     setFields,
+    setFormId,
+    setFormName,
+    setFormDescription,
+    setIsLocked,
+    handleSave,
+    discardDraft,
   });
 }
