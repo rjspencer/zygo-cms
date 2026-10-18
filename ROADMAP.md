@@ -37,12 +37,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Add custom states such as "In Review", "Ready for Publish", or "Archived".
   - Integrate with RBAC to restrict who can transition between states.
 
-### Bulk Content Operations
-- **Goal**: Enable efficient management of large content libraries.
-- **Details**:
-  - Add bulk-select capabilities to lists (posts, pages).
-  - Support bulk publish/unpublish, bulk tagging, and move to trash.
-
 ### Editor Module Follow-Ups (post `react-hook-form` refactor)
 - **WebMCP `onExpandSection` is no longer wired**: Newly inserted sections default to expanded so behavior is the same today, but `useEditorWebMCP` no longer passes `onExpandSection`. If a collapsed section needs to be expanded by an agent, expansion state must be exposed outside `SectionList` (context or form-adjacent store).
 - **WebMCP `title` setter no longer exits title edit mode**: Previously `setTitle` from a tool closed the inline editor. `TitleEditor` now owns that state; expose it if agents should close it.

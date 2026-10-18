@@ -272,4 +272,98 @@ describe('PostsList component', () => {
       expect(screen.queryByRole('heading', { name: 'Delete Post' })).toBeNull();
     });
   });
+
+  it('selects multiple posts and executes bulk publish operation', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPostsData,
+    });
+
+    const user = userEvent.setup();
+    renderPostsList();
+
+    await waitFor(() => {
+      expect(screen.getByText('First Blog Post')).toBeDefined();
+    });
+
+    // Bulk bar not visible initially
+    expect(screen.queryByTestId('bulk-action-bar')).toBeNull();
+
+    // Select first post
+    const postCheckbox = screen.getByTestId('select-post-101');
+    await user.click(postCheckbox);
+
+    // Bulk action bar appears
+    expect(screen.getByTestId('bulk-action-bar')).toBeDefined();
+    expect(screen.getByText('1 item selected')).toBeDefined();
+
+    // Select all posts using header checkbox
+    const selectAllCheckbox = screen.getByRole('checkbox', { name: /select all posts/i });
+    await user.click(selectAllCheckbox);
+
+    expect(screen.getByText('3 items selected')).toBeDefined();
+
+    // Mock bulk API response
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, affected: 3, skipped: 0, errors: [] }),
+    });
+
+    const publishBtn = screen.getByRole('button', { name: /bulk publish/i });
+    await user.click(publishBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/entries/bulk',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ ids: [101, 102, 103], action: 'publish' }),
+        })
+      );
+    });
+  });
+
+  it('executes bulk trash operation through confirmation dialog', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPostsData,
+    });
+
+    const user = userEvent.setup();
+    renderPostsList();
+
+    await waitFor(() => {
+      expect(screen.getByText('First Blog Post')).toBeDefined();
+    });
+
+    // Select second post
+    const postCheckbox = screen.getByTestId('select-post-102');
+    await user.click(postCheckbox);
+
+    // Click Move to Trash in Bulk bar
+    const trashBtn = screen.getByRole('button', { name: /bulk move selected entries to trash/i });
+    await user.click(trashBtn);
+
+    // Confirm dialog appears
+    expect(screen.getByText(/Are you sure you want to move 1 entry to the trash/i)).toBeDefined();
+
+    // Mock bulk trash response
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ success: true, affected: 1, skipped: 0, errors: [] }),
+    });
+
+    const confirmTrashBtn = screen.getByRole('button', { name: /confirm move to trash/i });
+    await user.click(confirmTrashBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/entries/bulk',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ ids: [102], action: 'trash' }),
+        })
+      );
+    });
+  });
 });
