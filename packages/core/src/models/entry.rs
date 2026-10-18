@@ -481,6 +481,67 @@ impl UpdateEntryRequest {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BulkActionType {
+    Publish,
+    Unpublish,
+    Trash,
+    AddTags,
+    RemoveTags,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BulkEntriesRequest {
+    pub ids: Vec<i64>,
+    pub action: BulkActionType,
+    pub tags: Option<String>,
+}
+
+impl Default for BulkEntriesRequest {
+    fn default() -> Self {
+        Self {
+            ids: Vec::new(),
+            action: BulkActionType::Publish,
+            tags: None,
+        }
+    }
+}
+
+impl BulkEntriesRequest {
+    pub fn validate(&self) -> Result<(), AppError> {
+        if self.ids.is_empty() {
+            return Err(AppError::BadRequest("No entry IDs provided".into()));
+        }
+        if self.ids.len() > 100 {
+            return Err(AppError::BadRequest(
+                "Cannot process more than 100 entries at a time".into(),
+            ));
+        }
+        if matches!(self.action, BulkActionType::AddTags | BulkActionType::RemoveTags) {
+            match self.tags.as_deref().map(str::trim) {
+                Some(t) if !t.is_empty() => (),
+                _ => {
+                    return Err(AppError::BadRequest(
+                        "Tags field is required for tag operations".into(),
+                    ))
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(default)]
+pub struct BulkEntriesResponse {
+    pub success: bool,
+    pub affected: usize,
+    pub skipped: usize,
+    pub errors: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -968,6 +1029,59 @@ mod tests {
         // Negative requested page is normalized to 1
         let neg = Pagination::new("/", -5, 10, 25);
         assert_eq!(neg.page, 1);
+    }
+
+    #[test]
+    fn test_bulk_entries_request_validation() {
+        let empty = BulkEntriesRequest {
+            ids: vec![],
+            action: BulkActionType::Publish,
+            tags: None,
+        };
+        assert!(empty.validate().is_err());
+
+        let too_many = BulkEntriesRequest {
+            ids: (1..=101).collect(),
+            action: BulkActionType::Publish,
+            tags: None,
+        };
+        assert!(too_many.validate().is_err());
+
+        let add_tags_no_tag = BulkEntriesRequest {
+            ids: vec![1, 2],
+            action: BulkActionType::AddTags,
+            tags: None,
+        };
+        assert!(add_tags_no_tag.validate().is_err());
+
+        let add_tags_empty_tag = BulkEntriesRequest {
+            ids: vec![1, 2],
+            action: BulkActionType::AddTags,
+            tags: Some("   ".into()),
+        };
+        assert!(add_tags_empty_tag.validate().is_err());
+
+        let valid_publish = BulkEntriesRequest {
+            ids: vec![1, 2, 3],
+            action: BulkActionType::Publish,
+            tags: None,
+        };
+        assert!(valid_publish.validate().is_ok());
+
+        let valid_add_tags = BulkEntriesRequest {
+            ids: vec![1, 2],
+            action: BulkActionType::AddTags,
+            tags: Some("featured, tech".into()),
+        };
+        assert!(valid_add_tags.validate().is_ok());
+    }
+
+    #[test]
+    fn test_bulk_entries_request_serde_resilience() {
+        let json = r#"{"ids": [10, 20], "action": "trash", "unknown_field": "ignore_me"}"#;
+        let req: BulkEntriesRequest = serde_json::from_str(json).expect("Deserialization should succeed");
+        assert_eq!(req.ids, vec![10, 20]);
+        assert_eq!(req.action, BulkActionType::Trash);
     }
 }
 

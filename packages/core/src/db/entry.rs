@@ -621,3 +621,225 @@ pub async fn publish_scheduled_entries(db: &D1Database) -> Result<Vec<Entry>> {
     let result = statement.run().await?;
     result.results::<Entry>()
 }
+
+pub async fn find_entries_by_ids(db: &D1Database, ids: &[i64]) -> Result<Vec<Entry>> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let placeholders: Vec<String> = (1..=ids.len()).map(|i| format!("?{}", i)).collect();
+    let query = format!(
+        "SELECT {LIST_COLUMNS} FROM entries WHERE id IN ({})",
+        placeholders.join(", ")
+    );
+    let statement = db.prepare(&query);
+    let bindings: Vec<JsValue> = ids.iter().map(|&id| JsValue::from(id as f64)).collect();
+    let result = statement.bind(&bindings)?.run().await?;
+    result.results::<Entry>()
+}
+
+pub async fn bulk_update_status(db: &D1Database, ids: &[i64], status: &str) -> Result<usize> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let placeholders: Vec<String> = (1..=ids.len()).map(|i| format!("?{}", i)).collect();
+    let query = if status == "published" {
+        format!(
+            "UPDATE entries
+             SET status = 'published',
+                 published_at = COALESCE(published_at, CURRENT_TIMESTAMP),
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id IN ({}) AND deleted_at IS NULL",
+            placeholders.join(", ")
+        )
+    } else {
+        format!(
+            "UPDATE entries
+             SET status = 'draft',
+                 published_at = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id IN ({}) AND deleted_at IS NULL",
+            placeholders.join(", ")
+        )
+    };
+    let statement = db.prepare(&query);
+    let bindings: Vec<JsValue> = ids.iter().map(|&id| JsValue::from(id as f64)).collect();
+    let result = statement.bind(&bindings)?.run().await?;
+    let changes = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
+    Ok(changes as usize)
+}
+
+pub async fn bulk_delete_entries(
+    db: &D1Database,
+    ids: &[i64],
+    user_role: &str,
+    user_id: i64,
+) -> Result<(usize, usize, Vec<String>)> {
+    if ids.is_empty() {
+        return Ok((0, 0, Vec::new()));
+    }
+    let entries = find_entries_by_ids(db, ids).await?;
+    let mut eligible_ids = Vec::new();
+    let mut errors = Vec::new();
+
+    let docs_slug = if let Ok(Some(s)) = super::setting::get_setting(db, "docs_path").await {
+        let p = if s.value.is_empty() {
+            "/docs".to_string()
+        } else {
+            s.value
+        };
+        let trimmed = p.trim_start_matches('/').to_string();
+        if trimmed.is_empty() {
+            "docs".to_string()
+        } else {
+            trimmed
+        }
+    } else {
+        "docs".to_string()
+    };
+
+    for entry in &entries {
+        if user_role == "author" && entry.author_id != Some(user_id) {
+            errors.push(format!(
+                "You do not have permission to delete '{}'.",
+                entry.title
+            ));
+            continue;
+        }
+
+        if entry.r#type == "page" && entry.path() == "/" {
+            errors.push("The Home page cannot be deleted.".to_string());
+            continue;
+        }
+
+        if entry.r#type == "doc" && entry.slug == docs_slug {
+            errors.push("The Docs Home page cannot be deleted.".to_string());
+            continue;
+        }
+
+        if entry.r#type == "page" {
+            let child_query = "SELECT COUNT(*) as count FROM entries WHERE parent_id = ?1 AND deleted_at IS NULL";
+            let count_stmt = db.prepare(child_query);
+            let count_res = count_stmt
+                .bind(&[JsValue::from(entry.id as f64)])?
+                .first::<CountResult>(None)
+                .await?;
+            if let Some(c) = count_res {
+                if c.count > 0 {
+                    let mut unhandled_children = 0;
+                    for other in &entries {
+                        if other.parent_id == Some(entry.id) && ids.contains(&other.id) {
+                            // included in batch
+                        } else if other.parent_id == Some(entry.id) {
+                            unhandled_children += 1;
+                        }
+                    }
+                    if unhandled_children > 0
+                        || c.count
+                            > entries
+                                .iter()
+                                .filter(|e| e.parent_id == Some(entry.id))
+                                .count() as i64
+                    {
+                        errors.push(format!(
+                            "Cannot delete page '{}' because it has active child pages.",
+                            entry.title
+                        ));
+                        continue;
+                    }
+                }
+            }
+        }
+
+        eligible_ids.push(entry.id);
+    }
+
+    let skipped = ids.len().saturating_sub(eligible_ids.len());
+
+    if eligible_ids.is_empty() {
+        return Ok((0, skipped, errors));
+    }
+
+    let placeholders: Vec<String> = (1..=eligible_ids.len()).map(|i| format!("?{}", i)).collect();
+    let query = format!(
+        "UPDATE entries SET deleted_at = CURRENT_TIMESTAMP WHERE id IN ({}) AND deleted_at IS NULL",
+        placeholders.join(", ")
+    );
+    let statement = db.prepare(&query);
+    let bindings: Vec<JsValue> = eligible_ids
+        .iter()
+        .map(|&id| JsValue::from(id as f64))
+        .collect();
+    let result = statement.bind(&bindings)?.run().await?;
+    let changes = result.meta()?.and_then(|m| m.changes).unwrap_or(0);
+
+    Ok((changes as usize, skipped, errors))
+}
+
+pub async fn bulk_modify_tags(
+    db: &D1Database,
+    ids: &[i64],
+    tags: &str,
+    is_add: bool,
+) -> Result<usize> {
+    if ids.is_empty() {
+        return Ok(0);
+    }
+    let input_tags: Vec<String> = tags
+        .split(',')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+
+    if input_tags.is_empty() {
+        return Ok(0);
+    }
+
+    let entries = find_entries_by_ids(db, ids).await?;
+    let mut updated_count = 0;
+
+    for entry in entries {
+        let current_tags: Vec<String> = entry.tag_list().into_iter().map(String::from).collect();
+        let new_tags: Vec<String> = if is_add {
+            let mut merged = current_tags.clone();
+            for t in &input_tags {
+                if !merged
+                    .iter()
+                    .any(|existing| existing.eq_ignore_ascii_case(t))
+                {
+                    merged.push(t.clone());
+                }
+            }
+            merged
+        } else {
+            current_tags
+                .into_iter()
+                .filter(|existing| {
+                    !input_tags
+                        .iter()
+                        .any(|t| t.eq_ignore_ascii_case(existing))
+                })
+                .collect()
+        };
+
+        let new_tags_str = if new_tags.is_empty() {
+            None
+        } else {
+            Some(new_tags.join(", "))
+        };
+
+        let statement = db.prepare(
+            "UPDATE entries SET tags = ?1, updated_at = CURRENT_TIMESTAMP WHERE id = ?2",
+        );
+        let tag_val = opt_js(&new_tags_str);
+        let res = statement
+            .bind(&[tag_val, JsValue::from(entry.id as f64)])?
+            .run()
+            .await?;
+        let changes = res.meta()?.and_then(|m| m.changes).unwrap_or(0);
+        if changes > 0 {
+            updated_count += 1;
+        }
+    }
+
+    Ok(updated_count)
+}
