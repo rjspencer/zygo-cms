@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useUnsavedChangesBlocker } from '../../../hooks/useUnsavedChangesBlocker';
 import type { ThemeTokens, CustomThemeEntry, ThemeEditorProps, FontPreset } from '../types';
-import { MODERN_EDITORIAL_PRESET, BUILT_IN_THEMES } from '../constants';
+import { MODERN_EDITORIAL_PRESET, BUILT_IN_THEMES, FONT_PRESETS } from '../constants';
 import {
   areTokensEqual,
   tokensToSettingsPayload,
@@ -151,11 +151,11 @@ export function useThemeEditorState({
     }
   };
 
-  const handleConfirmSaveAs = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  const handleConfirmSaveAs = async (e?: React.FormEvent, customName?: string) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     setError(null);
 
-    let targetName = saveAsName.trim();
+    let targetName = (customName !== undefined ? customName : saveAsName).trim();
     if (!targetName) {
       targetName = getDefaultCustomThemeName(selectedThemeName, customThemes);
     }
@@ -237,13 +237,24 @@ export function useThemeEditorState({
     }
   };
 
-  const handleApplyFontPreset = (preset: FontPreset) => {
-    setTokens((prev) => ({
-      ...prev,
-      fontUrl: preset.url,
-      fontHeadline: preset.headlineFont,
-      fontBody: preset.bodyFont,
-    }));
+  const handleApplyFontPreset = (preset: FontPreset | string) => {
+    let resolvedPreset: FontPreset | undefined;
+    if (typeof preset === 'string') {
+      const q = preset.toLowerCase().trim();
+      resolvedPreset = FONT_PRESETS.find(
+        (p) => p.name.toLowerCase() === q || p.name.toLowerCase().includes(q)
+      );
+    } else {
+      resolvedPreset = preset;
+    }
+    if (resolvedPreset) {
+      setTokens((prev) => ({
+        ...prev,
+        fontUrl: resolvedPreset!.url,
+        fontHeadline: resolvedPreset!.headlineFont,
+        fontBody: resolvedPreset!.bodyFont,
+      }));
+    }
   };
 
   const handleResetToModernEditorial = () => {

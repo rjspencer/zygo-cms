@@ -54,11 +54,18 @@ export interface ThemeEditorWebMCPOptions<T = any> {
   tokens: T;
   setTokens: React.Dispatch<React.SetStateAction<T>> | ((tokens: T | ((prev: T) => T)) => void);
   onReset?: () => void;
+  onSave?: () => Promise<any> | void;
+  onSaveAsCustom?: (e?: any, name?: string) => Promise<any> | void;
+  onSelectPreset?: (themeName: string) => void;
+  onApplyFontPreset?: (preset: any) => void;
+  selectedThemeName?: string;
+  activeThemeName?: string;
 }
 
 /**
  * Registers active live-preview theme tools when ThemeEditor is mounted.
- * Allows an AI agent to inspect and update in-memory theme tokens in real time without persisting to the backend.
+ * Allows an AI agent to inspect and update in-memory theme tokens in real time,
+ * switch presets, and persist them via editor mechanisms.
  */
 export function useThemeEditorWebMCP<T extends Record<string, any> = Record<string, any>>(
   options: ThemeEditorWebMCPOptions<T>
@@ -127,6 +134,127 @@ export function useThemeEditorWebMCP<T extends Record<string, any> = Record<stri
           return {
             toolResult: { reset: true },
             content: [{ type: 'text', text: 'Live theme tokens reset to Modern Editorial defaults.' }],
+          };
+        },
+      },
+      {
+        name: 'theme_save_active',
+        description: 'Persist active live theme tokens to settings and clear the unsaved changes state in ThemeEditor',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+        handler: async (): Promise<WebMCPToolResult> => {
+          const opt = optionsRef.current;
+          if (!opt.onSave) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'Theme save handler is not available in the active editor.' }],
+            };
+          }
+          try {
+            await opt.onSave();
+            return {
+              toolResult: { success: true, theme: opt.selectedThemeName || opt.activeThemeName },
+              content: [{ type: 'text', text: 'Active theme settings saved successfully.' }],
+            };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Failed to save theme settings: ${msg}` }],
+            };
+          }
+        },
+      },
+      {
+        name: 'theme_save_as_custom',
+        description: 'Save the current in-memory tokens as a named custom theme in ThemeEditor',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            name: {
+              type: 'string',
+              description: 'The name for the new custom theme',
+            },
+          },
+          required: ['name'],
+        },
+        handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+          const opt = optionsRef.current;
+          if (!opt.onSaveAsCustom) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'Save as custom theme handler is not available in the active editor.' }],
+            };
+          }
+          const name = String(args.name || '').trim();
+          if (!name) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'A non-empty custom theme name is required.' }],
+            };
+          }
+          try {
+            await opt.onSaveAsCustom(undefined, name);
+            return {
+              toolResult: { success: true, themeName: name },
+              content: [{ type: 'text', text: `Current tokens successfully saved as custom theme "${name}".` }],
+            };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Failed to save custom theme: ${msg}` }],
+            };
+          }
+        },
+      },
+      {
+        name: 'theme_select_preset',
+        description: 'Switch the selected theme preset or apply a typography preset in ThemeEditor',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            theme_name: {
+              type: 'string',
+              description: 'Name of built-in or custom theme preset to select (e.g., "Modern Editorial", "Warm Contemporary", "Bento-Brutalism")',
+            },
+            font_preset: {
+              type: 'string',
+              description: 'Name or partial name of font preset to apply (e.g., "Newsreader & Inter", "Space Grotesk & IBM Plex Mono", "Playfair Display & Source Sans")',
+            },
+          },
+        },
+        handler: (args: Record<string, any>): WebMCPToolResult => {
+          const opt = optionsRef.current;
+          const applied: Record<string, string> = {};
+
+          if (args.theme_name) {
+            if (!opt.onSelectPreset) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: 'Select theme preset handler is not available in the active editor.' }],
+              };
+            }
+            opt.onSelectPreset(String(args.theme_name));
+            applied.theme_name = String(args.theme_name);
+          }
+
+          if (args.font_preset) {
+            if (!opt.onApplyFontPreset) {
+              return {
+                isError: true,
+                content: [{ type: 'text', text: 'Apply font preset handler is not available in the active editor.' }],
+              };
+            }
+            opt.onApplyFontPreset(String(args.font_preset));
+            applied.font_preset = String(args.font_preset);
+          }
+
+          return {
+            toolResult: { success: true, applied },
+            content: [{ type: 'text', text: `Theme preset selection updated: ${Object.keys(applied).join(', ') || 'none'}` }],
           };
         },
       },
@@ -395,6 +523,10 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
           resData = await res.json();
         } catch {
           resData = { success: true };
+        }
+
+        if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+          window.dispatchEvent(new CustomEvent('zygo:menus-updated', { detail: { slug, items } }));
         }
 
         return {
