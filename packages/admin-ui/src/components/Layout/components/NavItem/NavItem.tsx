@@ -34,6 +34,7 @@ export const NavItem: React.FC<NavItemProps> = ({
   return (
     <NavLink
       to={to}
+      aria-label={label}
       style={{ textDecoration: 'none', width: '100%' }}
       title={isCollapsed ? label : undefined}
       onMouseEnter={() => setIsHovered(true)}

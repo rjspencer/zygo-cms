@@ -33,46 +33,51 @@ export const CreateLinkDialog: React.FC<CreateLinkDialogProps> = ({
 
             <Flex direction="column" gap="3">
               <Box>
-                <Text as="label" size="2" mb="1" style={{ display: 'block' }}>
+                <Text as="label" htmlFor="link-field-name" size="2" mb="1" style={{ display: 'block' }}>
                   Campaign Name (Internal)
                 </Text>
                 <TextField.Root
+                  id="link-field-name"
                   {...methods.register('name')}
                   placeholder="e.g. Fall Newsletter"
                 />
               </Box>
               <Box>
-                <Text as="label" size="2" mb="1" style={{ display: 'block' }}>
+                <Text as="label" htmlFor="link-field-utm-source" size="2" mb="1" style={{ display: 'block' }}>
                   utm_source
                 </Text>
                 <TextField.Root
+                  id="link-field-utm-source"
                   {...methods.register('utmSource')}
                   placeholder="e.g. newsletter, twitter"
                 />
               </Box>
               <Box>
-                <Text as="label" size="2" mb="1" style={{ display: 'block' }}>
+                <Text as="label" htmlFor="link-field-utm-medium" size="2" mb="1" style={{ display: 'block' }}>
                   utm_medium
                 </Text>
                 <TextField.Root
+                  id="link-field-utm-medium"
                   {...methods.register('utmMedium')}
                   placeholder="e.g. email, social"
                 />
               </Box>
               <Box>
-                <Text as="label" size="2" mb="1" style={{ display: 'block' }}>
+                <Text as="label" htmlFor="link-field-utm-campaign" size="2" mb="1" style={{ display: 'block' }}>
                   utm_campaign
                 </Text>
                 <TextField.Root
+                  id="link-field-utm-campaign"
                   {...methods.register('utmCampaign')}
                   placeholder="e.g. fall_sale"
                 />
               </Box>
               <Box>
-                <Text as="label" size="2" mb="1" style={{ display: 'block' }}>
+                <Text as="label" htmlFor="link-field-custom-params" size="2" mb="1" style={{ display: 'block' }}>
                   Custom Parameters
                 </Text>
                 <TextField.Root
+                  id="link-field-custom-params"
                   {...methods.register('customParams')}
                   placeholder="e.g. affiliate_id=123&ref=home"
                 />

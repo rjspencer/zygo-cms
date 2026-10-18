@@ -18,6 +18,7 @@ export const QuickCreateMenu: React.FC<QuickCreateMenuProps> = ({ isCollapsed = 
             size={isCollapsed ? '1' : '2'}
             variant="solid"
             color="cyan"
+            aria-label="New Content"
             style={{ width: isCollapsed ? 'auto' : '100%', padding: isCollapsed ? '8px' : undefined }}
           >
             <PlusIcon width="16" height="16" />

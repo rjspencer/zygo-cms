@@ -242,4 +242,81 @@ describe('LinksTab', () => {
       );
     });
   });
+
+  it('associates Canonical URL label with the text input via htmlFor and id', async () => {
+    (apiFetch as any).mockImplementation(async (url: string) => {
+      if (url === '/api/settings') {
+        return {
+          ok: true,
+          json: async () => ({ canonical_origin: 'https://zygodactylstudios.com' }),
+        };
+      }
+      if (url === '/api/entries/1/links') {
+        return {
+          ok: true,
+          json: async () => [],
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    renderLinksTab({
+      entryId: '1',
+      baseCanonicalUrl: '/my-post',
+      isSaved: true,
+    });
+
+    const label = await screen.findByText('Canonical URL');
+    expect(label.getAttribute('for')).toBe('canonical-url-input');
+
+    const input = screen.getByLabelText('Canonical URL');
+    expect(input.getAttribute('id')).toBe('canonical-url-input');
+    expect(input.getAttribute('aria-label')).toBe('Canonical URL');
+  });
+
+  it('associates all form field labels with their respective inputs in CreateLinkDialog', async () => {
+    const user = userEvent.setup();
+
+    (apiFetch as any).mockImplementation(async (url: string) => {
+      if (url === '/api/settings') {
+        return {
+          ok: true,
+          json: async () => ({ canonical_origin: 'https://zygodactylstudios.com' }),
+        };
+      }
+      if (url === '/api/entries/1/links') {
+        return {
+          ok: true,
+          json: async () => [],
+        };
+      }
+      return { ok: false, status: 404 };
+    });
+
+    renderLinksTab({
+      entryId: '1',
+      baseCanonicalUrl: 'https://zygodactylstudios.com/my-post',
+      isSaved: true,
+    });
+
+    const createNewBtn = await screen.findByRole('button', { name: 'Create New' });
+    await user.click(createNewBtn);
+
+    expect(await screen.findByText('Create Trackable Link')).toBeDefined();
+
+    const fields = [
+      { labelText: 'Campaign Name (Internal)', expectedId: 'link-field-name' },
+      { labelText: 'utm_source', expectedId: 'link-field-utm-source' },
+      { labelText: 'utm_medium', expectedId: 'link-field-utm-medium' },
+      { labelText: 'utm_campaign', expectedId: 'link-field-utm-campaign' },
+      { labelText: 'Custom Parameters', expectedId: 'link-field-custom-params' },
+    ];
+
+    for (const { labelText, expectedId } of fields) {
+      const label = screen.getByText(labelText);
+      expect(label.getAttribute('for')).toBe(expectedId);
+      const input = screen.getByLabelText(labelText);
+      expect(input.getAttribute('id')).toBe(expectedId);
+    }
+  });
 });

@@ -9,10 +9,17 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
   value,
   onChange,
   onOpenMediaPicker,
+  id,
+  labelId,
+  ariaInvalid,
+  ariaDescribedBy,
 }) => {
   if (field.type === 'boolean') {
     return (
       <Switch
+        id={id}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         checked={Boolean(value)}
         onCheckedChange={(checked) => onChange(checked)}
         aria-label={field.label || field.name}
@@ -22,7 +29,7 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
 
   if (field.type === 'image' || field.type === 'video') {
     return (
-      <Flex gap="2" align="center" wrap="wrap">
+      <Flex role="group" aria-labelledby={labelId} gap="2" align="center" wrap="wrap">
         <Button
           type="button"
           variant="soft"
@@ -57,6 +64,9 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
   if (field.type === 'textarea') {
     return (
       <TextArea
+        id={id}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         placeholder={`Enter ${field.label || field.name}`}
@@ -81,6 +91,9 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
   if (field.type === 'url') {
     return (
       <TextField.Root
+        id={id}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
         type="url"
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
@@ -97,6 +110,9 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
         onValueChange={(val) => onChange(val)}
       >
         <Select.Trigger
+          id={id}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
           placeholder={`Select ${field.label || field.name}...`}
           aria-label={field.label || field.name}
         />
@@ -125,6 +141,9 @@ export const SectionFieldControl: React.FC<SectionFieldControlProps> = ({
   /* Default fallback to text */
   return (
     <TextField.Root
+      id={id}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedBy}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value)}
       placeholder={`Enter ${field.label || field.name}`}

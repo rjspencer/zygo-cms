@@ -90,6 +90,7 @@ export const SubfieldCard: React.FC<SubfieldCardProps> = ({
         <Box style={{ width: '130px' }}>
           <Text
             as="label"
+            htmlFor={`sub-type-${fieldIndex}-${subIndex}`}
             size="1"
             weight="medium"
             color="gray"
@@ -106,6 +107,7 @@ export const SubfieldCard: React.FC<SubfieldCardProps> = ({
             disabled={disabled}
           >
             <Select.Trigger
+              id={`sub-type-${fieldIndex}-${subIndex}`}
               aria-label="Sub-field Type"
               style={{ width: '100%' }}
             />
