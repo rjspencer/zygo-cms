@@ -117,6 +117,12 @@ export function useTemplateEditorState(propId?: string) {
     setFormTemplateCss,
     setFormSchemaJson,
     setFields,
+    setFormId,
+    setFormName,
+    setFormDescription,
+    setIsLocked,
+    handleSave,
+    discardDraft,
   });
 
   return {

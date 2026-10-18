@@ -624,6 +624,12 @@ export interface UseTemplateEditorWebMCPOptions {
   setFormSchemaJson: (schemaJson: string) => void;
   setFields: (fields: SectionTemplateField[]) => void;
   renderPreview?: (html?: string, dummyDataJson?: string) => Promise<string> | string;
+  setFormId?: (id: string) => void;
+  setFormName?: (name: string) => void;
+  setFormDescription?: (description: string) => void;
+  setIsLocked?: (locked: boolean) => void;
+  handleSave?: (force?: boolean) => Promise<any> | void;
+  discardDraft?: () => void;
 }
 
 /**
@@ -634,6 +640,9 @@ export interface UseTemplateEditorWebMCPOptions {
  * - template_update_schema
  * - template_validate_syntax
  * - template_render_preview
+ * - template_set_metadata
+ * - template_save
+ * - template_discard_draft
  */
 export function useTemplateEditorWebMCP(options: UseTemplateEditorWebMCPOptions): void {
   const optionsRef = React.useRef(options);
@@ -861,6 +870,116 @@ export function useTemplateEditorWebMCP(options: UseTemplateEditorWebMCPOptions)
           return {
             toolResult: { rendered_html: renderedHtml },
             content: [{ type: 'text', text: renderedHtml }],
+          };
+        },
+      },
+      {
+        name: 'template_set_metadata',
+        description: 'Update template metadata (slug ID, name, description, and locked status) in the active template editor',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'Template slug/identifier (only modifiable when creating a new template)',
+            },
+            name: {
+              type: 'string',
+              description: 'Template human-readable display name',
+            },
+            description: {
+              type: 'string',
+              description: 'Template description explaining its purpose',
+            },
+            is_locked: {
+              type: 'boolean',
+              description: 'Whether the template is locked from non-admin modifications',
+            },
+          },
+        },
+        handler: (args: Record<string, any>): WebMCPToolResult => {
+          const opt = optionsRef.current;
+          const updated: Record<string, any> = {};
+
+          if (args.id !== undefined && opt.setFormId) {
+            opt.setFormId(String(args.id));
+            updated.id = String(args.id);
+          }
+          if (args.name !== undefined && opt.setFormName) {
+            opt.setFormName(String(args.name));
+            updated.name = String(args.name);
+          }
+          if (args.description !== undefined && opt.setFormDescription) {
+            opt.setFormDescription(String(args.description));
+            updated.description = String(args.description);
+          }
+          if (args.is_locked !== undefined && opt.setIsLocked) {
+            opt.setIsLocked(Boolean(args.is_locked));
+            updated.is_locked = Boolean(args.is_locked);
+          }
+
+          return {
+            toolResult: { success: true, updated },
+            content: [{ type: 'text', text: `Template metadata updated: ${Object.keys(updated).join(', ') || 'none'}` }],
+          };
+        },
+      },
+      {
+        name: 'template_save',
+        description: 'Save the active template editor buffer (persists HTML, CSS, schema, and metadata to backend and clears dirty draft)',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            force: {
+              type: 'boolean',
+              description: 'If true, force saves bypassing syntax warnings or conflict warnings',
+            },
+          },
+        },
+        handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+          const opt = optionsRef.current;
+          if (!opt.handleSave) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'Template save handler is not available in the active editor.' }],
+            };
+          }
+
+          try {
+            await opt.handleSave(Boolean(args?.force));
+            return {
+              toolResult: { success: true, id: opt.formId, name: opt.formName },
+              content: [{ type: 'text', text: `Template "${opt.formId || opt.formName}" save initiated successfully.` }],
+            };
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            return {
+              isError: true,
+              content: [{ type: 'text', text: `Failed to save template: ${msg}` }],
+            };
+          }
+        },
+      },
+      {
+        name: 'template_discard_draft',
+        description: 'Discard the current localStorage draft buffer and restore original template state in active editor',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+        handler: (): WebMCPToolResult => {
+          const opt = optionsRef.current;
+          if (!opt.discardDraft) {
+            return {
+              isError: true,
+              content: [{ type: 'text', text: 'Template discard draft handler is not available in the active editor.' }],
+            };
+          }
+
+          opt.discardDraft();
+          return {
+            toolResult: { discarded: true },
+            content: [{ type: 'text', text: 'Active draft discarded and original template values restored.' }],
           };
         },
       },

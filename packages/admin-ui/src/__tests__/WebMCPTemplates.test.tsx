@@ -472,6 +472,12 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       onSetFormSchemaJson,
       onSetFields,
     }) => {
+      const [formId, setFormId] = React.useState(initialOptions.formId ?? 'hero-section');
+      const [formName, setFormName] = React.useState(initialOptions.formName ?? 'Hero Section');
+      const [formDescription, setFormDescription] = React.useState(
+        initialOptions.formDescription ?? 'Hero header banner'
+      );
+      const [isLocked, setIsLocked] = React.useState(initialOptions.isLocked ?? false);
       const [formTemplateHtml, setFormTemplateHtml] = React.useState(
         initialOptions.formTemplateHtml ?? '<h1>{{ title }}</h1>'
       );
@@ -506,23 +512,33 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       };
 
       useTemplateEditorWebMCP({
-        formId: initialOptions.formId ?? 'hero-section',
-        formName: initialOptions.formName ?? 'Hero Section',
-        formDescription: initialOptions.formDescription ?? 'Hero header banner',
+        formId,
+        formName,
+        formDescription,
         formTemplateHtml,
         formTemplateCss,
         formSchemaJson,
-        isLocked: initialOptions.isLocked ?? false,
+        isLocked,
         previewHtml: initialOptions.previewHtml ?? '<div class="preview">Live Preview</div>',
         setFormTemplateHtml: handleSetHtml,
         setFormTemplateCss: handleSetCss,
         setFormSchemaJson: handleSetSchema,
         setFields: handleSetFields,
+        setFormId,
+        setFormName,
+        setFormDescription,
+        setIsLocked,
+        handleSave: initialOptions.handleSave,
+        discardDraft: initialOptions.discardDraft,
         renderPreview: initialOptions.renderPreview,
       });
 
       return (
         <div>
+          <span data-testid="active-id">{formId}</span>
+          <span data-testid="active-name">{formName}</span>
+          <span data-testid="active-description">{formDescription}</span>
+          <span data-testid="active-locked">{String(isLocked)}</span>
           <span data-testid="active-html">{formTemplateHtml}</span>
           <span data-testid="active-css">{formTemplateCss}</span>
           <span data-testid="active-schema">{formSchemaJson}</span>
@@ -531,7 +547,7 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       );
     };
 
-    it('registers all 6 editor tools and unregisters them on unmount', () => {
+    it('registers all 9 editor tools and unregisters them on unmount', () => {
       const registry = new WebMCPRegistry();
       const { unmount } = render(
         <WebMCPProvider registry={registry}>
@@ -545,6 +561,9 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       expect(registry.getTool('template_update_schema')).toBeDefined();
       expect(registry.getTool('template_validate_syntax')).toBeDefined();
       expect(registry.getTool('template_render_preview')).toBeDefined();
+      expect(registry.getTool('template_set_metadata')).toBeDefined();
+      expect(registry.getTool('template_save')).toBeDefined();
+      expect(registry.getTool('template_discard_draft')).toBeDefined();
 
       unmount();
 
@@ -554,6 +573,9 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       expect(registry.getTool('template_update_schema')).toBeUndefined();
       expect(registry.getTool('template_validate_syntax')).toBeUndefined();
       expect(registry.getTool('template_render_preview')).toBeUndefined();
+      expect(registry.getTool('template_set_metadata')).toBeUndefined();
+      expect(registry.getTool('template_save')).toBeUndefined();
+      expect(registry.getTool('template_discard_draft')).toBeUndefined();
     });
 
     it('template_get_active returns the full active template buffer', async () => {
@@ -724,6 +746,87 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       expect(mockRender).toHaveBeenCalled();
       expect(renderResult.isError).toBeFalsy();
       expect(renderResult.content[0].text).toBe('<custom-wasm>Rendered Output</custom-wasm>');
+    });
+
+    it('template_set_metadata updates formId, formName, formDescription, and isLocked in active editor', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <TestEditorHarness />
+        </WebMCPProvider>
+      );
+
+      const result = await registry.callTool('template_set_metadata', {
+        id: 'new-slug',
+        name: 'New Template Name',
+        description: 'New Description',
+        is_locked: true,
+      });
+
+      expect(result.isError).toBeFalsy();
+      await waitFor(() => {
+        expect(screen.getByTestId('active-id').textContent).toBe('new-slug');
+        expect(screen.getByTestId('active-name').textContent).toBe('New Template Name');
+        expect(screen.getByTestId('active-description').textContent).toBe('New Description');
+        expect(screen.getByTestId('active-locked').textContent).toBe('true');
+      });
+    });
+
+    it('template_save invokes handleSave with force flag and reports success', async () => {
+      const registry = new WebMCPRegistry();
+      const mockSave = vi.fn().mockResolvedValue({ success: true });
+
+      render(
+        <WebMCPProvider registry={registry}>
+          <TestEditorHarness initialOptions={{ handleSave: mockSave }} />
+        </WebMCPProvider>
+      );
+
+      const result = await registry.callTool('template_save', { force: true });
+      expect(result.isError).toBeFalsy();
+      expect(mockSave).toHaveBeenCalledWith(true);
+      expect(result.toolResult).toMatchObject({ success: true, id: 'hero-section' });
+    });
+
+    it('template_save returns error if handleSave handler is not available or throws', async () => {
+      const registry = new WebMCPRegistry();
+      render(
+        <WebMCPProvider registry={registry}>
+          <TestEditorHarness />
+        </WebMCPProvider>
+      );
+
+      const noHandlerResult = await registry.callTool('template_save', {});
+      expect(noHandlerResult.isError).toBe(true);
+      expect(noHandlerResult.content[0].text).toContain('Template save handler is not available');
+
+      const errorRegistry = new WebMCPRegistry();
+      const mockFailingSave = vi.fn().mockRejectedValue(new Error('Syntax validation failed on save'));
+      render(
+        <WebMCPProvider registry={errorRegistry}>
+          <TestEditorHarness initialOptions={{ handleSave: mockFailingSave }} />
+        </WebMCPProvider>
+      );
+
+      const failResult = await errorRegistry.callTool('template_save', {});
+      expect(failResult.isError).toBe(true);
+      expect(failResult.content[0].text).toContain('Syntax validation failed on save');
+    });
+
+    it('template_discard_draft invokes discardDraft handler', async () => {
+      const registry = new WebMCPRegistry();
+      const mockDiscard = vi.fn();
+
+      render(
+        <WebMCPProvider registry={registry}>
+          <TestEditorHarness initialOptions={{ discardDraft: mockDiscard }} />
+        </WebMCPProvider>
+      );
+
+      const result = await registry.callTool('template_discard_draft', {});
+      expect(result.isError).toBeFalsy();
+      expect(mockDiscard).toHaveBeenCalled();
+      expect(result.toolResult).toEqual({ discarded: true });
     });
   });
 });

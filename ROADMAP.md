@@ -6,14 +6,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
-### WebMCP Editor Parity Follow-Up (Template, Theme & Navigation Editors)
-- **Goal**: Close the remaining editor-specific WebMCP parity gaps across `TemplateEditor`, `ThemeEditor`, and `Navigation` so browser agents never need to fall back to UI clicks for saving templates, setting template metadata, saving custom themes, or syncing live menu state.
-- **Specification & Gap Analysis**: See [docs/specs/webmcp_editor_gaps.md](docs/specs/webmcp_editor_gaps.md).
-
----
-
-## 2. Soon
-
 ### Headless CMS Content API
 - **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
 - **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
@@ -29,6 +21,10 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
   - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
   - **Webhook Triggers**: Dispatch webhooks to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
+
+---
+
+## 2. Soon
 
 ### Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.

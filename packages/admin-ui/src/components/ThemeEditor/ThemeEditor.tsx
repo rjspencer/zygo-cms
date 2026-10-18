@@ -54,6 +54,12 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
     tokens,
     setTokens,
     onReset: handleResetToModernEditorial,
+    onSave: handleSave,
+    onSaveAsCustom: handleConfirmSaveAs,
+    onSelectPreset: applyThemeSelection,
+    onApplyFontPreset: handleApplyFontPreset,
+    selectedThemeName,
+    activeThemeName,
   });
 
   if (isLoading) {
