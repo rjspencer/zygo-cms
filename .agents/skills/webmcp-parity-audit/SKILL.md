@@ -41,3 +41,6 @@ When building or auditing an editor in `packages/admin-ui`, verify all five pill
    - Is the editor's native save/publish handler wired into a WebMCP tool (e.g., `editor_save_draft`, `editor_publish`) so saving via WebMCP resets the unsaved-changes blocker (`isDirty`)?
 5. **Same-Tick Batch Mutation Safety**:
    - When a `use*WebMCP` hook reads state via `optionsRef.current`, does every mutation handler synchronously update `optionsRef.current.<field> = nextValue` immediately after calling `opts.set<Field>(nextValue)`? This guarantees sequential tool calls in the same React render tick (such as batch calls in the `RPC Console`) do not overwrite each other with stale state.
+6. **Backend CLI MCP (`packages/zygo-mcp`) Parity**:
+   - When adding or modifying global CRUD capabilities, content schemas, or REST API endpoints, verify that `packages/zygo-mcp/index.mjs` is updated alongside `packages/admin-ui/src/lib/webmcp/` so both CLI/headless agents and in-browser agents remain in sync.
+
