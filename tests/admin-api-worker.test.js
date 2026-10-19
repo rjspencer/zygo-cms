@@ -249,6 +249,27 @@ describe('Admin API Worker Integration', () => {
         expect(updatedJson.analytics_enabled).toBe('true');
     });
 
+    it('rejects unauthenticated requests to /api/cloudflare/ai-crawl with 401', async () => {
+        const getRes = await worker.fetch('/api/cloudflare/ai-crawl');
+        expect(getRes.status).toBe(401);
+
+        const putRes = await worker.fetch('/api/cloudflare/ai-crawl', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ai_bots_protection: 'block' }),
+        });
+        expect(putRes.status).toBe(401);
+    });
+
+    it('returns configured: false when Cloudflare tokens are absent in worker environment', async () => {
+        const res = await worker.fetch('/api/cloudflare/ai-crawl', { headers: getHeaders() });
+        expect(res.status).toBe(200);
+        const data = await res.json();
+        expect(data.configured).toBe(false);
+        expect(data.ai_bots_protection).toBe('disabled');
+        expect(data.ai_training).toBe('disabled');
+    });
+
     it('bypasses Cloudflare Access verification and returns mock admin in dev mode', async () => {
         const devWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
             config: 'packages/admin-api-worker/wrangler.toml',
