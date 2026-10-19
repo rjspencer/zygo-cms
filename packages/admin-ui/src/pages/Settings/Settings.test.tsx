@@ -32,6 +32,32 @@ const SettingsWithRouter = () => {
 describe('Settings component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (apiFetch as any).mockImplementation(async (url: string) => {
+      if (url.includes('/api/cloudflare/ai-crawl')) {
+        return {
+          ok: true,
+          json: async () => ({
+            configured: false,
+            message: 'Unconfigured',
+            ai_bots_protection: 'disabled',
+            ai_search: 'disabled',
+            ai_training: 'disabled',
+            ai_user: 'disabled',
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          site_title: 'Test Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+          analytics_enabled: 'false',
+          docs_mode_enabled: 'false',
+          docs_path: '/docs',
+        }),
+      };
+    });
   });
 
   it('fetches settings and displays them', async () => {
@@ -148,21 +174,30 @@ describe('Settings component', () => {
   });
 
   it('displays user-facing error message when saving fails', async () => {
-    (apiFetch as any)
-      .mockResolvedValueOnce({
+    (apiFetch as any).mockImplementation(async (url: string, options?: any) => {
+      if (options?.method === 'POST') {
+        return {
+          ok: false,
+          json: async () => ({
+            error: 'Database connection failed',
+          }),
+        };
+      }
+      if (url.includes('/api/cloudflare/ai-crawl')) {
+        return {
+          ok: true,
+          json: async () => ({ configured: false }),
+        };
+      }
+      return {
         ok: true,
         json: async () => ({
           site_title: 'Test Title',
           canonical_origin: 'https://test.example.com',
           description: 'Test Description',
         }),
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        json: async () => ({
-          error: 'Database connection failed',
-        }),
-      });
+      };
+    });
 
     const queryClient = createTestQueryClient();
     render(
@@ -383,6 +418,117 @@ describe('Settings component', () => {
       expect(screen.getByDisplayValue('Copyright {{ year }} Zygo CMS')).toBeTruthy();
       expect(screen.getByTestId('settings-footer-text-preview')).toBeTruthy();
       expect(screen.getByTestId('settings-footer-text-preview').textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
+    });
+  });
+
+  it('pulls current values from Cloudflare API and renders them in AiCrawlSettingsCard', async () => {
+    (apiFetch as any).mockImplementation(async (url: string) => {
+      if (url.includes('/api/cloudflare/ai-crawl')) {
+        return {
+          ok: true,
+          json: async () => ({
+            configured: true,
+            ai_bots_protection: 'block',
+            ai_search: 'disabled',
+            ai_training: 'disallow',
+            ai_user: 'block',
+          }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          site_title: 'Test Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+        }),
+      };
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Cloudflare AI Crawl Control')).toBeTruthy();
+      expect(screen.getByText('Live Edge Sync')).toBeTruthy();
+      const masterSwitch = screen.getByRole('switch', { name: /block ai scrapers and crawlers/i });
+      expect(masterSwitch.getAttribute('aria-checked')).toBe('true');
+    });
+  });
+
+  it('saves AI crawl options to Cloudflare API when overall page save button is clicked', async () => {
+    (apiFetch as any).mockImplementation(async (url: string, options?: any) => {
+      if (url.includes('/api/cloudflare/ai-crawl')) {
+        if (options?.method === 'PUT') {
+          return { ok: true, json: async () => ({ success: true }) };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            configured: true,
+            ai_bots_protection: 'disabled',
+            ai_search: 'disabled',
+            ai_training: 'disabled',
+            ai_user: 'disabled',
+          }),
+        };
+      }
+      if (options?.method === 'POST') {
+        return { ok: true, json: async () => ({ success: true }) };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          site_title: 'Test Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+        }),
+      };
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Cloudflare AI Crawl Control')).toBeTruthy();
+    });
+
+    const masterSwitch = screen.getByRole('switch', { name: /block ai scrapers and crawlers/i });
+    expect(masterSwitch.getAttribute('aria-checked')).toBe('false');
+
+    await userEvent.click(masterSwitch);
+    expect(masterSwitch.getAttribute('aria-checked')).toBe('true');
+
+    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+
+    await userEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/cloudflare/ai-crawl',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({
+            ai_bots_protection: 'block',
+            ai_search: 'disabled',
+            ai_training: 'disabled',
+            ai_user: 'disabled',
+          }),
+        })
+      );
     });
   });
 });

@@ -11,6 +11,10 @@ export interface SettingsFormValues {
   siteFavicon: string;
   defaultOgImage: string;
   footerText: string;
+  aiBotsProtection: string;
+  aiSearch: string;
+  aiTraining: string;
+  aiUser: string;
 }
 
 export interface SettingsApiResponse {
@@ -25,4 +29,14 @@ export interface SettingsApiResponse {
   default_og_image?: string;
   footer_text?: string;
   [key: string]: unknown;
+}
+
+export interface AiCrawlApiResponse {
+  configured: boolean;
+  message?: string;
+  error?: string;
+  ai_bots_protection?: string;
+  ai_search?: string;
+  ai_training?: string;
+  ai_user?: string;
 }

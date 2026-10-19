@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../utils/api';
-import type { SettingsApiResponse } from '../types';
+import type { SettingsApiResponse, AiCrawlApiResponse } from '../types';
 
 export function useSettingsData() {
   const queryClient = useQueryClient();
@@ -10,6 +10,15 @@ export function useSettingsData() {
     queryFn: async () => {
       const res = await apiFetch('/api/settings');
       if (!res.ok) throw new Error('Failed to fetch settings');
+      return res.json();
+    },
+  });
+
+  const aiCrawlQuery = useQuery<AiCrawlApiResponse>({
+    queryKey: ['ai-crawl-settings'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/cloudflare/ai-crawl');
+      if (!res.ok) throw new Error('Failed to fetch AI crawl settings');
       return res.json();
     },
   });
@@ -35,11 +44,43 @@ export function useSettingsData() {
     },
   });
 
+  const updateAiCrawlMutation = useMutation({
+    mutationFn: async (aiCrawl: {
+      ai_bots_protection?: string;
+      ai_search?: string;
+      ai_training?: string;
+      ai_user?: string;
+    }) => {
+      const res = await apiFetch('/api/cloudflare/ai-crawl', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(aiCrawl),
+      });
+      if (!res.ok) {
+        let msg = 'Failed to update Cloudflare AI Crawl settings';
+        try {
+          const errData = await res.json();
+          if (errData?.error || errData?.message) {
+            msg = errData.error || errData.message;
+          }
+        } catch (_) {}
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+  });
+
   return {
     data: query.data,
     isLoading: query.isLoading,
-    isSaving: updateMutation.isPending,
+    aiCrawlData: aiCrawlQuery.data,
+    isAiCrawlLoading: aiCrawlQuery.isLoading,
+    isSaving: updateMutation.isPending || updateAiCrawlMutation.isPending,
     saveSettings: updateMutation.mutateAsync,
-    invalidate: () => queryClient.invalidateQueries({ queryKey: ['settings'] }),
+    saveAiCrawlSettings: updateAiCrawlMutation.mutateAsync,
+    invalidate: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-crawl-settings'] });
+    },
   };
 }
