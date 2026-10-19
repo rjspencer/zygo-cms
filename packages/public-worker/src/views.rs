@@ -11,6 +11,14 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
     <link rel="canonical" href="{{ canonical_url|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +33,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -70,6 +78,9 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -82,6 +93,14 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,7 +118,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -135,6 +154,9 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -147,6 +169,14 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,7 +194,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -218,6 +248,9 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -228,6 +261,14 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search &mdash; {{ site_title }}</title>
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -242,7 +283,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -278,6 +319,9 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -327,6 +371,14 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -344,7 +396,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -404,6 +456,9 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -634,6 +689,17 @@ pub fn generate_theme_root_css(
     )
 }
 
+fn resolve_absolute_url(origin: &str, url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        trimmed.to_string()
+    } else if trimmed.starts_with('/') {
+        format!("{}{}", origin.trim_end_matches('/'), trimmed)
+    } else {
+        format!("{}/{}", origin.trim_end_matches('/'), trimmed)
+    }
+}
+
 pub fn inject_theme_context(
     ctx: &mut serde_json::Map<String, serde_json::Value>,
     settings: Option<&std::collections::HashMap<String, String>>,
@@ -691,6 +757,68 @@ pub fn inject_theme_context(
         "header_layout".to_string(),
         serde_json::Value::String(tokens.header_layout),
     );
+
+    let site_logo = settings
+        .and_then(|s| s.get("site_logo").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(logo) = site_logo {
+        ctx.insert(
+            "site_logo".to_string(),
+            serde_json::Value::String(logo.to_string()),
+        );
+    }
+
+    let site_favicon = settings
+        .and_then(|s| s.get("site_favicon").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(fav) = site_favicon {
+        ctx.insert(
+            "site_favicon".to_string(),
+            serde_json::Value::String(fav.to_string()),
+        );
+    }
+
+    let default_og_image = settings
+        .and_then(|s| s.get("default_og_image").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(og) = default_og_image {
+        ctx.insert(
+            "default_og_image".to_string(),
+            serde_json::Value::String(og.to_string()),
+        );
+    }
+
+    let footer_text = settings
+        .and_then(|s| s.get("footer_text").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(ft) = footer_text {
+        ctx.insert(
+            "footer_text".to_string(),
+            serde_json::Value::String(ft.to_string()),
+        );
+    }
+
+    if !ctx.contains_key("og_image") {
+        let entry_cover = ctx
+            .get("entry")
+            .or_else(|| ctx.get("post"))
+            .or_else(|| ctx.get("page"))
+            .or_else(|| ctx.get("doc"))
+            .and_then(|e| e.get("cover_image"))
+            .and_then(|c| c.as_str())
+            .filter(|c| !c.trim().is_empty());
+
+        let raw_og = entry_cover.or(default_og_image);
+        if let Some(raw_img) = raw_og {
+            let origin = ctx.get("origin").and_then(|o| o.as_str()).unwrap_or("");
+            let resolved = if !origin.is_empty() {
+                resolve_absolute_url(origin, raw_img)
+            } else {
+                raw_img.to_string()
+            };
+            ctx.insert("og_image".to_string(), serde_json::Value::String(resolved));
+        }
+    }
 }
 
 pub fn render_doc(
@@ -2193,5 +2321,59 @@ mod tests {
         assert!(bento_html.contains("#007799")); // Bento brutalism cyan accent
         assert!(bento_html.contains("Hero Title"));
         assert!(bento_html.contains("Video Title"));
+    }
+
+    #[test]
+    fn test_site_branding_and_og_rendering() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "My Tech Blog".to_string());
+        settings.insert("site_logo".to_string(), "https://example.com/logo.png".to_string());
+        settings.insert("site_favicon".to_string(), "/favicon.ico".to_string());
+        settings.insert("default_og_image".to_string(), "/default-og.png".to_string());
+        settings.insert("footer_text".to_string(), "© 2026 My Tech Blog. All rights reserved.".to_string());
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        // Check favicon link
+        assert!(html.contains(r#"<link rel="icon" href="/favicon.ico">"#));
+
+        // Check logo in branding
+        assert!(html.contains(r#"<img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo">"#));
+
+        // Check default og:image resolved against origin
+        assert!(html.contains(r#"<meta property="og:image" content="https://example.com/default-og.png">"#));
+        assert!(html.contains(r#"<meta name="twitter:image" content="https://example.com/default-og.png">"#));
+
+        // Check footer text
+        assert!(html.contains(r#"<div class="footer-text">© 2026 My Tech Blog. All rights reserved.</div>"#));
+
+        // When entry has its own cover image, it takes precedence
+        let mut page_with_cover = dummy_page();
+        page_with_cover.cover_image = Some("/custom-cover.jpg".to_string());
+        let html_cover = render_page(
+            &[],
+            &page_with_cover,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        assert!(html_cover.contains(r#"<meta property="og:image" content="https://example.com/custom-cover.jpg">"#));
+        assert!(html_cover.contains(r#"<meta name="twitter:image" content="https://example.com/custom-cover.jpg">"#));
     }
 }

@@ -35,6 +35,14 @@ const getHeaders = () => ({
     "Content-Type": "application/json"
 });
 
+const getApiUrl = (path) => {
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    if (url.endsWith('/api')) {
+        return `${url}${cleanPath}`;
+    }
+    return `${url}/api${cleanPath}`;
+};
+
 // Register Tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
@@ -73,6 +81,25 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                         tags: { type: "string", description: "Comma-separated tags." }
                     },
                     required: ["title", "slug", "type", "status", "body_html"]
+                }
+            },
+            {
+                name: "zygo_get_settings",
+                description: "Get all site settings including branding (site_title, site_logo, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics.",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "zygo_update_settings",
+                description: "Update site settings in the backend (e.g. site_title, site_logo, site_favicon, default_og_image, footer_text, canonical_origin, docs_path).",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        settings: {
+                            type: "object",
+                            description: "Key-value map of settings to update (e.g. { site_logo: 'https://...', footer_text: '© 2026' })"
+                        }
+                    },
+                    required: ["settings"]
                 }
             }
         ]
@@ -116,6 +143,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 body: JSON.stringify(args)
             });
 
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_get_settings") {
+            const res = await fetch(getApiUrl('/settings'), { headers: getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_update_settings") {
+            const { settings } = request.params.arguments || {};
+            const res = await fetch(getApiUrl('/settings'), {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({ settings: settings || {} })
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             const data = await res.json();
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };

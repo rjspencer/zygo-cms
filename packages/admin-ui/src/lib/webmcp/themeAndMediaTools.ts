@@ -270,6 +270,66 @@ export function useThemeEditorWebMCP<T extends Record<string, any> = Record<stri
 export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
   return [
     {
+      name: 'get_settings',
+      description: 'Get all site settings including branding (site_title, site_logo, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      handler: async (): Promise<WebMCPToolResult> => {
+        const res = await apiFetch('/api/settings');
+        if (!res.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to fetch settings: ${res.statusText || res.status}` }],
+          };
+        }
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'update_settings',
+      description: 'Update site settings in the backend (e.g. site_title, site_logo, site_favicon, default_og_image, footer_text, canonical_origin, docs_path)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          settings: {
+            type: 'object',
+            description: 'Key-value map of settings to update',
+          },
+        },
+        required: ['settings'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const settings = (args.settings && typeof args.settings === 'object') ? args.settings : {};
+        const res = await apiFetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings }),
+        });
+        if (!res.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to update settings: ${res.statusText || res.status}` }],
+          };
+        }
+        let resData: any = {};
+        try {
+          resData = await res.json();
+        } catch {
+          resData = { success: true };
+        }
+        return {
+          toolResult: resData,
+          content: [{ type: 'text', text: JSON.stringify(resData, null, 2) }],
+        };
+      },
+    },
+    {
       name: 'get_theme_settings',
       description: 'Get current site theme settings and styling design tokens from the backend',
       inputSchema: {
