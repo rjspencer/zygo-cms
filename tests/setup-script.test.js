@@ -9,6 +9,7 @@ import {
   updatePublicWrangler,
   updateAdminApiWrangler,
   updateAdminUiWrangler,
+  updateAdminApiAccessVars,
   updateAdminUiEnv,
   configureCloudflareAccess,
   ensureOneTimePinProvider,
@@ -127,6 +128,7 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('database_id = "test-db-uuid-111"');
       expect(updated).toContain('pattern = "mytestdomain.com"');
       expect(updated).toContain('pattern = "www.mytestdomain.com"');
+      expect(updated).toContain('workers_dev = false');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
     });
 
@@ -143,6 +145,7 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('database_id = "test-db-uuid-222"');
       expect(updated).toContain('pattern = "api.mytestdomain.com"');
       expect(updated).toContain('PUBLIC_SUBDOMAIN = "www"');
+      expect(updated).toContain('workers_dev = false');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
     });
 
@@ -157,6 +160,21 @@ describe('Setup Script Helpers', () => {
       updateAdminUiWrangler('mytestdomain.com', mockUiPath);
       const updated = fs.readFileSync(mockUiPath, 'utf8');
       expect(updated).toContain('pattern = "admin.mytestdomain.com"');
+      expect(updated).toContain('workers_dev = false');
+    });
+
+    it('updates admin-api-worker access vars properly', () => {
+      const mockApiPath = path.join(testDir, 'admin-api-worker-access.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\nworkers_dev = false\n[vars]\nENVIRONMENT = "production"\n',
+        'utf8'
+      );
+
+      updateAdminApiAccessVars('test-aud-tag-123', 'team.cloudflareaccess.com', mockApiPath);
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('CF_ACCESS_AUD = "test-aud-tag-123"');
+      expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://team.cloudflareaccess.com"');
     });
 
     it('updates public-worker/wrangler.toml with custom public subdomain', () => {
@@ -395,6 +413,60 @@ describe('Setup Script Helpers', () => {
       // Admin API App with custom subdomain
       const apiAppBody = JSON.parse(fetchMock.mock.calls[3][1].body);
       expect(apiAppBody.domain).toBe('backend-api.example.com');
+    });
+
+    it('captures aud and team domain when returned by Access API and writes to wrangler.toml', async () => {
+      const fetchMock = vi.fn()
+        // Admin UI App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-app-id' } })
+        })
+        // Admin UI Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin UI Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-policy-id' } })
+        })
+        // Admin API App creation response with aud
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-app-id', aud: 'test-api-aud-tag' } })
+        })
+        // Admin API Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin API Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-policy-id' } })
+        })
+        // getZeroTrustOrgDomain call
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { auth_domain: 'myteam.cloudflareaccess.com' } })
+        });
+
+      global.fetch = fetchMock;
+
+      const mockApiPath = path.resolve('tests/mocks/wrangler-test/mock-admin-api-access.toml');
+      fs.mkdirSync(path.dirname(mockApiPath), { recursive: true });
+      fs.writeFileSync(mockApiPath, 'name = "admin-api-worker"\n[vars]\nENVIRONMENT = "production"\n', 'utf8');
+
+      await configureCloudflareAccess('mock-account', 'mock-token', 'example.com', 'admin@example.com', 'admin', 'api', mockApiPath);
+
+      expect(fetchMock).toHaveBeenCalledTimes(7);
+      expect(fetchMock.mock.calls[6][0]).toContain('/access/organizations');
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('CF_ACCESS_AUD = "test-api-aud-tag"');
+      expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://myteam.cloudflareaccess.com"');
+      fs.rmSync(mockApiPath, { force: true });
     });
   });
 

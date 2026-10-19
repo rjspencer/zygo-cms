@@ -197,13 +197,19 @@ describe('create-zygo-app CLI Scaffolder', () => {
       const pubAfterSetup = fs.readFileSync(path.join(tmpRoot, 'packages/public-worker/wrangler.toml'), 'utf8');
       const apiAfterSetup = fs.readFileSync(path.join(tmpRoot, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
       const uiAfterSetup = fs.readFileSync(path.join(tmpRoot, 'packages/admin-ui/wrangler.toml'), 'utf8');
+      expect(pubToml).toContain('workers_dev = false');
+      expect(apiToml).toContain('workers_dev = false');
+      expect(uiToml).toContain('workers_dev = false');
 
       expect(pubAfterSetup).toContain(`database_id = "${newDbId}"`);
       expect(pubAfterSetup).toContain('pattern = "customblog.io"');
       expect(pubAfterSetup).toContain('pattern = "www.customblog.io"');
+      expect(pubAfterSetup).toContain('workers_dev = false');
       expect(apiAfterSetup).toContain(`database_id = "${newDbId}"`);
       expect(apiAfterSetup).toContain('pattern = "api.customblog.io"');
+      expect(apiAfterSetup).toContain('workers_dev = false');
       expect(uiAfterSetup).toContain('pattern = "admin.customblog.io"');
+      expect(uiAfterSetup).toContain('workers_dev = false');
     });
   });
 

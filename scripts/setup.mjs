@@ -90,6 +90,16 @@ function replaceOrInsertRoutes(content, routesStr) {
   return `${routesStr}\n\n${content}`;
 }
 
+function ensureWorkersDevFalse(content) {
+  if (/workers_dev\s*=\s*(true|false)/.test(content)) {
+    return content.replace(/workers_dev\s*=\s*(true|false)/, 'workers_dev = false');
+  } else if (/compatibility_date\s*=\s*"[^"]*"/.test(content)) {
+    return content.replace(/(compatibility_date\s*=\s*"[^"]*")/, '$1\nworkers_dev = false');
+  } else {
+    return `workers_dev = false\n${content}`;
+  }
+}
+
 function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', customFilePath = null) {
   if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
     customFilePath = publicSubdomain;
@@ -103,6 +113,7 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
+  content = ensureWorkersDevFalse(content);
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
 
   let routesStr;
@@ -133,6 +144,7 @@ function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', public
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
+  content = ensureWorkersDevFalse(content);
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
 
   const sub = apiSubdomain || 'api';
@@ -153,6 +165,37 @@ function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', public
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
+function updateAdminApiAccessVars(aud, teamDomain, customFilePath = null) {
+  const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
+  if (!fs.existsSync(filePath)) return;
+  let content = fs.readFileSync(filePath, 'utf8');
+
+  if (aud) {
+    if (/CF_ACCESS_AUD\s*=\s*"[^"]*"/.test(content)) {
+      content = content.replace(/CF_ACCESS_AUD\s*=\s*"[^"]*"/, `CF_ACCESS_AUD = "${aud}"`);
+    } else if (/\[vars\]/.test(content)) {
+      content = content.replace(/\[vars\]/, `[vars]\nCF_ACCESS_AUD = "${aud}"`);
+    } else {
+      content += `\n[vars]\nCF_ACCESS_AUD = "${aud}"\n`;
+    }
+    console.log(`✓ Configured CF_ACCESS_AUD in admin-api-worker/wrangler.toml: ${aud}`);
+  }
+
+  if (teamDomain) {
+    const fullTeamDomain = teamDomain.startsWith('http') ? teamDomain : `https://${teamDomain}`;
+    if (/CF_ACCESS_TEAM_DOMAIN\s*=\s*"[^"]*"/.test(content)) {
+      content = content.replace(/CF_ACCESS_TEAM_DOMAIN\s*=\s*"[^"]*"/, `CF_ACCESS_TEAM_DOMAIN = "${fullTeamDomain}"`);
+    } else if (/\[vars\]/.test(content)) {
+      content = content.replace(/\[vars\]/, `[vars]\nCF_ACCESS_TEAM_DOMAIN = "${fullTeamDomain}"`);
+    } else {
+      content += `\n[vars]\nCF_ACCESS_TEAM_DOMAIN = "${fullTeamDomain}"\n`;
+    }
+    console.log(`✓ Configured CF_ACCESS_TEAM_DOMAIN in admin-api-worker/wrangler.toml: ${fullTeamDomain}`);
+  }
+
+  fs.writeFileSync(filePath, content, 'utf8');
+}
+
 function updateAdminUiWrangler(domain, uiSubdomain = 'admin', customFilePath = null) {
   if (typeof uiSubdomain === 'string' && (uiSubdomain.endsWith('.toml') || uiSubdomain.includes('/') || uiSubdomain.includes('\\'))) {
     customFilePath = uiSubdomain;
@@ -161,6 +204,7 @@ function updateAdminUiWrangler(domain, uiSubdomain = 'admin', customFilePath = n
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-ui/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
 
+  content = ensureWorkersDevFalse(content);
   const sub = uiSubdomain || 'admin';
   const routesStr = `routes = [\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
   content = replaceOrInsertRoutes(content, routesStr);
@@ -324,6 +368,7 @@ function printManualAccessInstructions(domain, adminEmail, uiSubdomain = 'admin'
 
 async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain, allowedOrigins, adminEmail) {
   let appId = null;
+  let appAud = null;
 
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
@@ -367,6 +412,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
 
   if (appRes.ok && appData.success && appData.result?.id) {
     appId = appData.result.id;
+    appAud = appData.result.aud || null;
     console.log(`✓ Created Access Application for ${appDomain} (ID: ${appId})`);
   } else {
     const listRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/access/apps`, {
@@ -377,6 +423,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
       const existing = listData.result?.find((a) => a.domain === appDomain);
       if (existing) {
         appId = existing.id;
+        appAud = existing.aud || null;
         console.log(`✓ Found existing Access Application for ${appDomain} (ID: ${appId})`);
       }
     }
@@ -416,7 +463,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
     
     if (existingPolicy) {
       console.log(`✓ Found existing Access Policy on ${appDomain} for ${adminEmail} (ID: ${existingPolicy.id})`);
-      return true;
+      return { success: true, appId, aud: appAud };
     }
   }
 
@@ -435,7 +482,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
   const policyData = await policyRes.json();
   if (policyRes.ok && policyData.success) {
     console.log(`✓ Created Access Policy on ${appDomain} for ${adminEmail}`);
-    return true;
+    return { success: true, appId, aud: appAud };
   } else {
     console.warn(`⚠️  Access Policy creation failed on ${appDomain}: ${JSON.stringify(policyData.errors || policyData.messages || policyData)}`);
     return false;
@@ -559,8 +606,9 @@ async function configureGoogleProvider(accountId, apiToken, clientId, clientSecr
   }
 }
 
-async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api') {
+async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api', customApiPath = null) {
   if (typeof uiSubdomain === 'object' && uiSubdomain !== null) {
+    customApiPath = uiSubdomain.customApiPath || null;
     apiSubdomain = uiSubdomain.apiSubdomain || 'api';
     uiSubdomain = uiSubdomain.uiSubdomain || 'admin';
   }
@@ -571,8 +619,16 @@ async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail
   const allowedOrigins = [`https://${uiHost}`, `https://${apiHost}`];
 
   try {
-    const uiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin UI', uiHost, allowedOrigins, adminEmail);
-    const apiSuccess = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin API', apiHost, allowedOrigins, adminEmail);
+    const uiResult = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin UI', uiHost, allowedOrigins, adminEmail);
+    const apiResult = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin API', apiHost, allowedOrigins, adminEmail);
+
+    const uiSuccess = Boolean(uiResult?.success ?? uiResult);
+    const apiSuccess = Boolean(apiResult?.success ?? apiResult);
+
+    if (apiSuccess && apiResult?.aud) {
+      const orgDomain = await getZeroTrustOrgDomain(accountId, apiToken);
+      updateAdminApiAccessVars(apiResult.aud, orgDomain, customApiPath);
+    }
 
     if (!uiSuccess || !apiSuccess) {
       printManualAccessInstructions(domain, adminEmail, uiSub, apiSub);
@@ -1045,9 +1101,11 @@ export {
   validateEmail,
   detectAccountId,
   replaceOrInsertRoutes,
+  ensureWorkersDevFalse,
   updatePublicWrangler,
   updateAdminApiWrangler,
   updateAdminUiWrangler,
+  updateAdminApiAccessVars,
   updateAdminUiEnv,
   provisionD1Database,
   provisionR2Bucket,

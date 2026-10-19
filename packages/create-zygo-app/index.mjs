@@ -226,6 +226,16 @@ function stripRoutesBlock(tomlContent) {
   return tomlContent.replace(/\n*routes\s*=\s*\[[\s\S]*?\]\n*/g, '\n\n');
 }
 
+function ensureWorkersDevFalse(content) {
+  if (/workers_dev\s*=\s*(true|false)/.test(content)) {
+    return content.replace(/workers_dev\s*=\s*(true|false)/, 'workers_dev = false');
+  } else if (/compatibility_date\s*=\s*"[^"]*"/.test(content)) {
+    return content.replace(/(compatibility_date\s*=\s*"[^"]*")/, '$1\nworkers_dev = false');
+  } else {
+    return `workers_dev = false\n${content}`;
+  }
+}
+
 function sanitizeWranglerConfigs(targetDir) {
   const rootWranglerPath = path.join(targetDir, 'wrangler.toml');
   if (fs.existsSync(rootWranglerPath)) {
@@ -240,6 +250,7 @@ function sanitizeWranglerConfigs(targetDir) {
   if (fs.existsSync(publicWranglerPath)) {
     let content = fs.readFileSync(publicWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
+    content = ensureWorkersDevFalse(content);
     content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${PLACEHOLDER_DB_ID}"`);
     fs.writeFileSync(publicWranglerPath, content, 'utf8');
   }
@@ -248,6 +259,7 @@ function sanitizeWranglerConfigs(targetDir) {
   if (fs.existsSync(apiWranglerPath)) {
     let content = fs.readFileSync(apiWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
+    content = ensureWorkersDevFalse(content);
     content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${PLACEHOLDER_DB_ID}"`);
     fs.writeFileSync(apiWranglerPath, content, 'utf8');
   }
@@ -256,6 +268,7 @@ function sanitizeWranglerConfigs(targetDir) {
   if (fs.existsSync(uiWranglerPath)) {
     let content = fs.readFileSync(uiWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
+    content = ensureWorkersDevFalse(content);
     fs.writeFileSync(uiWranglerPath, content, 'utf8');
   }
 }
