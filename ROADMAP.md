@@ -6,14 +6,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
-### Zero-Trust Auth Hardening (`workers_dev = false` & RS256 JWT Signature Verification)
-- **Goal**: Prevent direct `.workers.dev` access from bypassing Cloudflare Access and cryptographically verify `Cf-Access-Jwt-Assertion` RS256 signatures in `admin-api-worker`.
-- **Spec**: [`docs/specs/auth_jwt_signature_verification_spec.md`](docs/specs/auth_jwt_signature_verification_spec.md)
-- **Details**:
-  - Set `workers_dev = false` across worker `wrangler.toml` configurations.
-  - Fetch and cache Cloudflare Access public JWKS keys (`/cdn-cgi/access/certs`) in `packages/admin-api-worker/src/auth.rs` to verify RS256 JWT signatures alongside `iss`, `aud`, and `exp` claims.
-  - Automatically populate `CF_ACCESS_AUD` and `CF_ACCESS_TEAM_DOMAIN` in `scripts/setup.mjs` during Cloudflare Access provisioning.
-
 ### Headless CMS Content API
 - **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
 - **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:

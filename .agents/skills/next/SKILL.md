@@ -3,7 +3,7 @@ name: next
 description: >-
   Presents up to 3 priority roadmap items and 1 low-priority icebox item as an interactive
   multiple-choice selection. When the user chooses an item, initiates a structured planning
-  session (/plan) for that feature. Trigger on '/next', 'what to do next', 'what should we work on next',
+  session (/plan) with subagent execution waves for that feature. Trigger on '/next', 'what to do next', 'what should we work on next',
   or roadmap task selection.
 ---
 
@@ -66,9 +66,42 @@ When the user submits their choice:
 2. **Author Implementation Plan Artifact**:
    - Create an implementation plan artifact in `<appDataDir>/brain/<conversation-id>/plan.md` with:
      - `ArtifactMetadata`: `{ "RequestFeedback": true, "Summary": "...", "UserFacing": true }`.
-     - Phased implementation breakdown (contracts, backend/data, frontend UI/WebMCP, tests).
-     - Architecture/workflow diagram using Mermaid (`flowchart TD` or `sequenceDiagram`).
-     - Specific files to be created or modified.
-     - Testing strategy & verification steps passing the mandatory quality gates from `AGENTS.md`.
+     - **Architecture & Contracts**:
+       - Specify exact shared contracts upfront (API routes, D1 query column names, WebMCP/zygo-mcp tool schemas, accessible labels `aria-label`, and `data-testid` attributes).
+       - Workflow or architecture diagram using Mermaid (`flowchart TD` or `sequenceDiagram`).
+     - **Subagent Execution Plan (3-Wave Pattern)**:
+       - **Wave 1 (Parallel Implementation & Test Authoring)**:
+         - Identify subagents to spawn concurrently with **strictly disjoint file ownership** (e.g. backend worker vs admin UI vs Vitest/Storybook tests vs CLI MCP).
+         - Include a Subagent Allocation Table detailing: Role, Subagent Type/Model, Disjoint File Boundaries, and Deliverables.
+       - **Wave 2 (Automated Quality Gates)**:
+         - Orchestrating agent runs all mandatory quality gates: `cargo test`, `pnpm run test:all`, `pnpm --filter admin-ui exec tsc --noEmit`, and `pnpm run build`.
+       - **Wave 3 (Parallel Verification Handoffs)**:
+         - **Code Review Subagent**: Delegate verification to inspect logic, security (`auth_required!`), D1 query conventions (no `SELECT *`, safe nullable migrations), and test coverage.
+         - **UI QA Subagent** (if visual UI modified): Follow the **1+2+4 Protocol** (Storybook inspection, browser screenshot/vision validation, accessibility verification).
+     - **Specific Files Modified / Created**: Grouped by package and assigned subagent.
+     - **Testing Strategy**: Unit, integration, Storybook, and dual WebMCP/zygo-mcp parity verification.
 3. **Prompt for User Approval**:
    - Direct the user to review the plan artifact and request approval before writing code.
+
+---
+
+## Subagent Planning Guidelines for Implementation Plans
+
+When drafting the implementation plan artifact, always structure the subagent workflow as follows:
+
+### Subagent Allocation Table Template
+```markdown
+| Wave | Subagent Role | Type / Model | Assigned Files (Strictly Disjoint) | Responsibilities & Deliverables |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | Backend API Engineer | `self` / `inherit` | `packages/admin-api-worker/src/handlers/...` | Implement REST endpoints, D1 queries, and auth |
+| 1 | Frontend UI Engineer | `self` / `inherit` | `packages/admin-ui/src/pages/...`, `.../components/...` | Build React UI component, hooks, and WebMCP tools |
+| 1 | Test & Storybook Author | `self` / `inherit` | `packages/admin-ui/src/.../*.stories.tsx`, `tests/...` | Author Storybook stories, Vitest tests, and fixtures |
+| 2 | Orchestrator (Main Agent) | Main Agent | Entire Workspace | Run automated quality gates (`cargo test`, `test:all`, `tsc`, `build`) |
+| 3 | Code Reviewer | `self` / `inherit` | Read-only across modified files | Verify correctness, security, D1 rules, and test coverage |
+| 3 | UI QA Specialist | `self` / `inherit` (with browser tools) | Read-only / Storybook URL | 1+2+4 Protocol: Visual inspection, interaction states, accessibility |
+```
+
+### Key Subagent Planning Rules
+1. **Shared Contracts First**: Never spawn Wave 1 subagents until type signatures, API schemas, and test selectors are locked down in the plan.
+2. **Strictly Disjoint Files**: Parallel subagents must never write to the same file. Separate components, handlers, tests, and documentation into distinct file sets.
+3. **Dual Verification Handoff**: For UI tasks, plan for both Code Review and UI QA subagents running in Wave 3 before marking the task complete.
