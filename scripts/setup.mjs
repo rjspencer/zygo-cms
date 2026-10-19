@@ -675,6 +675,42 @@ async function applyBotFightMode(zoneId, apiToken, state) {
   }
 }
 
+async function applyAiCrawlSettings(zoneId, apiToken, settings = {}) {
+  try {
+    const payload = {};
+    if (settings.aiBotsProtection !== undefined) payload.ai_bots_protection = settings.aiBotsProtection;
+    if (settings.aiSearch !== undefined) payload.ai_search = settings.aiSearch;
+    if (settings.aiTraining !== undefined) payload.ai_training = settings.aiTraining;
+    if (settings.aiUser !== undefined) payload.ai_user = settings.aiUser;
+
+    const res = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/bot_management`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${apiToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn(`⚠️  Failed to apply AI Crawl Settings: ${err.message}`);
+    return false;
+  }
+}
+
+function updateAdminApiZoneVar(zoneId, customFilePath = null) {
+  const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
+  if (!fs.existsSync(filePath)) return;
+  let content = fs.readFileSync(filePath, 'utf8');
+
+  if (/CF_ZONE_ID\s*=\s*"[^"]*"/.test(content)) {
+    content = content.replace(/CF_ZONE_ID\s*=\s*"[^"]*"/, `CF_ZONE_ID = "${zoneId}"`);
+  } else if (/\[vars\]/.test(content)) {
+    content = content.replace(/\[vars\]/, `[vars]\nCF_ZONE_ID = "${zoneId}"`);
+  } else {
+    content += `\n[vars]\nCF_ZONE_ID = "${zoneId}"\n`;
+  }
+
+  fs.writeFileSync(filePath, content, 'utf8');
+}
+
 async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostname) {
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
@@ -943,6 +979,80 @@ async function main() {
   if (isCancel(botAns)) return process.exit(0);
   config.botFightMode = botAns;
 
+  const aiPolicyAns = await select({
+    message: 'Cloudflare AI Crawl Control Policy:',
+    options: [
+      { value: 'block_all', label: 'Block All AI Crawlers & Scrapers (Recommended for maximum content protection)' },
+      { value: 'allow_search_only', label: 'Allow AI Search Only (Allow citation/indexing in AI search engines, block training)' },
+      { value: 'custom', label: 'Custom Policy (Configure Search, Training, and Agent crawlers individually)' },
+      { value: 'disabled', label: 'Allow All (No AI crawl restrictions)' }
+    ],
+    initialValue: 'block_all'
+  });
+  if (isCancel(aiPolicyAns)) return process.exit(0);
+
+  if (aiPolicyAns === 'block_all') {
+    config.aiCrawlSettings = {
+      aiBotsProtection: 'block',
+      aiSearch: 'block',
+      aiTraining: 'block',
+      aiUser: 'block'
+    };
+  } else if (aiPolicyAns === 'allow_search_only') {
+    config.aiCrawlSettings = {
+      aiBotsProtection: 'disabled',
+      aiSearch: 'disabled',
+      aiTraining: 'block',
+      aiUser: 'disabled'
+    };
+  } else if (aiPolicyAns === 'disabled') {
+    config.aiCrawlSettings = {
+      aiBotsProtection: 'disabled',
+      aiSearch: 'disabled',
+      aiTraining: 'disabled',
+      aiUser: 'disabled'
+    };
+  } else {
+    const searchAns = await select({
+      message: 'AI Search Bots (e.g. Perplexity, Bing Copilot citation):',
+      options: [
+        { value: 'disabled', label: 'Allow - Allow citation in AI search engines' },
+        { value: 'block', label: 'Block - Block search engine AI crawlers' }
+      ],
+      initialValue: 'disabled'
+    });
+    if (isCancel(searchAns)) return process.exit(0);
+
+    const trainingAns = await select({
+      message: 'AI Model Training Bots (e.g. GPTBot, ClaudeBot, CCBot):',
+      options: [
+        { value: 'block', label: 'Block - Edge-level blocking for model training crawlers' },
+        { value: 'disallow', label: 'Disallow via robots.txt - Request crawlers not train on data' },
+        { value: 'disabled', label: 'Allow - Permit training data harvesting' }
+      ],
+      initialValue: 'block'
+    });
+    if (isCancel(trainingAns)) return process.exit(0);
+
+    const userAns = await select({
+      message: 'AI User Agents / Assistants (Browsing on user request):',
+      options: [
+        { value: 'disabled', label: 'Allow - Allow AI assistants navigating for users' },
+        { value: 'block', label: 'Block - Block AI assistant agents' }
+      ],
+      initialValue: 'disabled'
+    });
+    if (isCancel(userAns)) return process.exit(0);
+
+    const masterBlock = (trainingAns === 'block' && searchAns === 'block' && userAns === 'block') ? 'block' : 'disabled';
+    config.aiCrawlSettings = {
+      aiBotsProtection: masterBlock,
+      aiSearch: searchAns,
+      aiTraining: trainingAns,
+      aiUser: userAns
+    };
+  }
+
   const secAns = await select({
     message: 'Select WAF Security Level:',
     options: [
@@ -1028,7 +1138,11 @@ async function main() {
       settingsPayload.push({ id: 'security_level', value: config.securityLevel });
       await applyZoneSettings(zoneId, config.apiToken, settingsPayload);
       await applyBotFightMode(zoneId, config.apiToken, config.botFightMode ? 'on' : 'off');
-      s.stop('✓ Zone Settings applied');
+      if (config.aiCrawlSettings) {
+        await applyAiCrawlSettings(zoneId, config.apiToken, config.aiCrawlSettings);
+      }
+      updateAdminApiZoneVar(zoneId);
+      s.stop('✓ Zone & AI Crawl Settings applied');
 
       const sub = config.publicSubdomain || 'www';
       if (config.apexHandling === 'redirect_to_sub') {
@@ -1115,4 +1229,6 @@ export {
   configureGoogleProvider,
   getZeroTrustOrgDomain,
   applyCloudflareRedirect,
+  applyAiCrawlSettings,
+  updateAdminApiZoneVar,
 };
