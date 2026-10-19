@@ -3,6 +3,7 @@ export interface MediaThumbnailProps {
   alt: string;
   type?: string;
   height?: string;
+  size?: 'thumb' | 'md' | 'lg';
 }
 
 export interface MediaFallbackIconProps {

@@ -6,15 +6,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
-### Client-Side Multi-Tier Image Optimization & Responsive `<img>` Pipeline
-- **Goal**: Guarantee fast page loads and instant Admin Media Library browsing out-of-the-box without requiring paid Cloudflare Images add-ons.
-- **Spec**: [`docs/specs/media_image_optimization_spec.md`](docs/specs/media_image_optimization_spec.md)
-- **Details**:
-  - Resize and encode uploaded raster images in the browser (`createImageBitmap` + `<canvas>`) into 3 WebP tiers: `thumb` (`400px`, 80%), `md` (`1024px`, 82%), and `lg` (`2048px`, 85%).
-  - Store derived variants in R2 (`*__thumb.webp`, `*__md.webp`) alongside a single D1 `media` row, ignoring variant suffixes in `sync_r2_to_d1` and cascading deletions on `DELETE /api/media/:key`.
-  - Support `?size=thumb|md` in the media streaming handlers with automatic fallback to the base key for legacy or non-raster assets.
-  - Add a `media_srcset` MiniJinja filter and update built-in section and layout templates with `srcset`, `sizes`, `loading="lazy"`, `decoding="async"`, and `fetchpriority="high"` (for Hero/Cover LCP images).
-
 ### Zero-Trust Auth Hardening (`workers_dev = false` & RS256 JWT Signature Verification)
 - **Goal**: Prevent direct `.workers.dev` access from bypassing Cloudflare Access and cryptographically verify `Cf-Access-Jwt-Assertion` RS256 signatures in `admin-api-worker`.
 - **Spec**: [`docs/specs/auth_jwt_signature_verification_spec.md`](docs/specs/auth_jwt_signature_verification_spec.md)

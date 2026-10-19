@@ -8,6 +8,7 @@ export const MediaThumbnail: React.FC<MediaThumbnailProps> = ({
   alt,
   type,
   height = '140px',
+  size,
 }) => {
   const [hasError, setHasError] = useState(false);
 
@@ -20,8 +21,17 @@ export const MediaThumbnail: React.FC<MediaThumbnailProps> = ({
     /\.(mp4|webm|ogv|ogg)$/i.test(src.split('?')[0]);
   const isImage = !type ? !isVideo : type.startsWith('image/');
   const isCompact = height === '100px';
+
+  let adjustedSrc = src;
+  if (isImage && size && !src.includes('size=')) {
+    const separator = src.includes('?') ? '&' : '?';
+    adjustedSrc = `${src}${separator}size=${size}`;
+  }
+
   const mediaSrc =
-    src.startsWith('/') && !src.startsWith('//') ? getPublicSiteUrl(src) : src;
+    adjustedSrc.startsWith('/') && !adjustedSrc.startsWith('//')
+      ? getPublicSiteUrl(adjustedSrc)
+      : adjustedSrc;
 
   if (hasError || (!isImage && !isVideo)) {
     return <MediaFallbackIcon isVideo={isVideo} isCompact={isCompact} />;

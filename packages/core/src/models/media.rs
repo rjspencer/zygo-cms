@@ -52,6 +52,28 @@ pub fn guess_mime_type(filename: &str) -> &'static str {
     }
 }
 
+/// Check if an R2 key represents a generated multi-tier variant (thumb or md WebP)
+pub fn is_media_variant_key(key: &str) -> bool {
+    key.ends_with("__thumb.webp") || key.ends_with("__md.webp")
+}
+
+/// Derive the R2 variant key for a given base key and target size ('thumb' or 'md').
+/// Returns None if the base key is not a WebP image or if the size is unrecognized.
+pub fn media_variant_key(base_key: &str, size: &str) -> Option<String> {
+    match size {
+        "thumb" | "md" => {
+            if let Some(stem) = base_key.strip_suffix(".webp") {
+                Some(format!("{stem}__{size}.webp"))
+            } else if let Some(stem) = base_key.strip_suffix(".WEBP") {
+                Some(format!("{stem}__{size}.webp"))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,6 +112,30 @@ mod tests {
             created_at: Some("2026-09-18 12:00:00".to_string()),
         };
         assert_eq!(item.url(), "/media/1726700000000-test.png");
+    }
+
+    #[test]
+    fn test_is_media_variant_key() {
+        assert!(is_media_variant_key("1726700000000-photo__thumb.webp"));
+        assert!(is_media_variant_key("1726700000000-photo__md.webp"));
+        assert!(!is_media_variant_key("1726700000000-photo.webp"));
+        assert!(!is_media_variant_key("1726700000000-photo.png"));
+        assert!(!is_media_variant_key("1726700000000-photo__thumb.png"));
+    }
+
+    #[test]
+    fn test_media_variant_key() {
+        assert_eq!(
+            media_variant_key("1726700000000-photo.webp", "thumb"),
+            Some("1726700000000-photo__thumb.webp".to_string())
+        );
+        assert_eq!(
+            media_variant_key("1726700000000-photo.webp", "md"),
+            Some("1726700000000-photo__md.webp".to_string())
+        );
+        assert_eq!(media_variant_key("1726700000000-photo.webp", "lg"), None);
+        assert_eq!(media_variant_key("1726700000000-photo.png", "thumb"), None);
+        assert_eq!(media_variant_key("1726700000000-vector.svg", "thumb"), None);
     }
 }
 

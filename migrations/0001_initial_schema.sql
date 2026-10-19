@@ -195,7 +195,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
     '<section class="section-hero">
   <div class="hero-background" aria-hidden="true">
     {% if image %}
-    <img src="{{ image|safe }}" alt="" class="hero-media">
+    <img src="{{ image|safe }}" alt="" class="hero-media" fetchpriority="high" decoding="async" srcset="{{ image|media_srcset|safe }}" sizes="100vw">
     {% endif %}
     {% if video_url %}
     <video class="hero-media hero-video" autoplay loop muted playsinline{% if image %} poster="{{ image|safe }}"{% endif %}>
@@ -256,7 +256,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
       <div class="text-image-prose">{{ body|safe }}</div>
     </div>
     <div class="text-image-media">
-      <img src="{{ image|safe }}" alt="{{ title }}">
+      <img src="{{ image|safe }}" alt="{{ title }}" loading="lazy" decoding="async" srcset="{{ image|media_srcset|safe }}" sizes="(max-width: 768px) 100vw, 50vw">
     </div>
   </div>
 </section>',
@@ -281,7 +281,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
   <div class="gallery-grid">
     {% for item in images %}
     <figure class="gallery-item">
-      <img src="{{ item.image|safe }}" alt="{{ item.caption }}">
+      <img src="{{ item.image|safe }}" alt="{{ item.caption }}" loading="lazy" decoding="async" srcset="{{ item.image|media_srcset|safe }}" sizes="(max-width: 768px) 100vw, 320px">
       {% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}
     </figure>
     {% endfor %}
@@ -308,7 +308,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
   <div class="carousel-track">
     {% for slide in slides %}
     <div class="carousel-slide">
-      <img src="{{ slide.image|safe }}" alt="{{ slide.caption }}">
+      <img src="{{ slide.image|safe }}" alt="{{ slide.caption }}" loading="lazy" decoding="async" srcset="{{ slide.image|media_srcset|safe }}" sizes="100vw">
       {% if slide.caption %}<p class="carousel-caption">{{ slide.caption }}</p>{% endif %}
     </div>
     {% endfor %}
@@ -357,7 +357,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
   <div class="features-grid">
     {% for feature in features %}
     <div class="feature-card">
-      {% if feature.icon %}<img class="feature-icon" src="{{ feature.icon|safe }}" alt="{{ feature.title }}">{% endif %}
+      {% if feature.icon %}<img class="feature-icon" src="{{ feature.icon|safe }}?size=thumb" alt="{{ feature.title }}" loading="lazy" decoding="async">{% endif %}
       <h3>{{ feature.title }}</h3>
       <p>{{ feature.description }}</p>
     </div>
@@ -383,7 +383,7 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
   <blockquote class="testimonial-blockquote">
     <p class="testimonial-quote">&ldquo;{{ quote }}&rdquo;</p>
     <footer class="testimonial-footer">
-      {% if avatar %}<img class="testimonial-avatar" src="{{ avatar|safe }}" alt="{{ author }}">{% endif %}
+      {% if avatar %}<img class="testimonial-avatar" src="{{ avatar|safe }}?size=thumb" alt="{{ author }}" loading="lazy" decoding="async">{% endif %}
       <div class="testimonial-info">
         <cite class="testimonial-author">{{ author }}</cite>
         {% if role %}<span class="testimonial-role">{{ role }}</span>{% endif %}

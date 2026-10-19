@@ -70,7 +70,7 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
         {% endif %}
         <article>
             {% if post.cover_image %}
-            <img class="cover-image" src="{{ post.cover_image|safe }}" alt="{{ post.title }}">
+            <img class="cover-image" src="{{ post.cover_image|safe }}" alt="{{ post.title }}" fetchpriority="high" decoding="async" srcset="{{ post.cover_image|media_srcset|safe }}" sizes="(max-width: 1024px) 100vw, 800px">
             {% endif %}
             <h1>{{ post.title }}</h1>
             <div class="post-meta">Published on {{ post.display_date }}</div>
@@ -742,7 +742,7 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
                 <span class="crumb-current" aria-current="page">{{ page.title }}</span>
             </nav>
             {% if page.cover_image %}
-            <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}">
+            <img class="cover-image" src="{{ page.cover_image|safe }}" alt="{{ page.title }}" fetchpriority="high" decoding="async" srcset="{{ page.cover_image|media_srcset|safe }}" sizes="(max-width: 1024px) 100vw, 800px">
             {% endif %}
             <h1>{{ page.title }}</h1>
             {% if sections_html %}

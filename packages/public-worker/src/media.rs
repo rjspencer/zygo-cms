@@ -1,14 +1,33 @@
 use zygo_core::db;
 use zygo_core::error::AppError;
-use zygo_core::models::{MediaSyncReport, guess_mime_type, parse_filename_from_key};
+use zygo_core::models::{
+    guess_mime_type, is_media_variant_key, media_variant_key, parse_filename_from_key,
+    MediaSyncReport,
+};
 use crate::utils;
 use worker::{Date, Headers, Request, Response, Result, RouteContext};
 
 pub async fn get_media(key: &str, req: &Request, ctx: &RouteContext<()>) -> Result<Response> {
-    let bucket = ctx.env.bucket("MEDIA")?;
-    let object = bucket.get(key).execute().await?.ok_or(AppError::NotFound);
+    let url = req.url()?;
+    let size_param = url
+        .query_pairs()
+        .find(|(k, _)| k == "size")
+        .map(|(_, v)| v.to_string());
 
-    match object {
+    let target_key = if let Some(size) = size_param.as_deref() {
+        media_variant_key(key, size).unwrap_or_else(|| key.to_string())
+    } else {
+        key.to_string()
+    };
+
+    let bucket = ctx.env.bucket("MEDIA")?;
+    let object = match bucket.get(&target_key).execute().await? {
+        Some(obj) => Some(obj),
+        None if target_key != key => bucket.get(key).execute().await?,
+        None => None,
+    };
+
+    match object.ok_or(AppError::NotFound) {
         Ok(obj) => {
             let headers = Headers::new();
 
@@ -77,6 +96,11 @@ pub async fn sync_r2_to_d1(env: &worker::Env) -> Result<MediaSyncReport> {
         for obj in objects_page.objects() {
             total_r2_objects += 1;
             let key = obj.key();
+
+            // Skip multi-tier variant keys so D1 keeps only one row per logical asset
+            if is_media_variant_key(&key) {
+                continue;
+            }
             if !existing_keys.contains(&key) {
                 let filename = parse_filename_from_key(&key);
                 let mime_type = obj
