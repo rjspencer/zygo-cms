@@ -330,6 +330,64 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
       },
     },
     {
+      name: 'get_ai_crawl_settings',
+      description: 'Get Cloudflare AI Crawl Control edge settings (ai_bots_protection, ai_search, ai_training, ai_user)',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      handler: async (): Promise<WebMCPToolResult> => {
+        const res = await apiFetch('/api/cloudflare/ai-crawl');
+        if (!res.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to fetch AI crawl settings: ${res.statusText || res.status}` }],
+          };
+        }
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'update_ai_crawl_settings',
+      description: 'Update Cloudflare AI Crawl Control edge settings (ai_bots_protection, ai_search, ai_training, ai_user)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ai_bots_protection: { type: 'string', enum: ['block', 'disabled'] },
+          ai_search: { type: 'string', enum: ['block', 'disabled'] },
+          ai_training: { type: 'string', enum: ['block', 'disallow', 'disabled'] },
+          ai_user: { type: 'string', enum: ['block', 'disabled'] },
+        },
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const res = await apiFetch('/api/cloudflare/ai-crawl', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(args),
+        });
+        if (!res.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to update AI crawl settings: ${res.statusText || res.status}` }],
+          };
+        }
+        let resData: any = {};
+        try {
+          resData = await res.json();
+        } catch {
+          resData = { success: true };
+        }
+        return {
+          toolResult: resData,
+          content: [{ type: 'text', text: JSON.stringify(resData, null, 2) }],
+        };
+      },
+    },
+    {
       name: 'get_theme_settings',
       description: 'Get current site theme settings and styling design tokens from the backend',
       inputSchema: {

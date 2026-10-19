@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { useUnsavedChangesBlocker } from '../../../hooks/useUnsavedChangesBlocker';
-import type { SettingsApiResponse, SettingsFormValues } from '../types';
+import type { SettingsApiResponse, AiCrawlApiResponse, SettingsFormValues } from '../types';
 
 export const DEFAULT_SETTINGS_VALUES: SettingsFormValues = {
   siteTitle: '',
@@ -14,12 +14,23 @@ export const DEFAULT_SETTINGS_VALUES: SettingsFormValues = {
   siteFavicon: '',
   defaultOgImage: '',
   footerText: '',
+  aiBotsProtection: 'disabled',
+  aiSearch: 'disabled',
+  aiTraining: 'disabled',
+  aiUser: 'disabled',
 };
 
 export function useSettingsForm(
   settingsData: SettingsApiResponse | undefined,
   saveSettings: (settings: Record<string, string>) => Promise<unknown>,
-  invalidate: () => void
+  invalidate: () => void,
+  aiCrawlData?: AiCrawlApiResponse | undefined,
+  saveAiCrawlSettings?: (aiCrawl: {
+    ai_bots_protection?: string;
+    ai_search?: string;
+    ai_training?: string;
+    ai_user?: string;
+  }) => Promise<unknown>
 ) {
   const methods = useForm<SettingsFormValues>({
     defaultValues: DEFAULT_SETTINGS_VALUES,
@@ -30,21 +41,25 @@ export function useSettingsForm(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (settingsData) {
+    if (settingsData || aiCrawlData) {
       methods.reset({
-        siteTitle: settingsData.site_title || '',
-        canonicalOrigin: settingsData.canonical_origin || '',
-        description: settingsData.description || '',
-        analyticsEnabled: settingsData.analytics_enabled === 'true',
-        docsModeEnabled: settingsData.docs_mode_enabled === 'true',
-        docsPath: settingsData.docs_path || '/docs',
-        siteLogo: (settingsData.site_logo as string) || '',
-        siteFavicon: (settingsData.site_favicon as string) || '',
-        defaultOgImage: (settingsData.default_og_image as string) || '',
-        footerText: (settingsData.footer_text as string) || '',
+        siteTitle: settingsData?.site_title || '',
+        canonicalOrigin: settingsData?.canonical_origin || '',
+        description: settingsData?.description || '',
+        analyticsEnabled: settingsData?.analytics_enabled === 'true',
+        docsModeEnabled: settingsData?.docs_mode_enabled === 'true',
+        docsPath: settingsData?.docs_path || '/docs',
+        siteLogo: (settingsData?.site_logo as string) || '',
+        siteFavicon: (settingsData?.site_favicon as string) || '',
+        defaultOgImage: (settingsData?.default_og_image as string) || '',
+        footerText: (settingsData?.footer_text as string) || '',
+        aiBotsProtection: aiCrawlData?.ai_bots_protection || 'disabled',
+        aiSearch: aiCrawlData?.ai_search || 'disabled',
+        aiTraining: aiCrawlData?.ai_training || 'disabled',
+        aiUser: aiCrawlData?.ai_user || 'disabled',
       });
     }
-  }, [settingsData, methods]);
+  }, [settingsData, aiCrawlData, methods]);
 
   useEffect(() => {
     return () => {
@@ -72,6 +87,15 @@ export function useSettingsForm(
         default_og_image: values.defaultOgImage,
         footer_text: values.footerText,
       });
+
+      if (aiCrawlData?.configured && saveAiCrawlSettings) {
+        await saveAiCrawlSettings({
+          ai_bots_protection: values.aiBotsProtection,
+          ai_search: values.aiSearch,
+          ai_training: values.aiTraining,
+          ai_user: values.aiUser,
+        });
+      }
 
       invalidate();
       methods.reset(values);

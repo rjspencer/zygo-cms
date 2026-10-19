@@ -17,6 +17,13 @@ const createQueryClient = (settingsData?: SettingsApiResponse) => {
   if (settingsData) {
     client.setQueryData(['settings'], settingsData);
   }
+  client.setQueryData(['ai-crawl-settings'], {
+    configured: true,
+    ai_bots_protection: 'disabled',
+    ai_search: 'disabled',
+    ai_training: 'disabled',
+    ai_user: 'disabled',
+  });
   return client;
 };
 

@@ -8,6 +8,7 @@ import {
   GeneralSettingsCard,
   BrandingSettingsCard,
   AnalyticsSettingsCard,
+  AiCrawlSettingsCard,
   DocsSettingsCard,
   EdgeEnvironmentCard,
 } from './components';
@@ -15,7 +16,16 @@ import { useSettingsData, useSettingsForm } from './hooks';
 import type { SettingsProps } from './types';
 
 export const Settings: React.FC<SettingsProps> = () => {
-  const { data: settingsData, isLoading, isSaving, saveSettings, invalidate } = useSettingsData();
+  const {
+    data: settingsData,
+    isLoading,
+    aiCrawlData,
+    isSaving,
+    saveSettings,
+    saveAiCrawlSettings,
+    invalidate,
+  } = useSettingsData();
+
   const {
     methods,
     blocker,
@@ -23,7 +33,7 @@ export const Settings: React.FC<SettingsProps> = () => {
     saved,
     error,
     handleSave,
-  } = useSettingsForm(settingsData, saveSettings, invalidate);
+  } = useSettingsForm(settingsData, saveSettings, invalidate, aiCrawlData, saveAiCrawlSettings);
 
   if (isLoading) {
     return (
@@ -56,6 +66,7 @@ export const Settings: React.FC<SettingsProps> = () => {
           <GeneralSettingsCard />
           <BrandingSettingsCard />
           <AnalyticsSettingsCard />
+          <AiCrawlSettingsCard configured={aiCrawlData?.configured ?? false} />
           <DocsSettingsCard />
           <EdgeEnvironmentCard />
         </Flex>

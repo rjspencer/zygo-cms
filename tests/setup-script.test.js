@@ -15,7 +15,9 @@ import {
   ensureOneTimePinProvider,
   configureGoogleProvider,
   getZeroTrustOrgDomain,
-  applyCloudflareRedirect
+  applyCloudflareRedirect,
+  applyAiCrawlSettings,
+  updateAdminApiZoneVar
 } from '../scripts/setup.mjs';
 
 describe('Setup Script Helpers', () => {
@@ -908,6 +910,93 @@ describe('Setup Script Helpers', () => {
 
       const result = await applyCloudflareRedirect('zone-123', 'token-abc', 'example.com', 'www.example.com');
       expect(result).toBe(false);
+    });
+  });
+
+  describe('applyAiCrawlSettings', () => {
+    it('sends PUT request to bot_management endpoint with mapped parameters', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        json: async () => ({ success: true })
+      });
+      global.fetch = fetchMock;
+
+      const settings = {
+        aiBotsProtection: 'block',
+        aiSearch: 'disabled',
+        aiTraining: 'disallow',
+        aiUser: 'block'
+      };
+
+      const result = await applyAiCrawlSettings('zone-456', 'test-token', settings);
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.cloudflare.com/client/v4/zones/zone-456/bot_management',
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Bearer test-token',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ai_bots_protection: 'block',
+            ai_search: 'disabled',
+            ai_training: 'disallow',
+            ai_user: 'block'
+          })
+        }
+      );
+    });
+
+    it('returns false when Cloudflare API responds with an error status', async () => {
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        status: 403,
+        ok: false,
+        json: async () => ({ success: false })
+      });
+
+      const result = await applyAiCrawlSettings('zone-456', 'bad-token', { aiBotsProtection: 'block' });
+      expect(result).toBe(false);
+    });
+
+    it('gracefully catches network rejections and returns false', async () => {
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Connection timed out'));
+
+      const result = await applyAiCrawlSettings('zone-456', 'test-token', { aiBotsProtection: 'block' });
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('updateAdminApiZoneVar', () => {
+    const tmpWranglerPath = path.resolve('tests/mocks/test-admin-zone-wrangler.toml');
+
+    afterEach(() => {
+      if (fs.existsSync(tmpWranglerPath)) {
+        fs.unlinkSync(tmpWranglerPath);
+      }
+    });
+
+    it('inserts CF_ZONE_ID under existing [vars] section', () => {
+      const initial = 'name = "admin-api"\n\n[vars]\nENVIRONMENT = "production"\n';
+      fs.writeFileSync(tmpWranglerPath, initial, 'utf8');
+
+      updateAdminApiZoneVar('test-zone-uuid-123', tmpWranglerPath);
+      const updated = fs.readFileSync(tmpWranglerPath, 'utf8');
+
+      expect(updated).toContain('CF_ZONE_ID = "test-zone-uuid-123"');
+      expect(updated).toContain('ENVIRONMENT = "production"');
+    });
+
+    it('replaces existing CF_ZONE_ID if already present', () => {
+      const initial = 'name = "admin-api"\n\n[vars]\nCF_ZONE_ID = "old-zone-id"\n';
+      fs.writeFileSync(tmpWranglerPath, initial, 'utf8');
+
+      updateAdminApiZoneVar('new-zone-id', tmpWranglerPath);
+      const updated = fs.readFileSync(tmpWranglerPath, 'utf8');
+
+      expect(updated).toContain('CF_ZONE_ID = "new-zone-id"');
+      expect(updated).not.toContain('old-zone-id');
     });
   });
 });
