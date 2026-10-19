@@ -476,8 +476,8 @@ body.docs-page footer nav a:hover {
     padding: 1.25rem;
     background: color-mix(in srgb, var(--color-surface, #ffffff) 88%, transparent);
     border: 1px solid var(--color-border, #e7e5e4);
-    border-radius: 8px;
-    box-shadow: 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent);
+    border-radius: var(--border-radius, 8px);
+    box-shadow: var(--box-shadow, 3px 3px 0px color-mix(in srgb, var(--color-border, #e7e5e4) 18%, transparent));
     scrollbar-width: thin;
 }
 .docs-search {
@@ -488,7 +488,7 @@ body.docs-page footer nav a:hover {
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     border: 1px solid var(--color-border, #e7e5e4);
-    border-radius: 6px;
+    border-radius: var(--border-radius, 6px);
     background: var(--color-surface, #ffffff);
     color: var(--color-text, #1c1917);
     box-sizing: border-box;
@@ -580,7 +580,8 @@ body.docs-page footer nav a:hover {
     background: #18181b;
     color: #f4f4f5;
     padding: 1.25rem;
-    border-radius: 8px;
+    border-radius: var(--border-radius, 8px);
+    box-shadow: var(--box-shadow, 0 4px 12px rgba(0, 0, 0, 0.05));
     overflow-x: auto;
     font-size: 0.9rem;
     margin: 1.5rem 0;
@@ -590,7 +591,7 @@ body.docs-page footer nav a:hover {
     font-size: 0.875em;
     background: color-mix(in srgb, var(--color-border, #e7e5e4) 40%, transparent);
     padding: 0.15em 0.35em;
-    border-radius: 4px;
+    border-radius: var(--border-radius, 4px);
 }
 .docs-content pre code {
     background: transparent;

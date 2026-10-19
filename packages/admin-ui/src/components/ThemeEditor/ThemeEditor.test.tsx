@@ -514,6 +514,16 @@ describe('ThemeEditor component', () => {
     const lineHeightInput = container.querySelector('#dimension-line-height-body');
     expect(lineHeightInput).toBeTruthy();
 
+    const borderRadiusLabel = container.querySelector('label[for="dimension-border-radius"]');
+    expect(borderRadiusLabel).toBeTruthy();
+    const borderRadiusInput = container.querySelector('#dimension-border-radius');
+    expect(borderRadiusInput).toBeTruthy();
+
+    const boxShadowLabel = container.querySelector('label[for="dimension-box-shadow"]');
+    expect(boxShadowLabel).toBeTruthy();
+    const boxShadowInput = container.querySelector('#dimension-box-shadow');
+    expect(boxShadowInput).toBeTruthy();
+
     // 4. Header Styling Panel
     const layoutLabel = container.querySelector('#header-layout-label');
     expect(layoutLabel).toBeTruthy();
@@ -568,6 +578,39 @@ describe('ThemeEditor component', () => {
     expect(saveAsNameLabel).toBeTruthy();
     const saveAsNameInput = document.querySelector('#save-as-theme-name');
     expect(saveAsNameInput).toBeTruthy();
+  });
+
+  it('allows editing borderRadius and boxShadow tokens', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({}),
+    });
+
+    const queryClient = createTestQueryClient();
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <ThemeWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector('#dimension-border-radius')).toBeTruthy();
+      expect(container.querySelector('#dimension-box-shadow')).toBeTruthy();
+    });
+
+    const borderRadiusInput = container.querySelector('#dimension-border-radius') as HTMLInputElement;
+    const boxShadowInput = container.querySelector('#dimension-box-shadow') as HTMLInputElement;
+
+    expect(borderRadiusInput.value).toBe('8px');
+    expect(boxShadowInput.value).toBe('0 4px 6px rgba(0, 0, 0, 0.1)');
+
+    fireEvent.change(borderRadiusInput, { target: { value: '16px' } });
+    fireEvent.change(boxShadowInput, { target: { value: '0 8px 16px rgba(0,0,0,0.2)' } });
+
+    expect(borderRadiusInput.value).toBe('16px');
+    expect(boxShadowInput.value).toBe('0 8px 16px rgba(0,0,0,0.2)');
   });
 });
 

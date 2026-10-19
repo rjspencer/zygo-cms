@@ -16,7 +16,7 @@ export const LayoutDimensionsPanel: React.FC<LayoutDimensionsPanelProps> = ({
       <Heading size="3" mb="2">
         Layout & Sizing Tokens
       </Heading>
-      <Grid columns="3" gap="3">
+      <Grid columns="3" gap="3" mb="3">
         <Box>
           <Text
             as="label"
@@ -70,6 +70,48 @@ export const LayoutDimensionsPanel: React.FC<LayoutDimensionsPanelProps> = ({
             placeholder="1.75"
             onChange={(e) =>
               setTokens((prev) => ({ ...prev, lineHeightBody: e.target.value }))
+            }
+          />
+        </Box>
+      </Grid>
+      <Grid columns="2" gap="3">
+        <Box>
+          <Text
+            as="label"
+            htmlFor="dimension-border-radius"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
+            Border Radius (<code>--border-radius</code>)
+          </Text>
+          <TextField.Root
+            id="dimension-border-radius"
+            value={tokens.borderRadius}
+            placeholder="8px"
+            onChange={(e) =>
+              setTokens((prev) => ({ ...prev, borderRadius: e.target.value }))
+            }
+          />
+        </Box>
+        <Box>
+          <Text
+            as="label"
+            htmlFor="dimension-box-shadow"
+            size="2"
+            weight="bold"
+            mb="1"
+            style={{ display: 'block' }}
+          >
+            Box Shadow (<code>--box-shadow</code>)
+          </Text>
+          <TextField.Root
+            id="dimension-box-shadow"
+            value={tokens.boxShadow}
+            placeholder="0 4px 6px rgba(0, 0, 0, 0.1)"
+            onChange={(e) =>
+              setTokens((prev) => ({ ...prev, boxShadow: e.target.value }))
             }
           />
         </Box>
