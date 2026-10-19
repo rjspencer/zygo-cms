@@ -61,4 +61,31 @@ describe('TemplatePreviewPane', () => {
     const srcDoc = iframe.getAttribute('srcdoc') || '';
     expect(srcDoc).toContain('Waiting for template render...');
   });
+
+  it('injects active theme fontUrl and themeCss into preview iframe', () => {
+    const customThemeCss = ':root { --color-accent: #ffdf00; --border-radius: 2px; }';
+    const customFontUrl = 'https://fonts.googleapis.com/css2?family=Space+Grotesk&display=swap';
+
+    render(
+      <Theme>
+        <TemplatePreviewPane
+          formId="hero_section"
+          previewHtml="<div>Bento Preview</div>"
+          formTemplateCss=""
+          debouncedWasmHtml="<div>Bento Preview</div>"
+          formTemplateHtml="<div>Bento Preview</div>"
+          isStatusCompiling={false}
+          renderCount={1}
+          themeCss={customThemeCss}
+          fontUrl={customFontUrl}
+        />
+      </Theme>
+    );
+
+    const iframe = screen.getByTitle('Wasm Preview') as HTMLIFrameElement;
+    const srcDoc = iframe.getAttribute('srcdoc') || '';
+    expect(srcDoc).toContain(customFontUrl);
+    expect(srcDoc).toContain('id="zygo-theme-tokens"');
+    expect(srcDoc).toContain(customThemeCss);
+  });
 });

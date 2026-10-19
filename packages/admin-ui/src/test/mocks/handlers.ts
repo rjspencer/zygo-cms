@@ -157,6 +157,13 @@ export const handlers = [
     return new HttpResponse('OK', { status: 200 });
   }),
 
+  // Google Fonts stylesheet mock
+  http.get('https://fonts.googleapis.com/*', () => {
+    return new HttpResponse('/* mock google fonts css */', {
+      headers: { 'Content-Type': 'text/css' },
+    });
+  }),
+
   // Dashboard metrics
   http.get('*/api/admin/dashboard', () => {
     return HttpResponse.json(mockDashboardMetrics);
@@ -241,5 +248,16 @@ export const handlers = [
         }
       }
     });
+  }),
+
+  // Settings
+  http.get('*/api/settings', () => {
+    return HttpResponse.json({
+      site_title: 'Zygo CMS',
+      theme_active_name: 'Modern Editorial',
+    });
+  }),
+  http.post('*/api/settings', () => {
+    return HttpResponse.json({ success: true });
   }),
 ];

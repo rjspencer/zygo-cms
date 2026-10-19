@@ -49,6 +49,8 @@ export interface TemplatePreviewPaneProps {
   formTemplateHtml: string;
   isStatusCompiling: boolean;
   renderCount: number;
+  themeCss?: string;
+  fontUrl?: string;
 }
 
 export interface ConflictDialogProps {

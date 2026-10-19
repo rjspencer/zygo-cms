@@ -45,4 +45,26 @@ describe('LivePreviewPane', () => {
     const srcDoc = iframe.getAttribute('srcdoc') || '';
     expect(srcDoc).toContain('Waiting for preview render...');
   });
+
+  it('injects active theme fontUrl and themeCss into live preview iframe', () => {
+    const customThemeCss = ':root { --color-accent: #ffdf00; --border-radius: 2px; }';
+    const customFontUrl = 'https://fonts.googleapis.com/css2?family=Space+Grotesk&display=swap';
+
+    render(
+      <Theme>
+        <LivePreviewPane
+          previewHtml="<article>Post Preview</article>"
+          previewCss=""
+          themeCss={customThemeCss}
+          fontUrl={customFontUrl}
+        />
+      </Theme>
+    );
+
+    const iframe = screen.getByTitle('Wasm Preview') as HTMLIFrameElement;
+    const srcDoc = iframe.getAttribute('srcdoc') || '';
+    expect(srcDoc).toContain(customFontUrl);
+    expect(srcDoc).toContain('id="zygo-theme-tokens"');
+    expect(srcDoc).toContain(customThemeCss);
+  });
 });
