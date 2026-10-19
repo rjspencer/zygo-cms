@@ -357,4 +357,32 @@ describe('Settings component', () => {
     const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
   });
+
+  it('renders footer dynamic year preview when {{ year }} template tag is entered', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Branded Site',
+        canonical_origin: 'https://branded.example.com',
+        description: 'Branded Description',
+        footer_text: 'Copyright {{ year }} Zygo CMS',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    const currentYear = String(new Date().getFullYear());
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Copyright {{ year }} Zygo CMS')).toBeTruthy();
+      expect(screen.getByTestId('settings-footer-text-preview')).toBeTruthy();
+      expect(screen.getByTestId('settings-footer-text-preview').textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
+    });
+  });
 });

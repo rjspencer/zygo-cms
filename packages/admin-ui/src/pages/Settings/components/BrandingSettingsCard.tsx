@@ -12,6 +12,7 @@ export const BrandingSettingsCard: React.FC = () => {
   const siteLogo = watch('siteLogo');
   const siteFavicon = watch('siteFavicon');
   const defaultOgImage = watch('defaultOgImage');
+  const footerText = watch('footerText');
 
   const handleMediaSelect = (url: string) => {
     if (pickerTarget === 'logo') {
@@ -233,11 +234,22 @@ export const BrandingSettingsCard: React.FC = () => {
             data-testid="settings-footer-text-input"
             aria-describedby="settings-footer-text-description"
             {...register('footerText')}
-            placeholder="e.g. © 2026 My Site. All rights reserved."
+            placeholder="e.g. © {{ year }} My Site. All rights reserved."
           />
           <Text id="settings-footer-text-description" size="1" color="gray" mt="1" style={{ display: 'block' }}>
-            Custom copyright or disclaimer text rendered at the bottom of public pages.
+            Custom copyright or disclaimer text rendered at the bottom of public pages. Supports {'{{ year }}'} for dynamic current year.
           </Text>
+          {footerText && /\{\{\s*(year|current_year)\s*\}\}/i.test(footerText) && (
+            <Text
+              data-testid="settings-footer-text-preview"
+              size="1"
+              color="gray"
+              mt="1"
+              style={{ fontStyle: 'italic', display: 'block' }}
+            >
+              Preview: {footerText.replace(/\{\{\s*(year|current_year)\s*\}\}/gi, String(new Date().getFullYear()))}
+            </Text>
+          )}
         </Box>
       </Card>
 
