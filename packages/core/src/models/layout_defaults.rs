@@ -8,6 +8,14 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +33,7 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -61,6 +69,9 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -149,6 +160,14 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,7 +185,7 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -220,6 +239,9 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -234,6 +256,14 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -251,7 +281,7 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -311,6 +341,9 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
     <script>
         document.addEventListener('DOMContentLoaded', () => {

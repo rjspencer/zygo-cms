@@ -62,6 +62,51 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       expect(result.content[0].text).toContain('Failed to fetch theme settings');
     });
 
+    it('get_settings and update_settings handle branding settings properly', async () => {
+      server.use(
+        http.get('*/api/settings', () => {
+          return HttpResponse.json({
+            site_title: 'Branded Site',
+            site_logo: 'https://example.com/logo.png',
+            site_favicon: 'https://example.com/favicon.ico',
+            default_og_image: 'https://example.com/og.png',
+            footer_text: '© 2026 Branded Site',
+          });
+        })
+      );
+
+      const getResult = await registry.callTool('get_settings');
+      expect(getResult.isError).toBeFalsy();
+      expect(getResult.toolResult).toMatchObject({
+        site_title: 'Branded Site',
+        site_logo: 'https://example.com/logo.png',
+        site_favicon: 'https://example.com/favicon.ico',
+        default_og_image: 'https://example.com/og.png',
+        footer_text: '© 2026 Branded Site',
+      });
+
+      let receivedPayload: any = null;
+      vi.spyOn(apiModule, 'apiFetch').mockImplementation(async (_path, options) => {
+        receivedPayload = JSON.parse(String(options?.body || '{}'));
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      });
+
+      const updateResult = await registry.callTool('update_settings', {
+        settings: {
+          site_logo: 'https://example.com/new-logo.png',
+          footer_text: '© 2027 Updated Site',
+        },
+      });
+
+      expect(updateResult.isError).toBeFalsy();
+      expect(receivedPayload).toEqual({
+        settings: {
+          site_logo: 'https://example.com/new-logo.png',
+          footer_text: '© 2027 Updated Site',
+        },
+      });
+    });
+
     it('update_theme_settings previews changes in dry_run mode without calling API', async () => {
       let apiCalled = false;
       server.use(

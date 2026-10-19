@@ -6,6 +6,7 @@ import { UnsavedChangesDialog } from '../../components/UnsavedChangesDialog';
 import {
   SettingsHeader,
   GeneralSettingsCard,
+  BrandingSettingsCard,
   AnalyticsSettingsCard,
   DocsSettingsCard,
   EdgeEnvironmentCard,
@@ -53,6 +54,7 @@ export const Settings: React.FC<SettingsProps> = () => {
 
         <Flex direction="column" gap="4">
           <GeneralSettingsCard />
+          <BrandingSettingsCard />
           <AnalyticsSettingsCard />
           <DocsSettingsCard />
           <EdgeEnvironmentCard />

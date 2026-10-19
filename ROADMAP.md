@@ -15,13 +15,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Support `?size=thumb|md` in the media streaming handlers with automatic fallback to the base key for legacy or non-raster assets.
   - Add a `media_srcset` MiniJinja filter and update built-in section and layout templates with `srcset`, `sizes`, `loading="lazy"`, `decoding="async"`, and `fetchpriority="high"` (for Hero/Cover LCP images).
 
-### Site Branding, Favicon, Default OG Image & Footer Settings
-- **Goal**: Allow administrators to configure their site logo, favicon, default social share image (`og:image`), and footer copyright text directly from the Admin UI without editing template code.
-- **Spec**: [`docs/specs/site_branding_settings_spec.md`](docs/specs/site_branding_settings_spec.md)
-- **Details**:
-  - Add `site_logo`, `site_favicon`, `default_og_image`, and `footer_text` controls (with Media Picker integration) to the Admin UI Settings page.
-  - Inject these values into the MiniJinja context across `public-worker` and `template-wasm`, updating default layouts to render `<link rel="icon">`, header logo image, fallback `og:image`/`twitter:image`, and footer text.
-
 ### Zero-Trust Auth Hardening (`workers_dev = false` & RS256 JWT Signature Verification)
 - **Goal**: Prevent direct `.workers.dev` access from bypassing Cloudflare Access and cryptographically verify `Cf-Access-Jwt-Assertion` RS256 signatures in `admin-api-worker`.
 - **Spec**: [`docs/specs/auth_jwt_signature_verification_spec.md`](docs/specs/auth_jwt_signature_verification_spec.md)

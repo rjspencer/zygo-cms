@@ -57,6 +57,28 @@ export const Default: Story = {
         analytics_enabled: 'false',
         docs_mode_enabled: 'false',
         docs_path: '/docs',
+        site_logo: '',
+        site_favicon: '',
+        default_og_image: '',
+        footer_text: '',
+      }),
+  ],
+};
+
+export const WithBrandingConfigured: Story = {
+  decorators: [
+    (Story) =>
+      renderWithRouter(<Story />, {
+        site_title: 'My Awesome Zygo Site',
+        canonical_origin: 'https://example.com',
+        description: 'A blazing-fast edge CMS built with Cloudflare and Rust.',
+        analytics_enabled: 'false',
+        docs_mode_enabled: 'false',
+        docs_path: '/docs',
+        site_logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=120&auto=format&fit=crop&q=80',
+        site_favicon: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=32&auto=format&fit=crop&q=80',
+        default_og_image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80',
+        footer_text: '© 2026 Zygo CMS. All rights reserved.',
       }),
   ],
 };

@@ -10,6 +10,10 @@ export const DEFAULT_SETTINGS_VALUES: SettingsFormValues = {
   analyticsEnabled: false,
   docsModeEnabled: false,
   docsPath: '/docs',
+  siteLogo: '',
+  siteFavicon: '',
+  defaultOgImage: '',
+  footerText: '',
 };
 
 export function useSettingsForm(
@@ -34,6 +38,10 @@ export function useSettingsForm(
         analyticsEnabled: settingsData.analytics_enabled === 'true',
         docsModeEnabled: settingsData.docs_mode_enabled === 'true',
         docsPath: settingsData.docs_path || '/docs',
+        siteLogo: (settingsData.site_logo as string) || '',
+        siteFavicon: (settingsData.site_favicon as string) || '',
+        defaultOgImage: (settingsData.default_og_image as string) || '',
+        footerText: (settingsData.footer_text as string) || '',
       });
     }
   }, [settingsData, methods]);
@@ -59,6 +67,10 @@ export function useSettingsForm(
         analytics_enabled: values.analyticsEnabled ? 'true' : 'false',
         docs_mode_enabled: values.docsModeEnabled ? 'true' : 'false',
         docs_path: values.docsPath,
+        site_logo: values.siteLogo,
+        site_favicon: values.siteFavicon,
+        default_og_image: values.defaultOgImage,
+        footer_text: values.footerText,
       });
 
       invalidate();

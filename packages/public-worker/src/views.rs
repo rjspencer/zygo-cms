@@ -11,6 +11,14 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
     <link rel="canonical" href="{{ canonical_url|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -25,7 +33,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -70,6 +78,9 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -82,6 +93,14 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,7 +118,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -135,6 +154,9 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -147,6 +169,14 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,7 +194,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -218,6 +248,9 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -228,6 +261,14 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search &mdash; {{ site_title }}</title>
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -242,7 +283,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -278,6 +319,9 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>"##;
@@ -327,6 +371,14 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
+    {% if site_favicon %}
+    <link rel="icon" href="{{ site_favicon|safe }}">
+    {% endif %}
+    {% if og_image %}
+    <meta property="og:image" content="{{ og_image|safe }}">
+    <meta name="twitter:image" content="{{ og_image|safe }}">
+    <meta name="twitter:card" content="summary_large_image">
+    {% endif %}
     {% if theme_font_url %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -344,7 +396,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -404,6 +456,9 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -634,6 +689,78 @@ pub fn generate_theme_root_css(
     )
 }
 
+fn resolve_absolute_url(origin: &str, url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        trimmed.to_string()
+    } else if trimmed.starts_with('/') {
+        format!("{}{}", origin.trim_end_matches('/'), trimmed)
+    } else {
+        format!("{}/{}", origin.trim_end_matches('/'), trimmed)
+    }
+}
+
+pub fn civil_year_from_days(days: i64) -> i32 {
+    let z = days + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = (z - era * 146097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let mut y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    if m <= 2 {
+        y += 1;
+    }
+    y as i32
+}
+
+pub fn year_from_epoch_millis(millis: u64) -> i32 {
+    let days = (millis / 86_400_000) as i64;
+    civil_year_from_days(days)
+}
+
+pub fn get_current_year() -> i32 {
+    #[cfg(target_arch = "wasm32")]
+    let millis = worker::Date::now().as_millis();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let millis = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    year_from_epoch_millis(millis)
+}
+
+pub fn interpolate_footer_year(text: &str, year: i32) -> String {
+    let year_str = year.to_string();
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+
+    while let Some(start) = rest.find("{{") {
+        result.push_str(&rest[..start]);
+        let after_start = &rest[start + 2..];
+        if let Some(end) = after_start.find("}}") {
+            let tag = after_start[..end].trim();
+            if tag.eq_ignore_ascii_case("year") || tag.eq_ignore_ascii_case("current_year") {
+                result.push_str(&year_str);
+            } else {
+                result.push_str("{{");
+                result.push_str(&after_start[..end]);
+                result.push_str("}}");
+            }
+            rest = &after_start[end + 2..];
+        } else {
+            result.push_str("{{");
+            rest = after_start;
+            break;
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
 pub fn inject_theme_context(
     ctx: &mut serde_json::Map<String, serde_json::Value>,
     settings: Option<&std::collections::HashMap<String, String>>,
@@ -663,6 +790,16 @@ pub fn inject_theme_context(
         .filter(|v| !v.trim().is_empty())
         .unwrap_or(&default_hash);
 
+    let current_year = get_current_year();
+    ctx.insert(
+        "year".to_string(),
+        serde_json::Value::Number(current_year.into()),
+    );
+    ctx.insert(
+        "current_year".to_string(),
+        serde_json::Value::Number(current_year.into()),
+    );
+
     if !tokens.font_url.trim().is_empty() {
         ctx.insert(
             "theme_font_url".to_string(),
@@ -691,6 +828,69 @@ pub fn inject_theme_context(
         "header_layout".to_string(),
         serde_json::Value::String(tokens.header_layout),
     );
+
+    let site_logo = settings
+        .and_then(|s| s.get("site_logo").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(logo) = site_logo {
+        ctx.insert(
+            "site_logo".to_string(),
+            serde_json::Value::String(logo.to_string()),
+        );
+    }
+
+    let site_favicon = settings
+        .and_then(|s| s.get("site_favicon").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(fav) = site_favicon {
+        ctx.insert(
+            "site_favicon".to_string(),
+            serde_json::Value::String(fav.to_string()),
+        );
+    }
+
+    let default_og_image = settings
+        .and_then(|s| s.get("default_og_image").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(og) = default_og_image {
+        ctx.insert(
+            "default_og_image".to_string(),
+            serde_json::Value::String(og.to_string()),
+        );
+    }
+
+    let footer_text = settings
+        .and_then(|s| s.get("footer_text").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(ft) = footer_text {
+        let interpolated = interpolate_footer_year(ft, current_year);
+        ctx.insert(
+            "footer_text".to_string(),
+            serde_json::Value::String(interpolated),
+        );
+    }
+
+    if !ctx.contains_key("og_image") {
+        let entry_cover = ctx
+            .get("entry")
+            .or_else(|| ctx.get("post"))
+            .or_else(|| ctx.get("page"))
+            .or_else(|| ctx.get("doc"))
+            .and_then(|e| e.get("cover_image"))
+            .and_then(|c| c.as_str())
+            .filter(|c| !c.trim().is_empty());
+
+        let raw_og = entry_cover.or(default_og_image);
+        if let Some(raw_img) = raw_og {
+            let origin = ctx.get("origin").and_then(|o| o.as_str()).unwrap_or("");
+            let resolved = if !origin.is_empty() {
+                resolve_absolute_url(origin, raw_img)
+            } else {
+                raw_img.to_string()
+            };
+            ctx.insert("og_image".to_string(), serde_json::Value::String(resolved));
+        }
+    }
 }
 
 pub fn render_doc(
@@ -2194,4 +2394,124 @@ mod tests {
         assert!(bento_html.contains("Hero Title"));
         assert!(bento_html.contains("Video Title"));
     }
+
+    #[test]
+    fn test_site_branding_and_og_rendering() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "My Tech Blog".to_string());
+        settings.insert("site_logo".to_string(), "https://example.com/logo.png".to_string());
+        settings.insert("site_favicon".to_string(), "/favicon.ico".to_string());
+        settings.insert("default_og_image".to_string(), "/default-og.png".to_string());
+        settings.insert("footer_text".to_string(), "© 2026 My Tech Blog. All rights reserved.".to_string());
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        // Check favicon link
+        assert!(html.contains(r#"<link rel="icon" href="/favicon.ico">"#));
+
+        // Check logo in branding
+        assert!(html.contains(r#"<img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo">"#));
+
+        // Check default og:image resolved against origin
+        assert!(html.contains(r#"<meta property="og:image" content="https://example.com/default-og.png">"#));
+        assert!(html.contains(r#"<meta name="twitter:image" content="https://example.com/default-og.png">"#));
+
+        // Check footer text
+        assert!(html.contains(r#"<div class="footer-text">© 2026 My Tech Blog. All rights reserved.</div>"#));
+
+        // When entry has its own cover image, it takes precedence
+        let mut page_with_cover = dummy_page();
+        page_with_cover.cover_image = Some("/custom-cover.jpg".to_string());
+        let html_cover = render_page(
+            &[],
+            &page_with_cover,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        assert!(html_cover.contains(r#"<meta property="og:image" content="https://example.com/custom-cover.jpg">"#));
+        assert!(html_cover.contains(r#"<meta name="twitter:image" content="https://example.com/custom-cover.jpg">"#));
+    }
+
+    #[test]
+    fn test_footer_year_interpolation() {
+        assert_eq!(civil_year_from_days(0), 1970);
+        assert_eq!(civil_year_from_days(365), 1971);
+        assert_eq!(civil_year_from_days(10957), 2000);
+        assert_eq!(civil_year_from_days(20454), 2026);
+
+        let current_year = get_current_year();
+        assert!(current_year >= 2026);
+
+        // Test interpolate_footer_year variations
+        assert_eq!(
+            interpolate_footer_year("Copyright {{ year }} Zygo CMS", 2026),
+            "Copyright 2026 Zygo CMS"
+        );
+        assert_eq!(
+            interpolate_footer_year("© {{year}} - All rights reserved", 2026),
+            "© 2026 - All rights reserved"
+        );
+        assert_eq!(
+            interpolate_footer_year("© {{ current_year }}", 2026),
+            "© 2026"
+        );
+        assert_eq!(
+            interpolate_footer_year("© {{current_year}}", 2026),
+            "© 2026"
+        );
+        assert_eq!(
+            interpolate_footer_year("© {{ Year }} {{YEAR}}", 2026),
+            "© 2026 2026"
+        );
+        assert_eq!(
+            interpolate_footer_year("Static footer text without year", 2026),
+            "Static footer text without year"
+        );
+        // Preserves unrelated tags
+        assert_eq!(
+            interpolate_footer_year("{{ other_tag }} © {{ year }}", 2026),
+            "{{ other_tag }} © 2026"
+        );
+
+        // Test full rendering through render_page
+        let mut settings = std::collections::HashMap::new();
+        settings.insert(
+            "footer_text".to_string(),
+            "Copyright {{ year }} Zygo CMS".to_string(),
+        );
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        let expected_footer = format!(r#"<div class="footer-text">Copyright {} Zygo CMS</div>"#, current_year);
+        assert!(html.contains(&expected_footer));
+    }
 }
+

@@ -137,6 +137,10 @@ describe('Settings component', () => {
             analytics_enabled: 'false',
             docs_mode_enabled: 'false',
             docs_path: '/docs',
+            site_logo: '',
+            site_favicon: '',
+            default_og_image: '',
+            footer_text: '',
           },
         }),
       });
@@ -281,5 +285,104 @@ describe('Settings component', () => {
     const docsPathDesc = document.getElementById('settings-docs-path-description');
     expect(docsPathDesc).toBeDefined();
     expect(docsPathDesc?.textContent).toContain('The path where the documentation will be served');
+
+    // Site Logo
+    const siteLogoInput = screen.getByLabelText('Site Logo');
+    expect(siteLogoInput).toBeDefined();
+    expect(siteLogoInput.getAttribute('id')).toBe('settings-site-logo-input');
+    expect(siteLogoInput.getAttribute('aria-describedby')).toBe('settings-site-logo-description');
+
+    // Favicon
+    const faviconInput = screen.getByLabelText('Favicon');
+    expect(faviconInput).toBeDefined();
+    expect(faviconInput.getAttribute('id')).toBe('settings-site-favicon-input');
+    expect(faviconInput.getAttribute('aria-describedby')).toBe('settings-site-favicon-description');
+
+    // Default OG Image
+    const ogInput = screen.getByLabelText('Default Social Share Image (Open Graph)');
+    expect(ogInput).toBeDefined();
+    expect(ogInput.getAttribute('id')).toBe('settings-default-og-image-input');
+    expect(ogInput.getAttribute('aria-describedby')).toBe('settings-default-og-image-description');
+
+    // Footer Text
+    const footerInput = screen.getByLabelText('Footer Text');
+    expect(footerInput).toBeDefined();
+    expect(footerInput.getAttribute('id')).toBe('settings-footer-text-input');
+    expect(footerInput.getAttribute('aria-describedby')).toBe('settings-footer-text-description');
+  });
+
+  it('renders branding settings, displays previews, and clears on button click', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Branded Site',
+        canonical_origin: 'https://branded.example.com',
+        description: 'Branded Description',
+        site_logo: 'https://example.com/logo.png',
+        site_favicon: 'https://example.com/favicon.ico',
+        default_og_image: 'https://example.com/og.png',
+        footer_text: '© 2026 Branded Site',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('https://example.com/logo.png')).toBeTruthy();
+      expect(screen.getByDisplayValue('https://example.com/favicon.ico')).toBeTruthy();
+      expect(screen.getByDisplayValue('https://example.com/og.png')).toBeTruthy();
+      expect(screen.getByDisplayValue('© 2026 Branded Site')).toBeTruthy();
+    });
+
+    // Check previews are rendered
+    expect(screen.getByTestId('settings-logo-preview')).toBeTruthy();
+    expect(screen.getByTestId('settings-favicon-preview')).toBeTruthy();
+    expect(screen.getByTestId('settings-default-og-preview')).toBeTruthy();
+
+    // Click clear logo button
+    const clearLogoBtn = screen.getByTestId('settings-clear-logo-button');
+    await userEvent.click(clearLogoBtn);
+
+    const logoInput = screen.getByTestId('settings-site-logo-input') as HTMLInputElement;
+    expect(logoInput.value).toBe('');
+
+    // Save button should now be enabled
+    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+  });
+
+  it('renders footer dynamic year preview when {{ year }} template tag is entered', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Branded Site',
+        canonical_origin: 'https://branded.example.com',
+        description: 'Branded Description',
+        footer_text: 'Copyright {{ year }} Zygo CMS',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    const currentYear = String(new Date().getFullYear());
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Copyright {{ year }} Zygo CMS')).toBeTruthy();
+      expect(screen.getByTestId('settings-footer-text-preview')).toBeTruthy();
+      expect(screen.getByTestId('settings-footer-text-preview').textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
+    });
   });
 });
