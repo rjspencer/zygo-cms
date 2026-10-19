@@ -32,13 +32,16 @@ For **ANY** visual UI component changes in `packages/admin-ui`, strictly adhere 
 3. **Handoff**: Invoke a strict `ui-qa` Subagent. (If `ui-qa` is not pre-registered in the environment, define it via `define_subagent` or invoke `self` with an explicit UI QA prompt and browser inspection tools). Provide it with the local Storybook URL (e.g. `http://localhost:6006/?path=/story/...`).
 4. **Vision Validation**: The `ui-qa` Subagent MUST inspect the rendered component via browser tooling/screenshots, interact with states (hover, open dialogs, focus), and verify absence of visual regressions (e.g., clipped dropdowns, z-index collisions, overflowing text). The commit is blocked until approved.
 
-### WebMCP & Human-Agent Parity Gate (Mandatory for Admin UI)
-For any feature added or changed in `packages/admin-ui`:
-1. **Tool Parity Check**: Ask: "Can an AI agent perform this action via WebMCP?"
-   - If adding a new page, register route navigation and inspection tools.
-   - If adding an editor (text, template, theme, menu), register `useRegisterWebMCPTools` with corresponding getters, setters, and action hooks.
-2. **Schema & Typings**: Every new tool must define strict input JSON schemas and descriptive error messages.
-3. **Integration Test**: Include at least one Vitest integration test validating that the new feature can be queried and mutated via the WebMCP registry.
+### MCP & WebMCP Human-Agent Parity Gate (Mandatory)
+For any feature or API added or changed across `packages/admin-ui` or `packages/admin-api-worker`:
+1. **Dual MCP Tool Parity Check**: Ask: "Can an AI agent perform this action via **both** in-browser WebMCP (`packages/admin-ui/src/lib/webmcp/`) and the backend CLI MCP bridge (`packages/zygo-mcp/`)?"
+   - **In-Browser WebMCP (`packages/admin-ui`)**:
+     - If adding a new page, register route navigation and inspection tools.
+     - If adding an editor (text, template, theme, menu), register `useRegisterWebMCPTools` with corresponding getters, setters, and action hooks.
+   - **Backend CLI MCP (`packages/zygo-mcp`)**:
+     - If adding or modifying backend REST API endpoints, content models, or global CMS actions, update `packages/zygo-mcp/index.mjs` so headless/CLI agents stay in parity with WebMCP.
+2. **Schema & Typings**: Every new tool in both `webmcp` and `zygo-mcp` must define strict input JSON schemas and descriptive error messages.
+3. **Integration Test**: Include Vitest tests validating that the new feature can be queried and mutated via the WebMCP registry and `zygo-mcp`.
 4. **Subagent Handoff**: Every feature PR must pass Code Review and UI QA (if visual) before merge.
 
 ---
