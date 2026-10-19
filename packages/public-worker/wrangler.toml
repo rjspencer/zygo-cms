@@ -1,6 +1,7 @@
 name = "public-worker"
 main = "build/index.js"
 compatibility_date = "2024-09-01"
+workers_dev = false
 
 routes = [
   { pattern = "zygodactylstudios.com", custom_domain = true },

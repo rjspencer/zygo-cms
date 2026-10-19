@@ -1,6 +1,7 @@
 name = "admin-api-worker"
 main = "build/index.js"
 compatibility_date = "2024-09-01"
+workers_dev = false
 
 routes = [
   { pattern = "api.zygodactylstudios.com", custom_domain = true }
@@ -20,6 +21,8 @@ bucket_name = "zygo-cms-media"
 ENVIRONMENT = "production"
 EDGE_TTL_SECONDS = "86400"
 PUBLIC_SUBDOMAIN = "www"
+CF_ACCESS_AUD = ""
+CF_ACCESS_TEAM_DOMAIN = ""
 
 [triggers]
 crons = ["0 0 * * SUN", "0 * * * *"]
