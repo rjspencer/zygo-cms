@@ -68,6 +68,8 @@ describe('zygo-mcp CLI server', () => {
         const toolNames = response.result.tools.map((t) => t.name);
         expect(toolNames).toContain('zygo_get_settings');
         expect(toolNames).toContain('zygo_update_settings');
+        expect(toolNames).toContain('zygo_get_ai_crawl_settings');
+        expect(toolNames).toContain('zygo_update_ai_crawl_settings');
         expect(toolNames).toContain('zygo_list_posts');
         expect(toolNames).toContain('zygo_read_post');
         expect(toolNames).toContain('zygo_upsert_post');
@@ -77,6 +79,9 @@ describe('zygo-mcp CLI server', () => {
 
         const updateSettingsTool = response.result.tools.find((t) => t.name === 'zygo_update_settings');
         expect(updateSettingsTool.inputSchema.properties.settings).toBeDefined();
+
+        const updateAiCrawlTool = response.result.tools.find((t) => t.name === 'zygo_update_ai_crawl_settings');
+        expect(updateAiCrawlTool.inputSchema.properties.ai_bots_protection).toBeDefined();
 
         child.kill();
     });

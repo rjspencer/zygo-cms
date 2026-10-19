@@ -103,6 +103,24 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
+                name: "zygo_get_ai_crawl_settings",
+                description: "Get Cloudflare AI Crawl Control edge settings (ai_bots_protection, ai_search, ai_training, ai_user).",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "zygo_update_ai_crawl_settings",
+                description: "Update Cloudflare AI Crawl Control edge settings (ai_bots_protection, ai_search, ai_training, ai_user).",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        ai_bots_protection: { type: "string", enum: ["block", "disabled"] },
+                        ai_search: { type: "string", enum: ["block", "disabled"] },
+                        ai_training: { type: "string", enum: ["block", "disallow", "disabled"] },
+                        ai_user: { type: "string", enum: ["block", "disabled"] }
+                    }
+                }
+            },
+            {
                 name: "zygo_list_redirects",
                 description: "List all 301 and 302 redirects in Zygo CMS.",
                 inputSchema: { type: "object", properties: {} }
@@ -206,6 +224,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 method: "POST",
                 headers: getHeaders(),
                 body: JSON.stringify({ settings: settings || {} })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_get_ai_crawl_settings") {
+            const res = await fetch(getApiUrl('/cloudflare/ai-crawl'), { headers: getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_update_ai_crawl_settings") {
+            const args = request.params.arguments || {};
+            const res = await fetch(getApiUrl('/cloudflare/ai-crawl'), {
+                method: "PUT",
+                headers: getHeaders(),
+                body: JSON.stringify(args)
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             const data = await res.json();
