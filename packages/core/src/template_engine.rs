@@ -6,6 +6,10 @@ pub fn configure_env(env: &mut Environment) {
     env.add_filter("video_embed", |v: minijinja::Value| -> String {
         video_embed_filter(v.as_str().unwrap_or_default())
     });
+
+    env.add_filter("media_srcset", |v: minijinja::Value| -> String {
+        media_srcset_filter(v.as_str().unwrap_or_default())
+    });
 }
 
 pub fn video_embed_filter(url: &str) -> String {
@@ -93,4 +97,60 @@ pub fn extract_vimeo_id(url: &str) -> Option<&str> {
     }
 
     None
+}
+
+/// Generate responsive srcset string for local WebP images.
+/// Expects a URL like `/media/{key}.webp` or `/api/media/{key}.webp`.
+/// Returns `"{url}?size=thumb 400w, {url}?size=md 1024w, {url} 2048w"`.
+/// Returns empty string for external URLs, non-webp images (SVG/GIF), or invalid strings.
+pub fn media_srcset_filter(url: &str) -> String {
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    // Strip query parameters and fragment to inspect path
+    let path = match trimmed.split_once('?') {
+        Some((p, _)) => p,
+        None => trimmed,
+    };
+    let path = match path.split_once('#') {
+        Some((p, _)) => p,
+        None => path,
+    };
+
+    // Check if it is a local media path and ends with .webp
+    let is_local_media = path.starts_with("/media/") || path.starts_with("/api/media/");
+    let is_webp = path.to_ascii_lowercase().ends_with(".webp");
+
+    if is_local_media && is_webp {
+        format!("{path}?size=thumb 400w, {path}?size=md 1024w, {path} 2048w")
+    } else {
+        String::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_media_srcset_filter_valid() {
+        assert_eq!(
+            media_srcset_filter("/media/1726700000000-photo.webp"),
+            "/media/1726700000000-photo.webp?size=thumb 400w, /media/1726700000000-photo.webp?size=md 1024w, /media/1726700000000-photo.webp 2048w"
+        );
+        assert_eq!(
+            media_srcset_filter("/api/media/1726700000000-photo.webp?v=1"),
+            "/api/media/1726700000000-photo.webp?size=thumb 400w, /api/media/1726700000000-photo.webp?size=md 1024w, /api/media/1726700000000-photo.webp 2048w"
+        );
+    }
+
+    #[test]
+    fn test_media_srcset_filter_invalid_or_non_webp() {
+        assert_eq!(media_srcset_filter(""), "");
+        assert_eq!(media_srcset_filter("/media/photo.png"), "");
+        assert_eq!(media_srcset_filter("/media/vector.svg"), "");
+        assert_eq!(media_srcset_filter("https://images.unsplash.com/photo.webp"), "");
+    }
 }
