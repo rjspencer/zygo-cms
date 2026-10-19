@@ -10,6 +10,7 @@ pub mod dashboard;
 pub mod theme;
 pub mod layout_template;
 pub mod layout_defaults;
+pub mod redirect;
 
 pub use section_template::*;
 pub use entry::*;
@@ -22,3 +23,4 @@ pub use dashboard::*;
 pub use theme::*;
 pub use layout_template::*;
 pub use layout_defaults::*;
+pub use redirect::*;

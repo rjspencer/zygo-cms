@@ -106,6 +106,12 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/entries/:id/links", handlers::trackable_links::list_links)
         .post_async("/api/entries/:id/links", handlers::trackable_links::create_link)
         .delete_async("/api/links/:id", handlers::trackable_links::delete_link)
+
+        // API routes - Redirects
+        .get_async("/api/redirects", handlers::redirects::list_redirects)
+        .post_async("/api/redirects", handlers::redirects::create_redirect)
+        .put_async("/api/redirects/:id", handlers::redirects::update_redirect)
+        .delete_async("/api/redirects/:id", handlers::redirects::delete_redirect)
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
         .get_async("/api/entries", handlers::api::get_entries)

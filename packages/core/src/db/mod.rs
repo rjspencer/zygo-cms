@@ -8,6 +8,7 @@ pub mod menu;
 pub mod search;
 pub mod setting;
 pub mod layout_template;
+pub mod redirect;
 
 pub use entry::*;
 pub use media::*;
