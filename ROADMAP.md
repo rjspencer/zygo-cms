@@ -58,15 +58,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Support the current `body_json` Page Sections array format alongside `body_html` for posts/docs.
   - Add CLI MCP tools for pages/sections, section & layout templates, navigation menus, media, settings, and bulk entry actions.
 
-### Custom 301/302 Redirects & Marketing URLs Manager (with QR Code Generator)
-- **Goal**: Enable users to manage 301/302 URL redirects for site migrations and create short vanity marketing URLs with 1-click QR code popups.
-- **Spec**: [`docs/specs/redirects_and_marketing_urls_spec.md`](docs/specs/redirects_and_marketing_urls_spec.md)
-- **Details**:
-  - Add **Redirects** as a top-level navigation item under **Content** in the Admin UI sidebar (`Layout.tsx`).
-  - Store `source_path`, `target_url`, `status_code` (`301` or `302`), `notes`, and `hit_count` in a `redirects` D1 table and resolve redirects at the edge in `public-worker`.
-  - Integrate the shared `QRCodeDialog` component on every redirect row so users can view, copy, and download PNG QR codes for marketing and print campaigns.
-  - Register CRUD tools across both in-browser WebMCP and `packages/zygo-mcp`.
-
 ### 1-Click Site Backup, Export & Import
 - **Goal**: Give site owners full data portability and 1-click backup/restore capabilities directly from the Admin UI Settings page.
 - **Spec**: [`docs/specs/site_backup_export_import_spec.md`](docs/specs/site_backup_export_import_spec.md)
