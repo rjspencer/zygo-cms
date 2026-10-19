@@ -20,8 +20,8 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
         style={{
           backgroundColor: `color-mix(in srgb, ${tokens.colorSurface} 88%, transparent)`,
           border: `1px solid ${tokens.colorBorder}`,
-          borderRadius: '8px',
-          boxShadow: `3px 3px 0px color-mix(in srgb, ${tokens.colorBorder} 18%, transparent)`,
+          borderRadius: tokens.borderRadius,
+          boxShadow: tokens.boxShadow,
           fontSize: '0.78rem',
         }}
       >
@@ -31,7 +31,7 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
           style={{
             backgroundColor: tokens.colorSurface,
             border: `1px solid ${tokens.colorBorder}`,
-            borderRadius: '4px',
+            borderRadius: tokens.borderRadius,
             color: tokens.colorTextMuted,
             fontSize: '0.72rem',
           }}
@@ -87,8 +87,8 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
         style={{
           backgroundColor: tokens.colorSurface,
           border: `1px solid ${tokens.colorBorder}`,
-          borderRadius: '8px',
-          boxShadow: `3px 3px 0px color-mix(in srgb, ${tokens.colorBorder} 18%, transparent)`,
+          borderRadius: tokens.borderRadius,
+          boxShadow: tokens.boxShadow,
         }}
       >
         <h2
@@ -111,7 +111,7 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
             backgroundColor: '#18181b',
             color: '#f4f4f5',
             padding: '0.6rem 0.75rem',
-            borderRadius: '6px',
+            borderRadius: tokens.borderRadius,
             fontSize: '0.72rem',
             fontFamily: 'ui-monospace, monospace',
             margin: '0 0 0.75rem 0',
@@ -125,10 +125,10 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
             style={{
               padding: '0.3rem 0.6rem',
               border: `1px solid ${tokens.colorBorder}`,
-              borderRadius: '5px',
+              borderRadius: tokens.borderRadius,
               fontSize: '0.72rem',
               fontWeight: 600,
-              boxShadow: `2px 2px 0px color-mix(in srgb, ${tokens.colorBorder} 22%, transparent)`,
+              boxShadow: tokens.boxShadow,
             }}
           >
             &larr; Getting Started
@@ -137,11 +137,11 @@ export const DocsPreview: React.FC<DocsPreviewProps> = ({ tokens }) => {
             style={{
               padding: '0.3rem 0.6rem',
               border: `1px solid ${tokens.colorBorder}`,
-              borderRadius: '5px',
+              borderRadius: tokens.borderRadius,
               fontSize: '0.72rem',
               fontWeight: 600,
               color: tokens.colorAccent,
-              boxShadow: `2px 2px 0px color-mix(in srgb, ${tokens.colorBorder} 22%, transparent)`,
+              boxShadow: tokens.boxShadow,
             }}
           >
             D1 Schema &rarr;

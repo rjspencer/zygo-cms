@@ -36,16 +36,16 @@ export const BENTO_BRUTALISM_PRESET: ThemeTokens = {
   colorSurface: '#ffffff',
   colorBorder: '#0f172a',
   maxWidth: '1920px',
-  fontSizeBase: '17px',
-  lineHeightBody: '1.7',
+  fontSizeBase: '16px',
+  lineHeightBody: '1.5',
   headerLayout: 'split',
   headerBorderStyle: 'solid',
   headerTitleSize: '1.5rem',
   headerNavTransform: 'uppercase',
   headerPadding: '1.25rem 2rem',
   headerTagline: 'Specs, Dispatches & Agentic Systems',
-  borderRadius: '0px',
-  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+  borderRadius: '2px',
+  boxShadow: '4px 6px 0 #0f172a',
 };
 
 export const BUILT_IN_THEMES: Record<string, ThemeTokens> = {

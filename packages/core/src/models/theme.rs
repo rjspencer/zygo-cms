@@ -70,16 +70,16 @@ impl ThemeTokens {
             color_surface: "#ffffff".to_string(),
             color_border: "#0f172a".to_string(),
             max_width: "1920px".to_string(),
-            font_size_base: "17px".to_string(),
-            line_height_body: "1.7".to_string(),
+            font_size_base: "16px".to_string(),
+            line_height_body: "1.5".to_string(),
             header_layout: "split".to_string(),
             header_border_style: "solid".to_string(),
             header_title_size: "1.5rem".to_string(),
             header_nav_transform: "uppercase".to_string(),
             header_padding: "1.25rem 2rem".to_string(),
             header_tagline: "Specs, Dispatches & Agentic Systems".to_string(),
-            border_radius: "0px".to_string(),
-            box_shadow: "0 4px 6px rgba(0, 0, 0, 0.1)".to_string(),
+            border_radius: "2px".to_string(),
+            box_shadow: "4px 6px 0 #0f172a".to_string(),
         }
     }
 
@@ -226,6 +226,10 @@ mod tests {
         assert_eq!(bento.color_accent, "#007799");
         assert_eq!(bento.header_layout, "split");
         assert_eq!(bento.font_headline, "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif");
+        assert_eq!(bento.font_size_base, "16px");
+        assert_eq!(bento.line_height_body, "1.5");
+        assert_eq!(bento.border_radius, "2px");
+        assert_eq!(bento.box_shadow, "4px 6px 0 #0f172a");
     }
 
     #[test]

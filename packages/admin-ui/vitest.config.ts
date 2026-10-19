@@ -19,6 +19,14 @@ export default defineConfig({
       test: {
         globals: true,
         environment: 'happy-dom',
+        environmentOptions: {
+          happyDOM: {
+            settings: {
+              disableCSSFileLoading: true,
+              disableIframePageLoading: true,
+            },
+          },
+        },
         setupFiles: ['./src/test/setup.ts']
       }
     }, {

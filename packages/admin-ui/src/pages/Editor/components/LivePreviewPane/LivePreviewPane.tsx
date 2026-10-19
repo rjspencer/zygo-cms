@@ -1,15 +1,27 @@
 import React from 'react';
 import { Box, Card, Text } from '@radix-ui/themes';
 import { getPublicSiteUrl } from '../../../../utils/api';
+import { useActiveTheme } from '../../../../hooks/useActiveTheme';
 
 interface LivePreviewPaneProps {
   previewHtml: string;
   previewCss: string;
+  themeCss?: string;
+  fontUrl?: string;
 }
 
-export const LivePreviewPane: React.FC<LivePreviewPaneProps> = ({ previewHtml, previewCss }) => {
+export const LivePreviewPane: React.FC<LivePreviewPaneProps> = ({
+  previewHtml,
+  previewCss,
+  themeCss: propThemeCss,
+  fontUrl: propFontUrl,
+}) => {
   const publicBaseUrl = getPublicSiteUrl();
   const publicCssUrl = getPublicSiteUrl('/style.css');
+  const activeTheme = useActiveTheme();
+
+  const themeCss = propThemeCss ?? activeTheme.themeCss;
+  const fontUrl = propFontUrl ?? activeTheme.fontUrl;
 
   return (
     <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
@@ -35,7 +47,9 @@ export const LivePreviewPane: React.FC<LivePreviewPaneProps> = ({ previewHtml, p
                       <meta charset="utf-8">
                       <meta name="viewport" content="width=device-width, initial-scale=1">
                       <base href="${publicBaseUrl}">
+                      ${fontUrl ? `<link rel="stylesheet" href="${fontUrl}">` : ''}
                       <link rel="stylesheet" href="${publicCssUrl}" />
+                      ${themeCss ? `<style id="zygo-theme-tokens">${themeCss}</style>` : ''}
                       <style>${previewCss}</style>
                     </head>
                     <body>

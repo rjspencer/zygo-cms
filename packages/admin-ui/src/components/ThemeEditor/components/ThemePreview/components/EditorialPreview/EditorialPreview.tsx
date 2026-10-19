@@ -87,8 +87,8 @@ export const EditorialPreview: React.FC<EditorialPreviewProps> = ({ tokens }) =>
         style={{
           backgroundColor: tokens.colorSurface,
           border: `1px solid ${tokens.colorBorder}`,
-          borderRadius: '8px',
-          boxShadow: `3px 3px 0px color-mix(in srgb, ${tokens.colorBorder} 22%, transparent)`,
+          borderRadius: tokens.borderRadius,
+          boxShadow: tokens.boxShadow,
         }}
       >
         <Text size="1" weight="bold" style={{ color: tokens.colorAccent }}>

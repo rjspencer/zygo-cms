@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Card, Flex, Text, Badge } from '@radix-ui/themes';
 import { getPublicSiteUrl } from '../../../../utils/api';
+import { useActiveTheme } from '../../../../hooks/useActiveTheme';
 import type { TemplatePreviewPaneProps } from '../../types';
 
 export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
@@ -11,9 +12,15 @@ export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
   formTemplateHtml,
   isStatusCompiling,
   renderCount,
+  themeCss: propThemeCss,
+  fontUrl: propFontUrl,
 }) => {
   const publicBaseUrl = getPublicSiteUrl();
   const publicCssUrl = getPublicSiteUrl('/style.css');
+  const activeTheme = useActiveTheme();
+
+  const themeCss = propThemeCss ?? activeTheme.themeCss;
+  const fontUrl = propFontUrl ?? activeTheme.fontUrl;
 
   return (
     <Box style={{ flex: 1, minWidth: 0, height: '100%' }}>
@@ -49,7 +56,9 @@ export const TemplatePreviewPane: React.FC<TemplatePreviewPaneProps> = ({
                   <meta charset="utf-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1">
                   <base href="${publicBaseUrl}">
+                  ${fontUrl ? `<link rel="stylesheet" href="${fontUrl}">` : ''}
                   <link rel="stylesheet" href="${publicCssUrl}" />
+                  ${themeCss ? `<style id="zygo-theme-tokens">${themeCss}</style>` : ''}
                   <style>
                     /* ${debouncedWasmHtml !== formTemplateHtml ? formTemplateCss : debouncedWasmHtml} reactivity trigger */
                     .template-${formId} {

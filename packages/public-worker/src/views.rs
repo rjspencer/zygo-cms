@@ -1951,6 +1951,10 @@ mod tests {
         assert!(html.contains(
             "--font-headline: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;"
         ));
+        assert!(html.contains("--font-size-base: 16px;"));
+        assert!(html.contains("--line-height-body: 1.5;"));
+        assert!(html.contains("--border-radius: 2px;"));
+        assert!(html.contains("--box-shadow: 4px 6px 0 #0f172a;"));
         assert!(
             html.contains(
                 "<div class=\"site-tagline\">Specs, Dispatches &amp; Agentic Systems</div>"
