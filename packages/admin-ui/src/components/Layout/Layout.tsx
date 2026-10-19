@@ -15,6 +15,7 @@ import {
   BlendingModeIcon,
   ReaderIcon,
   LayoutIcon,
+  ResetIcon,
 } from '@radix-ui/react-icons';
 import { useThemeMode } from '../../context/ThemeModeContext';
 import { useWebMCP } from '../../providers/WebMCPProvider';
@@ -49,6 +50,7 @@ export const Layout: React.FC = () => {
           ...(docsModeEnabled ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
           { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
           { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
+          { to: '/redirects', icon: <ResetIcon width="18" height="18" />, label: 'Redirects' },
         ],
       },
       {

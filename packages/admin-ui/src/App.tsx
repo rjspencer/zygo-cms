@@ -9,6 +9,7 @@ import Editor from './pages/Editor';
 import Media from './pages/Media';
 import Users from './pages/Users';
 import Navigation from './pages/Navigation';
+import Redirects from './pages/Redirects';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import ThemePage from './pages/Theme';
@@ -40,6 +41,14 @@ export const App: React.FC = () => {
           <Route path="media" element={<Media />} />
           <Route path="users" element={<Users />} />
           <Route path="navigation" element={<Navigation />} />
+          <Route
+            path="redirects"
+            element={
+              <RoleGuard allowedRoles={['admin', 'editor']}>
+                <Redirects />
+              </RoleGuard>
+            }
+          />
           <Route
             path="templates"
             element={

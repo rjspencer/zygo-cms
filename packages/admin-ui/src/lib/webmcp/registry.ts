@@ -5,6 +5,7 @@ import {
   BrowserModelContext,
   BrowserModelContextTool,
 } from './types';
+import { createGlobalRedirectTools } from './redirectTools';
 
 export class WebMCPRegistry {
   private tools = new Map<string, WebMCPToolDefinition>();
@@ -347,4 +348,10 @@ export class WebMCPRegistry {
       this.listeners.delete(listener);
     };
   }
+
+  registerRedirectTools(): () => void {
+    return this.registerTools(createGlobalRedirectTools());
+  }
 }
+
+export { createGlobalRedirectTools } from './redirectTools';

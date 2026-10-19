@@ -101,6 +101,51 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ["settings"]
                 }
+            },
+            {
+                name: "zygo_list_redirects",
+                description: "List all 301 and 302 redirects in Zygo CMS.",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
+                name: "zygo_create_redirect",
+                description: "Create a 301 or 302 redirect or vanity marketing URL in Zygo CMS.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        source_path: { type: "string", description: "Incoming URL path to redirect from (must start with '/')" },
+                        target_url: { type: "string", description: "Target URL destination or internal path" },
+                        status_code: { type: "number", description: "HTTP redirect status code (301 for permanent, 302 for temporary). Defaults to 301." },
+                        notes: { type: "string", description: "Optional notes or campaign context" }
+                    },
+                    required: ["source_path", "target_url"]
+                }
+            },
+            {
+                name: "zygo_update_redirect",
+                description: "Update an existing redirect by ID in Zygo CMS.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: { type: "number", description: "ID of the redirect to update" },
+                        source_path: { type: "string", description: "Incoming URL path to redirect from" },
+                        target_url: { type: "string", description: "Target URL destination or internal path" },
+                        status_code: { type: "number", description: "HTTP redirect status code (301 or 302)" },
+                        notes: { type: "string", description: "Optional notes or campaign context" }
+                    },
+                    required: ["id"]
+                }
+            },
+            {
+                name: "zygo_delete_redirect",
+                description: "Delete a redirect by ID in Zygo CMS.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: { type: "number", description: "ID of the redirect to delete" }
+                    },
+                    required: ["id"]
+                }
             }
         ]
     };
@@ -161,6 +206,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 method: "POST",
                 headers: getHeaders(),
                 body: JSON.stringify({ settings: settings || {} })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_list_redirects") {
+            const res = await fetch(getApiUrl('/redirects'), { headers: getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_create_redirect") {
+            const { source_path, target_url, status_code = 301, notes } = request.params.arguments || {};
+            const res = await fetch(getApiUrl('/redirects'), {
+                method: "POST",
+                headers: getHeaders(),
+                body: JSON.stringify({
+                    source_path,
+                    target_url,
+                    status_code: Number(status_code) || 301,
+                    notes: notes || null
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_update_redirect") {
+            const { id, source_path, target_url, status_code, notes } = request.params.arguments || {};
+            if (!id) throw new Error("Redirect ID is required");
+            const payload = {};
+            if (source_path !== undefined) payload.source_path = source_path;
+            if (target_url !== undefined) payload.target_url = target_url;
+            if (status_code !== undefined) payload.status_code = Number(status_code);
+            if (notes !== undefined) payload.notes = notes;
+
+            const res = await fetch(getApiUrl(`/redirects/${id}`), {
+                method: "PUT",
+                headers: getHeaders(),
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_delete_redirect") {
+            const { id } = request.params.arguments || {};
+            if (!id) throw new Error("Redirect ID is required");
+            const res = await fetch(getApiUrl(`/redirects/${id}`), {
+                method: "DELETE",
+                headers: getHeaders()
             });
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             const data = await res.json();
