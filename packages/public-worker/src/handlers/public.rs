@@ -469,6 +469,29 @@ async fn render_page_or_doc_by_path(
         return Ok(res);
     }
 
+    if let Ok(Some(redirect)) = zygo_core::db::redirect::find_by_source_path(&db, path).await {
+        let _ = zygo_core::db::redirect::increment_hit_count(&db, redirect.id).await;
+
+        let target_str = if redirect.target_url.starts_with('/') {
+            format!("{}{}", origin.trim_end_matches('/'), redirect.target_url)
+        } else {
+            redirect.target_url.clone()
+        };
+
+        let fallback_url = format!("{}/", origin.trim_end_matches('/'));
+        let target_url = worker::Url::parse(&target_str)
+            .unwrap_or_else(|_| worker::Url::parse(&fallback_url).unwrap());
+
+        let mut res = Response::redirect_with_status(target_url, redirect.status_code as u16)?;
+        if redirect.status_code == 301 {
+            let _ = res.headers_mut().set("Cache-Control", "public, max-age=86400, s-maxage=86400");
+            cache::put_cached(req, &mut res).await;
+        } else {
+            let _ = res.headers_mut().set("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+        return Ok(res);
+    }
+
     AppError::NotFound.to_response()
 }
 
