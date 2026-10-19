@@ -177,4 +177,40 @@ describe('MediaThumbnail Component', () => {
     expect(container.querySelector('video')).toBeNull();
     expect(screen.getByTestId('video-fallback-icon')).toBeDefined();
   });
+
+  it('appends ?size=thumb when size="thumb" is provided for image types', () => {
+    render(
+      <Theme>
+        <MediaThumbnail
+          src="/media/gallery-photo.webp"
+          alt="Gallery Photo"
+          type="image/webp"
+          size="thumb"
+        />
+      </Theme>
+    );
+
+    const img = screen.getByAltText('Gallery Photo') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe(
+      getPublicSiteUrl('/media/gallery-photo.webp?size=thumb')
+    );
+  });
+
+  it('preserves existing query parameters when appending size', () => {
+    render(
+      <Theme>
+        <MediaThumbnail
+          src="/media/gallery-photo.webp?v=123"
+          alt="Gallery Photo"
+          type="image/webp"
+          size="md"
+        />
+      </Theme>
+    );
+
+    const img = screen.getByAltText('Gallery Photo') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe(
+      getPublicSiteUrl('/media/gallery-photo.webp?v=123&size=md')
+    );
+  });
 });

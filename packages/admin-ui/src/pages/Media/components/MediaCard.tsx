@@ -29,6 +29,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           alt={item.name}
           type={item.type}
           height="140px"
+          size="thumb"
         />
       </Flex>
 

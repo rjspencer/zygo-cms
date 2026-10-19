@@ -88,11 +88,11 @@ describe('Media Page Component', () => {
 
     const photoImg = screen.getByAltText('photo-1.jpg') as HTMLImageElement;
     expect(photoImg).toBeDefined();
-    expect(photoImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/photo-1.jpg'));
+    expect(photoImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/photo-1.jpg?size=thumb'));
 
     const bannerImg = screen.getByAltText('banner.png') as HTMLImageElement;
     expect(bannerImg).toBeDefined();
-    expect(bannerImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/banner.png'));
+    expect(bannerImg.getAttribute('src')).toBe(getPublicSiteUrl('/media/banner.png?size=thumb'));
   });
 
   it('triggers file input click when "Upload Image" button is clicked', async () => {

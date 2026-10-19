@@ -35,6 +35,7 @@ export const MediaPickerCard: React.FC<MediaPickerCardProps> = ({
           alt={item.name}
           type={item.type}
           height="100px"
+          size="thumb"
         />
       </Flex>
 

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import type React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../utils/api';
+import { prepareMediaUpload } from '../../../utils/imageOptimization';
 import type { MediaItem } from '../types';
 
 export interface UseMediaPickerDataProps {
@@ -50,14 +51,32 @@ export const useMediaPickerData = ({
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      const filename = encodeURIComponent(file.name);
-      const res = await apiFetch(`/api/media?filename=${filename}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-        },
-        body: file,
-      });
+      const prepared = await prepareMediaUpload(file);
+      let res: Response;
+
+      if (prepared.thumb || prepared.md) {
+        const formData = new FormData();
+        formData.append('file', prepared.file);
+        if (prepared.thumb) {
+          formData.append('thumb', prepared.thumb, 'thumb.webp');
+        }
+        if (prepared.md) {
+          formData.append('md', prepared.md, 'md.webp');
+        }
+        res = await apiFetch('/api/media', {
+          method: 'POST',
+          body: formData,
+        });
+      } else {
+        const filename = encodeURIComponent(prepared.file.name);
+        res = await apiFetch(`/api/media?filename=${filename}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': prepared.file.type || 'application/octet-stream',
+          },
+          body: prepared.file,
+        });
+      }
 
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
