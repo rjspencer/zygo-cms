@@ -48,6 +48,9 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
     handleApplyFontPreset,
     handleResetToModernEditorial,
     handleCopyCss,
+    siteLogo,
+    siteTitle,
+    footerText,
   } = useThemeEditorState(props);
 
   useThemeEditorWebMCP({
@@ -113,6 +116,9 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
             generatedCss={generatedCss}
             copiedCss={copiedCss}
             onCopyCss={handleCopyCss}
+            siteLogo={siteLogo}
+            siteTitle={siteTitle}
+            footerText={footerText}
           />
         </Flex>
       </Grid>
