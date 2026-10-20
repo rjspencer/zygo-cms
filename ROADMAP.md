@@ -26,14 +26,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 2. Soon
 
-### Native Contact & Newsletter Form Sections & D1 Submissions Inbox
-- **Goal**: Provide built-in `contact-form` and `newsletter` section templates backed by D1 storage (`form_submissions`) and an Admin UI Submissions Inbox for collecting customer inquiries, leads, and newsletter signups.
-- **Spec**: [`docs/specs/native_contact_forms_spec.md`](docs/specs/native_contact_forms_spec.md)
-- **Details**:
-  - Seed theme-aware `Contact Form` (`contact-form`) and `Newsletter / Email Signup` (`newsletter`) section templates with configurable fields, email capture, and confirmation messaging.
-  - Handle `POST /forms/submit` on `public-worker` with honeypot + IP rate limiting and optional Cloudflare Turnstile verification.
-  - Build a Submissions Inbox page in `packages/admin-ui` (with WebMCP and `zygo-mcp` tool parity) to read, filter, archive, and export submissions.
-
 ### Instagram Feed Section with Automated Cron Sync
 - **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
 - **Details**:
