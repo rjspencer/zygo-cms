@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS form_submissions (
 CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON form_submissions(status);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON form_submissions(created_at);
 ```
-*(All queries in `zygo-core` must list explicit columns—no `SELECT *`—and structs must derive `#[serde(default)]` and `#[serde(skip_unknown_fields)]`.)*
+*(All queries in `zygo-core` must list explicit columns—no `SELECT *`—and structs must derive `#[serde(default)]`.)*
 
 ### 2.2 Built-In `contact-form` Section Template
 Seed an 11th built-in section template (`id = 'contact-form'`, `name = 'Contact Form'`):
