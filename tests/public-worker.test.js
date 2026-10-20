@@ -158,5 +158,9 @@ describe('Public Worker Integration', () => {
         // Verify feature-grid darker background and image-carousel light muted background
         expect(html).toContain('color-mix(in srgb, var(--color-text, #1c1917) 6%, var(--color-bg, #faf8f5))');
         expect(html).toContain('color-mix(in srgb, var(--color-accent, #991b1b) 7%, var(--color-bg, #faf8f5))');
+
+        // Verify carousel full-width screen extension styling
+        expect(html).toContain('.section-carousel { background: color-mix(in srgb, var(--color-accent, #991b1b) 7%, var(--color-bg, #faf8f5)); border-top: 1px solid color-mix(in srgb, var(--color-border, #e7e5e4) 60%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--color-border, #e7e5e4) 60%, transparent); padding: 5rem 0; box-sizing: border-box; width: 100%; }');
+        expect(html).toContain('.carousel-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 1.5rem; padding: 0 5rem 1.5rem; width: 100%; box-sizing: border-box; scrollbar-width: thin; }');
     });
 });

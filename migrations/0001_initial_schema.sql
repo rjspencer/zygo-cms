@@ -314,9 +314,9 @@ INSERT INTO section_templates (id, name, description, schema_json, template_html
     {% endfor %}
   </div>
 </section>',
-    '.section-carousel { padding: 3rem 1.5rem; max-width: 1000px; margin: 0 auto; }
+    '.section-carousel { padding: 3rem 0; box-sizing: border-box; width: 100%; }
 .carousel-title { text-align: center; margin-bottom: 1.5rem; }
-.carousel-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 1rem; padding-bottom: 1rem; scrollbar-width: thin; }
+.carousel-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 1rem; padding: 0 5rem 1rem; box-sizing: border-box; width: 100%; scrollbar-width: thin; }
 .carousel-slide { flex: 0 0 80%; max-width: 80%; scroll-snap-align: center; }
 .carousel-slide img { width: 100%; height: 400px; object-fit: cover; border-radius: 8px; }
 .carousel-caption { font-size: 0.875rem; color: #666; margin-top: 0.5rem; text-align: center; }',

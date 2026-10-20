@@ -8,6 +8,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Full-Width Carousel Section Extension
+- **Section & Track Dimensions (`migrations/0001_initial_schema.sql`, `migrations/0005_theme_preview_seed.sql`, `migrations/0010_carousel_full_width.sql`)**:
+  - Updated `.section-carousel` container to remove left/right padding (`padding: 5rem 0;` desktop, `padding: 3rem 0;` mobile), enabling wall-to-wall section background extension across all viewports.
+  - Removed `max-width: 1200px` and centering margins from `.carousel-track`. Configured track with `width: 100%`, `box-sizing: border-box`, and `5rem` horizontal padding (`padding: 0 5rem 1.5rem;` desktop, `padding: 0 1.25rem 1.5rem;` mobile) so slides span the entire screen width with edge-aligned padding.
+  - Created D1 migration `0010_carousel_full_width.sql` and updated baseline seed templates (`0001`, `0005`).
+- **Integration Testing (`tests/public-worker.test.js`)**:
+  - Added assertions in public worker integration tests verifying `.section-carousel` and `.carousel-track` full-width styles.
+
+
 ### Edge Cache Purge Reliability & Clear Cache Button
 - Purges now cover both `www` and apex hosts, and log the Cloudflare API response (status and body) to `wrangler tail` instead of failing silently.
 - Theme and layout changes purge the entire host so every cached page picks up the new stylesheet.
