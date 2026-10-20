@@ -47,3 +47,40 @@ All public site components must consume CSS variables defined on `:root` with se
 - **Production Asset Serving**: Cloudflare Workers serves static assets for `public-worker` directly from `public/style.css` (configured via `[assets] directory = "../../public"` in `packages/public-worker/wrangler.toml`).
 - **Source Sync**: `packages/public-worker/src/style.css` is the Tailwind/source counterpart. Whenever changing styles, **always keep both files synchronized**.
 - **Rust String Delimiters**: When modifying templates in `packages/public-worker/src/views.rs`, always use `r##"..."##` (with 2+ `#`) so attributes like `href="#main-content"` do not terminate string literals prematurely.
+
+## 6. Section Template Authoring & Conventions
+
+### 6.1 Schema JSON Rules (`schema_json`)
+Every section template defines a JSON array of fields validated by `zygo_core::template_validation::validate_template`:
+- **Allowed Field Types**: `text`, `textarea`, `richtext`, `url`, `boolean`, `image`, `video`, `select`, `list`.
+- **Field Constraints**:
+  - `select` fields MUST define an `options: string[]` array.
+  - `list` fields MUST define a `fields: Field[]` array.
+  - **No Nested Lists**: Lists cannot contain nested list fields (one level only).
+  - All field names used in MiniJinja template HTML must correspond to defined schema fields (or MiniJinja built-ins like `loop`, `range`).
+
+### 6.2 MiniJinja Template Rules (`template_html`)
+- **Safe HTML**: Always render `richtext` or sanitized HTML using `|safe` (e.g., `{{ body|safe }}`).
+- **Responsive Images**: Local WebP images should provide responsive sources via the `media_srcset` filter:
+  ```html
+  <img src="{{ image|safe }}" alt="{{ title }}" loading="lazy" decoding="async" srcset="{{ image|media_srcset|safe }}" sizes="(max-width: 768px) 100vw, 50vw">
+  ```
+- **Video Embeds**: Video URLs must pass through the `video_embed` filter to generate privacy-respecting embed URLs (`youtube-nocookie.com` or Vimeo):
+  ```html
+  {% set embed_url = video_url|video_embed %}
+  {% if embed_url %}<iframe src="{{ embed_url }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>{% endif %}
+  ```
+- **Loops & Iteration**: Use MiniJinja built-ins (`{% for item in items %}`, `loop.index`, `loop.first`, `loop.last`).
+
+### 6.3 Template CSS Rules (`template_css`)
+- **Root Container**: Prefix container class with `.section-{template-id}` (e.g. `.section-pricing`, `.section-stats`). Always set `box-sizing: border-box; width: 100%;`.
+- **Theme Variables**: Consume `:root` design tokens with fallbacks:
+  - Surfaces & Cards: `background: var(--color-surface, #ffffff); border: 1px solid var(--color-border, #e7e5e4); border-radius: var(--border-radius, 8px); box-shadow: var(--box-shadow, 0 4px 6px rgba(0,0,0,0.05));`
+  - Typography: `font-family: var(--font-headline, 'Newsreader', Georgia, serif);` for headings; `font-family: var(--font-body, system-ui, sans-serif);` for body.
+  - Accent / Primary Action: `background: var(--color-accent, #991b1b); color: #ffffff;`
+- **Dynamic Adaptability**: Use `color-mix()` for tinted backgrounds, borders, or hover highlights rather than hardcoded colors.
+
+### 6.4 D1 Migrations & Theme Preview Integration
+- **Built-in Seeding**: Seed built-in templates with `is_locked = 1` in migrations.
+- **Theme Preview Entry**: Whenever adding or modifying built-in section templates, append corresponding sample data to `entries.body_json` where `slug = 'theme-preview'` and update `search_text`.
+- **Zero SELECT \***: Always list explicit column names in database migration statements and queries.

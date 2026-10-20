@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Preset Section Templates & Theme Preview Relocation
+- **Preset Section Templates (`migrations/0012_new_preset_section_templates.sql`)**:
+  - Seeded 5 new locked built-in section templates: `pricing` (Pricing Table), `stats` (Stats Bar), `logo-cloud` (Logo Cloud), `team` (Team Grid), and `steps` (Process Steps).
+  - Authored theme-adaptive MiniJinja templates using design tokens (`--color-surface`, `--color-accent`, `--color-border`, `--color-text`, `--color-text-muted`, `--border-radius`, `--box-shadow`, `color-mix`) with zero `SELECT *` migrations.
+- **Theme Preview Page Showcase (`migrations/0012_new_preset_section_templates.sql`, `scripts/seed_theme_preview.mjs`)**:
+  - Updated `/theme-preview` entry's `body_json` with realistic seed data showcasing all 15 preset section templates.
+  - Updated `search_text` indexing to include all 15 template keywords.
+  - Updated `scripts/seed_theme_preview.mjs` to target migration 0012 and seed all 15 preset templates.
+- **Navigation & Header Relocation (`packages/admin-ui/src/pages/TemplatesList/components/TemplatesHeader.tsx`, `migrations/0012_new_preset_section_templates.sql`)**:
+  - Relocated the "Preview" link from the public site footer navigation into the Admin UI `TemplatesHeader` as an inline link (`Templates <Link href="/theme-preview" target="_blank" rel="noopener noreferrer">Preview</Link>`).
+  - Removed `/theme-preview` from `menus` where `name = 'footer'`.
+- **Quality Gates & Test Coverage**:
+  - Expanded Rust SSR tests in `packages/public-worker/src/views.rs` to assert all 15 section templates render under both `Modern Editorial` and `Bento-Brutalism` themes.
+  - Added assertions in `tests/public-worker.test.js` verifying that all 15 templates render under `/theme-preview` and that the footer navigation no longer contains the preview link.
+  - Added unit and Storybook assertions in `TemplatesList.test.tsx` and `TemplatesList.stories.tsx`.
+
 ### Public SSR Navigation, Section Template Guards & RichText Link Polish
 - **Active Navigation State (`packages/public-worker/src/views.rs`, `packages/core/src/models/layout_defaults.rs`, `migrations/0011_template_and_nav_fixes.sql`)**:
   - Injected `current_path` across all public SSR rendering contexts (`render_index_internal`, `render_post_internal`, `render_page_internal`, `render_doc`, `render_search_html`).

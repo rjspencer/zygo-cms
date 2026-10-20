@@ -26,13 +26,20 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 2. Soon
 
-### Native Contact Form Section & D1 Submissions Inbox
-- **Goal**: Provide a built-in `contact-form` section template backed by D1 storage (`form_submissions`) and an Admin UI Submissions Inbox for collecting customer inquiries and leads.
+### Native Contact & Newsletter Form Sections & D1 Submissions Inbox
+- **Goal**: Provide built-in `contact-form` and `newsletter` section templates backed by D1 storage (`form_submissions`) and an Admin UI Submissions Inbox for collecting customer inquiries, leads, and newsletter signups.
 - **Spec**: [`docs/specs/native_contact_forms_spec.md`](docs/specs/native_contact_forms_spec.md)
 - **Details**:
-  - Seed a theme-aware `Contact Form` section template (`contact-form`) with configurable fields and confirmation messaging.
+  - Seed theme-aware `Contact Form` (`contact-form`) and `Newsletter / Email Signup` (`newsletter`) section templates with configurable fields, email capture, and confirmation messaging.
   - Handle `POST /forms/submit` on `public-worker` with honeypot + IP rate limiting and optional Cloudflare Turnstile verification.
   - Build a Submissions Inbox page in `packages/admin-ui` (with WebMCP and `zygo-mcp` tool parity) to read, filter, archive, and export submissions.
+
+### Instagram Feed Section with Automated Cron Sync
+- **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
+- **Details**:
+  - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
+  - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
+  - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
 
 ### Pre-Built Wasm Distribution & CI-Managed `release` Branch
 - **Goal**: Enable non-developers to scaffold, run, and deploy Zygo CMS without installing Rust (`rustup`, `cargo`, `worker-build`, `wasm-pack`) locally, while keeping daily CI build minutes low.

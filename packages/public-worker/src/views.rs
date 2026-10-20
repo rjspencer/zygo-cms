@@ -2296,7 +2296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_render_all_10_section_templates_under_shipped_themes() {
+    fn test_render_all_15_section_templates_under_shipped_themes() {
         let templates = vec![
             SectionTemplate {
                 id: "hero".to_string(),
@@ -2368,6 +2368,41 @@ mod tests {
                 template_css: Some(".section-video { border-radius: var(--border-radius); }".to_string()),
                 ..Default::default()
             },
+            SectionTemplate {
+                id: "pricing".to_string(),
+                name: "Pricing".to_string(),
+                template_html: Some(r#"<section class="section-pricing"><h2>{{ headline }}</h2>{% for p in plans %}<div>{{ p.name }} - {{ p.price }}</div>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-pricing { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "stats".to_string(),
+                name: "Stats".to_string(),
+                template_html: Some(r#"<section class="section-stats"><h2>{{ headline }}</h2>{% for s in stats %}<span>{{ s.value }} - {{ s.label }}</span>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-stats { background: var(--color-surface); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "logo-cloud".to_string(),
+                name: "Logo Cloud".to_string(),
+                template_html: Some(r#"<section class="section-logo-cloud"><h2>{{ title }}</h2>{% for l in logos %}<img src="{{ l.image }}" alt="{{ l.name }}">{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-logo-cloud { border-color: var(--color-border); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "team".to_string(),
+                name: "Team".to_string(),
+                template_html: Some(r#"<section class="section-team"><h2>{{ headline }}</h2>{% for m in members %}<h3>{{ m.name }} - {{ m.role }}</h3>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-team { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "steps".to_string(),
+                name: "Steps".to_string(),
+                template_html: Some(r#"<section class="section-steps"><h2>{{ headline }}</h2>{% for st in steps %}<div>{{ st.step_number }}: {{ st.title }}</div>{% endfor %}</section>"#.to_string()),
+                template_css: Some(".section-steps { background: var(--color-surface); }".to_string()),
+                ..Default::default()
+            },
         ];
 
         let mut page = dummy_page();
@@ -2382,6 +2417,11 @@ mod tests {
             { "type_id": "testimonial", "data": { "quote": "Great platform", "author": "Alice" } },
             { "type_id": "faq", "data": { "title": "FAQ Title", "questions": [{ "question": "Q1", "answer": "<p>A1</p>" }] } },
             { "type_id": "video-embed", "data": { "title": "Video Title", "video_url": "https://www.youtube.com/watch?v=123" } },
+            { "type_id": "pricing", "data": { "headline": "Pricing Title", "plans": [{ "name": "Basic", "price": "$10" }] } },
+            { "type_id": "stats", "data": { "headline": "Stats Title", "stats": [{ "value": "100%", "label": "Reliability" }] } },
+            { "type_id": "logo-cloud", "data": { "title": "Partners", "logos": [{ "name": "Acme", "image": "/logo.png" }] } },
+            { "type_id": "team", "data": { "headline": "Team Title", "members": [{ "name": "Bob", "role": "Engineer" }] } },
+            { "type_id": "steps", "data": { "headline": "Steps Title", "steps": [{ "step_number": "01", "title": "Step One" }] } },
         ]).to_string();
 
         // 1. Render under Modern Editorial
@@ -2412,6 +2452,20 @@ mod tests {
         assert!(modern_html.contains("Alice"));
         assert!(modern_html.contains("FAQ Title"));
         assert!(modern_html.contains("Video Title"));
+        assert!(modern_html.contains("Pricing Title"));
+        assert!(modern_html.contains("Basic"));
+        assert!(modern_html.contains("$10"));
+        assert!(modern_html.contains("Stats Title"));
+        assert!(modern_html.contains("100%"));
+        assert!(modern_html.contains("Reliability"));
+        assert!(modern_html.contains("Partners"));
+        assert!(modern_html.contains("Acme"));
+        assert!(modern_html.contains("Team Title"));
+        assert!(modern_html.contains("Bob"));
+        assert!(modern_html.contains("Engineer"));
+        assert!(modern_html.contains("Steps Title"));
+        assert!(modern_html.contains("01"));
+        assert!(modern_html.contains("Step One"));
 
         // 2. Render under Bento-Brutalism
         let mut bento_settings = std::collections::HashMap::new();
@@ -2432,6 +2486,20 @@ mod tests {
         assert!(bento_html.contains("#007799")); // Bento brutalism cyan accent
         assert!(bento_html.contains("Hero Title"));
         assert!(bento_html.contains("Video Title"));
+        assert!(bento_html.contains("Pricing Title"));
+        assert!(bento_html.contains("Basic"));
+        assert!(bento_html.contains("$10"));
+        assert!(bento_html.contains("Stats Title"));
+        assert!(bento_html.contains("100%"));
+        assert!(bento_html.contains("Reliability"));
+        assert!(bento_html.contains("Partners"));
+        assert!(bento_html.contains("Acme"));
+        assert!(bento_html.contains("Team Title"));
+        assert!(bento_html.contains("Bob"));
+        assert!(bento_html.contains("Engineer"));
+        assert!(bento_html.contains("Steps Title"));
+        assert!(bento_html.contains("01"));
+        assert!(bento_html.contains("Step One"));
     }
 
     #[test]
