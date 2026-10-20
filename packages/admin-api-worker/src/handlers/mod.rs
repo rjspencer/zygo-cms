@@ -8,3 +8,4 @@ pub mod layout_templates;
 pub mod redirects;
 pub mod cloudflare;
 pub mod cache_admin;
+pub mod submissions;

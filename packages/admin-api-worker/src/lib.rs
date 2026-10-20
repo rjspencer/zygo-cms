@@ -115,6 +115,13 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/redirects", handlers::redirects::create_redirect)
         .put_async("/api/redirects/:id", handlers::redirects::update_redirect)
         .delete_async("/api/redirects/:id", handlers::redirects::delete_redirect)
+
+        // API routes - Form Submissions
+        .get_async("/api/submissions", handlers::submissions::list_submissions)
+        .get_async("/api/submissions/stats", handlers::submissions::get_submission_stats)
+        .get_async("/api/submissions/:id", handlers::submissions::get_submission)
+        .put_async("/api/submissions/:id", handlers::submissions::update_submission_status)
+        .delete_async("/api/submissions/:id", handlers::submissions::delete_submission)
         // API routes - Entries
         .get_async("/api/search", handlers::api::search_entries_api)
         .get_async("/api/entries", handlers::api::get_entries)

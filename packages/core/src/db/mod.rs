@@ -9,6 +9,7 @@ pub mod search;
 pub mod setting;
 pub mod layout_template;
 pub mod redirect;
+pub mod form_submission;
 
 pub use entry::*;
 pub use media::*;

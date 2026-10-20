@@ -106,6 +106,7 @@ export const LayoutSidebar: React.FC<LayoutSidebarProps> = ({
                       aliases={item.aliases}
                       excludePrefixes={item.excludePrefixes}
                       isCollapsed={isCollapsed}
+                      badge={item.badge}
                     />
                   ))}
                 </Flex>

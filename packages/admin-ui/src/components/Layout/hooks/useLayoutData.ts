@@ -32,6 +32,25 @@ export function useLayoutData() {
     retry: false,
   });
 
+  const { data: submissionsStats } = useQuery({
+    queryKey: ['submissions-stats'],
+    queryFn: async () => {
+      try {
+        const res = await apiFetch('/api/submissions/stats');
+        if (!res.ok) return { unread_count: 0 };
+        return res.json();
+      } catch {
+        return { unread_count: 0 };
+      }
+    },
+    retry: false,
+    refetchInterval: 30000,
+  });
+
+  const unreadSubmissionsCount = Number(
+    submissionsStats?.unread_count ?? submissionsStats?.unread ?? 0
+  );
+
   const logoutUrl = dashData?.auth_url || '/cdn-cgi/access/logout';
   let userEmail = 'Admin User';
   if (meData?.email) {
@@ -48,5 +67,6 @@ export function useLayoutData() {
     logoutUrl,
     userEmail,
     docsModeEnabled,
+    unreadSubmissionsCount,
   };
 }

@@ -10,6 +10,7 @@ import Media from './pages/Media';
 import Users from './pages/Users';
 import Navigation from './pages/Navigation';
 import Redirects from './pages/Redirects';
+import Submissions from './pages/Submissions';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 import ThemePage from './pages/Theme';
@@ -46,6 +47,14 @@ export const App: React.FC = () => {
             element={
               <RoleGuard allowedRoles={['admin', 'editor']}>
                 <Redirects />
+              </RoleGuard>
+            }
+          />
+          <Route
+            path="submissions"
+            element={
+              <RoleGuard allowedRoles={['admin']}>
+                <Submissions />
               </RoleGuard>
             }
           />

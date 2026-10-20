@@ -84,3 +84,10 @@ Zygo CMS features a robust navigation builder.
 All images and files are managed through the centralized Media Library.
 - Media is primarily stored and served via Cloudflare R2 for high availability and low latency (D1 storage is available for smaller, text-heavy setups).
 - When inserting an image into a Post or Page, Zygo automatically generates optimized `<picture>` markup, providing responsive image sizing and modern formats.
+
+## Native Forms & Submissions Inbox
+
+Zygo CMS includes built-in lead generation and contact inquiry handling with zero external SaaS dependencies.
+- **Preset Section Templates**: Built-in `contact-form` and `newsletter` section templates can be added to any Page.
+- **Edge Zero-Write Spam Filtering**: `POST /forms/submit` on the Public Worker validates payload sizes (max 64 KB), enforces per-IP rate limiting via Cloudflare Cache API (max 5 submissions per 10m), detects off-screen decoy honeypots, and verifies Cloudflare Turnstile tokens before touching D1.
+- **Submissions Inbox**: Site administrators review, filter, mark read/unread, delete, and export inquiries to CSV from the Admin UI Submissions Inbox (`/submissions`), guarded by strict admin role-based access control.

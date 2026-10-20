@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Native Contact & Newsletter Forms, Rate Limiting & D1 Submissions Inbox
+- **Zero-Write Pre-D1 Gating Pipeline (`packages/public-worker/src/handlers/public.rs`, `packages/public-worker/src/lib.rs`)**:
+  - Implemented `POST /forms/submit` handling `application/json` and `application/x-www-form-urlencoded` payloads.
+  - Enforced a strict 64 KB `Content-Length` cap (returning HTTP 413 Payload Too Large for oversized bodies).
+  - Built Cloudflare Cache API rate limiting (`caches.default`) with a 600-second TTL and bounded memory fallback (max 5 submissions per 10 minutes per IP), rejecting abusive traffic with HTTP 429 Too Many Requests before invoking D1.
+  - Decoy honeypot bot defense (`website` / `_gotcha`) that silently returns HTTP 200 without executing database writes.
+  - Fail-closed Cloudflare Turnstile token verification (`cf-turnstile-response`) with a strict 5-second async race timeout.
+- **D1 Schema & Preset Section Templates (`migrations/0013_form_submissions.sql`, `packages/core/src/models/form_submission.rs`, `packages/core/src/db/form_submission.rs`)**:
+  - Created `form_submissions` table with indexes on `status`, `created_at`, and `form_name`.
+  - Seeded built-in, theme-adaptive `contact-form` (Contact Form) and `newsletter` (Newsletter Signup) preset section templates with honeypot fields and accessible markup.
+  - Added `FormSubmission`, `CreateFormSubmission`, `UpdateFormSubmissionStatus`, and `SubmissionStats` models with strict validation boundaries and explicit-column queries (no `SELECT *`).
+- **Admin REST API & RBAC Security (`packages/admin-api-worker/src/handlers/submissions.rs`, `packages/admin-api-worker/src/handlers/api.rs`)**:
+  - Implemented `GET /api/submissions`, `GET /api/submissions/stats`, `GET /api/submissions/:id`, `PUT /api/submissions/:id`, and `DELETE /api/submissions/:id`.
+  - Enforced strict RBAC (`user.role == "admin"`, returning HTTP 403 Forbidden for non-admins).
+  - Masked `turnstile_secret_key` with `"••••••••"` in settings endpoints to prevent secret key leakage.
+- **Admin UI Submissions Inbox (`packages/admin-ui/src/pages/Submissions/`, `packages/admin-ui/src/App.tsx`, `packages/admin-ui/src/components/Layout/`)**:
+  - Built modular Submissions Inbox page with search, status tabs (all, unread, read, archived), pagination, read/unread toggles, delete action, and detail modal.
+  - Defended against CSV Formula Injection (DDE) in `csvExport.ts` by prefixing dangerous formula triggers (`=`, `+`, `-`, `@`, `\t`, `\r`) with `'`.
+  - Used safe React JSX text rendering with CSS `whiteSpace: 'pre-wrap'` (zero `dangerouslySetInnerHTML`) and sanitized `mailto:` links with `encodeURIComponent`.
+  - Added a dynamic unread count badge on the "Submissions" sidebar navigation link.
+- **WebMCP & CLI MCP Parity (`packages/admin-ui/src/lib/webmcp/submissionTools.ts`, `packages/zygo-mcp/index.mjs`)**:
+  - Added 4 parity tools across both in-browser WebMCP and CLI MCP (`zygo-mcp`): `list_form_submissions`, `get_form_submission`, `update_form_submission_status`, and `delete_form_submission`.
+  - Added Vitest and Storybook integration tests validating full end-to-end functionality.
+
 ### Cloudflare Zero Trust Organization Provisioning & Team Domain Detection
 - **Automated Zero Trust Org Setup (`scripts/setup.mjs`)**:
   - Added `deriveDefaultTeamSlug` and `ensureZeroTrustOrganization` to inspect `GET /accounts/{account_id}/access/organizations` during `pnpm run setup`, prompt for a Zero Trust team subdomain (`<team>.cloudflareaccess.com`) when none exists, and provision the organization via `POST /accounts/{account_id}/access/organizations`.

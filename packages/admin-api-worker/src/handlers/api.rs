@@ -762,6 +762,17 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
         return Response::error("No settings provided", 400);
     }
 
+    // Protect against accidentally overwriting the Turnstile secret with the masked placeholder
+    if let Some(secret) = to_update.get("turnstile_secret_key") {
+        let s = secret.trim();
+        if s == "••••••••" || s == "********" || (!s.is_empty() && s.chars().all(|c| c == '•' || c == '*')) {
+            to_update.remove("turnstile_secret_key");
+        }
+    }
+    if to_update.is_empty() {
+        return Response::from_json(&serde_json::json!({ "success": true }));
+    }
+
     let db = ctx.env.d1("DB")?;
     for (k, v) in &to_update {
         db::setting::set_setting(&db, k, v).await?;
@@ -908,6 +919,16 @@ pub async fn get_me(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     Response::from_json(&user)
 }
 
+pub fn redact_settings(map: &mut serde_json::Map<String, serde_json::Value>) {
+    if let Some(val) = map.get_mut("turnstile_secret_key") {
+        if let serde_json::Value::String(s) = val {
+            if !s.trim().is_empty() {
+                *val = serde_json::Value::String("••••••••".to_string());
+            }
+        }
+    }
+}
+
 pub async fn get_settings(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let user = auth_required!(&req, ctx);
     if user.role != "admin" {
@@ -931,6 +952,8 @@ pub async fn get_settings(req: Request, ctx: RouteContext<()>) -> Result<Respons
         let fallback_origin = get_fallback_origin(&req, &ctx.env)?;
         map.insert("canonical_origin".to_string(), serde_json::Value::String(fallback_origin));
     }
+
+    redact_settings(&mut map);
     
     Response::from_json(&serde_json::Value::Object(map))
 }
@@ -961,4 +984,70 @@ pub async fn preview(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _ = headers.set("Content-Security-Policy", "frame-ancestors *");
     let _ = headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
     Response::from_bytes(bytes).map(|res| res.with_headers(headers))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_redact_settings_masks_turnstile_secret_key() {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "site_title".to_string(),
+            serde_json::Value::String("My Site".to_string()),
+        );
+        map.insert(
+            "turnstile_site_key".to_string(),
+            serde_json::Value::String("0x4AAAAAAAJ-sitekey".to_string()),
+        );
+        map.insert(
+            "turnstile_secret_key".to_string(),
+            serde_json::Value::String("0x4AAAAAAAJ-supersecretkey".to_string()),
+        );
+
+        redact_settings(&mut map);
+
+        assert_eq!(
+            map.get("site_title").unwrap().as_str().unwrap(),
+            "My Site"
+        );
+        assert_eq!(
+            map.get("turnstile_site_key").unwrap().as_str().unwrap(),
+            "0x4AAAAAAAJ-sitekey"
+        );
+        assert_eq!(
+            map.get("turnstile_secret_key").unwrap().as_str().unwrap(),
+            "••••••••"
+        );
+    }
+
+    #[test]
+    fn test_redact_settings_ignores_empty_turnstile_secret_key() {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "turnstile_secret_key".to_string(),
+            serde_json::Value::String("".to_string()),
+        );
+
+        redact_settings(&mut map);
+
+        assert_eq!(
+            map.get("turnstile_secret_key").unwrap().as_str().unwrap(),
+            ""
+        );
+    }
+
+    #[test]
+    fn test_redact_settings_absent_key() {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "site_title".to_string(),
+            serde_json::Value::String("My Site".to_string()),
+        );
+
+        redact_settings(&mut map);
+
+        assert!(map.get("turnstile_secret_key").is_none());
+    }
 }
