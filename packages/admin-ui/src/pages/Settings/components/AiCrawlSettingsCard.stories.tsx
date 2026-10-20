@@ -13,6 +13,7 @@ const defaultValues: SettingsFormValues = {
   docsModeEnabled: false,
   docsPath: '/docs',
   siteLogo: '',
+  siteLogoDark: '',
   siteFavicon: '',
   defaultOgImage: '',
   footerText: '',

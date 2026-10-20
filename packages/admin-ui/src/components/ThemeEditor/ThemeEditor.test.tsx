@@ -649,5 +649,36 @@ describe('ThemeEditor component', () => {
       expect(footerCopyright.textContent).toBe(`© ${currentYear} Steph Wanicki Art. All rights reserved.`);
     });
   });
+
+  it('renders dark mode site logo with picture element in live preview when configured in settings', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Steph Wanicki Art',
+        site_logo: 'https://example.com/logo.png',
+        site_logo_dark: 'https://example.com/logo-dark.png',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <ThemeWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      const logoImg = screen.getByTestId('preview-site-logo') as HTMLImageElement;
+      expect(logoImg).toBeTruthy();
+      expect(logoImg.src).toBe('https://example.com/logo.png');
+      const picture = logoImg.closest('picture');
+      expect(picture).toBeTruthy();
+      const source = picture?.querySelector('source');
+      expect(source?.srcset).toBe('https://example.com/logo-dark.png');
+      expect(source?.media).toBe('(prefers-color-scheme: dark)');
+    });
+  });
 });
 
