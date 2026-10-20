@@ -33,7 +33,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -118,7 +118,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -194,7 +194,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -283,7 +283,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -396,7 +396,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -778,7 +778,7 @@ pub fn inject_theme_context(
         settings
             .and_then(|s| s.get("site_tagline").map(|v| v.as_str()))
             .filter(|v| !v.trim().is_empty())
-            .unwrap_or("An Editorial Review & Journal")
+            .unwrap_or("")
     };
 
     let theme_css = generate_theme_root_css(settings);
@@ -836,6 +836,16 @@ pub fn inject_theme_context(
         ctx.insert(
             "site_logo".to_string(),
             serde_json::Value::String(logo.to_string()),
+        );
+    }
+
+    let site_logo_dark = settings
+        .and_then(|s| s.get("site_logo_dark").map(|v| v.as_str()))
+        .filter(|v| !v.trim().is_empty());
+    if let Some(dark_logo) = site_logo_dark {
+        ctx.insert(
+            "site_logo_dark".to_string(),
+            serde_json::Value::String(dark_logo.to_string()),
         );
     }
 
@@ -1847,10 +1857,7 @@ mod tests {
         assert!(index_html.contains("Hello World"));
         assert!(index_html.contains("<header class=\"header-centered\">"));
         assert!(index_html.contains("<a href=\"/\" class=\"site-title\">Zygo</a>"));
-        assert!(
-            index_html
-                .contains("<div class=\"site-tagline\">An Editorial Review &amp; Journal</div>")
-        );
+        assert!(!index_html.contains("site-tagline"));
 
         let post_html = render_post(
             &content_types,
@@ -1955,11 +1962,7 @@ mod tests {
         assert!(html.contains("--line-height-body: 1.5;"));
         assert!(html.contains("--border-radius: 2px;"));
         assert!(html.contains("--box-shadow: 4px 6px 0 #0f172a;"));
-        assert!(
-            html.contains(
-                "<div class=\"site-tagline\">Specs, Dispatches &amp; Agentic Systems</div>"
-            )
-        );
+        assert!(!html.contains("site-tagline"));
     }
 
     #[test]
@@ -2554,6 +2557,50 @@ mod tests {
         assert!(html.contains(r#"<img src="https://example.com/logo.webp" alt="Steph Wanicki Art" class="site-logo">"#));
         let expected_footer = format!(r#"<div class="footer-text">© {} Steph Wanicki Art</div>"#, get_current_year());
         assert!(html.contains(&expected_footer));
+    }
+
+    #[test]
+    fn test_site_logo_dark_rendering() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "My Tech Blog".to_string());
+        settings.insert("site_logo".to_string(), "https://example.com/logo.png".to_string());
+        settings.insert("site_logo_dark".to_string(), "https://example.com/logo-dark.png".to_string());
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        assert!(html.contains(r#"<picture class="site-logo-picture"><source srcset="https://example.com/logo-dark.png" media="(prefers-color-scheme: dark)"><img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo"></picture>"#));
+    }
+
+    #[test]
+    fn test_explicit_site_tagline_rendering() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_tagline".to_string(), "Custom Publication Tagline".to_string());
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        assert!(html.contains(r#"<div class="site-tagline">Custom Publication Tagline</div>"#));
     }
 }
 
