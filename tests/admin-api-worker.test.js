@@ -12,7 +12,7 @@ describe('Admin API Worker Integration', () => {
         
         worker = await unstable_dev('packages/admin-api-worker/build/index.js', {
             config: 'packages/admin-api-worker/wrangler.toml',
-            vars: { ENVIRONMENT: 'test' },
+            vars: { ENVIRONMENT: 'test', CF_ACCESS_AUD: '', CF_ACCESS_TEAM_DOMAIN: '' },
             persistTo: './.wrangler/state/admin-test',
             experimental: { disableExperimentalWarning: true },
         });

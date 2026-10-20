@@ -31,11 +31,13 @@ Create an API Token in the [Cloudflare Dashboard](https://dash.cloudflare.com/pr
 | Scope | Resource | Permission |
 | :--- | :--- | :--- |
 | **Account** | Workers Scripts | **Edit** |
+| **Account** | Access: Apps and Policies | **Edit** |
+| **Account** | Access: Organizations, Identity Providers, and Groups | **Edit** |
 | **Zone** | Workers Routes | **Edit** |
 | **Zone** | DNS | **Edit** |
 | **Zone** | Zone | **Read** |
 
-Set the Zone resources to include **All zones** (or specifically your target domain).
+Set the Zone resources to include **All zones** (or specifically your target domain), and Account resources to include **All accounts** (or your specific account).
 
 ### 3. GitHub Secrets
 Add your Cloudflare credentials as repository secrets in GitHub (**Settings** > **Secrets and variables** > **Actions**):

@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Cloudflare Zero Trust Organization Provisioning & Team Domain Detection
+- **Automated Zero Trust Org Setup (`scripts/setup.mjs`)**:
+  - Added `deriveDefaultTeamSlug` and `ensureZeroTrustOrganization` to inspect `GET /accounts/{account_id}/access/organizations` during `pnpm run setup`, prompt for a Zero Trust team subdomain (`<team>.cloudflareaccess.com`) when none exists, and provision the organization via `POST /accounts/{account_id}/access/organizations`.
+  - Updated `updateAdminApiAccessVars` to warn when `CF_ACCESS_TEAM_DOMAIN` changes from a previous non-empty value so administrators know to clear browser cookies for the old team domain.
+- **Test Isolation & Unit Coverage (`tests/setup-script.test.js`, `tests/admin-api-worker.test.js`)**:
+  - Added unit tests for `deriveDefaultTeamSlug`, `ensureZeroTrustOrganization`, `updateAdminApiAccessVars` mismatch warnings, and `configureCloudflareAccess` team name handling.
+  - Updated `tests/admin-api-worker.test.js` `unstable_dev` config to explicitly reset `CF_ACCESS_AUD` and `CF_ACCESS_TEAM_DOMAIN` in test mode so local `wrangler.toml` overrides do not break integration tests.
+- **Documentation (`README.md`, `docs/domain-and-dns-setup.md`)**:
+  - Documented automated Zero Trust organization detection/provisioning and added `Account > Access: Organizations, Identity Providers, and Groups -> Edit` to the API token requirements table.
+
 ### Preset Section Templates & Theme Preview Relocation
 - **Preset Section Templates (`migrations/0012_new_preset_section_templates.sql`)**:
   - Seeded 5 new locked built-in section templates: `pricing` (Pricing Table), `stats` (Stats Bar), `logo-cloud` (Logo Cloud), `team` (Team Grid), and `steps` (Process Steps).
