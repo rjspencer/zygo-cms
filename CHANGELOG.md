@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Edge Cache Purge Reliability & Clear Cache Button
+- Purges now cover both `www` and apex hosts, and log the Cloudflare API response (status and body) to `wrangler tail` instead of failing silently.
+- Theme and layout changes purge the entire host so every cached page picks up the new stylesheet.
+- Scheduled publishing purges now use absolute URLs built from the canonical origin (they were relative and never reached Cloudflare).
+- New admin-only `POST /api/cache/clear`, a "Clear Cache" card on the Settings page, and matching WebMCP (`clear_cache`) and `zygo-mcp` (`zygo_clear_cache`) tools. It rotates `cache_bust_nonce` so `styles_hash` changes (covering style-only code deploys) and purges all cached content.
+
 ### Header Improvements: Optional Site Tagline & Dark Mode Logo
 - **Optional Header Site Tagline (`packages/core`, `packages/public-worker`, `packages/admin-ui`)**:
   - Removed hardcoded default taglines from built-in theme presets (`modern_editorial`, `bento_brutalism`) in `zygo-core` and Admin UI ThemeEditor constants, making tagline default to nothing (`""`).

@@ -50,6 +50,7 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/settings", handlers::api::update_setting)
         .get_async("/api/cloudflare/ai-crawl", handlers::cloudflare::get_ai_crawl)
         .put_async("/api/cloudflare/ai-crawl", handlers::cloudflare::update_ai_crawl)
+        .post_async("/api/cache/clear", handlers::cache_admin::clear_cache)
         .get_async("/api/analytics", handlers::api::get_analytics)
         .get_async("/api/me", handlers::api::get_me)
         .get_async("/api/auth/login", handlers::api::auth_login)

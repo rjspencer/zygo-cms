@@ -11,6 +11,7 @@ import {
   AiCrawlSettingsCard,
   DocsSettingsCard,
   EdgeEnvironmentCard,
+  CacheSettingsCard,
 } from './components';
 import { useSettingsData, useSettingsForm } from './hooks';
 import type { SettingsProps } from './types';
@@ -24,6 +25,10 @@ export const Settings: React.FC<SettingsProps> = () => {
     saveSettings,
     saveAiCrawlSettings,
     invalidate,
+    clearCache,
+    isClearingCache,
+    clearCacheSuccess,
+    clearCacheError,
   } = useSettingsData();
 
   const {
@@ -68,6 +73,12 @@ export const Settings: React.FC<SettingsProps> = () => {
           <AnalyticsSettingsCard />
           <AiCrawlSettingsCard configured={aiCrawlData?.configured ?? false} />
           <DocsSettingsCard />
+          <CacheSettingsCard
+            onClear={() => clearCache()}
+            isClearing={isClearingCache}
+            isSuccess={clearCacheSuccess}
+            errorMessage={clearCacheError}
+          />
           <EdgeEnvironmentCard />
         </Flex>
 

@@ -121,6 +121,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                 }
             },
             {
+                name: "zygo_clear_cache",
+                description: "Purge all cached public pages at the Cloudflare edge and rotate the stylesheet hash so browsers reload CSS. Admin only.",
+                inputSchema: { type: "object", properties: {} }
+            },
+            {
                 name: "zygo_list_redirects",
                 description: "List all 301 and 302 redirects in Zygo CMS.",
                 inputSchema: { type: "object", properties: {} }
@@ -244,6 +249,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 headers: getHeaders(),
                 body: JSON.stringify(args)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_clear_cache") {
+            const res = await fetch(getApiUrl('/cache/clear'), { method: "POST", headers: getHeaders() });
             if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
             const data = await res.json();
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };

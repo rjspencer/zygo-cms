@@ -122,7 +122,7 @@ pub fn compute_theme_styles_hash(
     if let Some(settings) = theme_settings {
         let mut sorted_keys: Vec<&String> = settings
             .keys()
-            .filter(|k| k.starts_with("theme_") || *k == "site_title")
+            .filter(|k| k.starts_with("theme_") || *k == "site_title" || *k == "cache_bust_nonce")
             .collect();
         sorted_keys.sort();
         for k in sorted_keys {

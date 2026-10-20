@@ -199,6 +199,9 @@ async fn recompute_and_purge(env: &worker::Env, d1: &worker::D1Database, req: &R
         }
     }
     crate::cache::purge_urls(env, purge_list).await;
+    if !origin.is_empty() {
+        crate::cache::purge_hosts(env, vec![origin]).await;
+    }
 }
 
 #[cfg(test)]

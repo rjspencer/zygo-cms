@@ -850,6 +850,9 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
     }
 
     cache::purge_urls(&ctx.env, purge_list).await;
+    if !origin.is_empty() {
+        cache::purge_hosts(&ctx.env, vec![origin.clone()]).await;
+    }
 
     Response::from_json(&json!({ "success": true }))
 }
