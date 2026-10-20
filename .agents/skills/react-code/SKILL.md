@@ -163,17 +163,10 @@ export const Editor = ({ id }: { id: string }) => {
 
 Whenever modifying React code in `packages/admin-ui`:
 
-1. **Storybook (1+2+4 Protocol)**: Ensure all visual components have a `.stories.tsx` file and pass `pnpm --filter admin-ui test-storybook`.
-2. **Typecheck**: Verify full TypeScript compliance:
-   ```bash
-   pnpm --filter admin-ui exec tsc --noEmit
-   ```
-3. **Unit Tests**: Run tests with Vitest:
-   ```bash
-   pnpm --filter admin-ui test
-   ```
-4. **Accessible Testing**: Use Testing Library queries like `getByRole` and `getByLabelText`. Avoid `getByTestId` unless no accessible role exists.
-5. **WebMCP Parity**: If introducing new editable views or actions, expose corresponding WebMCP tools via `useRegisterWebMCPTools`.
+1. **Storybook (1+2+4 Protocol)**: Every visual component needs a `.stories.tsx`; follow the `ui-qa-handoff` skill.
+2. **Typecheck**: `pnpm --filter admin-ui exec tsc --noEmit`
+3. **Unit Tests**: `pnpm --filter admin-ui test` (testing conventions: `packages/admin-ui/AGENTS.md`).
+4. **WebMCP Parity**: New editable views or actions need WebMCP tools; follow the `webmcp-parity-audit` skill.
 
 ---
 
