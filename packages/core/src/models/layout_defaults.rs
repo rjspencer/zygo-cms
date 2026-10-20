@@ -40,7 +40,7 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -66,7 +66,7 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -192,7 +192,7 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -236,7 +236,7 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -288,7 +288,7 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -338,7 +338,7 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
