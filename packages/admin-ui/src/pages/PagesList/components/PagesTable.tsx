@@ -1,13 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Table, Text, Badge, Flex, IconButton, Checkbox } from '@radix-ui/themes';
-import { Pencil1Icon, ExternalLinkIcon } from '@radix-ui/react-icons';
+import { Pencil1Icon, TrashIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { getPublicSiteUrl } from '../../../utils/api';
 import type { PageItem } from '../types';
 
 export interface PagesTableProps {
   pages: PageItem[];
   isLoading?: boolean;
+  onDeleteClick?: (page: PageItem) => void;
   selectedIds?: Set<number>;
   onToggleSelect?: (id: number) => void;
   onToggleSelectAll?: () => void;
@@ -16,6 +17,7 @@ export interface PagesTableProps {
 export const PagesTable: React.FC<PagesTableProps> = ({
   pages,
   isLoading,
+  onDeleteClick,
   selectedIds,
   onToggleSelect,
   onToggleSelectAll,
@@ -112,6 +114,19 @@ export const PagesTable: React.FC<PagesTableProps> = ({
                     title="Edit Page"
                   >
                     <Pencil1Icon width="18" height="18" />
+                  </IconButton>
+                  <IconButton
+                    style={{ cursor: page.slug === '/' ? 'not-allowed' : 'pointer' }}
+                    size="2"
+                    variant="ghost"
+                    color={page.slug === '/' ? 'gray' : 'red'}
+                    disabled={page.slug === '/'}
+                    onClick={() => page.slug !== '/' && onDeleteClick?.(page)}
+                    title={page.slug === '/' ? 'The Home page cannot be deleted' : 'Delete Page'}
+                    aria-label={`Delete ${page.title}`}
+                    data-testid={`delete-page-${page.id}`}
+                  >
+                    <TrashIcon width="18" height="18" />
                   </IconButton>
                 </Flex>
               </Table.Cell>

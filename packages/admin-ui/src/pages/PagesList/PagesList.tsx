@@ -1,13 +1,22 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Card } from '@radix-ui/themes';
-import { PagesHeader, PagesSearchBar, PagesTable } from './components';
+import {
+  PagesHeader,
+  PagesSearchBar,
+  PagesTable,
+  DeletePageDialog,
+} from './components';
 import { BulkActionBar } from '../../components/BulkActionBar';
 import { useBulkEntries } from '../../hooks/useBulkEntries';
 import { usePagesData, usePagesFilters } from './hooks';
+import type { PageItem } from './types';
 
 export const PagesList: React.FC = () => {
+  const [pageToDelete, setPageToDelete] = useState<PageItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const { pages, isLoading } = usePagesData();
+  const { pages, isLoading, deletePage, isDeleting } = usePagesData({
+    onDeleteSettled: () => setPageToDelete(null),
+  });
   const { search, setSearch } = usePagesFilters();
 
   const { bulkMutate, isPending: isBulkPending } = useBulkEntries({
@@ -47,6 +56,12 @@ export const PagesList: React.FC = () => {
     }
   };
 
+  const handleConfirmDelete = () => {
+    if (pageToDelete) {
+      deletePage(pageToDelete.id);
+    }
+  };
+
   const handleBulkPublish = () => {
     bulkMutate({ ids: Array.from(selectedIds), action: 'publish' });
   };
@@ -82,11 +97,20 @@ export const PagesList: React.FC = () => {
         <PagesTable
           pages={filteredPages}
           isLoading={isLoading}
+          onDeleteClick={(page) => setPageToDelete(page)}
           selectedIds={selectedIds}
           onToggleSelect={handleToggleSelect}
           onToggleSelectAll={handleToggleSelectAll}
         />
       </Card>
+
+      <DeletePageDialog
+        page={pageToDelete}
+        isOpen={pageToDelete !== null}
+        onOpenChange={(open) => !open && setPageToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
     </Box>
   );
 };

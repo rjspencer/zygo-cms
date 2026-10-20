@@ -187,6 +187,91 @@ describe('PagesList component', () => {
     windowOpenSpy.mockRestore();
   });
 
+  it('opens delete confirmation dialog and executes delete mutation for page', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPagesData,
+    });
+
+    const user = userEvent.setup();
+    renderPagesList();
+
+    await waitFor(() => {
+      expect(screen.getByText('About Us')).toBeDefined();
+    });
+
+    const deleteButtons = screen.getAllByTitle('Delete Page');
+    await user.click(deleteButtons[0]);
+
+    // Check dialog appears
+    expect(screen.getByRole('heading', { name: 'Delete Page' })).toBeDefined();
+    expect(screen.getByText(/Are you sure you want to delete “About Us”?/i)).toBeDefined();
+
+    // Mock delete API response
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      text: async () => 'OK',
+    });
+
+    const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
+    await user.click(confirmDeleteBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith('/api/entries/1', { method: 'DELETE' });
+    });
+  });
+
+  it('closes delete confirmation dialog when cancel is clicked', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPagesData,
+    });
+
+    const user = userEvent.setup();
+    renderPagesList();
+
+    await waitFor(() => {
+      expect(screen.getByText('About Us')).toBeDefined();
+    });
+
+    const deleteButtons = screen.getAllByTitle('Delete Page');
+    await user.click(deleteButtons[0]);
+
+    expect(screen.getByRole('heading', { name: 'Delete Page' })).toBeDefined();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    await user.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Delete Page' })).toBeNull();
+    });
+  });
+
+  it('disables delete button for home page with appropriate tooltip', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => [
+        {
+          id: 10,
+          type: 'page',
+          title: 'Home',
+          path: '/',
+          status: 'published',
+        },
+      ],
+    });
+
+    renderPagesList();
+
+    await waitFor(() => {
+      expect(screen.getByText('Home')).toBeDefined();
+    });
+
+    const homeDeleteBtn = screen.getByTitle('The Home page cannot be deleted') as HTMLButtonElement;
+    expect(homeDeleteBtn).toBeDefined();
+    expect(homeDeleteBtn.disabled).toBe(true);
+  });
+
   it('selects multiple pages and executes bulk publish operation', async () => {
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
