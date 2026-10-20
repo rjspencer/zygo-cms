@@ -195,7 +195,7 @@ The setup wizard handles the entire onboarding flow out of the box:
 - Provisions the Cloudflare R2 media storage bucket (`zygo-cms-media`).
 - Updates Custom Domain routes in `wrangler.toml` for `packages/public-worker`, `packages/admin-api-worker`, and `packages/admin-ui`.
 - Applies remote D1 SQLite schema migrations automatically.
-- Automates Cloudflare Access application and admin user policy setup via the Cloudflare REST API.
+- Detects or provisions your Cloudflare Zero Trust organization (`<team>.cloudflareaccess.com`), Access applications, and admin user policies via the Cloudflare REST API.
 - Prompts to build and deploy all workers to Cloudflare immediately.
 
 ---

@@ -49,6 +49,16 @@ function validateDomain(domain) {
   return regex.test(clean) ? clean : null;
 }
 
+function deriveDefaultTeamSlug(domain) {
+  if (!domain || typeof domain !== 'string') {
+    return 'zygo-cms';
+  }
+  const clean = domain.trim().toLowerCase().replace(/^https?:\/\//, '');
+  const firstLabel = clean.split('.')[0] || '';
+  const sanitized = firstLabel.replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || 'zygo-cms';
+}
+
 function validateEmail(email) {
   if (!email) return null;
   const clean = email.trim().toLowerCase();
@@ -182,7 +192,13 @@ function updateAdminApiAccessVars(aud, teamDomain, customFilePath = null) {
   }
 
   if (teamDomain) {
-    const fullTeamDomain = teamDomain.startsWith('http') ? teamDomain : `https://${teamDomain}`;
+    const cleanTeamDomain = teamDomain.trim().replace(/\/+$/, '');
+    const fullTeamDomain = cleanTeamDomain.startsWith('http') ? cleanTeamDomain : `https://${cleanTeamDomain}`;
+    const existingMatch = content.match(/CF_ACCESS_TEAM_DOMAIN\s*=\s*"([^"]*)"/);
+    if (existingMatch && existingMatch[1] && existingMatch[1] !== fullTeamDomain) {
+      console.warn(`⚠️  CF_ACCESS_TEAM_DOMAIN changed from ${existingMatch[1]} to ${fullTeamDomain}. Existing browser sessions on the old team domain may need cookies cleared.`);
+    }
+
     if (/CF_ACCESS_TEAM_DOMAIN\s*=\s*"[^"]*"/.test(content)) {
       content = content.replace(/CF_ACCESS_TEAM_DOMAIN\s*=\s*"[^"]*"/, `CF_ACCESS_TEAM_DOMAIN = "${fullTeamDomain}"`);
     } else if (/\[vars\]/.test(content)) {
@@ -443,6 +459,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
         console.warn(`   1. Open https://dash.cloudflare.com/profile/api-tokens in your browser.`);
         console.warn(`   2. Edit your API Token and ensure it includes:`);
         console.warn(`      • Account > Access: Apps and Policies -> Edit`);
+        console.warn(`      • Account > Access: Organizations, Identity Providers, and Groups -> Edit`);
         console.warn(`      • Account Resources -> Include -> All accounts (or your specific account)`);
         console.warn(`   3. Re-run "pnpm run setup" once updated.\n`);
       } else {
@@ -505,6 +522,57 @@ async function getZeroTrustOrgDomain(accountId, apiToken) {
     }
     return null;
   } catch (_) {
+    return null;
+  }
+}
+
+async function ensureZeroTrustOrganization(accountId, apiToken, teamName, orgName = null) {
+  try {
+    const existing = await getZeroTrustOrgDomain(accountId, apiToken);
+    if (existing) {
+      console.log(`✓ Found existing Cloudflare Zero Trust Organization (${existing})`);
+      return existing;
+    }
+
+    if (!teamName || typeof teamName !== 'string' || !teamName.trim()) {
+      return null;
+    }
+
+    let slug = teamName.trim().toLowerCase();
+    slug = slug.replace(/^https?:\/\//, '');
+    slug = slug.replace(/\.cloudflareaccess\.com$/, '');
+    slug = slug.trim();
+    if (!slug) {
+      return null;
+    }
+
+    const authDomain = `${slug}.cloudflareaccess.com`;
+    const resolvedOrgName = orgName || slug;
+
+    const res = await fetch(`https://api.cloudflare.com/client/v4/accounts/${accountId}/access/organizations`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'zygo-cms-setup/0.1.0'
+      },
+      body: JSON.stringify({
+        name: resolvedOrgName,
+        auth_domain: authDomain
+      })
+    });
+
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.success && data?.result?.auth_domain) {
+      console.log(`✓ Created Cloudflare Zero Trust Organization (${data.result.auth_domain})`);
+      return data.result.auth_domain;
+    } else {
+      const details = JSON.stringify(data?.errors || data?.messages || data);
+      console.warn(`⚠️  Could not provision Zero Trust Organization (${authDomain}): ${details}`);
+      return null;
+    }
+  } catch (err) {
+    console.warn(`⚠️  Could not provision Zero Trust Organization: ${err.message}`);
     return null;
   }
 }
@@ -606,10 +674,11 @@ async function configureGoogleProvider(accountId, apiToken, clientId, clientSecr
   }
 }
 
-async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api', customApiPath = null) {
+async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail, uiSubdomain = 'admin', apiSubdomain = 'api', customApiPath = null, teamName = null) {
   if (typeof uiSubdomain === 'object' && uiSubdomain !== null) {
     customApiPath = uiSubdomain.customApiPath || null;
     apiSubdomain = uiSubdomain.apiSubdomain || 'api';
+    teamName = uiSubdomain.teamName || null;
     uiSubdomain = uiSubdomain.uiSubdomain || 'admin';
   }
   const uiSub = uiSubdomain || 'admin';
@@ -619,6 +688,11 @@ async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail
   const allowedOrigins = [`https://${uiHost}`, `https://${apiHost}`];
 
   try {
+    let orgDomain = null;
+    if (teamName) {
+      orgDomain = await ensureZeroTrustOrganization(accountId, apiToken, teamName);
+    }
+
     const uiResult = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin UI', uiHost, allowedOrigins, adminEmail);
     const apiResult = await createAccessAppAndPolicy(accountId, apiToken, 'Zygo CMS Admin API', apiHost, allowedOrigins, adminEmail);
 
@@ -626,7 +700,9 @@ async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail
     const apiSuccess = Boolean(apiResult?.success ?? apiResult);
 
     if (apiSuccess && apiResult?.aud) {
-      const orgDomain = await getZeroTrustOrgDomain(accountId, apiToken);
+      if (!orgDomain) {
+        orgDomain = await getZeroTrustOrgDomain(accountId, apiToken);
+      }
       updateAdminApiAccessVars(apiResult.aud, orgDomain, customApiPath);
     }
 
@@ -851,6 +927,7 @@ async function main() {
     accountId: '',
     apiToken: '',
     adminEmail: '',
+    zeroTrustTeamName: '',
     enableGoogle: false,
     googleClientId: '',
     googleClientSecret: '',
@@ -948,6 +1025,28 @@ async function main() {
   });
   if (isCancel(emailAns)) { cancel('Setup cancelled'); return process.exit(0); }
   config.adminEmail = emailAns.trim();
+
+  const existingOrgDomain = await getZeroTrustOrgDomain(config.accountId, config.apiToken);
+  if (existingOrgDomain) {
+    console.log(pc.green(`✓ Detected Zero Trust team domain: ${existingOrgDomain}`));
+  } else {
+    const defaultSlug = deriveDefaultTeamSlug(config.domain);
+    const teamAns = await text({
+      message: 'Zero Trust Team Subdomain (<team>.cloudflareaccess.com)',
+      initialValue: defaultSlug,
+      defaultValue: defaultSlug,
+      placeholder: defaultSlug,
+      validate(value) {
+        if (!value || !value.trim()) return 'Team subdomain is required';
+        const cleaned = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(cleaned)) {
+          return 'Use lowercase letters, numbers, and hyphens only';
+        }
+      }
+    });
+    if (isCancel(teamAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.zeroTrustTeamName = teamAns.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
+  }
 
   const googleAns = await confirm({
     message: 'Would you like to enable Google OAuth sign-in? (requires GCP credentials)',
@@ -1117,6 +1216,9 @@ async function main() {
     s.stop('✓ Migrations applied');
 
     s.start('Configuring Cloudflare Access');
+    if (config.zeroTrustTeamName) {
+      await ensureZeroTrustOrganization(config.accountId, config.apiToken, config.zeroTrustTeamName);
+    }
     await ensureOneTimePinProvider(config.accountId, config.apiToken);
     if (config.enableGoogle) {
       await configureGoogleProvider(config.accountId, config.apiToken, config.googleClientId, config.googleClientSecret);
@@ -1228,6 +1330,8 @@ export {
   ensureOneTimePinProvider,
   configureGoogleProvider,
   getZeroTrustOrgDomain,
+  ensureZeroTrustOrganization,
+  deriveDefaultTeamSlug,
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,

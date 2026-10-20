@@ -17,7 +17,9 @@ import {
   getZeroTrustOrgDomain,
   applyCloudflareRedirect,
   applyAiCrawlSettings,
-  updateAdminApiZoneVar
+  updateAdminApiZoneVar,
+  deriveDefaultTeamSlug,
+  ensureZeroTrustOrganization
 } from '../scripts/setup.mjs';
 
 describe('Setup Script Helpers', () => {
@@ -85,6 +87,26 @@ describe('Setup Script Helpers', () => {
       expect(validateEmail('not-an-email')).toBeNull();
       expect(validateEmail('')).toBeNull();
       expect(validateEmail(null)).toBeNull();
+    });
+  });
+
+  describe('deriveDefaultTeamSlug', () => {
+    it('extracts first label from standard apex domain', () => {
+      expect(deriveDefaultTeamSlug('example.com')).toBe('example');
+    });
+
+    it('extracts first label from multi-part TLD domain and normalizes to lowercase', () => {
+      expect(deriveDefaultTeamSlug('https://My-Site.co.uk/')).toBe('my-site');
+    });
+
+    it('extracts first label from subdomain or domain with protocol', () => {
+      expect(deriveDefaultTeamSlug('http://blog.company.io/extra')).toBe('blog');
+    });
+
+    it('returns "zygo-cms" default if domain is empty or null', () => {
+      expect(deriveDefaultTeamSlug('')).toBe('zygo-cms');
+      expect(deriveDefaultTeamSlug(null)).toBe('zygo-cms');
+      expect(deriveDefaultTeamSlug(undefined)).toBe('zygo-cms');
     });
   });
 
@@ -177,6 +199,39 @@ describe('Setup Script Helpers', () => {
       const updated = fs.readFileSync(mockApiPath, 'utf8');
       expect(updated).toContain('CF_ACCESS_AUD = "test-aud-tag-123"');
       expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://team.cloudflareaccess.com"');
+    });
+
+    it('warns when CF_ACCESS_TEAM_DOMAIN changes from a previous non-empty value', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockApiPath = path.join(testDir, 'admin-api-worker-access-mismatch.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\n[vars]\nCF_ACCESS_AUD = "old-aud"\nCF_ACCESS_TEAM_DOMAIN = "https://old-team.cloudflareaccess.com"\n',
+        'utf8'
+      );
+
+      updateAdminApiAccessVars('new-aud', 'new-team.cloudflareaccess.com', mockApiPath);
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://new-team.cloudflareaccess.com"');
+      expect(updated).toContain('CF_ACCESS_AUD = "new-aud"');
+      expect(warnSpy).toHaveBeenCalled();
+      const warnMessage = warnSpy.mock.calls.map(c => c.join(' ')).join('\n');
+      expect(warnMessage).toMatch(/CF_ACCESS_TEAM_DOMAIN|cookies/i);
+      warnSpy.mockRestore();
+    });
+
+    it('does not warn when CF_ACCESS_TEAM_DOMAIN is newly set or unchanged', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const mockApiPath = path.join(testDir, 'admin-api-worker-access-same.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\n[vars]\nCF_ACCESS_AUD = "aud-123"\nCF_ACCESS_TEAM_DOMAIN = "https://same-team.cloudflareaccess.com"\n',
+        'utf8'
+      );
+
+      updateAdminApiAccessVars('aud-123', 'same-team.cloudflareaccess.com', mockApiPath);
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
 
     it('updates public-worker/wrangler.toml with custom public subdomain', () => {
@@ -470,6 +525,138 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://myteam.cloudflareaccess.com"');
       fs.rmSync(mockApiPath, { force: true });
     });
+
+    it('provisions or verifies Zero Trust organization when teamName is provided', async () => {
+      const fetchMock = vi.fn()
+        // Org check GET response (found)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { auth_domain: 'custom-team.cloudflareaccess.com' } })
+        })
+        // Admin UI App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-app-id' } })
+        })
+        // Admin UI Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin UI Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-policy-id' } })
+        })
+        // Admin API App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-app-id', aud: 'aud-xyz' } })
+        })
+        // Admin API Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin API Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-policy-id' } })
+        });
+
+      global.fetch = fetchMock;
+
+      const mockApiPath = path.resolve('tests/mocks/wrangler-test/mock-admin-api-team.toml');
+      fs.mkdirSync(path.dirname(mockApiPath), { recursive: true });
+      fs.writeFileSync(mockApiPath, 'name = "admin-api-worker"\n[vars]\nENVIRONMENT = "production"\n', 'utf8');
+
+      await configureCloudflareAccess(
+        'mock-account',
+        'mock-token',
+        'example.com',
+        'admin@example.com',
+        'admin',
+        'api',
+        mockApiPath,
+        'custom-team'
+      );
+
+      // First fetch call should be to /access/organizations
+      expect(fetchMock.mock.calls[0][0]).toContain('/access/organizations');
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://custom-team.cloudflareaccess.com"');
+      fs.rmSync(mockApiPath, { force: true });
+    });
+
+    it('provisions Zero Trust organization when teamName is provided in options object', async () => {
+      const fetchMock = vi.fn()
+        // Org check GET response (404)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        })
+        // Org POST creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { auth_domain: 'opt-team.cloudflareaccess.com' } })
+        })
+        // Admin UI App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-app-id' } })
+        })
+        // Admin UI Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin UI Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-ui-policy-id' } })
+        })
+        // Admin API App creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-app-id', aud: 'aud-opt' } })
+        })
+        // Admin API Policy GET list response (empty)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: [] })
+        })
+        // Admin API Policy creation response
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true, result: { id: 'mock-api-policy-id' } })
+        });
+
+      global.fetch = fetchMock;
+
+      const mockApiPath = path.resolve('tests/mocks/wrangler-test/mock-admin-api-opt-team.toml');
+      fs.mkdirSync(path.dirname(mockApiPath), { recursive: true });
+      fs.writeFileSync(mockApiPath, 'name = "admin-api-worker"\n[vars]\nENVIRONMENT = "production"\n', 'utf8');
+
+      await configureCloudflareAccess(
+        'mock-account',
+        'mock-token',
+        'example.com',
+        'admin@example.com',
+        {
+          uiSubdomain: 'admin',
+          apiSubdomain: 'api',
+          customApiPath: mockApiPath,
+          teamName: 'opt-team'
+        }
+      );
+
+      expect(fetchMock.mock.calls[0][0]).toContain('/access/organizations');
+      expect(fetchMock.mock.calls[1][1].method).toBe('POST');
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('CF_ACCESS_TEAM_DOMAIN = "https://opt-team.cloudflareaccess.com"');
+      fs.rmSync(mockApiPath, { force: true });
+    });
   });
 
   describe('updateAdminUiEnv', () => {
@@ -583,6 +770,143 @@ describe('Setup Script Helpers', () => {
 
       const domain = await getZeroTrustOrgDomain('mock-account', 'mock-token');
       expect(domain).toBeNull();
+    });
+  });
+
+  describe('ensureZeroTrustOrganization', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns existing auth_domain when org already exists without calling POST', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          result: { auth_domain: 'existing.cloudflareaccess.com', name: 'Existing Org' }
+        })
+      });
+      global.fetch = fetchMock;
+
+      const domain = await ensureZeroTrustOrganization('mock-account', 'mock-token', 'my-team');
+      expect(domain).toBe('existing.cloudflareaccess.com');
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock.mock.calls[0][0]).toBe(
+        'https://api.cloudflare.com/client/v4/accounts/mock-account/access/organizations'
+      );
+      expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+    });
+
+    it('creates new organization via POST when GET returns 404', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            result: { auth_domain: 'new-team.cloudflareaccess.com', name: 'My Org' }
+          })
+        });
+      global.fetch = fetchMock;
+
+      const domain = await ensureZeroTrustOrganization('mock-account', 'mock-token', 'new-team', 'My Org');
+      expect(domain).toBe('new-team.cloudflareaccess.com');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      expect(fetchMock.mock.calls[1][0]).toBe(
+        'https://api.cloudflare.com/client/v4/accounts/mock-account/access/organizations'
+      );
+      expect(fetchMock.mock.calls[1][1].method).toBe('POST');
+      expect(fetchMock.mock.calls[1][1].headers).toEqual(expect.objectContaining({
+        Authorization: 'Bearer mock-token',
+        'Content-Type': 'application/json'
+      }));
+      const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(body.auth_domain).toBe('new-team.cloudflareaccess.com');
+      expect(body.name).toBe('My Org');
+    });
+
+    it('normalizes team slug by stripping .cloudflareaccess.com suffix if present', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            success: true,
+            result: { auth_domain: 'my-org-team.cloudflareaccess.com' }
+          })
+        });
+      global.fetch = fetchMock;
+
+      const domain = await ensureZeroTrustOrganization('mock-account', 'mock-token', 'my-org-team.cloudflareaccess.com');
+      expect(domain).toBe('my-org-team.cloudflareaccess.com');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+
+      const body = JSON.parse(fetchMock.mock.calls[1][1].body);
+      expect(body.auth_domain).toBe('my-org-team.cloudflareaccess.com');
+    });
+
+    it('gracefully handles API errors during POST without throwing', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: async () => ({ success: false, errors: [{ message: 'Slug unavailable' }] })
+        });
+      global.fetch = fetchMock;
+
+      const domain = await ensureZeroTrustOrganization('mock-account', 'mock-token', 'taken-slug');
+      expect(domain).toBeNull();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('gracefully handles network error without throwing', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network connection failed'));
+
+      const domain = await ensureZeroTrustOrganization('mock-account', 'mock-token', 'my-team');
+      expect(domain).toBeNull();
+      expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it('returns null without calling POST when teamName is empty or missing and no existing org', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          json: async () => ({ success: false })
+        });
+      global.fetch = fetchMock;
+
+      const domain1 = await ensureZeroTrustOrganization('mock-account', 'mock-token', '');
+      expect(domain1).toBeNull();
+
+      const domain2 = await ensureZeroTrustOrganization('mock-account', 'mock-token', null);
+      expect(domain2).toBeNull();
+
+      // Only GET calls made, no POST
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][1]?.method).toBeUndefined();
+      expect(fetchMock.mock.calls[1][1]?.method).toBeUndefined();
     });
   });
 
