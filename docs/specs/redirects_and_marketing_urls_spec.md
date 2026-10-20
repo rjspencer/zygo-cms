@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS redirects (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_redirects_source_path ON redirects(source_path);
 ```
-*(All queries in `zygo-core` must list explicit column names—no `SELECT *`—and structs must derive `#[serde(default)]` and `#[serde(skip_unknown_fields)]`.)*
+*(All queries in `zygo-core` must list explicit column names—no `SELECT *`—and structs must derive `#[serde(default)]`.)*
 
 ### 2.2 Public Worker Resolution (`packages/public-worker`)
 - **Resolution Order**:

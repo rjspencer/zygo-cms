@@ -25,7 +25,7 @@ Zygo CMS is powered by Cloudflare Workers written in Rust using the `worker-rs` 
 
 ### Database Queries and Models
 - **Database Queries:** Located in `packages/core/src/db`. Ensure all queries use prepared statements and explicitly name columns instead of using `SELECT *`.
-- **Models:** Defined in `packages/core/src/models`. We utilize `serde` heavily. Ensure new fields include `#[serde(default)]` and `#[serde(skip_unknown_fields)]` to maintain backwards compatibility between the two workers during deployment rollouts.
+- **Models:** Defined in `packages/core/src/models`. We utilize `serde` heavily. Ensure new fields include `#[serde(default)]` to maintain backwards compatibility between the two workers during deployment rollouts.
 
 ## Two-Tier Testing Architecture
 

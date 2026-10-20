@@ -69,7 +69,7 @@ The Schema Builder allows you to define custom data structures dynamically direc
 - When authors create content assigned to this custom type, the Editor Sidebar will dynamically render the appropriate form inputs based on the schema.
 - The structured data is safely persisted as a serialized JSON object in the `custom_fields_json` database column on the `entries` table.
 
-**Architecture Note:** To ensure resilience across two-worker architectures, the schema builder relies heavily on Serde attributes (`#[serde(default)]` and `#[serde(skip_unknown_fields)]`). This guarantees that decoupled workers can parse JSON payloads even if the underlying dynamic schema changes, preventing unexpected panics in production.
+**Architecture Note:** To ensure resilience across two-worker architectures, the schema builder relies heavily on Serde attributes (`#[serde(default)]`). This guarantees that decoupled workers can parse JSON payloads even if the underlying dynamic schema changes, preventing unexpected panics in production.
 
 ## Menus & Navigation
 

@@ -1,124 +1,61 @@
 # Project Guidelines: Zygo CMS (Cloudflare Workers + D1 + Rust)
 
-## 1. Pre-Commit Validation & Quality Gates (Mandatory)
-Before committing any code or marking any task as complete, you MUST execute and pass all validation gates in order:
+Architecture map: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Package-specific rules live in nested `AGENTS.md` files; task workflows live in skills (see §5).
 
-1. **Rust Tests**: Run `cargo test` to verify core logic, database models, and worker handlers.
-2. **Web Tests**: Run `pnpm run test:all` to run root and sub-package Vitest test suites.
-3. **TypeScript Typecheck**: Run `pnpm --filter admin-ui exec tsc --noEmit` to verify type safety in the Admin UI.
-4. **Production Build Verification**: Run `pnpm run build` to confirm all Rust Wasm workers and the React Admin UI compile without errors.
-5. **UI QA Gate (if UI touched)**: For any visual component changes, the **1+2+4 Protocol** must pass before committing.
+## 1. Packages
 
----
-
-## 2. Subagent Workflows
-
-### Parallel Subagent Wave Pattern
-When a task spans implementation, UI/Storybook, and tests, prefer executing in three structured waves:
-1. **Define Shared Contracts First**: Before spawning parallel subagents, specify exact function signatures, tool names, JSON input schemas, accessible labels (`aria-label`), and `data-testid` attributes in the plan.
-2. **Wave 1 (Parallel Implementation & Test Authoring)**: Spawn implementation, UI/Storybook, and test subagents concurrently with **strictly disjoint file ownership** so no two subagents edit the same file.
-3. **Wave 2 (Automated Quality Gates)**: Run `tsc --noEmit`, `pnpm run test:all`, `cargo test`, and `pnpm run build` to verify integration.
-4. **Wave 3 (Parallel Verification Handoffs)**: Spawn the **Code Review Subagent** and **`ui-qa` Subagent** concurrently to verify code quality and 1+2+4 visual compliance.
-
-### Backend Workflow
-For non-visual changes (Rust logic, D1 schema, REST APIs):
-1. Delegate feature implementation to a subagent or complete it cleanly.
-2. Delegate verification to a Code Review Subagent (or invoke `self` configured as a Code Reviewer) to inspect logic, test coverage, and security before committing.
-
-### Frontend/UI Workflow (1+2+4 Protocol)
-For **ANY** visual UI component changes in `packages/admin-ui`, strictly adhere to this four-step protocol:
-1. **Build**: Build the React component and create a corresponding `.stories.tsx` file for Storybook.
-2. **Automate**: Ensure the component passes Playwright tests via the `@storybook/test-runner` or Vitest Storybook integration (`pnpm --filter admin-ui test-storybook`).
-3. **Handoff**: Invoke a strict `ui-qa` Subagent. (If `ui-qa` is not pre-registered in the environment, define it via `define_subagent` or invoke `self` with an explicit UI QA prompt and browser inspection tools). Provide it with the local Storybook URL (e.g. `http://localhost:6006/?path=/story/...`).
-4. **Vision Validation**: The `ui-qa` Subagent MUST inspect the rendered component via browser tooling/screenshots, interact with states (hover, open dialogs, focus), and verify absence of visual regressions (e.g., clipped dropdowns, z-index collisions, overflowing text). The commit is blocked until approved.
-
-### MCP & WebMCP Human-Agent Parity Gate (Mandatory)
-For any feature or API added or changed across `packages/admin-ui` or `packages/admin-api-worker`:
-1. **Dual MCP Tool Parity Check**: Ask: "Can an AI agent perform this action via **both** in-browser WebMCP (`packages/admin-ui/src/lib/webmcp/`) and the backend CLI MCP bridge (`packages/zygo-mcp/`)?"
-   - **In-Browser WebMCP (`packages/admin-ui`)**:
-     - If adding a new page, register route navigation and inspection tools.
-     - If adding an editor (text, template, theme, menu), register `useRegisterWebMCPTools` with corresponding getters, setters, and action hooks.
-   - **Backend CLI MCP (`packages/zygo-mcp`)**:
-     - If adding or modifying backend REST API endpoints, content models, or global CMS actions, update `packages/zygo-mcp/index.mjs` so headless/CLI agents stay in parity with WebMCP.
-2. **Schema & Typings**: Every new tool in both `webmcp` and `zygo-mcp` must define strict input JSON schemas and descriptive error messages.
-3. **Integration Test**: Include Vitest tests validating that the new feature can be queried and mutated via the WebMCP registry and `zygo-mcp`.
-4. **Subagent Handoff**: Every feature PR must pass Code Review and UI QA (if visual) before merge.
-
----
-
-## 3. Database & SQLite Migrations (Cloudflare D1)
-
-- **Strictly Forbid `SELECT *`**: All database queries MUST define explicit column names (e.g., `SELECT id, title, slug FROM entries`) to support zero-downtime Expand/Contract schema migrations across decoupled workers.
-- **No Non-Constant Defaults in `ALTER TABLE`**: SQLite disallows non-constant defaults (such as `CURRENT_TIMESTAMP`, `CURRENT_DATE`, or expressions) in `ALTER TABLE ... ADD COLUMN`.
-  - Always add new columns as nullable: `ALTER TABLE <table> ADD COLUMN <col> <type>;`
-  - Follow immediately with an explicit backfill query:
-    ```sql
-    UPDATE <table> SET <col> = CURRENT_TIMESTAMP WHERE <col> IS NULL;
-    ```
-- **Binding Nullable / Optional Values in Rust**: Always bind SQL `NULL` using `JsValue::null()`, never JavaScript `undefined`.
-  ```rust
-  fn opt_js(val: &Option<String>) -> JsValue {
-      val.as_deref().map(JsValue::from).unwrap_or_else(JsValue::null)
-  }
-  ```
-
----
-
-## 4. Multi-Worker Monorepo Architecture
-
-The workspace is organized into discrete packages:
-- `packages/public-worker`: Public-facing SSR worker (Rust + Askama templates + D1 cache).
+- `packages/public-worker`: Public SSR worker (Rust + Askama + D1 cache).
 - `packages/admin-api-worker`: Authenticated REST API worker (Rust + Cloudflare Access + D1 + R2).
-- `packages/admin-ui`: Single Page Application admin dashboard (React 19 + Vite + Radix Themes).
-- `packages/core`: Shared Rust models, errors, and validation logic (`zygo-core`).
-- `packages/zygo-mcp`: Model Context Protocol server bridge for external AI agents.
+- `packages/admin-ui`: Admin SPA (React 19 + Vite + Radix Themes).
+- `packages/core`: Shared Rust models, errors, validation (`zygo-core`).
+- `packages/zygo-mcp`: MCP server bridge for external AI agents.
+- `migrations/`: D1 SQL migrations.
 
-### Worker Directives
-- **Serde Resilience**: All shared structs in `packages/core` (`zygo-core`) must use `#[serde(default)]` and `#[serde(skip_unknown_fields)]` so older workers do not panic when encountering new database columns or fields.
-- **Modular Handlers**: Never add inline closures to the main `Router` in worker `src/lib.rs`. All routes must be implemented as standalone functions in their respective handler modules (`packages/admin-api-worker/src/handlers/` or `packages/public-worker/src/handlers/`).
-- **API Route Prefix**: All JSON-returning backend API endpoints must be prefixed with `/api/` (e.g., `/api/entries`, `/api/media`).
-- **No `wait_until` on `RouteContext`**: In `worker-rs`, `wait_until` exists only on top-level `worker::Context`, not on router closures (`RouteContext<D>`). Implement async side-effects as `async fn` taking `&worker::Env` and await them directly in handlers.
-- **Edge Cache Invalidation**: Whenever content (entries, posts, menus) is created, updated, or deleted, call `cache::purge_urls` to purge the affected canonical URL, the homepage (`/`), RSS (`/rss.xml`), and Sitemap (`/sitemap.xml`).
-- **SEO & Canonical URLs**: Always resolve canonical origins using `utils::get_canonical_origin`. Strictly include trailing slash for homepage (`{origin}/`) and omit trailing slash for posts/pages (`{origin}/post/:slug`).
-- **Rust Raw String Delimiters with HTML**: When defining HTML templates or markup inline in Rust code, always use `r##"..."##` (with two or more `#` characters) instead of `r#"..."#` to prevent attributes like `href="#..."` from prematurely terminating the raw string literal.
-- **Static Asset Synchronization**: The public worker serves static assets directly from `public/style.css` at runtime (via `[assets]` binding in `packages/public-worker/wrangler.toml`). When modifying public site styles, keep `public/style.css` and `packages/public-worker/src/style.css` synchronized.
-- **Public SSR Accessibility Baseline**: All public SSR templates must maintain universal `:focus-visible` styling (using `var(--color-accent)`), an accessible `.skip-link` pointing to `<main id="main-content">`, and descriptive `aria-label` landmarks on all `<nav>` and search forms (`role="search"`).
-- **Theming Guidelines Skill**: For deep design tokens, color-mix rules, typography presets, and ThemeEditor conventions, refer to the on-demand workspace skill in `.agents/skills/zygo-theming/SKILL.md`.
+## 2. Always-On Rules
 
----
+- **No `SELECT *`**: Always list explicit column names in SQL (supports zero-downtime Expand/Contract migrations).
+- **API prefix**: All JSON-returning endpoints are prefixed `/api/`.
+- **Modular handlers**: Never add inline closures to the `Router` in worker `src/lib.rs`; routes are standalone functions in `src/handlers/`.
+- **Auth**: Any authenticated route starts with `let _user = auth_required!(&req, ctx);`.
+- **Focus**: Implement exactly what is requested. No speculative features or dependencies.
 
-## 5. Security & Authentication
+## 3. Pre-Commit Gates (Mandatory)
 
-- **Securing API Routes**: Any API route requiring authentication must invoke `let _user = auth_required!(&req, ctx);` at the start of the handler to enforce Cloudflare Access / JWT validation and return `401 Unauthorized` when invalid.
-- **Local Dev Auth Mocking**: Auth middleware must inspect `env.var("ENVIRONMENT")`. When running in `"dev"` mode, bypass Cloudflare Access verification with a mocked admin user.
-- **Service Token Rate Limiting**: Any endpoint accepting Service Tokens or used by MCP/AI tools must implement rate limiting to protect D1 from concurrency spikes.
+Before committing or marking a task complete, all of these must pass: `cargo test`, `pnpm run test:all`, `pnpm --filter admin-ui exec tsc --noEmit`, `pnpm run build`. For UI changes, also run the 1+2+4 protocol. Full procedure (branching, phased commits, CI sync, PR template): `commit` skill.
 
----
+## 4. MCP Parity Gate (Mandatory)
 
-## 6. Testing Conventions
+Any feature or API added or changed in `admin-ui` or `admin-api-worker` must be usable by agents through **both** in-browser WebMCP (`packages/admin-ui/src/lib/webmcp/`) and the CLI MCP bridge (`packages/zygo-mcp/index.mjs`), with strict input schemas and Vitest coverage for both. Details: `webmcp-parity-audit` skill.
 
-### Public Worker SSR Tests (Askama + Vitest)
-- **Templates as Single Source of Truth**: Never hardcode mock HTML strings in tests for public SSR rendering. Always load real Askama templates from `templates/` via `fs.readFileSync` and strip template tags.
-- **Offline CDN Mocking**: Client scripts loaded via browser CDN imports (`https://esm.sh/...`) must be aliased in `vitest.config.js` to lightweight local stubs (`tests/mocks/esm.js`).
+## 5. Where Things Live
 
-### Admin UI Tests (React 19 + Vitest + Testing Library)
-- See [`packages/admin-ui/AGENTS.md`](packages/admin-ui/AGENTS.md) for detailed React Query, MSW, and accessibility testing conventions.
-- Remember: Testing Library's `getByRole` ignores elements inside `display: none` containers by default; toggle container visibility before querying.
+| Need | Go to |
+| :--- | :--- |
+| Commit, branch, PR workflow | skill `commit` |
+| Writing/refactoring React in admin-ui | skills `react-code`, `refactor-react-component-into-module` |
+| Visual UI change QA, subagent waves | skill `ui-qa-handoff` |
+| WebMCP tools / editor parity | skill `webmcp-parity-audit` |
+| Public site CSS, tokens, section templates | skill `zygo-theming` |
+| Picking the next roadmap task | skill `next` |
+| Public SSR, assets, SEO, a11y | `packages/public-worker/AGENTS.md` |
+| REST handlers, auth, cache purge | `packages/admin-api-worker/AGENTS.md` |
+| Shared structs, serde, D1 bindings | `packages/core/AGENTS.md` |
+| CLI MCP tools | `packages/zygo-mcp/AGENTS.md` |
+| Admin UI data fetching, tests | `packages/admin-ui/AGENTS.md` |
+| D1 migrations | `migrations/AGENTS.md` |
+| Docs, specs, audits | `docs/AGENTS.md` |
 
----
+## 6. Security
 
-## 7. Agent Context Management
+- Local dev: auth middleware checks `env.var("ENVIRONMENT")`; in `"dev"` it bypasses Cloudflare Access with a mocked admin user.
+- Endpoints accepting Service Tokens or used by MCP/AI tools must rate-limit to protect D1.
 
-- **Context Monitoring**: Monitor conversation context usage. Notify the user if the conversation context approaches limits or if system auto-summarization begins, recommending a fresh session to maintain peak execution accuracy.
-- **Development Conventions**: Focus strictly on implementing requested features cleanly without introducing speculative or unneeded dependencies.
+## 7. Project Tracking
 
----
+- `ROADMAP.md`: active priorities and backlog only. Do NOT record completed work there.
+- `CHANGELOG.md`: record completed, verified work ([Keep a Changelog](https://keepachangelog.com/)).
+- `docs/specs/<feature>_spec.md`: design specs, linked from the roadmap. `docs/audits/`: audits and reviews. `docs/official/`: user-facing docs, updated whenever CMS functionality changes (see `docs/AGENTS.md`).
 
-## 8. Documentation, Progress & Roadmap Tracking
+## 8. Agent Context Management
 
-- **Upcoming Priorities & Backlog (`ROADMAP.md`)**: Consult [`ROADMAP.md`](ROADMAP.md) at the repository root for active priorities, near-term tasks, and the icebox backlog. When planning new work or completing tasks, keep `ROADMAP.md` lean and actionable. Do NOT record completed work here.
-- **Recording Completed Work (`CHANGELOG.md`)**: When features, architectural milestones, or significant bug fixes are completed and verified, record them under [`CHANGELOG.md`](CHANGELOG.md) at the repository root following [Keep a Changelog](https://keepachangelog.com/) conventions.
-- **Technical Specifications & RFCs (`docs/specs/`)**: Store detailed technical design specifications, RFCs, and feature plans in `docs/specs/<feature>_spec.md`. Link to these specs from `ROADMAP.md`.
-- **Architecture Reviews & Audits (`docs/audits/`)**: Store security audits, code reviews, and quality punchlists in `docs/audits/<topic>.md`.
-- **User-Facing Documentation (`docs/official/`)**: When adding or updating CMS functionality, maintain corresponding reference guides in `docs/official/` per [`docs/AGENTS.md`](docs/AGENTS.md).
-
+Notify the user if conversation context approaches limits or auto-summarization begins, and recommend a fresh session.

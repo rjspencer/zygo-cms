@@ -27,20 +27,35 @@ node .agents/skills/webmcp-parity-audit/scripts/audit-webmcp.mjs
 
 ---
 
-## 2. WebMCP Editor Parity Checklist
+## 2. WebMCP & CLI MCP Tool Registration Guidelines
 
-When building or auditing an editor in `packages/admin-ui`, verify all five pillars:
+- **Dual MCP Parity (`webmcp` + `zygo-mcp`)**: Whenever adding or modifying CMS features, global CRUD tools, or REST API contracts, update **both** in-browser WebMCP (`packages/admin-ui/src/lib/webmcp/`) and the backend CLI MCP server (`packages/zygo-mcp/index.mjs`). Both agents and humans must have parity.
+- **Component-Level Tools**: When creating or editing complex view components (e.g. `Editor`, `TemplateEditor`, `ThemeEditor`), invoke `useRegisterWebMCPTools` to register active tools on mount and clean them up on unmount.
+- **End-to-End Lifecycle Parity**: Every editor's WebMCP hook (`use*WebMCP`) must expose tools for the complete authoring lifecycle—not just primary text buffers:
+  1. **Reading active state & schemas**: Return active buffer, metadata, and available templates/schemas in a single tool call (`editor_get_content`, `template_get_active`, `theme_get_active_tokens`).
+  2. **Mutating all sub-collections & metadata**: Add, update, reorder, remove, and batch-replace structured sub-collections (e.g. Page Sections via `editor_add_section` / `editor_set_sections`, Menu Items, Schema Fields) and update all metadata fields without requiring dropdown portals or manual form inputs.
+  3. **Triggering native Save / Publish handler**: Wire the editor's native save/publish handler into a WebMCP tool (e.g. `editor_save_draft`, `editor_publish`) so saving via WebMCP resets the unsaved-changes blocker (`isDirty`).
+- **Same-Tick Sequential Mutation Safety**: In `use*WebMCP` hooks using `optionsRef.current`, handlers that update arrays or objects via React state setters (`opts.setSections(next)`, etc.) MUST also synchronously update `optionsRef.current.<field> = next` immediately after calling `opts.set<Field>(next)`. This guarantees sequential or batch tool calls in the same React render tick (such as in the RPC Console) do not read stale closure state or overwrite each other.
+- **Browser Global Synchronization**: All tools registered in `WebMCPRegistry` automatically sync to `window.webmcp` and `navigator.modelContext` (`registerTool`, `unregisterTool`, `provideContext`, `executeTool`). Preserve this synchronization when extending `registry.ts` or `WebMCPProvider.tsx`.
+- **Naming Conventions**:
+  - Active editor tools MUST use prefix `editor_` (e.g. `editor_insert_content`, `editor_get_selection`).
+  - Template tools MUST use prefix `template_` (e.g. `template_update_markup`, `template_render_preview`).
+  - Theme tools MUST use prefix `theme_` (e.g. `theme_update_live_tokens`).
+  - Global CRUD tools MUST use resource naming (e.g. `list_entries`, `create_entry`, `list_section_templates`) in WebMCP and `zygo_` prefix in `packages/zygo-mcp`.
+- **Return Structured Content**: All MCP and WebMCP tool handlers must return `{ toolResult: ..., content: [{ type: "text", text: ... }] }` with informative human/agent readable text.
+- **Dry-Run & Confirmation**: Destructive tools (deletions, publishing live content) must accept an optional `dry_run: boolean` flag or require human confirmation.
+- **Subagent Handoff**: Ensure changes are handed off to the Code Review and UI QA subagents.
 
-1. **Read State & Schemas**:
-   - Can an agent read the active editor buffer, metadata, and available templates/schemas in a single tool call (e.g., `editor_get_content`, `editor_get_section_templates`, `template_get_active`, `theme_get_active_tokens`)?
-2. **Collection & Field Mutations**:
-   - Can an agent add, update, reorder, remove, and batch-replace structured sub-collections (e.g., Page Sections via `editor_add_section` / `editor_set_sections`, Schema Fields, Menu Items) without clicking dropdown portals or form inputs?
-3. **Full Metadata Setters**:
-   - Can an agent update all metadata fields (title, slug, status, description, category, tags, cover image, canonical URL, schema JSON, parent ID, sort order) via a dedicated tool?
-4. **Native Save / Publish Trigger**:
-   - Is the editor's native save/publish handler wired into a WebMCP tool (e.g., `editor_save_draft`, `editor_publish`) so saving via WebMCP resets the unsaved-changes blocker (`isDirty`)?
-5. **Same-Tick Batch Mutation Safety**:
-   - When a `use*WebMCP` hook reads state via `optionsRef.current`, does every mutation handler synchronously update `optionsRef.current.<field> = nextValue` immediately after calling `opts.set<Field>(nextValue)`? This guarantees sequential tool calls in the same React render tick (such as batch calls in the `RPC Console`) do not overwrite each other with stale state.
-6. **Backend CLI MCP (`packages/zygo-mcp`) Parity**:
-   - When adding or modifying global CRUD capabilities, content schemas, or REST API endpoints, verify that `packages/zygo-mcp/index.mjs` is updated alongside `packages/admin-ui/src/lib/webmcp/` so both CLI/headless agents and in-browser agents remain in sync.
+---
 
+## 3. WebMCP Editor Parity Checklist
+
+When building or auditing an editor in `packages/admin-ui`, verify each item:
+
+- [ ] **Read State & Schemas**: Can an agent read the active editor buffer, metadata, and available templates/schemas in a single tool call?
+- [ ] **Collection & Field Mutations**: Can an agent add, update, reorder, remove, and batch-replace structured sub-collections without clicking dropdown portals or form inputs?
+- [ ] **Full Metadata Setters**: Can an agent update all metadata fields via a dedicated tool?
+- [ ] **Native Save / Publish Trigger**: Does saving via WebMCP trigger the native save/publish handler and reset `isDirty`?
+- [ ] **Same-Tick Batch Mutation Safety**: Does every mutation handler synchronously update `optionsRef.current.<field> = nextValue` alongside state setters?
+- [ ] **Backend CLI MCP Parity**: Is `packages/zygo-mcp/index.mjs` updated in parity with WebMCP for all global CRUD and REST endpoint changes?
+- [ ] **Prefixes & Return Schemas**: Are tools named with proper prefixes (`editor_`, `template_`, `theme_`, `zygo_`) and do handlers return structured content objects?
