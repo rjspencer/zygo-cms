@@ -88,4 +88,22 @@ describe('RichTextEditor Component', () => {
     expect(promptSpy).toHaveBeenCalled();
     promptSpy.mockRestore();
   });
+
+  it('preserves internal links without forcing target="_blank" or nofollow', () => {
+    const onChange = vi.fn();
+
+    render(
+      <Theme>
+        <RichTextEditor
+          value='<p><a href="/open-source">Open Source</a></p>'
+          onChange={onChange}
+        />
+      </Theme>
+    );
+
+    const linkEl = screen.getByRole('link', { name: 'Open Source' });
+    expect(linkEl.getAttribute('href')).toBe('/open-source');
+    expect(linkEl.getAttribute('target')).toBeNull();
+    expect(linkEl.getAttribute('rel')).toBeNull();
+  });
 });

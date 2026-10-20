@@ -28,6 +28,10 @@ export const useRichTextEditor = ({
       }),
       Link.configure({
         openOnClick: false,
+        HTMLAttributes: {
+          target: null,
+          rel: null,
+        },
       }),
     ],
     content: value || '',
@@ -71,7 +75,17 @@ export const useRichTextEditor = ({
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
     } else {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      const isExternal = /^https?:\/\//i.test(url.trim());
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange('link')
+        .setLink({
+          href: url,
+          target: isExternal ? '_blank' : null,
+          rel: isExternal ? 'noopener noreferrer' : null,
+        })
+        .run();
     }
   };
 

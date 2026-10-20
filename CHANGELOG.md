@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Public SSR Navigation, Section Template Guards & RichText Link Polish
+- **Active Navigation State (`packages/public-worker/src/views.rs`, `packages/core/src/models/layout_defaults.rs`, `migrations/0011_template_and_nav_fixes.sql`)**:
+  - Injected `current_path` across all public SSR rendering contexts (`render_index_internal`, `render_post_internal`, `render_page_internal`, `render_doc`, `render_search_html`).
+  - Updated header and footer navigation loops across all default and D1 layout templates (`index`, `post`, `page`, `doc`, `search`) to emit `aria-current="page"` when `item.url == current_path`.
+- **Blog Archive Page Title (`packages/public-worker/src/views.rs`)**:
+  - Updated `page_title()` so `/posts` and `/post` render `Blog — {site_title}` instead of `Home — {site_title}` when no custom heading is set.
+- **Section Template Guards & Brutalist Button Borders (`migrations/0011_template_and_nav_fixes.sql`)**:
+  - Guarded optional `title`, `image`, and `image_position` (defaulting to `right`) in the `text-image` section template to prevent empty `<h2></h2>` tags, broken `image-` class names, and empty `<img src="">` frames when fields are left blank.
+  - Added `border: 1px solid var(--color-border, ...)` and `box-shadow` token support to `.hero-btn` and `.cta-button` in the `hero` and `call-to-action` section templates.
+- **Internal vs. External Links (`packages/admin-ui/src/components/RichTextEditor/hooks/useRichTextEditor.ts`, `RichTextEditor.test.tsx`)**:
+  - Configured TipTap `Link` extension with `HTMLAttributes: { target: null, rel: null }` so relative/internal links stay in the same tab without `nofollow`, while external `http(s)://` links open in a new tab with `rel="noopener noreferrer"`.
+
 ### Full-Width Carousel Section Extension
 - **Section & Track Dimensions (`migrations/0001_initial_schema.sql`, `migrations/0005_theme_preview_seed.sql`, `migrations/0010_carousel_full_width.sql`)**:
   - Updated `.section-carousel` container to remove left/right padding (`padding: 5rem 0;` desktop, `padding: 3rem 0;` mobile), enabling wall-to-wall section background extension across all viewports.
