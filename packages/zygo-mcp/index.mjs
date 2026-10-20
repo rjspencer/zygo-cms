@@ -3,6 +3,10 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const isDirectRun = Boolean(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]));
 
 // Parse CLI arguments
 const args = process.argv.slice(2);
@@ -18,35 +22,33 @@ for (let i = 0; i < args.length; i++) {
 
 url = url.replace(/\/$/, ""); // Remove trailing slash
 
-if (!clientId || !clientSecret) {
+if (isDirectRun && (!clientId || !clientSecret)) {
     console.error("Error: Both --client-id and --client-secret are required. Provide your Cloudflare Access Service Token credentials.");
     process.exit(1);
 }
 
-const server = new Server(
+export const server = new Server(
     { name: "zygo-cms-mcp", version: "1.0.0" },
     { capabilities: { tools: {} } }
 );
 
 // Define standard headers
-const getHeaders = () => ({
-    "CF-Access-Client-Id": clientId,
-    "CF-Access-Client-Secret": clientSecret,
+export const getHeaders = (overrideClientId, overrideClientSecret) => ({
+    "CF-Access-Client-Id": overrideClientId || clientId,
+    "CF-Access-Client-Secret": overrideClientSecret || clientSecret,
     "Content-Type": "application/json"
 });
 
-const getApiUrl = (path) => {
+export const getApiUrl = (path, overrideUrl) => {
+    const base = (overrideUrl || url).replace(/\/$/, "");
     const cleanPath = path.startsWith('/') ? path : `/${path}`;
-    if (url.endsWith('/api')) {
-        return `${url}${cleanPath}`;
+    if (base.endsWith('/api')) {
+        return `${base}${cleanPath}`;
     }
-    return `${url}/api${cleanPath}`;
+    return `${base}/api${cleanPath}`;
 };
 
-// Register Tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-        tools: [
+export const tools = [
             {
                 name: "zygo_list_posts",
                 description: "List all published posts in Zygo CMS.",
@@ -169,13 +171,96 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                     required: ["id"]
                 }
+            },
+            {
+                name: "zygo_list_form_submissions",
+                description: "List contact and newsletter form submissions with optional filtering by status, form name, or search query.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        status: {
+                            type: "string",
+                            enum: ["unread", "read", "archived"],
+                            description: "Optional status filter ('unread', 'read', 'archived')"
+                        },
+                        form_name: {
+                            type: "string",
+                            description: "Optional form name to filter by (e.g. 'contact', 'newsletter')"
+                        },
+                        q: {
+                            type: "string",
+                            description: "Optional search query to match against sender name, email, subject, or message content"
+                        },
+                        page: {
+                            type: "number",
+                            description: "Page number (default: 1)"
+                        },
+                        per_page: {
+                            type: "number",
+                            description: "Number of results per page (default: 20)"
+                        }
+                    }
+                }
+            },
+            {
+                name: "zygo_get_form_submission",
+                description: "Get full details of a specific form submission by numeric ID.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: {
+                            type: "number",
+                            description: "The numeric ID of the form submission"
+                        }
+                    },
+                    required: ["id"]
+                }
+            },
+            {
+                name: "zygo_update_form_submission_status",
+                description: "Update the status of a form submission ('unread', 'read', or 'archived').",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: {
+                            type: "number",
+                            description: "The numeric ID of the form submission"
+                        },
+                        status: {
+                            type: "string",
+                            enum: ["unread", "read", "archived"],
+                            description: "New status for the submission ('unread', 'read', or 'archived')"
+                        }
+                    },
+                    required: ["id", "status"]
+                }
+            },
+            {
+                name: "zygo_delete_form_submission",
+                description: "Permanently delete a form submission by numeric ID.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        id: {
+                            type: "number",
+                            description: "The numeric ID of the form submission to delete"
+                        }
+                    },
+                    required: ["id"]
+                }
             }
-        ]
-    };
+        ];
+
+// Register Tools
+server.setRequestHandler(ListToolsRequestSchema, async () => {
+    return { tools };
 });
 
-// Handle Tool Execution
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+export async function handleCallTool(request, customContext = {}) {
+    const activeUrl = customContext.url || url;
+    const activeHeaders = getHeaders(customContext.clientId, customContext.clientSecret);
+    const activeGetApiUrl = (path) => getApiUrl(path, activeUrl);
+
     try {
         if (request.params.name === "zygo_list_posts") {
             const res = await fetch(`${url}/posts`, { headers: getHeaders() });
@@ -316,11 +401,73 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
         }
 
+        if (request.params.name === "zygo_list_form_submissions") {
+            const { status, form_name, q, page, per_page } = request.params.arguments || {};
+            const params = new URLSearchParams();
+            if (status) params.set("status", String(status));
+            if (form_name) params.set("form_name", String(form_name));
+            if (q) params.set("q", String(q));
+            if (page != null) params.set("page", String(page));
+            if (per_page != null) params.set("per_page", String(per_page));
+            const qs = params.toString() ? `?${params.toString()}` : "";
+            const res = await fetch(getApiUrl(`/submissions${qs}`), { headers: getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_get_form_submission") {
+            const { id } = request.params.arguments || {};
+            const numId = Number(id);
+            if (isNaN(numId) || numId <= 0) throw new Error("A valid numeric id is required");
+            const res = await fetch(getApiUrl(`/submissions/${numId}`), { headers: getHeaders() });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_update_form_submission_status") {
+            const { id, status } = request.params.arguments || {};
+            const numId = Number(id);
+            if (isNaN(numId) || numId <= 0) throw new Error("A valid numeric id is required");
+            if (!status || !["unread", "read", "archived"].includes(status)) {
+                throw new Error("Status must be one of 'unread', 'read', or 'archived'");
+            }
+            const res = await fetch(getApiUrl(`/submissions/${numId}`), {
+                method: "PUT",
+                headers: getHeaders(),
+                body: JSON.stringify({ status })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_delete_form_submission") {
+            const { id } = request.params.arguments || {};
+            const numId = Number(id);
+            if (isNaN(numId) || numId <= 0) throw new Error("A valid numeric id is required");
+            const res = await fetch(getApiUrl(`/submissions/${numId}`), {
+                method: "DELETE",
+                headers: getHeaders()
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                data = { success: true, id: numId };
+            }
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
         throw new Error(`Unknown tool: ${request.params.name}`);
     } catch (e) {
         return { isError: true, content: [{ type: "text", text: e.message }] };
     }
-});
+}
+
+server.setRequestHandler(CallToolRequestSchema, (request) => handleCallTool(request));
 
 // Run Server
 async function run() {
@@ -329,4 +476,6 @@ async function run() {
     console.error(`Zygo MCP Server running. Connected to ${url}`);
 }
 
-run().catch(console.error);
+if (isDirectRun) {
+    run().catch(console.error);
+}
