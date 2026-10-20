@@ -91,6 +91,36 @@ describe('TemplatesList Component Integration Tests', () => {
     expect(screen.getByText('banner')).toBeDefined();
   });
 
+  it('renders preview link with correct attributes in the header', async () => {
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderComponent();
+
+    const previewLink = screen.getByTestId('templates-preview-link');
+    expect(previewLink).toBeDefined();
+    expect(previewLink.textContent).toBe('Preview');
+    expect(previewLink.getAttribute('href')).toBe('/theme-preview');
+    expect(previewLink.getAttribute('target')).toBe('_blank');
+    expect(previewLink.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(previewLink.getAttribute('aria-label')).toBe(
+      'Preview all templates on the public site (opens in new tab)'
+    );
+  });
+
   it('admin role: shows lock toggle and enables all buttons', async () => {
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/me') {
