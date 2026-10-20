@@ -34,6 +34,7 @@ describe('Public Worker Integration', () => {
 
         const html = await res.text();
         expect(html).toContain('<link rel="canonical"');
+        expect(html).not.toMatch(/<footer[\s\S]*href="\/theme-preview"[\s\S]*<\/footer>/);
     });
 
     it('serves dynamic stylesheet with 1920px max-width and no obsolete body padding/margin', async () => {
@@ -119,7 +120,7 @@ describe('Public Worker Integration', () => {
         expect(res.status).toBe(404);
     });
 
-    it('GET /theme-preview responds with 200 and renders all 10 section templates with theme tokens', async () => {
+    it('GET /theme-preview responds with 200 and renders all 15 section templates with theme tokens', async () => {
         const res = await worker.fetch('/theme-preview');
         expect(res.status).toBe(200);
         expect(res.headers.get('content-type')).toContain('text/html');
@@ -128,7 +129,7 @@ describe('Public Worker Integration', () => {
         // Title and canonical
         expect(html).toContain('Theme &amp; Section Showcase');
 
-        // Verify all 10 section templates rendered
+        // Verify all 15 section templates rendered
         expect(html).toContain('template-hero');
         expect(html).toContain('Designing Autonomous Systems with Elegance');
         expect(html).toContain('template-text');
@@ -149,6 +150,19 @@ describe('Public Worker Integration', () => {
         expect(html).toContain('Frequently Asked Questions');
         expect(html).toContain('template-video-embed');
         expect(html).toContain('Platform Architecture Walkthrough');
+        expect(html).toContain('template-pricing');
+        expect(html).toContain('Simple, Predictable Pricing');
+        expect(html).toContain('template-stats');
+        expect(html).toContain('Engineered for Zero Cold Starts');
+        expect(html).toContain('template-logo-cloud');
+        expect(html).toContain('Trusted by Next-Generation Media Leaders');
+        expect(html).toContain('template-team');
+        expect(html).toContain('Marcus Aurelius Vance');
+        expect(html).toContain('template-steps');
+        expect(html).toContain('How Zygo CMS Works');
+
+        // Verify footer menu does not contain Theme Preview link
+        expect(html).not.toMatch(/<footer[\s\S]*href="\/theme-preview"[\s\S]*<\/footer>/);
 
         // Verify theme CSS custom properties are applied
         expect(html).toContain('var(--color-surface');
