@@ -19,7 +19,7 @@ export const MODERN_EDITORIAL_PRESET: ThemeTokens = {
   headerTitleSize: '2rem',
   headerNavTransform: 'uppercase',
   headerPadding: '1.75rem 2rem 1.25rem 2rem',
-  headerTagline: 'An Editorial Review & Journal',
+  headerTagline: '',
   borderRadius: '8px',
   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 };
@@ -43,7 +43,7 @@ export const BENTO_BRUTALISM_PRESET: ThemeTokens = {
   headerTitleSize: '1.5rem',
   headerNavTransform: 'uppercase',
   headerPadding: '1.25rem 2rem',
-  headerTagline: 'Specs, Dispatches & Agentic Systems',
+  headerTagline: '',
   borderRadius: '2px',
   boxShadow: '4px 6px 0 #0f172a',
 };

@@ -22,7 +22,7 @@ export const DEFAULT_THEME_TOKENS: Record<string, any> = {
   headerTitleSize: '2rem',
   headerNavTransform: 'uppercase',
   headerPadding: '1.75rem 2rem 1.25rem 2rem',
-  headerTagline: 'An Editorial Review & Journal',
+  headerTagline: '',
   borderRadius: '8px',
   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
 };
@@ -271,7 +271,7 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
   return [
     {
       name: 'get_settings',
-      description: 'Get all site settings including branding (site_title, site_logo, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics',
+      description: 'Get all site settings including branding (site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics',
       inputSchema: {
         type: 'object',
         properties: {},
@@ -293,7 +293,7 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
     },
     {
       name: 'update_settings',
-      description: 'Update site settings in the backend (e.g. site_title, site_logo, site_favicon, default_og_image, footer_text, canonical_origin, docs_path)',
+      description: 'Update site settings in the backend (e.g. site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text, canonical_origin, docs_path)',
       inputSchema: {
         type: 'object',
         properties: {

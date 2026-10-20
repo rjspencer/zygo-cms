@@ -303,6 +303,7 @@ export function useThemeEditorState({
     handleResetToModernEditorial,
     handleCopyCss,
     siteLogo: (settingsData?.site_logo as string) || (settingsData?.siteLogo as string) || '',
+    siteLogoDark: (settingsData?.site_logo_dark as string) || (settingsData?.siteLogoDark as string) || '',
     siteTitle: (settingsData?.site_title as string) || (settingsData?.siteTitle as string) || '',
     footerText: (settingsData?.footer_text as string) || (settingsData?.footerText as string) || '',
   };

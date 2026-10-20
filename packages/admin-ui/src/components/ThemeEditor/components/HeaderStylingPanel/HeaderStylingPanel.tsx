@@ -229,7 +229,7 @@ export const HeaderStylingPanel: React.FC<HeaderStylingPanelProps> = ({
           <TextField.Root
             id="header-tagline"
             value={tokens.headerTagline}
-            placeholder="An Editorial Review & Journal"
+            placeholder="Optional site tagline"
             onChange={(e) =>
               setTokens((prev) => ({ ...prev, headerTagline: e.target.value }))
             }
