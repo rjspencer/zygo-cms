@@ -1,16 +1,56 @@
 import React from 'react';
 import { Box, Flex, Text } from '@radix-ui/themes';
+import { getPublicSiteUrl } from '../../../../../../utils/api';
 import type { ThemeTokens } from '../../../../types';
 
 export interface PreviewHeaderProps {
   tokens: ThemeTokens;
   borderBottomCss: string;
+  siteLogo?: string;
+  siteTitle?: string;
 }
 
 export const PreviewHeader: React.FC<PreviewHeaderProps> = ({
   tokens,
   borderBottomCss,
+  siteLogo,
+  siteTitle,
 }) => {
+  const resolvedLogo = siteLogo ? getPublicSiteUrl(siteLogo) : '';
+  const displayTitle = siteTitle || 'The Zygo Review';
+
+  const brandElement = resolvedLogo ? (
+    <img
+      src={resolvedLogo}
+      alt={displayTitle}
+      data-testid="preview-site-logo"
+      style={{
+        maxHeight: '44px',
+        maxWidth: '180px',
+        objectFit: 'contain',
+        display: 'inline-block',
+        verticalAlign: 'middle',
+      }}
+      onError={(e) => {
+        (e.target as HTMLElement).style.display = 'none';
+      }}
+    />
+  ) : (
+    <Text
+      weight="bold"
+      as="div"
+      style={{
+        fontFamily: tokens.fontHeadline,
+        fontSize: tokens.headerTitleSize,
+        color: tokens.colorText,
+        letterSpacing: '-0.02em',
+        lineHeight: 1.15,
+      }}
+    >
+      {displayTitle}
+    </Text>
+  );
+
   const navItemStyle: React.CSSProperties = {
     color: tokens.colorText,
     backgroundColor: tokens.colorSurface,
@@ -45,19 +85,7 @@ export const PreviewHeader: React.FC<PreviewHeaderProps> = ({
           textAlign: 'center',
         }}
       >
-        <Text
-          weight="bold"
-          as="div"
-          style={{
-            fontFamily: tokens.fontHeadline,
-            fontSize: tokens.headerTitleSize,
-            color: tokens.colorText,
-            letterSpacing: '-0.02em',
-            lineHeight: 1.15,
-          }}
-        >
-          The Zygo Review
-        </Text>
+        {brandElement}
         {tokens.headerTagline && (
           <Text
             size="1"
@@ -97,19 +125,7 @@ export const PreviewHeader: React.FC<PreviewHeaderProps> = ({
         }}
       >
         <Box>
-          <Text
-            weight="bold"
-            as="div"
-            style={{
-              fontFamily: tokens.fontHeadline,
-              fontSize: tokens.headerTitleSize,
-              color: tokens.colorText,
-              letterSpacing: '-0.02em',
-              lineHeight: 1.15,
-            }}
-          >
-            The Zygo Review
-          </Text>
+          {brandElement}
           {tokens.headerTagline && (
             <Text
               size="1"
@@ -144,19 +160,7 @@ export const PreviewHeader: React.FC<PreviewHeaderProps> = ({
         padding: tokens.headerPadding,
       }}
     >
-      <Text
-        weight="bold"
-        as="div"
-        style={{
-          fontFamily: tokens.fontHeadline,
-          fontSize: tokens.headerTitleSize,
-          color: tokens.colorText,
-          letterSpacing: '-0.02em',
-          lineHeight: 1.15,
-        }}
-      >
-        The Zygo Review
-      </Text>
+      {brandElement}
       {tokens.headerTagline && (
         <Text
           size="1"

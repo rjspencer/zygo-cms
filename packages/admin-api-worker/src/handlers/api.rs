@@ -815,12 +815,41 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
         resolve_canonical_origin(&req, &ctx.env, &db).await?
     };
 
-    cache::purge_urls(&ctx.env, vec![
-        format!("{}/", origin),
-        format!("{}/post", origin),
-        format!("{}/sitemap.xml", origin),
-        format!("{}/rss.xml", origin),
-    ]).await;
+    let all_settings = db::setting::get_settings_map(&db).await.unwrap_or_default();
+    let old_hash = all_settings.get("styles_hash").cloned();
+    let all_templates = db::layout_template::get_all(&db).await.unwrap_or_default();
+    let css_parts: Vec<&str> = all_templates.iter().map(|t| t.template_css.as_str()).collect();
+    let new_hash = zygo_core::models::compute_theme_styles_hash(&css_parts, Some(&all_settings));
+    let _ = db::setting::set_setting(&db, "styles_hash", &new_hash).await;
+
+    let mut purge_list = vec![
+        "/".to_string(),
+        "/posts".to_string(),
+        "/post".to_string(),
+        "/style.css".to_string(),
+        format!("/style-{}.css", new_hash),
+        "/sitemap.xml".to_string(),
+        "/rss.xml".to_string(),
+        "/feed.xml".to_string(),
+    ];
+    if !origin.is_empty() {
+        purge_list.push(format!("{}/", origin));
+        purge_list.push(format!("{}/posts", origin));
+        purge_list.push(format!("{}/post", origin));
+        purge_list.push(format!("{}/style.css", origin));
+        purge_list.push(format!("{}/style-{}.css", origin, new_hash));
+        purge_list.push(format!("{}/sitemap.xml", origin));
+        purge_list.push(format!("{}/rss.xml", origin));
+        purge_list.push(format!("{}/feed.xml", origin));
+    }
+    if let Some(old) = old_hash {
+        purge_list.push(format!("/style-{}.css", old));
+        if !origin.is_empty() {
+            purge_list.push(format!("{}/style-{}.css", origin, old));
+        }
+    }
+
+    cache::purge_urls(&ctx.env, purge_list).await;
 
     Response::from_json(&json!({ "success": true }))
 }

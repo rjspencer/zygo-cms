@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Theming, Site Branding & Edge Cache-Busting Enhancements
+- **Branding Image Previews & Fallbacks (`packages/admin-ui`)**: Fixed phantom checkbox artifact in "Site Branding & Social" settings caused by broken image fallback styling. Implemented `resolveMediaUrl` using `getPublicSiteUrl` to correctly resolve relative `/media/` paths to the public site and render clean placeholder messages (`Unable to load image preview`) on error.
+- **Preset Header Logo & Footer Copyright Rendering (`migrations/0008_sync_branding_in_layout_templates.sql`, `packages/public-worker`, `packages/admin-ui`)**: Created D1 migration and updated baseline seed templates (`0004`, `0005`) to conditionally render `site_logo` in headers (falling back to `site_title`) and copyright footer text across all layouts (`post`, `page`, `doc`) for `Modern Editorial` and `Bento-Brutalism` presets. Updated ThemeEditor preview headers (`centered`, `split`, `stacked`) and added dynamic copyright year interpolation to ThemePreview footer.
+- **Edge Cache-Busting & Cloudflare Purge Synchronization (`packages/core`, `packages/admin-api-worker`, `packages/public-worker`)**: Added `compute_theme_styles_hash` in `zygo-core` incorporating theme tokens into the layout template `styles_hash`. Automated `styles_hash` recomputation and cache purging on `POST /api/settings` for theme updates. Resolved `CF_API_TOKEN` from worker secrets and filtered purge payloads to valid absolute URLs (`http://`, `https://`) to eliminate Cloudflare API 1012 errors.
+
+
 ### Cloudflare AI Crawl Control (Setup, Edge API, Admin UI & MCP)
 - **Interactive Setup CLI (`scripts/setup.mjs`)**: Added AI crawl protection configuration prompt to interactive setup wizard (`block_all`, `allow_search_only`, `custom`, `disabled`) with automated `CF_ZONE_ID` synchronization to `packages/admin-api-worker/wrangler.toml` and direct Cloudflare Bot Management API configuration via `applyAiCrawlSettings`.
 - **Authenticated Cloudflare Edge Proxy (`packages/admin-api-worker`)**: Added authenticated `GET` and `PUT` `/api/cloudflare/ai-crawl` endpoints in `packages/admin-api-worker/src/handlers/cloudflare.rs` with `auth_required!`, supporting `ai_bots_protection`, `ai_search`, `ai_training`, and `ai_user` settings via Cloudflare's Bot Management API with graceful fallback when zone credentials are not configured.

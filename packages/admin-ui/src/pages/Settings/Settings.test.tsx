@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Settings } from './Settings';
@@ -9,9 +9,15 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
+  getPublicSiteUrl: vi.fn((path?: string) => {
+    if (!path) return 'https://example.com/';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const clean = path.startsWith('/') ? path : `/${path}`;
+    return `https://example.com${clean}`;
+  }),
 }));
 
-import { apiFetch } from '../../utils/api';
+import { apiFetch, getPublicSiteUrl } from '../../utils/api';
 
 const createTestQueryClient = () =>
   new QueryClient({
@@ -418,6 +424,46 @@ describe('Settings component', () => {
       expect(screen.getByDisplayValue('Copyright {{ year }} Zygo CMS')).toBeTruthy();
       expect(screen.getByTestId('settings-footer-text-preview')).toBeTruthy();
       expect(screen.getByTestId('settings-footer-text-preview').textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
+    });
+  });
+
+  it('resolves relative /media/ URLs using getPublicSiteUrl and handles load errors gracefully', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Steph Wanicki Art',
+        canonical_origin: 'https://stephwanickiart.com',
+        description: 'Art gallery and store',
+        site_logo: '/media/1726700000000-logo.webp',
+        site_favicon: '/media/favicon.png',
+        default_og_image: '/media/social.jpg',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      const logoImg = screen.getByTestId('settings-logo-preview') as HTMLImageElement;
+      expect(logoImg.src).toBe(getPublicSiteUrl('/media/1726700000000-logo.webp'));
+      const faviconImg = screen.getByTestId('settings-favicon-preview') as HTMLImageElement;
+      expect(faviconImg.src).toBe(getPublicSiteUrl('/media/favicon.png'));
+      const ogImg = screen.getByTestId('settings-default-og-preview') as HTMLImageElement;
+      expect(ogImg.src).toBe(getPublicSiteUrl('/media/social.jpg'));
+    });
+
+    // Simulate image error on logo
+    const logoImg = screen.getByTestId('settings-logo-preview');
+    fireEvent.error(logoImg);
+
+    await waitFor(() => {
+      expect(screen.getByText('Unable to load image preview')).toBeTruthy();
     });
   });
 

@@ -7,6 +7,12 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
+  getPublicSiteUrl: vi.fn((path?: string) => {
+    if (!path) return 'https://example.com/';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const clean = path.startsWith('/') ? path : `/${path}`;
+    return `https://example.com${clean}`;
+  }),
 }));
 
 import { apiFetch } from '../../utils/api';

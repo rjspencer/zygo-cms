@@ -169,13 +169,14 @@ async fn recompute_and_purge(env: &worker::Env, d1: &worker::D1Database, req: &R
     let settings = db::setting::get_settings_map(d1).await.unwrap_or_default();
     let old_hash = settings.get("styles_hash").cloned();
     let css_parts: Vec<&str> = all_templates.iter().map(|t| t.template_css.as_str()).collect();
-    let new_hash = zygo_core::models::compute_styles_hash(&css_parts);
+    let new_hash = zygo_core::models::compute_theme_styles_hash(&css_parts, Some(&settings));
     let _ = db::setting::set_setting(d1, "styles_hash", &new_hash).await;
 
-    let origin = match req.url() {
-        Ok(u) => u.origin().ascii_serialization(),
-        Err(_) => String::new(),
-    };
+    let origin = crate::handlers::api::resolve_canonical_origin(req, env, d1)
+        .await
+        .unwrap_or_else(|_| {
+            req.url().map(|u| u.origin().ascii_serialization()).unwrap_or_default()
+        });
 
     let mut purge_list = vec![
         "/".to_string(),
@@ -239,5 +240,20 @@ mod tests {
         assert_ne!(hash1, hash2);
         assert_eq!(hash1, hash3);
         assert_eq!(hash1.len(), 8);
+    }
+
+    #[test]
+    fn test_compute_theme_styles_hash_changes_with_theme() {
+        let css = &[".post { color: red; }"];
+        let mut settings1 = std::collections::HashMap::new();
+        settings1.insert("theme_active_name".to_string(), "Modern Editorial".to_string());
+
+        let mut settings2 = std::collections::HashMap::new();
+        settings2.insert("theme_active_name".to_string(), "Bento-Brutalism".to_string());
+
+        let h1 = zygo_core::models::compute_theme_styles_hash(css, Some(&settings1));
+        let h2 = zygo_core::models::compute_theme_styles_hash(css, Some(&settings2));
+
+        assert_ne!(h1, h2);
     }
 }

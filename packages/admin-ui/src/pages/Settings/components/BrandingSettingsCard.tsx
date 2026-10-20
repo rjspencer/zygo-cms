@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, Heading, Box, Text, TextField, TextArea, Flex, Button, IconButton } from '@radix-ui/themes';
 import { ImageIcon, Cross2Icon } from '@radix-ui/react-icons';
 import { useFormContext } from 'react-hook-form';
 import { MediaPickerModal } from '../../../components/MediaPickerModal';
+import { getPublicSiteUrl } from '../../../utils/api';
 import type { SettingsFormValues } from '../types';
+
+export const resolveMediaUrl = (url?: string): string => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  return getPublicSiteUrl(url);
+};
 
 export const BrandingSettingsCard: React.FC = () => {
   const { register, watch, setValue } = useFormContext<SettingsFormValues>();
@@ -13,6 +22,22 @@ export const BrandingSettingsCard: React.FC = () => {
   const siteFavicon = watch('siteFavicon');
   const defaultOgImage = watch('defaultOgImage');
   const footerText = watch('footerText');
+
+  const [logoError, setLogoError] = useState(false);
+  const [faviconError, setFaviconError] = useState(false);
+  const [ogError, setOgError] = useState(false);
+
+  useEffect(() => {
+    setLogoError(false);
+  }, [siteLogo]);
+
+  useEffect(() => {
+    setFaviconError(false);
+  }, [siteFavicon]);
+
+  useEffect(() => {
+    setOgError(false);
+  }, [defaultOgImage]);
 
   const handleMediaSelect = (url: string) => {
     if (pickerTarget === 'logo') {
@@ -83,15 +108,19 @@ export const BrandingSettingsCard: React.FC = () => {
                 border: '1px solid var(--gray-6)',
               }}
             >
-              <img
-                src={siteLogo}
-                alt="Logo preview"
-                data-testid="settings-logo-preview"
-                style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain' }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              {logoError ? (
+                <Text size="1" color="gray" style={{ fontStyle: 'italic' }}>
+                  Unable to load image preview
+                </Text>
+              ) : (
+                <img
+                  src={resolveMediaUrl(siteLogo)}
+                  alt="Logo preview"
+                  data-testid="settings-logo-preview"
+                  style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain', display: 'block' }}
+                  onError={() => setLogoError(true)}
+                />
+              )}
             </Box>
           )}
         </Box>
@@ -147,15 +176,19 @@ export const BrandingSettingsCard: React.FC = () => {
                 border: '1px solid var(--gray-6)',
               }}
             >
-              <img
-                src={siteFavicon}
-                alt="Favicon preview"
-                data-testid="settings-favicon-preview"
-                style={{ width: '32px', height: '32px', objectFit: 'contain' }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              {faviconError ? (
+                <Text size="1" color="gray" style={{ fontStyle: 'italic' }}>
+                  Unable to load favicon preview
+                </Text>
+              ) : (
+                <img
+                  src={resolveMediaUrl(siteFavicon)}
+                  alt="Favicon preview"
+                  data-testid="settings-favicon-preview"
+                  style={{ width: '32px', height: '32px', objectFit: 'contain', display: 'block' }}
+                  onError={() => setFaviconError(true)}
+                />
+              )}
             </Box>
           )}
         </Box>
@@ -211,15 +244,19 @@ export const BrandingSettingsCard: React.FC = () => {
                 border: '1px solid var(--gray-6)',
               }}
             >
-              <img
-                src={defaultOgImage}
-                alt="Social share preview"
-                data-testid="settings-default-og-preview"
-                style={{ maxHeight: '90px', maxWidth: '160px', objectFit: 'cover', borderRadius: '4px' }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
+              {ogError ? (
+                <Text size="1" color="gray" style={{ fontStyle: 'italic' }}>
+                  Unable to load social share preview
+                </Text>
+              ) : (
+                <img
+                  src={resolveMediaUrl(defaultOgImage)}
+                  alt="Social share preview"
+                  data-testid="settings-default-og-preview"
+                  style={{ maxHeight: '90px', maxWidth: '160px', objectFit: 'cover', borderRadius: '4px', display: 'block' }}
+                  onError={() => setOgError(true)}
+                />
+              )}
             </Box>
           )}
         </Box>

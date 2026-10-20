@@ -10,6 +10,12 @@ import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
+  getPublicSiteUrl: vi.fn((path?: string) => {
+    if (!path) return 'https://example.com/';
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const clean = path.startsWith('/') ? path : `/${path}`;
+    return `https://example.com${clean}`;
+  }),
 }));
 
 import { apiFetch } from '../../utils/api';
@@ -611,6 +617,37 @@ describe('ThemeEditor component', () => {
 
     expect(borderRadiusInput.value).toBe('16px');
     expect(boxShadowInput.value).toBe('0 8px 16px rgba(0,0,0,0.2)');
+  });
+
+  it('renders site logo and footer copyright in live preview when configured in settings', async () => {
+    const currentYear = String(new Date().getFullYear());
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Steph Wanicki Art',
+        site_logo: 'https://example.com/logo.png',
+        footer_text: '© {{ year }} Steph Wanicki Art. All rights reserved.',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <ThemeWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      const logoImg = screen.getByTestId('preview-site-logo') as HTMLImageElement;
+      expect(logoImg).toBeTruthy();
+      expect(logoImg.src).toBe('https://example.com/logo.png');
+      expect(logoImg.alt).toBe('Steph Wanicki Art');
+
+      const footerCopyright = screen.getByTestId('preview-footer-copyright');
+      expect(footerCopyright.textContent).toBe(`© ${currentYear} Steph Wanicki Art. All rights reserved.`);
+    });
   });
 });
 

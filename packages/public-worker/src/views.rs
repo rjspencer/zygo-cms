@@ -783,7 +783,7 @@ pub fn inject_theme_context(
 
     let theme_css = generate_theme_root_css(settings);
 
-    let default_hash = zygo_core::models::compute_styles_hash(&[include_str!("style.css")]);
+    let default_hash = zygo_core::models::compute_theme_styles_hash(&[include_str!("style.css")], settings);
 
     let styles_hash = settings
         .and_then(|s| s.get("styles_hash").map(|v| v.as_str()))
@@ -2515,6 +2515,44 @@ mod tests {
         ).unwrap();
 
         let expected_footer = format!(r#"<div class="footer-text">Copyright {} Zygo CMS</div>"#, current_year);
+        assert!(html.contains(&expected_footer));
+    }
+
+    #[test]
+    fn test_layout_template_from_d1_renders_site_logo_and_footer() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "Steph Wanicki Art".to_string());
+        settings.insert("site_logo".to_string(), "https://example.com/logo.webp".to_string());
+        settings.insert("footer_text".to_string(), "© {{ year }} Steph Wanicki Art".to_string());
+
+        let default_post = zygo_core::models::layout_defaults::get_default_layout_template("post").unwrap();
+        let lt = LayoutTemplate {
+            id: "post".to_string(),
+            name: default_post.name.unwrap_or_default(),
+            description: default_post.description,
+            template_html: default_post.template_html.unwrap_or_default(),
+            template_css: default_post.template_css.unwrap_or_default(),
+            is_locked: true,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        let lts = vec![lt];
+
+        let mut post = dummy_page();
+        post.r#type = "post".to_string();
+
+        let html = render_post(
+            &[],
+            &post,
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            Some(&lts),
+        ).unwrap();
+
+        assert!(html.contains(r#"<img src="https://example.com/logo.webp" alt="Steph Wanicki Art" class="site-logo">"#));
+        let expected_footer = format!(r#"<div class="footer-text">© {} Steph Wanicki Art</div>"#, get_current_year());
         assert!(html.contains(&expected_footer));
     }
 }

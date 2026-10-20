@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, Flex, Box, Heading, Badge, Button } from '@radix-ui/themes';
+import { Card, Flex, Box, Heading, Badge, Button, Text } from '@radix-ui/themes';
 import type { ThemeTokens } from '../../types';
 import { getHeaderBorderBottomCss } from '../../utils';
 import { PreviewHeader } from './components/PreviewHeader/PreviewHeader';
@@ -14,6 +14,9 @@ export interface ThemePreviewProps {
   generatedCss: string;
   copiedCss: boolean;
   onCopyCss: () => void;
+  siteLogo?: string;
+  siteTitle?: string;
+  footerText?: string;
 }
 
 export const ThemePreview: React.FC<ThemePreviewProps> = ({
@@ -23,6 +26,9 @@ export const ThemePreview: React.FC<ThemePreviewProps> = ({
   generatedCss,
   copiedCss,
   onCopyCss,
+  siteLogo,
+  siteTitle,
+  footerText,
 }) => {
   const borderBottomCss = getHeaderBorderBottomCss(tokens);
 
@@ -73,13 +79,61 @@ export const ThemePreview: React.FC<ThemePreviewProps> = ({
           overflow: 'hidden',
         }}
       >
-        <PreviewHeader tokens={tokens} borderBottomCss={borderBottomCss} />
+        <PreviewHeader
+          tokens={tokens}
+          borderBottomCss={borderBottomCss}
+          siteLogo={siteLogo}
+          siteTitle={siteTitle}
+        />
 
         {previewMode === 'editorial' ? (
           <EditorialPreview tokens={tokens} />
         ) : (
           <DocsPreview tokens={tokens} />
         )}
+
+        {/* Preview Footer */}
+        <Box
+          data-testid="preview-footer-container"
+          mt="5"
+          pt="3"
+          style={{
+            borderTop: `1px solid color-mix(in srgb, ${tokens.colorBorder} 50%, transparent)`,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: tokens.headerLayout === 'centered' ? 'center' : 'flex-start',
+            textAlign: tokens.headerLayout === 'centered' ? 'center' : 'left',
+            gap: '0.4rem',
+          }}
+        >
+          <Flex
+            gap="3"
+            wrap="wrap"
+            justify={tokens.headerLayout === 'centered' ? 'center' : 'start'}
+            style={{ fontSize: '0.8rem', color: tokens.colorTextMuted }}
+          >
+            <span>Home</span>
+            <span>&bull;</span>
+            <span>Essays</span>
+            <span>&bull;</span>
+            <span>Docs</span>
+            <span>&bull;</span>
+            <span>Privacy</span>
+          </Flex>
+          <Text
+            data-testid="preview-footer-copyright"
+            size="1"
+            as="div"
+            style={{
+              color: tokens.colorTextMuted,
+              fontFamily: tokens.fontBody,
+            }}
+          >
+            {footerText
+              ? footerText.replace(/\{\{\s*(year|current_year)\s*\}\}/gi, String(new Date().getFullYear()))
+              : `© ${new Date().getFullYear()} ${siteTitle || 'The Zygo Review'}. All rights reserved.`}
+          </Text>
+        </Box>
       </Box>
 
       <CssExportSnippet

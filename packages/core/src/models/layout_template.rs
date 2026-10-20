@@ -109,15 +109,37 @@ pub struct LayoutTemplatePayload {
     pub is_locked: Option<bool>,
 }
 
-/// Computes an 8-character deterministic hex hash from stylesheet inputs.
+/// Computes an 8-character deterministic hex hash from stylesheet inputs and optional theme settings.
 /// Used to dynamically cache-bust public styles (e.g., `/style-53uh3t.css`).
-pub fn compute_styles_hash(css_parts: &[&str]) -> String {
+pub fn compute_theme_styles_hash(
+    css_parts: &[&str],
+    theme_settings: Option<&std::collections::HashMap<String, String>>,
+) -> String {
     let mut hasher = DefaultHasher::new();
     for part in css_parts {
         hasher.write(part.as_bytes());
     }
+    if let Some(settings) = theme_settings {
+        let mut sorted_keys: Vec<&String> = settings
+            .keys()
+            .filter(|k| k.starts_with("theme_") || *k == "site_title")
+            .collect();
+        sorted_keys.sort();
+        for k in sorted_keys {
+            hasher.write(k.as_bytes());
+            if let Some(v) = settings.get(k) {
+                hasher.write(v.as_bytes());
+            }
+        }
+    }
     let val = hasher.finish();
     format!("{:08x}", (val & 0xFFFFFFFF))
+}
+
+/// Computes an 8-character deterministic hex hash from stylesheet inputs.
+/// Used to dynamically cache-bust public styles (e.g., `/style-53uh3t.css`).
+pub fn compute_styles_hash(css_parts: &[&str]) -> String {
+    compute_theme_styles_hash(css_parts, None)
 }
 
 #[cfg(test)]
@@ -141,6 +163,23 @@ mod tests {
         assert_eq!(h1, h2);
         assert_ne!(h1, h3);
         assert_eq!(h1.len(), 8);
+    }
+
+    #[test]
+    fn test_compute_theme_styles_hash_changes_with_theme_settings() {
+        let css = &[".post { color: red; }"];
+        let mut s1 = std::collections::HashMap::new();
+        s1.insert("theme_active_name".to_string(), "Modern Editorial".to_string());
+
+        let mut s2 = std::collections::HashMap::new();
+        s2.insert("theme_active_name".to_string(), "Bento-Brutalism".to_string());
+
+        let h1 = compute_theme_styles_hash(css, Some(&s1));
+        let h2 = compute_theme_styles_hash(css, Some(&s2));
+        let h3 = compute_theme_styles_hash(css, Some(&s1));
+
+        assert_ne!(h1, h2);
+        assert_eq!(h1, h3);
     }
 
     #[test]

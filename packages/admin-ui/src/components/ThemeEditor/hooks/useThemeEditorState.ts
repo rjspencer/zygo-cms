@@ -302,6 +302,9 @@ export function useThemeEditorState({
     handleApplyFontPreset,
     handleResetToModernEditorial,
     handleCopyCss,
+    siteLogo: (settingsData?.site_logo as string) || (settingsData?.siteLogo as string) || '',
+    siteTitle: (settingsData?.site_title as string) || (settingsData?.siteTitle as string) || '',
+    footerText: (settingsData?.footer_text as string) || (settingsData?.footerText as string) || '',
   };
 }
 
