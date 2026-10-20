@@ -2403,6 +2403,20 @@ mod tests {
                 template_css: Some(".section-steps { background: var(--color-surface); }".to_string()),
                 ..Default::default()
             },
+            SectionTemplate {
+                id: "contact-form".to_string(),
+                name: "Contact Form".to_string(),
+                template_html: Some(r#"<section class="section-contact-form"><h2>{{ heading }}</h2><form action="/forms/submit" method="POST"><button type="submit">{{ submit_label }}</button></form></section>"#.to_string()),
+                template_css: Some(".section-contact-form { border-radius: var(--border-radius); }".to_string()),
+                ..Default::default()
+            },
+            SectionTemplate {
+                id: "newsletter".to_string(),
+                name: "Newsletter Signup".to_string(),
+                template_html: Some(r#"<section class="section-newsletter"><h2>{{ heading }}</h2><form action="/forms/submit" method="POST"><button type="submit">{{ submit_label }}</button></form></section>"#.to_string()),
+                template_css: Some(".section-newsletter { background: var(--color-surface); }".to_string()),
+                ..Default::default()
+            },
         ];
 
         let mut page = dummy_page();
@@ -2422,6 +2436,8 @@ mod tests {
             { "type_id": "logo-cloud", "data": { "title": "Partners", "logos": [{ "name": "Acme", "image": "/logo.png" }] } },
             { "type_id": "team", "data": { "headline": "Team Title", "members": [{ "name": "Bob", "role": "Engineer" }] } },
             { "type_id": "steps", "data": { "headline": "Steps Title", "steps": [{ "step_number": "01", "title": "Step One" }] } },
+            { "type_id": "contact-form", "data": { "heading": "Get in Touch", "submit_label": "Send Message" } },
+            { "type_id": "newsletter", "data": { "heading": "Subscribe Today", "submit_label": "Join" } },
         ]).to_string();
 
         // 1. Render under Modern Editorial
@@ -2466,6 +2482,11 @@ mod tests {
         assert!(modern_html.contains("Steps Title"));
         assert!(modern_html.contains("01"));
         assert!(modern_html.contains("Step One"));
+        assert!(modern_html.contains("Get in Touch"));
+        assert!(modern_html.contains("Send Message"));
+        assert!(modern_html.contains("Subscribe Today"));
+        assert!(modern_html.contains("Join"));
+        assert!(modern_html.contains(r#"action="/forms/submit""#));
 
         // 2. Render under Bento-Brutalism
         let mut bento_settings = std::collections::HashMap::new();
@@ -2500,6 +2521,194 @@ mod tests {
         assert!(bento_html.contains("Steps Title"));
         assert!(bento_html.contains("01"));
         assert!(bento_html.contains("Step One"));
+        assert!(bento_html.contains("Get in Touch"));
+        assert!(bento_html.contains("Send Message"));
+        assert!(bento_html.contains("Subscribe Today"));
+        assert!(bento_html.contains("Join"));
+        assert!(bento_html.contains(r#"action="/forms/submit""#));
+    }
+
+    #[test]
+    fn test_render_contact_and_newsletter_form_templates() {
+        let contact_tmpl = SectionTemplate {
+            id: "contact-form".to_string(),
+            name: "Contact Form".to_string(),
+            template_html: Some(r#"<section class="section-contact-form">
+  <div class="contact-form-container">
+    <div class="contact-form-card">
+      <div class="contact-form-header">
+        {% if heading %}<h2 class="contact-form-headline">{{ heading }}</h2>{% endif %}
+        {% if subheading %}<p class="contact-form-subheadline">{{ subheading }}</p>{% endif %}
+      </div>
+      <form class="contact-form" action="/forms/submit" method="POST">
+        <input type="hidden" name="form_name" value="contact">
+        <div class="form-hp" aria-hidden="true" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; overflow: hidden;">
+          <input type="text" name="website" tabindex="-1" autocomplete="new-password">
+        </div>
+        <div class="contact-form-group">
+          <label for="contact-sender-name" class="contact-form-label">Name</label>
+          <input type="text" id="contact-sender-name" name="sender_name" class="contact-form-input" placeholder="Your name">
+        </div>
+        <div class="contact-form-group">
+          <label for="contact-sender-email" class="contact-form-label">Email <span class="required-mark">*</span></label>
+          <input type="email" id="contact-sender-email" name="sender_email" class="contact-form-input" required placeholder="your.email@example.com">
+        </div>
+        {% if show_phone %}
+        <div class="contact-form-group">
+          <label for="contact-phone" class="contact-form-label">Phone</label>
+          <input type="tel" id="contact-phone" name="phone" class="contact-form-input" placeholder="+1 (555) 000-0000">
+        </div>
+        {% endif %}
+        {% if show_subject %}
+        <div class="contact-form-group">
+          <label for="contact-subject" class="contact-form-label">Subject</label>
+          <input type="text" id="contact-subject" name="subject" class="contact-form-input" placeholder="How can we help?">
+        </div>
+        {% endif %}
+        <div class="contact-form-group">
+          <label for="contact-message" class="contact-form-label">Message <span class="required-mark">*</span></label>
+          <textarea id="contact-message" name="message" class="contact-form-textarea" rows="5" required placeholder="Write your message here..."></textarea>
+        </div>
+        <div class="contact-form-actions">
+          <button type="submit" class="contact-form-btn">{{ submit_label }}</button>
+        </div>
+        {% if success_message %}
+        <div class="contact-form-status" style="display: none;" role="status">
+          <p>{{ success_message }}</p>
+        </div>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</section>"#.to_string()),
+            template_css: Some(".section-contact-form { padding: 5rem 2rem; }".to_string()),
+            ..Default::default()
+        };
+
+        let newsletter_tmpl = SectionTemplate {
+            id: "newsletter".to_string(),
+            name: "Newsletter Signup".to_string(),
+            template_html: Some(r#"<section class="section-newsletter">
+  <div class="newsletter-container">
+    <div class="newsletter-header">
+      {% if heading %}<h2 class="newsletter-headline">{{ heading }}</h2>{% endif %}
+      {% if subheading %}<p class="newsletter-subheadline">{{ subheading }}</p>{% endif %}
+    </div>
+    <form class="newsletter-form" action="/forms/submit" method="POST">
+      <input type="hidden" name="form_name" value="newsletter">
+      <div class="form-hp" aria-hidden="true" style="position: absolute; left: -9999px; width: 1px; height: 1px; opacity: 0; overflow: hidden;">
+        <input type="text" name="website" tabindex="-1" autocomplete="new-password">
+      </div>
+      <div class="newsletter-input-group">
+        <label for="newsletter-email" class="newsletter-sr-only">Email address</label>
+        <input type="email" id="newsletter-email" name="sender_email" class="newsletter-input" required placeholder="Enter your email address">
+        <button type="submit" class="newsletter-btn">{{ submit_label }}</button>
+      </div>
+      {% if success_message %}
+      <div class="newsletter-status" style="display: none;" role="status">
+        <p>{{ success_message }}</p>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+</section>"#.to_string()),
+            template_css: Some(".section-newsletter { padding: 4rem 2rem; }".to_string()),
+            ..Default::default()
+        };
+
+        let templates = vec![contact_tmpl, newsletter_tmpl];
+
+        // 1. Render contact-form with show_phone: true and show_subject: true
+        let mut page_full = dummy_page();
+        page_full.body_json = serde_json::json!([
+            {
+                "type_id": "contact-form",
+                "data": {
+                    "heading": "Get in Touch",
+                    "subheading": "Send us your project inquiry",
+                    "submit_label": "Submit Inquiry",
+                    "success_message": "Message received!",
+                    "show_subject": true,
+                    "show_phone": true
+                }
+            },
+            {
+                "type_id": "newsletter",
+                "data": {
+                    "heading": "Weekly Digest",
+                    "subheading": "No spam, unsubscribe anytime",
+                    "submit_label": "Subscribe Now",
+                    "success_message": "Thanks for subscribing!"
+                }
+            }
+        ]).to_string();
+
+        let html = render_page(
+            &templates,
+            &page_full,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+        ).unwrap();
+
+        // Contact form assertions
+        assert!(html.contains(r#"action="/forms/submit""#));
+        assert!(html.contains(r#"method="POST""#));
+        assert!(html.contains(r#"name="website""#));
+        assert!(html.contains(r#"tabindex="-1""#));
+        assert!(html.contains(r#"autocomplete="new-password""#));
+        assert!(html.contains("Get in Touch"));
+        assert!(html.contains("Send us your project inquiry"));
+        assert!(html.contains(r#"id="contact-sender-name""#));
+        assert!(html.contains(r#"id="contact-sender-email""#));
+        assert!(html.contains(r#"id="contact-phone""#));
+        assert!(html.contains(r#"id="contact-subject""#));
+        assert!(html.contains(r#"id="contact-message""#));
+        assert!(html.contains("Submit Inquiry"));
+        assert!(html.contains("Message received!"));
+
+        // Newsletter assertions
+        assert!(html.contains(r#"value="newsletter""#));
+        assert!(html.contains("Weekly Digest"));
+        assert!(html.contains("No spam, unsubscribe anytime"));
+        assert!(html.contains(r#"id="newsletter-email""#));
+        assert!(html.contains("Subscribe Now"));
+        assert!(html.contains("Thanks for subscribing!"));
+
+        // 2. Render contact-form with show_phone: false and show_subject: false
+        let mut page_minimal = dummy_page();
+        page_minimal.body_json = serde_json::json!([
+            {
+                "type_id": "contact-form",
+                "data": {
+                    "heading": "Contact Us",
+                    "submit_label": "Send",
+                    "show_subject": false,
+                    "show_phone": false
+                }
+            }
+        ]).to_string();
+
+        let html_min = render_page(
+            &templates,
+            &page_minimal,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            None,
+            None,
+        ).unwrap();
+
+        assert!(html_min.contains("Contact Us"));
+        assert!(!html_min.contains(r#"id="contact-phone""#));
+        assert!(!html_min.contains(r#"id="contact-subject""#));
+        assert!(html_min.contains(r#"id="contact-sender-email""#));
     }
 
     #[test]

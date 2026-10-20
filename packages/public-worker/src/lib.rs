@@ -17,6 +17,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/style-:hash.css", handlers::public::serve_styles)
         .get_async("/style.css", handlers::public::serve_styles)
 
+        // Form submission endpoint
+        .post_async("/forms/submit", handlers::public::submit_form)
+
         // Public routes - Media stream
         .get_async("/media/:key", handlers::public::stream_media)
         
