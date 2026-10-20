@@ -40,7 +40,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -75,7 +75,7 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -125,7 +125,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -151,7 +151,7 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -201,7 +201,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -245,7 +245,7 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -290,7 +290,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -316,7 +316,7 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -403,7 +403,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
         </div>
         <nav aria-label="Main Navigation">
             {% for item in header_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
     </header>
@@ -453,7 +453,7 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <footer>
         <nav aria-label="Footer Navigation">
             {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}">{{ item.title }}</a>
+            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
         {% if footer_text %}
@@ -949,6 +949,10 @@ pub fn render_doc(
 
     let tree_html = build_docs_tree_html(all_docs, &doc.path(), None);
     ctx.insert(
+        "current_path".to_string(),
+        serde_json::Value::String(doc.path()),
+    );
+    ctx.insert(
         "docs_tree_html".to_string(),
         serde_json::Value::String(tree_html),
     );
@@ -1069,9 +1073,16 @@ fn render_template(
         .map_err(|e| worker::Error::RustError(e.to_string()))
 }
 
-fn page_title(heading: Option<&str>, pagination: Option<&Pagination>, site_title: &str) -> String {
+fn page_title(
+    heading: Option<&str>,
+    canonical_path: Option<&str>,
+    pagination: Option<&Pagination>,
+    site_title: &str,
+) -> String {
     let base_title = if let Some(h) = heading {
         h.to_string()
+    } else if matches!(canonical_path, Some("/posts") | Some("/post")) {
+        "Blog".to_string()
     } else {
         "Home".to_string()
     };
@@ -1232,8 +1243,17 @@ fn render_index_internal(
         serde_json::to_value(canonical_path).unwrap_or_default(),
     );
     ctx.insert(
+        "current_path".to_string(),
+        serde_json::Value::String(canonical_path.unwrap_or("/posts").to_string()),
+    );
+    ctx.insert(
         "page_title".to_string(),
-        serde_json::Value::String(page_title(heading, pagination.as_ref(), site_title)),
+        serde_json::Value::String(page_title(
+            heading,
+            canonical_path,
+            pagination.as_ref(),
+            site_title,
+        )),
     );
     ctx.insert(
         "canonical_url".to_string(),
@@ -1352,6 +1372,10 @@ fn render_post_internal(
     ctx.insert(
         "origin".to_string(),
         serde_json::Value::String(origin.to_string()),
+    );
+    ctx.insert(
+        "current_path".to_string(),
+        serde_json::Value::String(post.path()),
     );
     ctx.insert(
         "header_menu".to_string(),
@@ -1497,6 +1521,10 @@ fn render_page_internal(
         serde_json::Value::String(origin.to_string()),
     );
     ctx.insert(
+        "current_path".to_string(),
+        serde_json::Value::String(page.path()),
+    );
+    ctx.insert(
         "header_menu".to_string(),
         serde_json::to_value(header_menu).unwrap_or_default(),
     );
@@ -1606,6 +1634,10 @@ pub fn render_search_html(
     ctx.insert(
         "query".to_string(),
         serde_json::Value::String(query.to_string()),
+    );
+    ctx.insert(
+        "current_path".to_string(),
+        serde_json::Value::String("/search".to_string()),
     );
     ctx.insert(
         "posts".to_string(),
@@ -2601,6 +2633,65 @@ mod tests {
         ).unwrap();
 
         assert!(html.contains(r#"<div class="site-tagline">Custom Publication Tagline</div>"#));
+    }
+
+    #[test]
+    fn test_nav_aria_current_page_and_blog_index_title() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "Zygodactyl Studios".to_string());
+
+        let header_menu = vec![
+            MenuItem {
+                title: "Home".to_string(),
+                url: "/".to_string(),
+                target: "_self".to_string(),
+                children: vec![],
+            },
+            MenuItem {
+                title: "About".to_string(),
+                url: "/about".to_string(),
+                target: "_self".to_string(),
+                children: vec![],
+            },
+            MenuItem {
+                title: "Blog".to_string(),
+                url: "/posts".to_string(),
+                target: "_self".to_string(),
+                children: vec![],
+            },
+        ];
+
+        let page = dummy_page(); // path is "/about"
+        let page_html = render_page(
+            &[],
+            &page,
+            "https://zygodactylstudios.com",
+            &[],
+            &[],
+            &header_menu,
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+
+        assert!(page_html.contains(r#"<a href="/about" aria-current="page">About</a>"#));
+        assert!(page_html.contains(r#"<a href="/">Home</a>"#));
+
+        let index_html = render_index(
+            &[],
+            &[dummy_post()],
+            "https://zygodactylstudios.com",
+            None,
+            &header_menu,
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+
+        assert!(index_html.contains("<title>Blog \u{2014} Zygodactyl Studios</title>"));
+        assert!(index_html.contains(r#"<a href="/posts" aria-current="page">Blog</a>"#));
     }
 }
 
