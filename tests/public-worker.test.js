@@ -120,7 +120,7 @@ describe('Public Worker Integration', () => {
         expect(res.status).toBe(404);
     });
 
-    it('GET /theme-preview responds with 200 and renders all 15 section templates with theme tokens', async () => {
+    it('GET /theme-preview responds with 200 and renders all preset section templates with theme tokens', async () => {
         const res = await worker.fetch('/theme-preview');
         expect(res.status).toBe(200);
         expect(res.headers.get('content-type')).toContain('text/html');
@@ -129,7 +129,7 @@ describe('Public Worker Integration', () => {
         // Title and canonical
         expect(html).toContain('Theme &amp; Section Showcase');
 
-        // Verify all 15 section templates rendered
+        // Verify all section templates rendered
         expect(html).toContain('template-hero');
         expect(html).toContain('Designing Autonomous Systems with Elegance');
         expect(html).toContain('template-text');
@@ -160,6 +160,10 @@ describe('Public Worker Integration', () => {
         expect(html).toContain('Marcus Aurelius Vance');
         expect(html).toContain('template-steps');
         expect(html).toContain('How Zygo CMS Works');
+        expect(html).toContain('template-contact-form');
+        expect(html).toContain('Get in Touch with Our Team');
+        expect(html).toContain('template-newsletter');
+        expect(html).toContain('Subscribe to the Edge Dispatch');
 
         // Verify footer menu does not contain Theme Preview link
         expect(html).not.toMatch(/<footer[\s\S]*href="\/theme-preview"[\s\S]*<\/footer>/);
