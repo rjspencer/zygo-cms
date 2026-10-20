@@ -70,7 +70,31 @@ export function useSettingsData() {
     },
   });
 
+  const clearCacheMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiFetch('/api/cache/clear', { method: 'POST' });
+      if (!res.ok) {
+        let msg = 'Failed to clear cache';
+        try {
+          const errData = await res.json();
+          if (errData?.error || errData?.message) {
+            msg = errData.error || errData.message;
+          }
+        } catch (_) {}
+        throw new Error(msg);
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+
   return {
+    clearCache: clearCacheMutation.mutate,
+    isClearingCache: clearCacheMutation.isPending,
+    clearCacheSuccess: clearCacheMutation.isSuccess,
+    clearCacheError: clearCacheMutation.error?.message ?? null,
     data: query.data,
     isLoading: query.isLoading,
     aiCrawlData: aiCrawlQuery.data,

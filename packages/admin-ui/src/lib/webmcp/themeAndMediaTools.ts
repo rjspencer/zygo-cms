@@ -388,6 +388,34 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
       },
     },
     {
+      name: 'clear_cache',
+      description:
+        'Purge all cached public pages at the Cloudflare edge and rotate the stylesheet hash so browsers reload CSS. Admin only. Use after style-only deploys or when the public site looks stale.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      handler: async (): Promise<WebMCPToolResult> => {
+        const res = await apiFetch('/api/cache/clear', { method: 'POST' });
+        if (!res.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to clear cache: ${res.statusText || res.status}` }],
+          };
+        }
+        let resData: any = {};
+        try {
+          resData = await res.json();
+        } catch {
+          resData = { success: true };
+        }
+        return {
+          toolResult: resData,
+          content: [{ type: 'text', text: JSON.stringify(resData, null, 2) }],
+        };
+      },
+    },
+    {
       name: 'get_theme_settings',
       description: 'Get current site theme settings and styling design tokens from the backend',
       inputSchema: {
