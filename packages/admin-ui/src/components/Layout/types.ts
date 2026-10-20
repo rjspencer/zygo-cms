@@ -7,6 +7,7 @@ export interface NavItemConfig {
   exact?: boolean;
   aliases?: string[];
   excludePrefixes?: string[];
+  badge?: React.ReactNode;
 }
 
 export interface NavSectionConfig {

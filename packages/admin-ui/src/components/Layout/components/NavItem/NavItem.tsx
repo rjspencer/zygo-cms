@@ -10,6 +10,7 @@ export interface NavItemProps {
   aliases?: string[];
   excludePrefixes?: string[];
   isCollapsed?: boolean;
+  badge?: React.ReactNode;
 }
 
 export const NavItem: React.FC<NavItemProps> = ({
@@ -20,6 +21,7 @@ export const NavItem: React.FC<NavItemProps> = ({
   aliases = [],
   excludePrefixes = [],
   isCollapsed = false,
+  badge,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
   const location = useLocation();
@@ -58,8 +60,27 @@ export const NavItem: React.FC<NavItemProps> = ({
         }}
       >
         {isActive && <Box style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', backgroundColor: 'var(--cmyk-cyan)' }}></Box>}
-        <Box style={{ display: 'flex', alignItems: 'center' }}>{icon}</Box>
-        {!isCollapsed && <Text size="2">{label}</Text>}
+        <Box style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+          {icon}
+          {isCollapsed && badge && (
+            <Box
+              style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-6px',
+                transform: 'scale(0.8)',
+              }}
+            >
+              {badge}
+            </Box>
+          )}
+        </Box>
+        {!isCollapsed && (
+          <Flex align="center" justify="between" style={{ flex: 1, minWidth: 0 }}>
+            <Text size="2">{label}</Text>
+            {badge && <Box style={{ marginLeft: 'auto' }}>{badge}</Box>}
+          </Flex>
+        )}
       </Flex>
     </NavLink>
   );

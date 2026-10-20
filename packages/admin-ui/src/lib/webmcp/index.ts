@@ -7,3 +7,4 @@ export * from './templateTools';
 export * from './themeAndMediaTools';
 export * from './navigationTools';
 export * from './layoutTemplateTools';
+export * from './submissionTools';

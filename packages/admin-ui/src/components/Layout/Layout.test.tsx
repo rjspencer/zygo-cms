@@ -91,6 +91,7 @@ describe('Layout Component', () => {
     expect(screen.getByText('Page Templates')).toBeDefined();
     expect(screen.getByText('Posts Template')).toBeDefined();
     expect(screen.getByText('Docs Template')).toBeDefined();
+    expect(screen.getByText('Submissions')).toBeDefined();
     expect(screen.getByText('Media Library')).toBeDefined();
     expect(screen.getByText('Users')).toBeDefined();
     expect(screen.getByText('Theme')).toBeDefined();
@@ -121,6 +122,7 @@ describe('Layout Component', () => {
     expect(screen.getByTitle('Analytics')).toBeDefined();
     expect(screen.getByTitle('Pages')).toBeDefined();
     expect(screen.getByTitle('Posts')).toBeDefined();
+    expect(screen.getByTitle('Submissions')).toBeDefined();
     expect(screen.getByTitle('Media Library')).toBeDefined();
     expect(screen.getByTitle('Site Navigation')).toBeDefined();
     expect(screen.getByTitle('Page Templates')).toBeDefined();
@@ -200,5 +202,35 @@ describe('Layout Component', () => {
     expect(liveSiteLink).toBeDefined();
     expect(liveSiteLink.getAttribute('href')).toBe('https://zygodactylstudios.com/');
     expect(liveSiteLink.getAttribute('target')).toBe('_blank');
+  });
+
+  it('renders unread submissions count badge in navigation when unread submissions exist', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/admin/dashboard')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                page_count: 5,
+                post_count: 10,
+                author_count: 2,
+                auth_url: '/cdn-cgi/access/logout?custom=true',
+              }),
+          });
+        }
+        if (url.includes('/api/submissions/stats')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ unread_count: 7 }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      })
+    );
+
+    renderLayout();
+    expect(await screen.findByText('7')).toBeDefined();
   });
 });

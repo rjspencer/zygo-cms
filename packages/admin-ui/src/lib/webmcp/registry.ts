@@ -6,6 +6,7 @@ import {
   BrowserModelContextTool,
 } from './types';
 import { createGlobalRedirectTools } from './redirectTools';
+import { createGlobalSubmissionTools } from './submissionTools';
 
 export class WebMCPRegistry {
   private tools = new Map<string, WebMCPToolDefinition>();
@@ -352,6 +353,11 @@ export class WebMCPRegistry {
   registerRedirectTools(): () => void {
     return this.registerTools(createGlobalRedirectTools());
   }
+
+  registerSubmissionTools(): () => void {
+    return this.registerTools(createGlobalSubmissionTools());
+  }
 }
 
 export { createGlobalRedirectTools } from './redirectTools';
+export { createGlobalSubmissionTools } from './submissionTools';
