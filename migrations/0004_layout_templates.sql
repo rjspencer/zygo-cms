@@ -53,7 +53,7 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -89,6 +89,9 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>',
@@ -225,7 +228,7 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -285,6 +288,9 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
     <script>
         document.addEventListener(''DOMContentLoaded'', () => {
@@ -716,7 +722,7 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{{ site_title }}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -770,6 +776,9 @@ INSERT INTO layout_templates (id, name, description, template_html, template_css
             <a href="{{ item.url|safe }}">{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if footer_text %}
+        <div class="footer-text">{{ footer_text }}</div>
+        {% endif %}
     </footer>
 </body>
 </html>',
