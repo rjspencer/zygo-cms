@@ -192,4 +192,62 @@ describe('DocsList Component Integration Tests', () => {
 
     expect(screen.getByText('Sub Chapter One')).toBeDefined();
   });
+
+  it('opens delete confirmation dialog and executes delete mutation for doc', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockDocsResponse,
+    });
+
+    renderDocsList();
+
+    await waitFor(() => {
+      expect(screen.getByText('Standalone Doc')).toBeDefined();
+    });
+
+    const deleteBtn = screen.getByTestId('delete-doc-3');
+    fireEvent.click(deleteBtn);
+
+    // Check dialog appears
+    expect(screen.getByRole('heading', { name: 'Delete Doc' })).toBeDefined();
+    expect(screen.getByText(/Are you sure you want to delete “Standalone Doc”?/i)).toBeDefined();
+
+    // Mock delete API response
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      text: async () => 'OK',
+    });
+
+    const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
+    fireEvent.click(confirmDeleteBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith('/api/entries/3', { method: 'DELETE' });
+    });
+  });
+
+  it('closes delete confirmation dialog when cancel is clicked', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockDocsResponse,
+    });
+
+    renderDocsList();
+
+    await waitFor(() => {
+      expect(screen.getByText('Standalone Doc')).toBeDefined();
+    });
+
+    const deleteBtn = screen.getByTestId('delete-doc-3');
+    fireEvent.click(deleteBtn);
+
+    expect(screen.getByRole('heading', { name: 'Delete Doc' })).toBeDefined();
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Delete Doc' })).toBeNull();
+    });
+  });
 });

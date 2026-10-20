@@ -10,6 +10,7 @@ import {
 } from '@radix-ui/themes';
 import {
   Pencil1Icon,
+  TrashIcon,
   ExternalLinkIcon,
   ChevronRightIcon,
   ChevronDownIcon,
@@ -17,13 +18,14 @@ import {
 import { getPublicSiteUrl } from '../../../utils/api';
 import type { DocItem } from '../types';
 
-interface DocsTableProps {
+export interface DocsTableProps {
   docs: DocItem[];
   search: string;
   isLoading?: boolean;
+  onDeleteClick?: (doc: DocItem) => void;
 }
 
-export const DocsTable: React.FC<DocsTableProps> = ({ docs, search, isLoading }) => {
+export const DocsTable: React.FC<DocsTableProps> = ({ docs, search, isLoading, onDeleteClick }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
@@ -106,6 +108,18 @@ export const DocsTable: React.FC<DocsTableProps> = ({ docs, search, isLoading })
                   aria-label={`Edit ${doc.title}`}
                 >
                   <Pencil1Icon width="18" height="18" />
+                </IconButton>
+                <IconButton
+                  style={{ cursor: 'pointer' }}
+                  size="2"
+                  variant="ghost"
+                  color="red"
+                  onClick={() => onDeleteClick?.(doc)}
+                  title="Delete Doc"
+                  aria-label={`Delete ${doc.title}`}
+                  data-testid={`delete-doc-${doc.id}`}
+                >
+                  <TrashIcon width="18" height="18" />
                 </IconButton>
               </Flex>
             </Table.Cell>
