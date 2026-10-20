@@ -46,7 +46,7 @@ All public site components must consume CSS variables defined on `:root` with se
 ## 5. Multi-Worker & Asset Synchronization
 - **Production Asset Serving**: Cloudflare Workers serves static assets for `public-worker` directly from `public/style.css` (configured via `[assets] directory = "../../public"` in `packages/public-worker/wrangler.toml`).
 - **Source Sync**: `packages/public-worker/src/style.css` is the Tailwind/source counterpart. Whenever changing styles, **always keep both files synchronized**.
-- **Rust String Delimiters**: When modifying templates in `packages/public-worker/src/views.rs`, always use `r##"..."##` (with 2+ `#`) so attributes like `href="#main-content"` do not terminate string literals prematurely.
+- Raw-string delimiter and SSR a11y rules for templates: see `packages/public-worker/AGENTS.md`.
 
 ## 6. Section Template Authoring & Conventions
 
@@ -83,4 +83,4 @@ Every section template defines a JSON array of fields validated by `zygo_core::t
 ### 6.4 D1 Migrations & Theme Preview Integration
 - **Built-in Seeding**: Seed built-in templates with `is_locked = 1` in migrations.
 - **Theme Preview Entry**: Whenever adding or modifying built-in section templates, append corresponding sample data to `entries.body_json` where `slug = 'theme-preview'` and update `search_text`.
-- **Zero SELECT \***: Always list explicit column names in database migration statements and queries.
+- General migration rules (explicit columns, nullable `ALTER TABLE`): see `migrations/AGENTS.md`.

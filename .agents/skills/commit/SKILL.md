@@ -64,11 +64,8 @@ Before creating any commit, execute and pass all validation gates across the who
    ```
 5. **UI QA Gate (if UI was touched)**:
    If any visual UI components in `packages/admin-ui` were added or modified:
-   - Run Storybook automated tests:
-     ```bash
-     pnpm --filter admin-ui test-storybook
-     ```
-   - Ensure the **1+2+4 Protocol** is satisfied (Build story, Automate tests, UI QA inspection, Vision validation).
+    - Run `pnpm --filter admin-ui test-storybook`.
+    - Follow the `ui-qa-handoff` skill to satisfy the **1+2+4 Protocol**.
 
 If any check fails, resolve the issue before proceeding. Do NOT commit with failing checks or use git flags to bypass hooks (`--no-verify`).
 
