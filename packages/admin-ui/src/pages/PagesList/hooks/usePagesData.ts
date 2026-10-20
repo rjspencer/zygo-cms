@@ -1,8 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../utils/api';
 import type { PageItem } from '../types';
 
-export function usePagesData() {
+export interface UsePagesDataOptions {
+  onDeleteSuccess?: () => void;
+  onDeleteSettled?: () => void;
+}
+
+export function usePagesData(options?: UsePagesDataOptions) {
+  const queryClient = useQueryClient();
+
   const { data: pages = [], isLoading, error } = useQuery<PageItem[]>({
     queryKey: ['entries', 'pages'],
     queryFn: async () => {
@@ -21,9 +28,31 @@ export function usePagesData() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiFetch(`/api/entries/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['entries'] });
+      options?.onDeleteSuccess?.();
+    },
+    onError: (err) => {
+      console.error('Delete failed', err);
+    },
+    onSettled: () => {
+      options?.onDeleteSettled?.();
+    },
+  });
+
   return {
     pages,
     isLoading,
     error,
+    deletePage: deleteMutation.mutate,
+    isDeleting: deleteMutation.isPending,
   };
 }
+

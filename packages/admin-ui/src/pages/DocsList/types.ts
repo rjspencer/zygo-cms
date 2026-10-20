@@ -14,7 +14,14 @@ export interface UseDocsFiltersReturn {
   setSearch: (value: string) => void;
 }
 
+export interface UseDocsDataOptions {
+  onDeleteSuccess?: () => void;
+  onDeleteSettled?: () => void;
+}
+
 export interface UseDocsDataReturn {
   docs: DocItem[];
   isLoading: boolean;
+  deleteDoc: (id: number) => void;
+  isDeleting: boolean;
 }
