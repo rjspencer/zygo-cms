@@ -8,6 +8,7 @@ export interface SettingsFormValues {
   docsModeEnabled: boolean;
   docsPath: string;
   siteLogo: string;
+  siteLogoDark: string;
   siteFavicon: string;
   defaultOgImage: string;
   footerText: string;
@@ -25,6 +26,7 @@ export interface SettingsApiResponse {
   docs_mode_enabled?: string;
   docs_path?: string;
   site_logo?: string;
+  site_logo_dark?: string;
   site_favicon?: string;
   default_og_image?: string;
   footer_text?: string;

@@ -15,6 +15,7 @@ export interface ThemePreviewProps {
   copiedCss: boolean;
   onCopyCss: () => void;
   siteLogo?: string;
+  siteLogoDark?: string;
   siteTitle?: string;
   footerText?: string;
 }
@@ -27,6 +28,7 @@ export const ThemePreview: React.FC<ThemePreviewProps> = ({
   copiedCss,
   onCopyCss,
   siteLogo,
+  siteLogoDark,
   siteTitle,
   footerText,
 }) => {
@@ -83,6 +85,7 @@ export const ThemePreview: React.FC<ThemePreviewProps> = ({
           tokens={tokens}
           borderBottomCss={borderBottomCss}
           siteLogo={siteLogo}
+          siteLogoDark={siteLogoDark}
           siteTitle={siteTitle}
         />
 

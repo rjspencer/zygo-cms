@@ -52,7 +52,7 @@ impl ThemeTokens {
             header_title_size: "2rem".to_string(),
             header_nav_transform: "uppercase".to_string(),
             header_padding: "1.75rem 2rem 1.25rem 2rem".to_string(),
-            header_tagline: "An Editorial Review & Journal".to_string(),
+            header_tagline: "".to_string(),
             border_radius: "8px".to_string(),
             box_shadow: "0 4px 6px rgba(0, 0, 0, 0.1)".to_string(),
         }
@@ -77,7 +77,7 @@ impl ThemeTokens {
             header_title_size: "1.5rem".to_string(),
             header_nav_transform: "uppercase".to_string(),
             header_padding: "1.25rem 2rem".to_string(),
-            header_tagline: "Specs, Dispatches & Agentic Systems".to_string(),
+            header_tagline: "".to_string(),
             border_radius: "2px".to_string(),
             box_shadow: "4px 6px 0 #0f172a".to_string(),
         }

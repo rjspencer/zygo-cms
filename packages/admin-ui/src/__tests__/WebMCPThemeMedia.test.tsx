@@ -68,6 +68,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
           return HttpResponse.json({
             site_title: 'Branded Site',
             site_logo: 'https://example.com/logo.png',
+            site_logo_dark: 'https://example.com/logo-dark.png',
             site_favicon: 'https://example.com/favicon.ico',
             default_og_image: 'https://example.com/og.png',
             footer_text: '© 2026 Branded Site',
@@ -80,6 +81,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       expect(getResult.toolResult).toMatchObject({
         site_title: 'Branded Site',
         site_logo: 'https://example.com/logo.png',
+        site_logo_dark: 'https://example.com/logo-dark.png',
         site_favicon: 'https://example.com/favicon.ico',
         default_og_image: 'https://example.com/og.png',
         footer_text: '© 2026 Branded Site',
@@ -94,6 +96,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       const updateResult = await registry.callTool('update_settings', {
         settings: {
           site_logo: 'https://example.com/new-logo.png',
+          site_logo_dark: 'https://example.com/new-logo-dark.png',
           footer_text: '© 2027 Updated Site',
         },
       });
@@ -102,6 +105,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       expect(receivedPayload).toEqual({
         settings: {
           site_logo: 'https://example.com/new-logo.png',
+          site_logo_dark: 'https://example.com/new-logo-dark.png',
           footer_text: '© 2027 Updated Site',
         },
       });

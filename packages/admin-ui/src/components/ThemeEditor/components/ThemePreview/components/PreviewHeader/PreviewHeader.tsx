@@ -7,6 +7,7 @@ export interface PreviewHeaderProps {
   tokens: ThemeTokens;
   borderBottomCss: string;
   siteLogo?: string;
+  siteLogoDark?: string;
   siteTitle?: string;
 }
 
@@ -14,14 +15,53 @@ export const PreviewHeader: React.FC<PreviewHeaderProps> = ({
   tokens,
   borderBottomCss,
   siteLogo,
+  siteLogoDark,
   siteTitle,
 }) => {
   const resolvedLogo = siteLogo ? getPublicSiteUrl(siteLogo) : '';
+  const resolvedLogoDark = siteLogoDark ? getPublicSiteUrl(siteLogoDark) : '';
   const displayTitle = siteTitle || 'The Zygo Review';
 
   const brandElement = resolvedLogo ? (
+    resolvedLogoDark ? (
+      <picture className="site-logo-picture">
+        <source srcSet={resolvedLogoDark} media="(prefers-color-scheme: dark)" />
+        <img
+          src={resolvedLogo}
+          alt={displayTitle}
+          data-testid="preview-site-logo"
+          style={{
+            maxHeight: '44px',
+            maxWidth: '180px',
+            objectFit: 'contain',
+            display: 'inline-block',
+            verticalAlign: 'middle',
+          }}
+          onError={(e) => {
+            (e.target as HTMLElement).style.display = 'none';
+          }}
+        />
+      </picture>
+    ) : (
+      <img
+        src={resolvedLogo}
+        alt={displayTitle}
+        data-testid="preview-site-logo"
+        style={{
+          maxHeight: '44px',
+          maxWidth: '180px',
+          objectFit: 'contain',
+          display: 'inline-block',
+          verticalAlign: 'middle',
+        }}
+        onError={(e) => {
+          (e.target as HTMLElement).style.display = 'none';
+        }}
+      />
+    )
+  ) : resolvedLogoDark ? (
     <img
-      src={resolvedLogo}
+      src={resolvedLogoDark}
       alt={displayTitle}
       data-testid="preview-site-logo"
       style={{

@@ -85,18 +85,18 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
             {
                 name: "zygo_get_settings",
-                description: "Get all site settings including branding (site_title, site_logo, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics.",
+                description: "Get all site settings including branding (site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics.",
                 inputSchema: { type: "object", properties: {} }
             },
             {
                 name: "zygo_update_settings",
-                description: "Update site settings in the backend (e.g. site_title, site_logo, site_favicon, default_og_image, footer_text, canonical_origin, docs_path).",
+                description: "Update site settings in the backend (e.g. site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text, canonical_origin, docs_path).",
                 inputSchema: {
                     type: "object",
                     properties: {
                         settings: {
                             type: "object",
-                            description: "Key-value map of settings to update (e.g. { site_logo: 'https://...', footer_text: '© 2026' })"
+                            description: "Key-value map of settings to update (e.g. { site_logo: 'https://...', site_logo_dark: 'https://...', footer_text: '© 2026' })"
                         }
                     },
                     required: ["settings"]

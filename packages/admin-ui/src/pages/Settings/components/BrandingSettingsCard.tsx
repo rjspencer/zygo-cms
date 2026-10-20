@@ -16,20 +16,26 @@ export const resolveMediaUrl = (url?: string): string => {
 
 export const BrandingSettingsCard: React.FC = () => {
   const { register, watch, setValue } = useFormContext<SettingsFormValues>();
-  const [pickerTarget, setPickerTarget] = useState<'logo' | 'favicon' | 'og' | null>(null);
+  const [pickerTarget, setPickerTarget] = useState<'logo' | 'logoDark' | 'favicon' | 'og' | null>(null);
 
   const siteLogo = watch('siteLogo');
+  const siteLogoDark = watch('siteLogoDark');
   const siteFavicon = watch('siteFavicon');
   const defaultOgImage = watch('defaultOgImage');
   const footerText = watch('footerText');
 
   const [logoError, setLogoError] = useState(false);
+  const [logoDarkError, setLogoDarkError] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
   const [ogError, setOgError] = useState(false);
 
   useEffect(() => {
     setLogoError(false);
   }, [siteLogo]);
+
+  useEffect(() => {
+    setLogoDarkError(false);
+  }, [siteLogoDark]);
 
   useEffect(() => {
     setFaviconError(false);
@@ -42,6 +48,8 @@ export const BrandingSettingsCard: React.FC = () => {
   const handleMediaSelect = (url: string) => {
     if (pickerTarget === 'logo') {
       setValue('siteLogo', url, { shouldDirty: true });
+    } else if (pickerTarget === 'logoDark') {
+      setValue('siteLogoDark', url, { shouldDirty: true });
     } else if (pickerTarget === 'favicon') {
       setValue('siteFavicon', url, { shouldDirty: true });
     } else if (pickerTarget === 'og') {
@@ -119,6 +127,74 @@ export const BrandingSettingsCard: React.FC = () => {
                   data-testid="settings-logo-preview"
                   style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain', display: 'block' }}
                   onError={() => setLogoError(true)}
+                />
+              )}
+            </Box>
+          )}
+        </Box>
+
+        {/* Site Logo (Dark Mode) */}
+        <Box mb="4">
+          <Text as="label" htmlFor="settings-site-logo-dark-input" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+            Site Logo (Dark Mode)
+          </Text>
+          <Flex gap="2" align="center">
+            <Box style={{ flex: 1 }}>
+              <TextField.Root
+                id="settings-site-logo-dark-input"
+                data-testid="settings-site-logo-dark-input"
+                aria-describedby="settings-site-logo-dark-description"
+                {...register('siteLogoDark')}
+                placeholder="https://example.com/logo-dark.png"
+              />
+            </Box>
+            <Button
+              type="button"
+              variant="soft"
+              data-testid="settings-choose-logo-dark-button"
+              onClick={() => setPickerTarget('logoDark')}
+            >
+              <ImageIcon /> Choose Image
+            </Button>
+            {siteLogoDark && (
+              <IconButton
+                type="button"
+                variant="ghost"
+                color="gray"
+                aria-label="Clear dark mode logo"
+                data-testid="settings-clear-logo-dark-button"
+                onClick={() => setValue('siteLogoDark', '', { shouldDirty: true })}
+              >
+                <Cross2Icon />
+              </IconButton>
+            )}
+          </Flex>
+          <Text id="settings-site-logo-dark-description" size="1" color="gray" mt="1" style={{ display: 'block' }}>
+            Optional dark mode alternative. Displayed when visitors use dark mode. If unset, the main logo is used.
+          </Text>
+          {siteLogoDark && (
+            <Box
+              mt="2"
+              p="2"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                backgroundColor: 'var(--gray-12)',
+                borderRadius: '6px',
+                border: '1px solid var(--gray-11)',
+              }}
+            >
+              {logoDarkError ? (
+                <Text size="1" color="gray" style={{ fontStyle: 'italic' }}>
+                  Unable to load image preview
+                </Text>
+              ) : (
+                <img
+                  src={resolveMediaUrl(siteLogoDark)}
+                  alt="Dark mode logo preview"
+                  data-testid="settings-logo-dark-preview"
+                  style={{ maxHeight: '48px', maxWidth: '180px', objectFit: 'contain', display: 'block' }}
+                  onError={() => setLogoDarkError(true)}
                 />
               )}
             </Box>

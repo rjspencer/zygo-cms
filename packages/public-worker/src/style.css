@@ -189,6 +189,11 @@ header.header-centered .site-branding {
   vertical-align: middle;
 }
 
+.site-logo-picture {
+  display: inline-flex;
+  align-items: center;
+}
+
 .site-tagline {
   font-family: var(--font-headline, 'Newsreader', Georgia, serif);
   font-size: 0.875rem;

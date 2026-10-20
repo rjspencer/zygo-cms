@@ -49,6 +49,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
     handleResetToModernEditorial,
     handleCopyCss,
     siteLogo,
+    siteLogoDark,
     siteTitle,
     footerText,
   } = useThemeEditorState(props);
@@ -117,6 +118,7 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
             copiedCss={copiedCss}
             onCopyCss={handleCopyCss}
             siteLogo={siteLogo}
+            siteLogoDark={siteLogoDark}
             siteTitle={siteTitle}
             footerText={footerText}
           />

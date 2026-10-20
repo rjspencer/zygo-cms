@@ -170,6 +170,7 @@ describe('Settings component', () => {
             docs_mode_enabled: 'false',
             docs_path: '/docs',
             site_logo: '',
+            site_logo_dark: '',
             site_favicon: '',
             default_og_image: '',
             footer_text: '',
@@ -333,6 +334,12 @@ describe('Settings component', () => {
     expect(siteLogoInput.getAttribute('id')).toBe('settings-site-logo-input');
     expect(siteLogoInput.getAttribute('aria-describedby')).toBe('settings-site-logo-description');
 
+    // Site Logo (Dark Mode)
+    const siteLogoDarkInput = screen.getByLabelText('Site Logo (Dark Mode)');
+    expect(siteLogoDarkInput).toBeDefined();
+    expect(siteLogoDarkInput.getAttribute('id')).toBe('settings-site-logo-dark-input');
+    expect(siteLogoDarkInput.getAttribute('aria-describedby')).toBe('settings-site-logo-dark-description');
+
     // Favicon
     const faviconInput = screen.getByLabelText('Favicon');
     expect(faviconInput).toBeDefined();
@@ -360,6 +367,7 @@ describe('Settings component', () => {
         canonical_origin: 'https://branded.example.com',
         description: 'Branded Description',
         site_logo: 'https://example.com/logo.png',
+        site_logo_dark: 'https://example.com/logo-dark.png',
         site_favicon: 'https://example.com/favicon.ico',
         default_og_image: 'https://example.com/og.png',
         footer_text: '© 2026 Branded Site',
@@ -377,6 +385,7 @@ describe('Settings component', () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('https://example.com/logo.png')).toBeTruthy();
+      expect(screen.getByDisplayValue('https://example.com/logo-dark.png')).toBeTruthy();
       expect(screen.getByDisplayValue('https://example.com/favicon.ico')).toBeTruthy();
       expect(screen.getByDisplayValue('https://example.com/og.png')).toBeTruthy();
       expect(screen.getByDisplayValue('© 2026 Branded Site')).toBeTruthy();
@@ -384,8 +393,16 @@ describe('Settings component', () => {
 
     // Check previews are rendered
     expect(screen.getByTestId('settings-logo-preview')).toBeTruthy();
+    expect(screen.getByTestId('settings-logo-dark-preview')).toBeTruthy();
     expect(screen.getByTestId('settings-favicon-preview')).toBeTruthy();
     expect(screen.getByTestId('settings-default-og-preview')).toBeTruthy();
+
+    // Click clear dark logo button
+    const clearLogoDarkBtn = screen.getByTestId('settings-clear-logo-dark-button');
+    await userEvent.click(clearLogoDarkBtn);
+
+    const logoDarkInput = screen.getByTestId('settings-site-logo-dark-input') as HTMLInputElement;
+    expect(logoDarkInput.value).toBe('');
 
     // Click clear logo button
     const clearLogoBtn = screen.getByTestId('settings-clear-logo-button');

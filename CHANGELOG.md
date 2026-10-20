@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Header Improvements: Optional Site Tagline & Dark Mode Logo
+- **Optional Header Site Tagline (`packages/core`, `packages/public-worker`, `packages/admin-ui`)**:
+  - Removed hardcoded default taglines from built-in theme presets (`modern_editorial`, `bento_brutalism`) in `zygo-core` and Admin UI ThemeEditor constants, making tagline default to nothing (`""`).
+  - Removed fallback `.unwrap_or("An Editorial Review & Journal")` from `inject_theme_context` in `packages/public-worker/src/views.rs`, ensuring `<div class="site-tagline">` is completely omitted from public SSR HTML when empty or unconfigured.
+  - Updated ThemeEditor's tagline input placeholder to `"Optional site tagline"`.
+- **Dark Mode Site Logo (`packages/core`, `packages/public-worker`, `packages/admin-ui`, `migrations/0009_dark_mode_site_logo.sql`)**:
+  - Added `site_logo_dark` setting key with full support across settings form values and API schemas.
+  - Implemented responsive `<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>` in public SSR templates (`layout_defaults.rs` and `views.rs`), seamlessly falling back to `site_logo` when dark mode is inactive or unset.
+  - Added `.site-logo-picture` CSS styling in `public/style.css` and `packages/public-worker/src/style.css`.
+  - Created D1 migration `0009_dark_mode_site_logo.sql` upgrading existing stored layout templates in D1.
+  - Added Site Logo (Dark Mode) upload control in `BrandingSettingsCard.tsx` with dedicated Media Picker flow, clear button, and high-contrast dark preview container (`var(--gray-12)`).
+  - Updated ThemeEditor `PreviewHeader` and `ThemePreview` to render the responsive `<picture>` dark logo element in live preview.
+- **Dual WebMCP & `zygo-mcp` Parity**:
+  - Maintained full parity across in-browser WebMCP (`packages/admin-ui/src/lib/webmcp/themeAndMediaTools.ts`) and backend CLI MCP bridge (`packages/zygo-mcp/index.mjs`) for `site_logo_dark` and empty tagline defaults.
+- **Quality Gates Verification**:
+  - Passed 123 Rust unit tests (`cargo test`), 648 Vitest tests across 75 test files (`pnpm run test:all`), TypeScript check (`tsc --noEmit`), production build (`pnpm run build`), and Storybook build (`build-storybook`).
+
 ### Theming, Site Branding & Edge Cache-Busting Enhancements
 - **Branding Image Previews & Fallbacks (`packages/admin-ui`)**: Fixed phantom checkbox artifact in "Site Branding & Social" settings caused by broken image fallback styling. Implemented `resolveMediaUrl` using `getPublicSiteUrl` to correctly resolve relative `/media/` paths to the public site and render clean placeholder messages (`Unable to load image preview`) on error.
 - **Preset Header Logo & Footer Copyright Rendering (`migrations/0008_sync_branding_in_layout_templates.sql`, `packages/public-worker`, `packages/admin-ui`)**: Created D1 migration and updated baseline seed templates (`0004`, `0005`) to conditionally render `site_logo` in headers (falling back to `site_title`) and copyright footer text across all layouts (`post`, `page`, `doc`) for `Modern Editorial` and `Bento-Brutalism` presets. Updated ThemeEditor preview headers (`centered`, `split`, `stacked`) and added dynamic copyright year interpolation to ThemePreview footer.
