@@ -330,11 +330,13 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
         expect(screen.queryByText('Select Media')).toBeNull();
       });
 
-      // Assert TipTap has image element
+      // Assert TipTap has image element with medium size, width, and max-width
       await waitFor(() => {
         const img = container.querySelector('.tiptap img') as HTMLImageElement;
         expect(img).not.toBeNull();
-        expect(img?.getAttribute('src')).toBe(getPublicSiteUrl('/media/test-photo.png'));
+        expect(img?.getAttribute('src')).toBe(getPublicSiteUrl('/media/test-photo.png?size=md'));
+        expect(img?.getAttribute('width')).toBe('1024');
+        expect(img?.getAttribute('style')).toContain('max-width: 100%');
       });
     });
   });

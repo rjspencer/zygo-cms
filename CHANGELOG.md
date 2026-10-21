@@ -8,6 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Tiptap Editor Medium Image Sizing & Responsive Width Attributes
+- **Medium Image Resolution & Responsive Attributes (`packages/admin-ui/src/components/RichTextEditor/`)**:
+  - Implemented `toMediumImageUrl` in `useRichTextEditor.ts` to automatically route Media Picker image selections to the medium tier (`?size=md` or `&size=md`).
+  - Extended `ZygoImage` schema with `width` and `style` attributes in `addAttributes()` ensuring ProseMirror parses, preserves, and serializes these attributes in `getHTML()`.
+  - Updated node view to set and update `width="1024"` and `style="max-width: 100%"` on the DOM `<img>` element.
+  - Added Storybook story `WithMediumImage` in `RichTextEditor.stories.tsx`.
+  - Added unit test suites verifying medium URL resolution, HTML attribute serialization, and editor DOM sync in `RichTextEditor.test.tsx` and `Editor.test.tsx`.
+
 ### Fix Tiptap Media Preview URLs & Worker Media MIME Types
 - **Tiptap Image Preview Origin Resolution (`packages/admin-ui/src/components/RichTextEditor/hooks/useRichTextEditor.ts`)**:
   - Implemented `ZygoImage` node view extending `@tiptap/extension-image` to resolve relative `/media/...` URLs to the public site origin (`getPublicSiteUrl`) in the editor DOM while keeping `node.attrs` and `renderHTML` relative (`/media/...`) for portable database storage.
