@@ -6,7 +6,46 @@ import Link from '@tiptap/extension-link';
 import { getPublicSiteUrl } from '../../../utils/api';
 import type { RichTextEditorProps } from '../types';
 
+export function toMediumImageUrl(url: string): string {
+  if (!url) return url;
+  if (url.includes('size=')) {
+    return url.replace(/([?&])size=[^&]+/, '$1size=md');
+  }
+  const separator = url.includes('?') ? '&' : '?';
+  return `${url}${separator}size=md`;
+}
+
 export const ZygoImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('width'),
+        renderHTML: (attributes) => {
+          if (!attributes.width) {
+            return {};
+          }
+          return {
+            width: String(attributes.width),
+          };
+        },
+      },
+      style: {
+        default: null,
+        parseHTML: (element) => element.getAttribute('style'),
+        renderHTML: (attributes) => {
+          if (!attributes.style) {
+            return {};
+          }
+          return {
+            style: attributes.style,
+          };
+        },
+      },
+    };
+  },
+
   addNodeView() {
     return ({ node, HTMLAttributes }) => {
       const el = document.createElement('img');
@@ -45,6 +84,16 @@ export const ZygoImage = Image.extend({
             el.setAttribute('title', updatedNode.attrs.title);
           } else {
             el.removeAttribute('title');
+          }
+          if (updatedNode.attrs.width != null) {
+            el.setAttribute('width', String(updatedNode.attrs.width));
+          } else {
+            el.removeAttribute('width');
+          }
+          if (updatedNode.attrs.style != null) {
+            el.setAttribute('style', updatedNode.attrs.style);
+          } else {
+            el.removeAttribute('style');
           }
           return true;
         },
@@ -141,12 +190,30 @@ export const useRichTextEditor = ({
     if (!editor) return;
     if (onOpenMediaPicker) {
       onOpenMediaPicker((url: string, alt?: string) => {
-        editor.chain().focus().setImage({ src: url, alt: alt || '' }).run();
+        const mediumUrl = toMediumImageUrl(url);
+        editor
+          .chain()
+          .focus()
+          .setImage({
+            src: mediumUrl,
+            alt: alt || '',
+            width: 1024,
+            style: 'max-width: 100%',
+          })
+          .run();
       });
     } else {
       const url = window.prompt('Enter image URL');
       if (url) {
-        editor.chain().focus().setImage({ src: url }).run();
+        editor
+          .chain()
+          .focus()
+          .setImage({
+            src: url,
+            width: 1024,
+            style: 'max-width: 100%',
+          })
+          .run();
       }
     }
   };

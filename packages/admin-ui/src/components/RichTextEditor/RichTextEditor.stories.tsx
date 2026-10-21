@@ -41,3 +41,11 @@ export const HeadingsAndLists: Story = {
     onChange: () => {},
   },
 };
+
+export const WithMediumImage: Story = {
+  args: {
+    value:
+      '<p>Here is an article with an embedded medium image:</p><p><img src="/media/sample-hero.webp?size=md" alt="Sample Artwork" width="1024" style="max-width: 100%;" /></p><p>Continuing content below the image...</p>',
+    onChange: () => {},
+  },
+};

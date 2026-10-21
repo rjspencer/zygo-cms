@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Theme } from '@radix-ui/themes';
 import { RichTextEditor } from './RichTextEditor';
+import { toMediumImageUrl } from './hooks/useRichTextEditor';
+import { getPublicSiteUrl } from '../../utils/api';
 
 describe('RichTextEditor Component', () => {
   it('renders all required formatting toolbar buttons with correct aria-labels', () => {
@@ -53,6 +55,65 @@ describe('RichTextEditor Component', () => {
 
     expect(onOpenMediaPicker).toHaveBeenCalledTimes(1);
     expect(typeof onOpenMediaPicker.mock.calls[0][0]).toBe('function');
+  });
+
+  it('inserts medium sized image with width="1024" and style="max-width: 100%" via onOpenMediaPicker callback', () => {
+    const onChange = vi.fn();
+    let insertCallback: ((url: string, alt?: string) => void) | undefined;
+    const onOpenMediaPicker = vi.fn((cb) => {
+      insertCallback = cb;
+    });
+
+    const { container } = render(
+      <Theme>
+        <RichTextEditor
+          value="<p>Test</p>"
+          onChange={onChange}
+          onOpenMediaPicker={onOpenMediaPicker}
+        />
+      </Theme>
+    );
+
+    const imageBtn = screen.getByRole('button', { name: 'Insert Image' });
+    fireEvent.click(imageBtn);
+    expect(insertCallback).toBeDefined();
+
+    insertCallback!('/media/banner.png', 'Sample Banner');
+
+    const imgEl = container.querySelector('.tiptap img') as HTMLImageElement;
+    expect(imgEl).not.toBeNull();
+    expect(imgEl.getAttribute('src')).toBe(getPublicSiteUrl('/media/banner.png?size=md'));
+    expect(imgEl.getAttribute('alt')).toBe('Sample Banner');
+    expect(imgEl.getAttribute('width')).toBe('1024');
+    expect(imgEl.getAttribute('style')).toContain('max-width: 100%');
+
+    expect(onChange).toHaveBeenCalled();
+    const lastHtml = onChange.mock.calls[onChange.mock.calls.length - 1][0];
+    expect(lastHtml).toContain('/media/banner.png?size=md');
+    expect(lastHtml).toContain('width="1024"');
+    expect(lastHtml).toMatch(/style="max-width:\s*100%;?"/);
+  });
+
+  it('inserts image with width="1024" and style="max-width: 100%" without ?size=md when prompted for URL', () => {
+    const onChange = vi.fn();
+    const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('https://example.com/pic.jpg');
+
+    const { container } = render(
+      <Theme>
+        <RichTextEditor value="<p>Test</p>" onChange={onChange} />
+      </Theme>
+    );
+
+    const imageBtn = screen.getByRole('button', { name: 'Insert Image' });
+    fireEvent.click(imageBtn);
+
+    const imgEl = container.querySelector('.tiptap img') as HTMLImageElement;
+    expect(imgEl).not.toBeNull();
+    expect(imgEl.getAttribute('src')).toBe('https://example.com/pic.jpg');
+    expect(imgEl.getAttribute('width')).toBe('1024');
+    expect(imgEl.getAttribute('style')).toContain('max-width: 100%');
+
+    promptSpy.mockRestore();
   });
 
   it('prompts for image URL when onOpenMediaPicker is not passed', () => {
@@ -127,5 +188,24 @@ describe('RichTextEditor Component', () => {
     expect(imgEl.getAttribute('alt')).toBe('Pic');
 
     import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv || '';
+  });
+
+  describe('toMediumImageUrl helper', () => {
+    it('appends ?size=md to clean url', () => {
+      expect(toMediumImageUrl('/media/photo.png')).toBe('/media/photo.png?size=md');
+    });
+
+    it('appends &size=md when url already has query params', () => {
+      expect(toMediumImageUrl('/media/photo.png?version=1')).toBe('/media/photo.png?version=1&size=md');
+    });
+
+    it('replaces existing size param with md', () => {
+      expect(toMediumImageUrl('/media/photo.png?size=thumb')).toBe('/media/photo.png?size=md');
+      expect(toMediumImageUrl('/media/photo.png?version=1&size=lg')).toBe('/media/photo.png?version=1&size=md');
+    });
+
+    it('returns empty string if url is empty', () => {
+      expect(toMediumImageUrl('')).toBe('');
+    });
   });
 });
