@@ -358,9 +358,13 @@ pub async fn get_media(key: &str, req: &Request, ctx: &RouteContext<()>) -> Resu
         Ok(obj) => {
             let headers = worker::Headers::new();
 
-            if let Some(ct) = obj.http_metadata().content_type {
-                headers.set("Content-Type", &ct)?;
-            }
+            // Set Content-Type from R2 metadata if available, falling back to extension-based guess
+            let ct = obj
+                .http_metadata()
+                .content_type
+                .filter(|s| !s.is_empty() && s != "application/octet-stream")
+                .unwrap_or_else(|| guess_mime_type(key).to_string());
+            headers.set("Content-Type", &ct)?;
 
             headers.set("Cache-Control", "public, max-age=31536000, immutable")?;
 
