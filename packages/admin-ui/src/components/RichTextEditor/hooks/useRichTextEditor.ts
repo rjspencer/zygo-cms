@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
-import { useEditor } from '@tiptap/react';
-import { mergeAttributes } from '@tiptap/core';
+import { useEditor, mergeAttributes } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';

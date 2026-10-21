@@ -17,6 +17,8 @@ export default defineConfig({
         settings: {
           disableCSSFileLoading: true,
           disableIframePageLoading: true,
+          disableComputedStyleRendering: true,
+          handleDisabledFileLoadingAsSuccess: true,
         },
       },
     },
