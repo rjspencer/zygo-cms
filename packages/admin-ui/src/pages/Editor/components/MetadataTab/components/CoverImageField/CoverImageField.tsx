@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, Flex, Text } from '@radix-ui/themes';
 import { useFormContext } from 'react-hook-form';
 import { useOpenMediaPicker } from '../../../../context/MediaPickerContext';
+import { getPublicSiteUrl } from '../../../../../../utils/api';
 import type { EntryFormValues } from '../../../../types';
 
 export const CoverImageField: React.FC = () => {
@@ -26,7 +27,7 @@ export const CoverImageField: React.FC = () => {
         {coverImage && (
           <Flex align="center" gap="3">
             <Box style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-2)', overflow: 'hidden', flexShrink: 0 }}>
-              <img src={coverImage} alt="Cover Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={getPublicSiteUrl(coverImage)} alt="Cover Thumbnail" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </Box>
             <Text size="2" color="gray" style={{ wordBreak: 'break-all' }}>
               {coverImage}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Card, Text } from '@radix-ui/themes';
+import { getPublicSiteUrl } from '../../../../../../utils/api';
 
 export interface IMessagePreviewProps {
   title: string;
@@ -27,7 +28,7 @@ export const IMessagePreview: React.FC<IMessagePreviewProps> = ({
         {coverImage && (
           <Box style={{ width: '100%', height: '170px', overflow: 'hidden' }}>
             <img
-              src={coverImage}
+              src={getPublicSiteUrl(coverImage)}
               alt="Cover preview"
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />

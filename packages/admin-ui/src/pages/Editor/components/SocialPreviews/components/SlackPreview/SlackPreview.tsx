@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Card, Flex, Text } from '@radix-ui/themes';
+import { getPublicSiteUrl } from '../../../../../../utils/api';
 
 export interface SlackPreviewProps {
   title: string;
@@ -48,7 +49,7 @@ export const SlackPreview: React.FC<SlackPreviewProps> = ({
               }}
             >
               <img
-                src={coverImage}
+                src={getPublicSiteUrl(coverImage)}
                 alt="Preview thumbnail"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />

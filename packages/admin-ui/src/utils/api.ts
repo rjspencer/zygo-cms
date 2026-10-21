@@ -24,6 +24,10 @@ export function getApiUrl(path: string): string {
 }
 
 export function getPublicSiteUrl(path: string = ''): string {
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('data:')) {
+    return path;
+  }
+
   let baseUrl = import.meta.env.VITE_PUBLIC_SITE_URL || '';
 
   if (!baseUrl && typeof window !== 'undefined' && window.location?.hostname?.startsWith('admin.')) {
