@@ -6,6 +6,30 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
+### Setup Experience & Onboarding Remediation
+- **Goal**: Resolve critical setup script bugs, security vulnerabilities (fail-open Access AUD), cross-platform Windows/Linux blocks, and documentation discrepancies identified during the new-user setup review.
+- **Audit**: [`docs/audits/setup-review/SUMMARY.md`](docs/audits/setup-review/SUMMARY.md) (Full reports: [`1-docs.md`](docs/audits/setup-review/1-docs.md), [`2-script-ux.md`](docs/audits/setup-review/2-script-ux.md), [`3-script-accuracy.md`](docs/audits/setup-review/3-script-accuracy.md), [`4-opportunities.md`](docs/audits/setup-review/4-opportunities.md), [`5-content.md`](docs/audits/setup-review/5-content.md))
+- **Key Tasks**:
+  - **Immediate Patches & Security Hardening (P0)**:
+    - [ ] **Fix D1 Migration Target & Sanitize Root Wrangler**: Pass `-c packages/admin-api-worker/wrangler.toml` in `scripts/setup.mjs` `applyRemoteMigrations()`; remove author's hardcoded UUID and domain from root `wrangler.toml` ([`3-script-accuracy.md` §3 B1](docs/audits/setup-review/3-script-accuracy.md), [`1-docs.md` #13, #21](docs/audits/setup-review/1-docs.md)).
+    - [ ] **Harden Fail-Closed Zero Trust Authentication**: Reject requests with 401/500 when `CF_ACCESS_AUD` is empty in non-dev environments; abort deploy if Access app provisioning fails ([`3-script-accuracy.md` §3 B3](docs/audits/setup-review/3-script-accuracy.md)).
+    - [ ] **Resolve Windows 11 Entrypoint & Path Math**: Switch `scripts/setup.mjs` to `fileURLToPath(import.meta.url)`; replace POSIX `sleep 3 &&` in `package.json` (`dev:public`) with cross-platform wait utility ([`3-script-accuracy.md` §3 B2](docs/audits/setup-review/3-script-accuracy.md), [`1-docs.md` OS Coverage](docs/audits/setup-review/1-docs.md)).
+    - [ ] **Propagate Child Process Credentials & Error Statuses**: Inject `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` into all Wrangler subprocesses in `scripts/setup.mjs`; propagate non-zero exit codes on build/deploy failures ([`3-script-accuracy.md` §3 B4, B5, B11, B12](docs/audits/setup-review/3-script-accuracy.md)).
+    - [ ] **Mask Secrets in Terminal Prompts**: Use `@clack/prompts` `password()` for API tokens and Google client secrets ([`3-script-accuracy.md` §3 B10](docs/audits/setup-review/3-script-accuracy.md), [`4-opportunities.md` Opportunity 4](docs/audits/setup-review/4-opportunities.md)).
+    - [ ] **Cache Purge & Subdomain Wiring**: Write `CF_ZONE_ID` to both backend workers; wire `ADMIN_SUBDOMAIN` and dynamic CORS origins ([`3-script-accuracy.md` §3 B8, B9](docs/audits/setup-review/3-script-accuracy.md)).
+    - [ ] **Graceful SEO Redirect Ruleset Handling**: Catch dynamic redirect permission failures gracefully and clarify required token scopes ([`3-script-accuracy.md` §11.1](docs/audits/setup-review/3-script-accuracy.md)).
+  - **Developer Experience & CLI Polish (P1)**:
+    - [ ] **Preflight Environment & Diagnostic Doctor (`--doctor`)**: Check Node 22, pnpm 11, Rust `wasm32-unknown-unknown`, `worker-build`, Wrangler auth, token scopes, and Cloudflare Zone presence before modifying files ([`4-opportunities.md` Opportunity 1](docs/audits/setup-review/4-opportunities.md)).
+    - [ ] **Non-Interactive Automation & CLI Flags**: Add flag parsing (`--yes`, `--domain`, `--email`, `--dry-run`, `--no-deploy`) via `node:util` `parseArgs` ([`4-opportunities.md` Opportunity 2](docs/audits/setup-review/4-opportunities.md)).
+    - [ ] **Progressive Disclosure Wizard**: Collapse 6 granular Edge/WAF prompts into a single opt-in prompt with production defaults ([`4-opportunities.md` Opportunity 3](docs/audits/setup-review/4-opportunities.md), [`2-script-ux.md`](docs/audits/setup-review/2-script-ux.md)).
+    - [ ] **Atomic Configuration Snapshots & Rollback**: Snapshot `wrangler.toml` files in memory before mutation; restore on unhandled failure ([`4-opportunities.md` Opportunity 7](docs/audits/setup-review/4-opportunities.md)).
+    - [ ] **Post-Deployment Edge Verification & Health Check**: Add automated post-deploy HEAD polling (200 public, 302 admin) and browser launch ([`4-opportunities.md` Opportunities 6 & 8](docs/audits/setup-review/4-opportunities.md)).
+  - **Documentation & Educational Content (P1)**:
+    - [ ] **Canonical Quickstart & README Overhaul**: Eliminate fictional password signup, document `:5173` dev auth bypass (`ENVIRONMENT=dev`), standardize on `pnpm run db:migrate:local`, fix `pnpm setup` collision, reconcile architecture to Three Workers + Minijinja + React 19 ([`1-docs.md` Issues 1, 2, 9, 10, 12](docs/audits/setup-review/1-docs.md)).
+    - [ ] **Data Model & Recipes Alignment**: Update `docs/official/concepts.md` with true D1 schema tables (replace fabricated Taxonomy diagrams); update `docs/official/examples.md` to document UI theme/template customization and Service Token API auth ([`1-docs.md` Issues 27, 28, 29, 30, 31, 33](docs/audits/setup-review/1-docs.md)).
+    - [ ] **Cross-Platform OS Guide & Troubleshooting FAQ**: Publish Guide 4 (Troubleshooting FAQ) and Guide 5 (CLI Cheat-Sheet); add explicit WSL2 recommendation and setup commands for Windows 11 ([`5-content.md` Guides 4 & 5](docs/audits/setup-review/5-content.md)).
+    - [ ] **Core Onboarding Video Production**: Produce Video 1 ("Zero to Live Site in 5 Minutes") and Video 2 ("Cloudflare Access & Zero Trust Setup") per scripts in `docs/audits/setup-review/5-content.md`.
+
 ### Headless CMS Content API
 - **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
 - **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
