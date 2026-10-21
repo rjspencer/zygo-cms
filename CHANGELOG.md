@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Fix Tiptap Media Preview URLs & Worker Media MIME Types
+- **Tiptap Image Preview Origin Resolution (`packages/admin-ui/src/components/RichTextEditor/hooks/useRichTextEditor.ts`)**:
+  - Implemented `ZygoImage` node view extending `@tiptap/extension-image` to resolve relative `/media/...` URLs to the public site origin (`getPublicSiteUrl`) in the editor DOM while keeping `node.attrs` and `renderHTML` relative (`/media/...`) for portable database storage.
+  - Resolved image URLs in `CoverImageField`, `IMessagePreview`, and `SlackPreview` using `getPublicSiteUrl`.
+  - Updated `getPublicSiteUrl` (`packages/admin-ui/src/utils/api.ts`) to preserve absolute URLs (`http://`, `https://`, `data:`).
+- **Public & Admin API Worker Media Content-Type Fallbacks (`packages/public-worker/src/media.rs`, `packages/admin-api-worker/src/media.rs`)**:
+  - Added fallback to `guess_mime_type(key)` on `get_media` when R2 metadata is missing or generic `application/octet-stream`, ensuring SVGs always return `Content-Type: image/svg+xml`.
+- **Public Site Prose Image Styling (`packages/public-worker/src/style.css`, `public/style.css`)**:
+  - Added `.text-image-prose img` responsive rules (`max-width: 100%`, `height: auto`, `margin: 1.5rem 0`, `border-radius: var(--border-radius, 6px)`).
+
 ### Native Contact & Newsletter Forms, Rate Limiting & D1 Submissions Inbox
 - **Zero-Write Pre-D1 Gating Pipeline (`packages/public-worker/src/handlers/public.rs`, `packages/public-worker/src/lib.rs`)**:
   - Implemented `POST /forms/submit` handling `application/json` and `application/x-www-form-urlencoded` payloads.

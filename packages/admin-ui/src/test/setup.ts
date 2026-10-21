@@ -73,6 +73,7 @@ beforeAll(() => {
 // Reset handlers after each test so tests don't affect each other
 afterEach(() => {
   server.resetHandlers();
+  import.meta.env.VITE_PUBLIC_SITE_URL = '';
 });
 
 // Clean up after all tests are done

@@ -761,11 +761,12 @@ article>.post-meta {
   font-size: inherit;
 }
 
-.prose img {
+.prose img,
+.text-image-prose img {
   max-width: 100%;
   height: auto;
   border-radius: var(--border-radius, 6px);
-  margin: 2rem 0;
+  margin: 1.5rem 0;
   border: 1px solid var(--color-border, #e7e5e4);
   display: block;
 }

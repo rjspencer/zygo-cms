@@ -68,7 +68,7 @@ describe('MediaThumbnail Component', () => {
       );
     } finally {
       (window as any).location = originalLocation;
-      import.meta.env.VITE_PUBLIC_SITE_URL = originalPublicSiteUrl;
+      import.meta.env.VITE_PUBLIC_SITE_URL = originalPublicSiteUrl || '';
     }
   });
 

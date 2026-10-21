@@ -1,9 +1,57 @@
 import { useEffect } from 'react';
-import { useEditor } from '@tiptap/react';
+import { useEditor, mergeAttributes } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
+import { getPublicSiteUrl } from '../../../utils/api';
 import type { RichTextEditorProps } from '../types';
+
+export const ZygoImage = Image.extend({
+  addNodeView() {
+    return ({ node, HTMLAttributes }) => {
+      const el = document.createElement('img');
+      const mergedAttributes = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes);
+      Object.entries(mergedAttributes).forEach(([key, value]) => {
+        if (value != null && key !== 'src') {
+          el.setAttribute(key, String(value));
+        }
+      });
+
+      const syncSrc = (rawSrc: string) => {
+        if (!rawSrc) {
+          el.removeAttribute('src');
+          return;
+        }
+        const resolved =
+          rawSrc.startsWith('/') && !rawSrc.startsWith('//')
+            ? getPublicSiteUrl(rawSrc)
+            : rawSrc;
+        el.setAttribute('src', resolved);
+      };
+
+      syncSrc(node.attrs.src || '');
+
+      return {
+        dom: el,
+        update: (updatedNode) => {
+          if (updatedNode.type.name !== this.name) return false;
+          syncSrc(updatedNode.attrs.src || '');
+          if (updatedNode.attrs.alt != null) {
+            el.setAttribute('alt', updatedNode.attrs.alt);
+          } else {
+            el.removeAttribute('alt');
+          }
+          if (updatedNode.attrs.title != null) {
+            el.setAttribute('title', updatedNode.attrs.title);
+          } else {
+            el.removeAttribute('title');
+          }
+          return true;
+        },
+      };
+    };
+  },
+});
 
 export const useRichTextEditor = ({
   value,
@@ -23,7 +71,7 @@ export const useRichTextEditor = ({
         },
         link: false,
       }),
-      Image.configure({
+      ZygoImage.configure({
         allowBase64: true,
       }),
       Link.configure({
