@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
-import { intro, outro, text, select, multiselect, confirm, spinner, isCancel, cancel } from '@clack/prompts';
+import { intro, outro, text, password, select, multiselect, confirm, spinner, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ROOT_DIR = path.resolve(__dirname, '..');
 
 function extractJson(raw) {
   if (!raw) return null;
@@ -83,8 +88,6 @@ function detectAccountId() {
   return null;
 }
 
-const ROOT_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-
 function replaceOrInsertRoutes(content, routesStr) {
   const routesRegex = /routes\s*=\s*\[[\s\S]*?\]/;
   if (routesRegex.test(content)) {
@@ -110,15 +113,21 @@ function ensureWorkersDevFalse(content) {
   }
 }
 
-function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', customFilePath = null) {
+function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', adminSubdomain = 'admin', customFilePath = null) {
   if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
     customFilePath = publicSubdomain;
     publicSubdomain = 'www';
     apexHandling = 'redirect_to_sub';
+    adminSubdomain = 'admin';
   }
   if (typeof apexHandling === 'string' && (apexHandling.endsWith('.toml') || apexHandling.includes('/') || apexHandling.includes('\\'))) {
     customFilePath = apexHandling;
     apexHandling = 'redirect_to_sub';
+    adminSubdomain = 'admin';
+  }
+  if (typeof adminSubdomain === 'string' && (adminSubdomain.endsWith('.toml') || adminSubdomain.includes('/') || adminSubdomain.includes('\\'))) {
+    customFilePath = adminSubdomain;
+    adminSubdomain = 'admin';
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
@@ -137,6 +146,15 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   content = replaceOrInsertRoutes(content, routesStr);
 
   content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
+
+  const adminSub = adminSubdomain || 'admin';
+  if (/ADMIN_SUBDOMAIN\s*=\s*"[^"]*"/.test(content)) {
+    content = content.replace(/ADMIN_SUBDOMAIN\s*=\s*"[^"]*"/, `ADMIN_SUBDOMAIN = "${adminSub}"`);
+  } else if (/\[vars\]/.test(content)) {
+    content = content.replace(/\[vars\]/, `[vars]\nADMIN_SUBDOMAIN = "${adminSub}"`);
+  } else {
+    content += `\n[vars]\nADMIN_SUBDOMAIN = "${adminSub}"\n`;
+  }
 
   fs.writeFileSync(filePath, content, 'utf8');
 }
@@ -287,12 +305,13 @@ function updateAdminUiEnv(domain, apiSubdomain = 'api', customEnvPath = null) {
 }
 
 
-function provisionD1Database() {
+function provisionD1Database(childEnv = null) {
   console.log('\n[1/5] Provisioning Cloudflare D1 Database (zygo-cms-db)...');
   let databaseId = null;
+  const env = childEnv || { ...process.env, CI: 'true' };
 
   try {
-    const listOut = execSync('npx wrangler d1 list --json', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const listOut = execSync('npx wrangler d1 list --json', { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
     const list = extractJson(listOut);
     if (Array.isArray(list)) {
       const existing = list.find((db) => db.name === 'zygo-cms-db');
@@ -308,7 +327,7 @@ function provisionD1Database() {
   if (!databaseId) {
     console.log('  Creating new D1 database "zygo-cms-db"...');
     try {
-      const createOut = execSync('npx wrangler d1 create zygo-cms-db --json', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+      const createOut = execSync('npx wrangler d1 create zygo-cms-db --json', { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
       const created = extractJson(createOut);
       databaseId = created?.uuid || created?.database_id || created?.id;
     } catch (err) {
@@ -326,10 +345,11 @@ function provisionD1Database() {
   return databaseId;
 }
 
-function provisionR2Bucket() {
+function provisionR2Bucket(childEnv = null) {
   console.log('\n[2/5] Provisioning Cloudflare R2 Media Bucket (zygo-cms-media)...');
+  const env = childEnv || { ...process.env, CI: 'true' };
   try {
-    execSync('npx wrangler r2 bucket create zygo-cms-media', { stdio: ['pipe', 'pipe', 'pipe'] });
+    execSync('npx wrangler r2 bucket create zygo-cms-media', { stdio: ['pipe', 'pipe', 'pipe'], env });
     console.log('✓ Created R2 bucket "zygo-cms-media"');
   } catch (err) {
     const out = ((err.stdout?.toString() || '') + (err.stderr?.toString() || '')).toLowerCase();
@@ -341,18 +361,20 @@ function provisionR2Bucket() {
   }
 }
 
-function applyRemoteMigrations() {
+function applyRemoteMigrations(childEnv = null, execFn = execSync) {
   console.log('\n[4/5] Applying remote D1 database migrations...');
   try {
-    execSync('npx wrangler d1 migrations apply zygo-cms-db --remote', {
+    execFn('npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml', {
       stdio: 'inherit',
-      env: { ...process.env, CI: 'true' }
+      env: childEnv || { ...process.env, CI: 'true' }
     });
     console.log('✓ Remote D1 migrations applied successfully');
+    return true;
   } catch (err) {
     console.error(`⚠️  Failed to apply remote migrations automatically: ${err.message}`);
     console.log('You can apply migrations manually later using:');
-    console.log('  npx wrangler d1 migrations apply zygo-cms-db --remote');
+    console.log('  npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml');
+    return false;
   }
 }
 
@@ -709,9 +731,20 @@ async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail
     if (!uiSuccess || !apiSuccess) {
       printManualAccessInstructions(domain, adminEmail, uiSub, apiSub);
     }
+
+    return {
+      success: uiSuccess && apiSuccess,
+      aud: apiResult?.aud || null,
+      teamDomain: orgDomain || null
+    };
   } catch (err) {
     console.warn(`⚠️  Could not configure Cloudflare Access via REST API: ${err.message}`);
     printManualAccessInstructions(domain, adminEmail, uiSub, apiSub);
+    return {
+      success: false,
+      aud: null,
+      teamDomain: null
+    };
   }
 }
 
@@ -772,19 +805,27 @@ async function applyAiCrawlSettings(zoneId, apiToken, settings = {}) {
 }
 
 function updateAdminApiZoneVar(zoneId, customFilePath = null) {
-  const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
-  if (!fs.existsSync(filePath)) return;
-  let content = fs.readFileSync(filePath, 'utf8');
+  const filePaths = customFilePath
+    ? [customFilePath]
+    : [
+        path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml'),
+        path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml')
+      ];
 
-  if (/CF_ZONE_ID\s*=\s*"[^"]*"/.test(content)) {
-    content = content.replace(/CF_ZONE_ID\s*=\s*"[^"]*"/, `CF_ZONE_ID = "${zoneId}"`);
-  } else if (/\[vars\]/.test(content)) {
-    content = content.replace(/\[vars\]/, `[vars]\nCF_ZONE_ID = "${zoneId}"`);
-  } else {
-    content += `\n[vars]\nCF_ZONE_ID = "${zoneId}"\n`;
+  for (const filePath of filePaths) {
+    if (!fs.existsSync(filePath)) continue;
+    let content = fs.readFileSync(filePath, 'utf8');
+
+    if (/CF_ZONE_ID\s*=\s*"[^"]*"/.test(content)) {
+      content = content.replace(/CF_ZONE_ID\s*=\s*"[^"]*"/, `CF_ZONE_ID = "${zoneId}"`);
+    } else if (/\[vars\]/.test(content)) {
+      content = content.replace(/\[vars\]/, `[vars]\nCF_ZONE_ID = "${zoneId}"`);
+    } else {
+      content += `\n[vars]\nCF_ZONE_ID = "${zoneId}"\n`;
+    }
+
+    fs.writeFileSync(filePath, content, 'utf8');
   }
-
-  fs.writeFileSync(filePath, content, 'utf8');
 }
 
 async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostname) {
@@ -815,6 +856,11 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
       { headers }
     );
 
+    if (getRes.status === 403) {
+      console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+      return false;
+    }
+
     if (getRes.status === 404) {
       const postRes = await fetch(`https://api.cloudflare.com/client/v4/zones/${zoneId}/rulesets`, {
         method: 'POST',
@@ -826,17 +872,31 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
           rules: [newRule]
         })
       });
+      if (postRes.status === 403) {
+        console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+        return false;
+      }
       const postData = await postRes.json();
       if (postRes.ok && postData.success) {
         return true;
       }
-      console.warn(`⚠️  Failed to create redirect ruleset: ${JSON.stringify(postData?.errors || postData)}`);
+      const postErrorStr = JSON.stringify(postData?.errors || postData);
+      if (postErrorStr.includes('10000') || postErrorStr.includes('unauthorized') || postErrorStr.includes('forbidden')) {
+        console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+      } else {
+        console.warn(`⚠️  Failed to create redirect ruleset: ${postErrorStr}`);
+      }
       return false;
     }
 
     if (!getRes.ok) {
       const errorData = await getRes.json().catch(() => ({}));
-      console.warn(`⚠️  Failed to fetch redirect ruleset: ${JSON.stringify(errorData?.errors || errorData)}`);
+      const errorStr = JSON.stringify(errorData?.errors || errorData);
+      if (errorStr.includes('10000') || errorStr.includes('unauthorized') || errorStr.includes('forbidden')) {
+        console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+      } else {
+        console.warn(`⚠️  Failed to fetch redirect ruleset: ${errorStr}`);
+      }
       return false;
     }
 
@@ -857,14 +917,24 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
       body: JSON.stringify({ rules: updatedRules })
     });
 
+    if (putRes.status === 403) {
+      console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+      return false;
+    }
+
     const putData = await putRes.json();
     if (putRes.ok && putData.success) {
       return true;
     }
-    console.warn(`⚠️  Failed to update redirect ruleset: ${JSON.stringify(putData?.errors || putData)}`);
+    const putErrorStr = JSON.stringify(putData?.errors || putData);
+    if (putErrorStr.includes('10000') || putErrorStr.includes('unauthorized') || putErrorStr.includes('forbidden')) {
+      console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
+    } else {
+      console.warn(`⚠️  Failed to update redirect ruleset: ${putErrorStr}`);
+    }
     return false;
   } catch (err) {
-    console.warn(`⚠️  Failed to apply redirect: ${err.message}`);
+    console.warn('⚠️  Could not configure dynamic redirect ruleset (requires Zone > Single Redirect: Edit token scope).');
     return false;
   }
 }
@@ -933,7 +1003,8 @@ async function main() {
     googleClientSecret: '',
     securityLevel: 'medium',
     botFightMode: true,
-    cfSettings: []
+    cfSettings: [],
+    accessAud: null
   };
 
   const domainAns = await text({
@@ -1006,11 +1077,10 @@ async function main() {
   if (isCancel(accountAns)) { cancel('Setup cancelled'); return process.exit(0); }
   config.accountId = accountAns.trim();
 
-  const tokenAns = await text({
+  const tokenAns = await password({
     message: 'Cloudflare API Token',
-    initialValue: detectedApiToken || '',
     validate(value) {
-      if (!value.trim()) return 'API Token is required';
+      if (!value || !value.trim()) return 'API Token is required';
     }
   });
   if (isCancel(tokenAns)) { cancel('Setup cancelled'); return process.exit(0); }
@@ -1063,9 +1133,9 @@ async function main() {
     if (isCancel(clientIdAns)) return process.exit(0);
     config.googleClientId = clientIdAns.trim();
 
-    const clientSecretAns = await text({
+    const clientSecretAns = await password({
       message: 'Google Client Secret',
-      validate: (v) => !v.trim() ? 'Required' : undefined
+      validate: (v) => !v || !v.trim() ? 'Required' : undefined
     });
     if (isCancel(clientSecretAns)) return process.exit(0);
     config.googleClientSecret = clientSecretAns.trim();
@@ -1191,6 +1261,13 @@ async function main() {
     return process.exit(0);
   }
 
+  const childEnv = {
+    ...process.env,
+    CLOUDFLARE_API_TOKEN: config.apiToken,
+    CLOUDFLARE_ACCOUNT_ID: config.accountId,
+    CI: 'true'
+  };
+
   const s = spinner();
   
   // Mute stdout for subcommands unless they fail
@@ -1198,22 +1275,26 @@ async function main() {
 
   try {
     s.start('Provisioning D1 Database (zygo-cms-db)');
-    const databaseId = provisionD1Database();
+    const databaseId = provisionD1Database(childEnv);
     s.stop(`✓ Provisioned D1 Database (UUID: ${databaseId})`);
 
     s.start('Provisioning R2 Bucket (zygo-cms-media)');
-    provisionR2Bucket();
+    provisionR2Bucket(childEnv);
     s.stop('✓ Provisioned R2 Bucket');
 
     s.start('Updating wrangler.toml configurations');
-    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling);
+    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling, config.adminUiSubdomain);
     updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain, config.publicSubdomain);
     updateAdminUiWrangler(config.domain, config.adminUiSubdomain);
     s.stop('✓ Updated wrangler configurations');
 
     s.start('Applying remote migrations');
-    applyRemoteMigrations();
-    s.stop('✓ Migrations applied');
+    const migrationOk = applyRemoteMigrations(childEnv);
+    if (migrationOk) {
+      s.stop('✓ Migrations applied');
+    } else {
+      s.stop('⚠️  Failed to apply remote migrations automatically');
+    }
 
     s.start('Configuring Cloudflare Access');
     if (config.zeroTrustTeamName) {
@@ -1223,7 +1304,7 @@ async function main() {
     if (config.enableGoogle) {
       await configureGoogleProvider(config.accountId, config.apiToken, config.googleClientId, config.googleClientSecret);
     }
-    await configureCloudflareAccess(
+    const accessRes = await configureCloudflareAccess(
       config.accountId,
       config.apiToken,
       config.domain,
@@ -1231,6 +1312,18 @@ async function main() {
       config.adminUiSubdomain,
       config.adminApiSubdomain
     );
+    if (accessRes?.aud) {
+      config.accessAud = accessRes.aud;
+    }
+    if (!config.accessAud) {
+      try {
+        const apiWrangler = fs.readFileSync(path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
+        const match = apiWrangler.match(/CF_ACCESS_AUD\s*=\s*"([^"]+)"/);
+        if (match && match[1]) {
+          config.accessAud = match[1];
+        }
+      } catch (_) {}
+    }
     s.stop('✓ Cloudflare Access configured');
 
     s.start('Applying Cloudflare Zone Settings');
@@ -1273,6 +1366,10 @@ async function main() {
     process.exit(1);
   }
 
+  if (!config.accessAud) {
+    console.warn(pc.yellow('\n⚠️  Zero Trust Access Application could not be automatically configured. Deploying now without CF_ACCESS_AUD will cause admin authentication to fail closed (HTTP 401 Unauthorized).\n'));
+  }
+
   const shouldDeploy = await confirm({
     message: 'Would you like to build and deploy to Cloudflare now?',
     initialValue: true
@@ -1284,15 +1381,16 @@ async function main() {
       // Need real-time output for build/deploy
       s.stop('Building Zygo CMS...');
       updateAdminUiEnv(config.domain, config.adminApiSubdomain);
-      execSync('pnpm run build', { stdio: 'inherit' });
+      execSync('pnpm run build', { stdio: 'inherit', env: childEnv });
       console.log(pc.green('✓ Build completed'));
 
       console.log(pc.cyan('Deploying to Cloudflare...'));
-      execSync('pnpm run deploy', { stdio: 'inherit' });
+      execSync('pnpm run deploy', { stdio: 'inherit', env: childEnv });
       console.log(pc.green('✓ Deployment completed'));
     } catch (err) {
       console.error(pc.red('⚠️ Build or deployment failed.'));
       console.error(pc.red(err.message));
+      process.exit(1);
     }
   }
 
@@ -1307,7 +1405,7 @@ async function main() {
 }
 
 // If executed directly, run main()
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
+if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
   main();
 }
 
@@ -1325,6 +1423,7 @@ export {
   updateAdminUiEnv,
   provisionD1Database,
   provisionR2Bucket,
+  applyRemoteMigrations,
   createAccessAppAndPolicy,
   configureCloudflareAccess,
   ensureOneTimePinProvider,
@@ -1335,4 +1434,5 @@ export {
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,
+  main
 };

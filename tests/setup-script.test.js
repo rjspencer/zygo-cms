@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
+import * as child_process from 'node:child_process';
 import {
   extractJson,
   validateDomain,
@@ -18,6 +19,7 @@ import {
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,
+  applyRemoteMigrations,
   deriveDefaultTeamSlug,
   ensureZeroTrustOrganization
 } from '../scripts/setup.mjs';
@@ -152,8 +154,22 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('database_id = "test-db-uuid-111"');
       expect(updated).toContain('pattern = "mytestdomain.com"');
       expect(updated).toContain('pattern = "www.mytestdomain.com"');
+      expect(updated).toContain('ADMIN_SUBDOMAIN = "admin"');
       expect(updated).toContain('workers_dev = false');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
+    });
+
+    it('updates public-worker/wrangler.toml with custom admin subdomain', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-custom-admin.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[vars]\nADMIN_SUBDOMAIN = "admin"\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'test-db-uuid-111', 'www', 'redirect_to_sub', 'portal', mockPublicPath);
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('ADMIN_SUBDOMAIN = "portal"');
     });
 
     it('updates admin-api-worker/wrangler.toml properly', () => {
@@ -1321,6 +1337,45 @@ describe('Setup Script Helpers', () => {
 
       expect(updated).toContain('CF_ZONE_ID = "new-zone-id"');
       expect(updated).not.toContain('old-zone-id');
+    });
+  });
+
+  describe('applyRemoteMigrations', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns true when wrangler migration succeeds and passes -c flag', () => {
+      const execSpy = vi.fn().mockReturnValue(Buffer.from('Success'));
+      const result = applyRemoteMigrations({ CI: 'true', CLOUDFLARE_API_TOKEN: 'mock-token' }, execSpy);
+
+      expect(result).toBe(true);
+      expect(execSpy).toHaveBeenCalledWith(
+        expect.stringContaining('npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml'),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            CLOUDFLARE_API_TOKEN: 'mock-token'
+          })
+        })
+      );
+    });
+
+    it('returns false and catches error when wrangler migration fails', () => {
+      const execSpy = vi.fn().mockImplementation(() => {
+        throw new Error('Database migration failed');
+      });
+      const result = applyRemoteMigrations(null, execSpy);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Root wrangler.toml Sanitization', () => {
+    it('does not contain maintainer hardcoded database UUID or domain', () => {
+      const rootWrangler = fs.readFileSync(path.resolve('wrangler.toml'), 'utf8');
+      expect(rootWrangler).not.toContain('488417e7-4ad1-4875-90e9-71a0ac3dbc63');
+      expect(rootWrangler).not.toContain('zygodactylstudios.com');
+      expect(rootWrangler).toContain('database_id = ""');
     });
   });
 });

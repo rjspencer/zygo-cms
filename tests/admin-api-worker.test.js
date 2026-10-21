@@ -291,4 +291,25 @@ describe('Admin API Worker Integration', () => {
             await devWorker.stop();
         }
     });
+
+    it('rejects requests to protected admin endpoints without dev bypass when CF_ACCESS_AUD is empty/missing', async () => {
+        const prodWorker = await unstable_dev('packages/admin-api-worker/build/index.js', {
+            config: 'packages/admin-api-worker/wrangler.toml',
+            vars: { ENVIRONMENT: 'production', CF_ACCESS_AUD: '', CF_ACCESS_TEAM_DOMAIN: '' },
+            persistTo: './.wrangler/state/admin-test',
+            experimental: { disableExperimentalWarning: true },
+        });
+
+        try {
+            const unauthRes = await prodWorker.fetch('/api/entries');
+            expect(unauthRes.status).toBe(401);
+
+            const jwtRes = await prodWorker.fetch('/api/entries', {
+                headers: getHeaders(),
+            });
+            expect(jwtRes.status).toBe(401);
+        } finally {
+            await prodWorker.stop();
+        }
+    });
 });

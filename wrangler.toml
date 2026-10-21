@@ -5,27 +5,28 @@
 #
 # Worker               | Config                                       | Domain (prod)
 # ---------------------|----------------------------------------------|----------------------------------
-# public-worker        | packages/public-worker/wrangler.toml         | zygodactylstudios.com
-# admin-api-worker     | packages/admin-api-worker/wrangler.toml      | api.zygodactylstudios.com
-# admin-ui-worker      | packages/admin-ui/wrangler.toml              | admin.zygodactylstudios.com
+# public-worker        | packages/public-worker/wrangler.toml         | <domain>
+# admin-api-worker     | packages/admin-api-worker/wrangler.toml      | api.<domain>
+# admin-ui-worker      | packages/admin-ui/wrangler.toml              | admin.<domain>
 #
 # All workers share:
-#   - D1 database:  zygo-cms-db  (id: 488417e7-4ad1-4875-90e9-71a0ac3dbc63)
+#   - D1 database:  zygo-cms-db
 #   - R2 bucket:    zygo-cms-media
 #
 # Development:
-#   npm run dev        — starts all three workers concurrently
-#   npm run build      — builds all three workers
+#   pnpm run dev       — starts all three workers concurrently
+#   pnpm run build     — builds all three workers
 #
 # Deployment (run from each package directory):
-#   cd packages/public-worker    && wrangler deploy
-#   cd packages/admin-api-worker && wrangler deploy
-#   cd packages/admin-ui         && wrangler deploy
+#   pnpm run deploy    — deploys all three workers
 #
 # Migrations (run once against the shared D1 db):
-#   npx wrangler d1 migrations apply zygo-cms-db --remote
+#   npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml
+
+# Root-level fallback database binding.
+# Note: Each worker defines its own wrangler.toml configuration inside packages/
 [[d1_databases]]
 binding = "DB"
 database_name = "zygo-cms-db"
-database_id = "488417e7-4ad1-4875-90e9-71a0ac3dbc63"
+database_id = ""
 migrations_dir = "migrations"

@@ -69,6 +69,15 @@ static SERVICE_TOKEN_RATE_LIMITS: Mutex<Option<HashMap<String, (u64, u32)>>> = M
 const RATE_LIMIT_WINDOW_SECS: u64 = 60;
 const RATE_LIMIT_MAX_REQUESTS: u32 = 60; // 60 requests per minute per service token
 
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        #[cfg(target_arch = "wasm32")]
+        worker::console_error!($($arg)*);
+        #[cfg(not(target_arch = "wasm32"))]
+        eprintln!($($arg)*);
+    };
+}
+
 fn current_epoch_seconds() -> u64 {
     #[cfg(target_arch = "wasm32")]
     {
@@ -81,6 +90,30 @@ fn current_epoch_seconds() -> u64 {
             .unwrap_or_default()
             .as_secs()
     }
+}
+
+pub fn check_access_config_validity(
+    environment: Option<&str>,
+    expected_aud: Option<&str>,
+    configured_team_domain: Option<&str>,
+) -> Result<(), AppError> {
+    let is_dev = environment == Some("dev");
+    let is_test = environment == Some("test");
+
+    if !is_dev && !is_test {
+        let aud_empty = expected_aud.map(|s| s.trim().is_empty()).unwrap_or(true);
+        let team_empty = configured_team_domain.map(|s| s.trim().is_empty()).unwrap_or(true);
+        if aud_empty || team_empty {
+            log_error!(
+                "Access configuration missing: CF_ACCESS_AUD or CF_ACCESS_TEAM_DOMAIN is unconfigured"
+            );
+            return Err(AppError::Unauthorized(
+                "Access configuration missing: CF_ACCESS_AUD or CF_ACCESS_TEAM_DOMAIN is unconfigured".into(),
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 pub fn check_service_token_rate_limit(client_id: &str) -> Result<(), AppError> {
@@ -247,6 +280,7 @@ pub async fn verify_cloudflare_jwt(
     env: &Env,
     now_secs: u64,
 ) -> Result<CloudflareAccessIdentity, AppError> {
+    let env_str = env.var("ENVIRONMENT").ok().map(|v| v.to_string());
     let expected_aud = env
         .var("CF_ACCESS_AUD")
         .or_else(|_| env.var("POLICY_AUD"))
@@ -258,6 +292,12 @@ pub async fn verify_cloudflare_jwt(
         .ok()
         .map(|v| v.to_string())
         .filter(|s| !s.trim().is_empty());
+
+    check_access_config_validity(
+        env_str.as_deref(),
+        expected_aud.as_deref(),
+        configured_team.as_deref(),
+    )?;
 
     verify_cloudflare_jwt_with_config(
         auth_header,
@@ -359,17 +399,17 @@ fn validate_jwt_claims(
         .aud
         .as_ref()
         .ok_or_else(|| AppError::Unauthorized("JWT missing aud claim".into()))?;
-    if let Some(expected_str) = expected_aud {
-        let trimmed_expected = expected_str.trim();
-        if !trimmed_expected.is_empty() {
-            let matches = match aud_val {
-                serde_json::Value::String(s) => s == trimmed_expected,
-                serde_json::Value::Array(arr) => arr.iter().any(|v| v.as_str() == Some(trimmed_expected)),
-                _ => false,
-            };
-            if !matches {
-                return Err(AppError::Unauthorized("JWT audience mismatch".into()));
-            }
+
+    let trimmed_expected = expected_aud.map(|s| s.trim()).filter(|s| !s.is_empty());
+
+    if let Some(expected_str) = trimmed_expected {
+        let matches = match aud_val {
+            serde_json::Value::String(s) => s == expected_str,
+            serde_json::Value::Array(arr) => arr.iter().any(|v| v.as_str() == Some(expected_str)),
+            _ => false,
+        };
+        if !matches {
+            return Err(AppError::Unauthorized("JWT audience mismatch".into()));
         }
     } else {
         let valid = match aud_val {
@@ -536,6 +576,8 @@ async fn resolve_local_user(env: &Env, db: &D1Database, auth_provider_id: &str, 
 mod tests {
     use super::*;
 
+    static TEST_ENV_MUTEX: Mutex<()> = Mutex::new(());
+
     #[test]
     fn test_service_token_rate_limiting() {
         let client_id = "test-rate-limit-client";
@@ -549,6 +591,7 @@ mod tests {
 
     #[test]
     fn test_validate_jwt_claims_valid() {
+        let _lock = TEST_ENV_MUTEX.lock().unwrap();
         let identity = CloudflareAccessIdentity {
             email: "user@example.com".into(),
             user_uuid: Some("uuid-123".into()),
@@ -856,5 +899,52 @@ mod tests {
 
         assert!(res.is_err());
         assert!(matches!(res.unwrap_err(), AppError::Unauthorized(msg) if msg.contains("audience mismatch")));
+    }
+
+    #[test]
+    fn test_rejection_when_expected_aud_missing_in_production() {
+        // 1. Missing or whitespace aud in production fails closed
+        let res_none = check_access_config_validity(
+            Some("production"),
+            None,
+            Some("https://team.cloudflareaccess.com"),
+        );
+        let res_empty = check_access_config_validity(
+            Some("production"),
+            Some("   "),
+            Some("https://team.cloudflareaccess.com"),
+        );
+
+        assert!(matches!(res_none.unwrap_err(), AppError::Unauthorized(msg) if msg.contains("Access configuration missing")));
+        assert!(matches!(res_empty.unwrap_err(), AppError::Unauthorized(msg) if msg.contains("Access configuration missing")));
+
+        // 2. Allowed in dev and test
+        assert!(check_access_config_validity(Some("dev"), None, None).is_ok());
+        assert!(check_access_config_validity(Some("test"), None, None).is_ok());
+    }
+
+    #[test]
+    fn test_rejection_when_configured_team_domain_missing_in_production() {
+        // 1. Missing or whitespace team domain in production fails closed
+        let res_none = check_access_config_validity(
+            Some("production"),
+            Some("expected-aud"),
+            None,
+        );
+        let res_empty = check_access_config_validity(
+            Some("production"),
+            Some("expected-aud"),
+            Some("   "),
+        );
+
+        assert!(matches!(res_none.unwrap_err(), AppError::Unauthorized(msg) if msg.contains("Access configuration missing")));
+        assert!(matches!(res_empty.unwrap_err(), AppError::Unauthorized(msg) if msg.contains("Access configuration missing")));
+
+        // 2. Valid configuration in production succeeds
+        assert!(check_access_config_validity(
+            Some("production"),
+            Some("expected-aud"),
+            Some("https://team.cloudflareaccess.com"),
+        ).is_ok());
     }
 }
