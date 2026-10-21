@@ -53,7 +53,7 @@ describe('CoverImageField', () => {
     const img = screen.getByAltText('Cover Thumbnail') as HTMLImageElement;
     expect(img.src).toBe('https://zygodactylstudios.com/media/banner.webp');
 
-    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv;
+    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv || '';
   });
 
   it('calls openMediaPicker when clicking Select Image and updates image on callback', () => {

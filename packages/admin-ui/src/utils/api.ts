@@ -29,6 +29,9 @@ export function getPublicSiteUrl(path: string = ''): string {
   }
 
   let baseUrl = import.meta.env.VITE_PUBLIC_SITE_URL || '';
+  if (baseUrl === 'undefined') {
+    baseUrl = '';
+  }
 
   if (!baseUrl && typeof window !== 'undefined' && window.location?.hostname?.startsWith('admin.')) {
     const protocol = window.location.protocol || 'https:';

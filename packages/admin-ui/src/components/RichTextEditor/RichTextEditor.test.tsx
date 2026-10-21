@@ -126,6 +126,6 @@ describe('RichTextEditor Component', () => {
     expect(imgEl.getAttribute('src')).toBe('https://zygodactylstudios.com/media/123-pic.webp');
     expect(imgEl.getAttribute('alt')).toBe('Pic');
 
-    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv;
+    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv || '';
   });
 });
