@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
+import { getPublicSiteUrl } from '../../utils/api';
 import { Editor } from './Editor';
 
 vi.mock('./components/ContentTab/components/SectionList/components/AddSectionSelect', () => ({
@@ -333,7 +334,7 @@ describe('Editor Component - Phase 2 Image Gallery Integration', () => {
       await waitFor(() => {
         const img = container.querySelector('.tiptap img') as HTMLImageElement;
         expect(img).not.toBeNull();
-        expect(img?.getAttribute('src')).toBe('/media/test-photo.png');
+        expect(img?.getAttribute('src')).toBe(getPublicSiteUrl('/media/test-photo.png'));
       });
     });
   });

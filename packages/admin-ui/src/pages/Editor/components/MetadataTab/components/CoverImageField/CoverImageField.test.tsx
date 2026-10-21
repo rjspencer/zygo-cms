@@ -39,6 +39,23 @@ describe('CoverImageField', () => {
     expect(screen.getByRole('button', { name: 'Remove' })).toBeDefined();
   });
 
+  it('resolves relative /media/ cover image with getPublicSiteUrl', () => {
+    const originalEnv = import.meta.env.VITE_PUBLIC_SITE_URL;
+    import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+
+    renderWithForm(
+      <MediaPickerContext.Provider value={vi.fn()}>
+        <CoverImageField />
+      </MediaPickerContext.Provider>,
+      { coverImage: '/media/banner.webp' }
+    );
+
+    const img = screen.getByAltText('Cover Thumbnail') as HTMLImageElement;
+    expect(img.src).toBe('https://zygodactylstudios.com/media/banner.webp');
+
+    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv;
+  });
+
   it('calls openMediaPicker when clicking Select Image and updates image on callback', () => {
     let capturedCallback: MediaPickerCallback | null = null;
     const mockOpenMediaPicker = vi.fn((cb: MediaPickerCallback) => {

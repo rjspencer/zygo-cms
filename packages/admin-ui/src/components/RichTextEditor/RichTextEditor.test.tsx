@@ -106,4 +106,26 @@ describe('RichTextEditor Component', () => {
     expect(linkEl.getAttribute('target')).toBeNull();
     expect(linkEl.getAttribute('rel')).toBeNull();
   });
+
+  it('resolves relative /media/ URLs in editor DOM via getPublicSiteUrl while preserving relative paths in getHTML', () => {
+    const originalEnv = import.meta.env.VITE_PUBLIC_SITE_URL;
+    import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+    const onChange = vi.fn();
+
+    const { container } = render(
+      <Theme>
+        <RichTextEditor
+          value='<p><img src="/media/123-pic.webp" alt="Pic"></p>'
+          onChange={onChange}
+        />
+      </Theme>
+    );
+
+    const imgEl = container.querySelector('.tiptap img') as HTMLImageElement;
+    expect(imgEl).not.toBeNull();
+    expect(imgEl.getAttribute('src')).toBe('https://zygodactylstudios.com/media/123-pic.webp');
+    expect(imgEl.getAttribute('alt')).toBe('Pic');
+
+    import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv;
+  });
 });
