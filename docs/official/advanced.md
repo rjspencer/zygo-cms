@@ -4,7 +4,7 @@ For contributors and developers looking to extend the core capabilities of Zygo 
 
 ## Writing Custom Rust Logic (`worker-rs`)
 
-Zygo CMS is powered by Cloudflare Workers written in Rust using the `worker-rs` crate. The core logic is housed in `packages/core`, and the workers (Admin and Site) are in `apps/`.
+Zygo CMS is powered by Cloudflare Workers written in Rust using the `worker-rs` crate. The core logic is housed in `packages/core`, and the workers are in `packages/public-worker` and `packages/admin-api-worker`, alongside the `packages/admin-ui` dashboard.
 
 ### Routing and Handlers
 - **Modular Handlers:** Never add inline closures to the main `Router` in `src/lib.rs`. All new routes must be implemented as standalone functions in the appropriate `src/handlers/` module (e.g., `admin.rs`, `api.rs`, or `public.rs`).
@@ -25,23 +25,17 @@ Zygo CMS is powered by Cloudflare Workers written in Rust using the `worker-rs` 
 
 ### Database Queries and Models
 - **Database Queries:** Located in `packages/core/src/db`. Ensure all queries use prepared statements and explicitly name columns instead of using `SELECT *`.
-- **Models:** Defined in `packages/core/src/models`. We utilize `serde` heavily. Ensure new fields include `#[serde(default)]` to maintain backwards compatibility between the two workers during deployment rollouts.
+- **Models:** Defined in `packages/core/src/models`. We utilize `serde` heavily. Ensure new fields include `#[serde(default)]` to maintain backwards compatibility across workers during deployment rollouts.
 
-## Two-Tier Testing Architecture
+## Multi-Tier Testing Architecture
 
-We employ a strict two-tier testing strategy to separate fast, offline unit tests from full end-to-end integration tests.
+We employ a comprehensive multi-tier testing strategy to separate fast, offline unit tests from full end-to-end integration tests.
 
-### 1. DOM & Template Testing (Level 1 - HappyDOM)
-We use Vitest, HappyDOM, and `@testing-library/dom` for testing our server-side rendered Askama templates and client-side interactions. This runs completely offline and is very fast.
-
-```bash
-pnpm run test
-```
-
-**Conventions:**
-- **Templates as Single Source of Truth:** Never hardcode mock HTML strings in test files. Always load the real Askama template from `templates/` via `fs.readFileSync` and strip template tags to test the real structure.
+### 1. Unit & Component Testing (Vitest & Cargo)
+- **Rust Unit Tests:** Run `cargo test` to execute unit tests for `zygo-core` models, D1 query builders, and Minijinja template validation.
+- **Admin UI Testing:** Run `pnpm run test:admin` to run component, hook, and WebMCP tool tests using Vitest and React Testing Library.
+- **Template & Schema Validation:** Section templates and layouts use Minijinja (Jinja2-compatible syntax). Dynamic template syntax and schema validation are tested both in Rust (`zygo-core`) and in TypeScript (`packages/admin-ui/src/lib/webmcp/templateTools.ts`).
 - **Offline CDN Import Mocking:** Client scripts using browser CDN imports (`https://esm.sh/...`) must be aliased in `vitest.config.js` to lightweight local stubs (`tests/mocks/esm.js`) to keep tests offline and fast.
-- **Hidden Elements in DOM Testing:** Testing Library's `getByRole` ignores elements inside `display: none` containers by default. Toggle container visibility before querying elements.
 
 ### 2. Worker Integration (Level 2 - `unstable_dev`)
 End-to-end integration tests that boot the compiled Rust Wasm worker in a simulated Cloudflare environment via Wrangler `unstable_dev`. This tests the actual HTTP boundaries, D1 database interactions, and Cloudflare bindings.

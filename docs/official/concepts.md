@@ -1,93 +1,216 @@
 # Core Concepts
 
-Understanding how Zygo CMS structures data is key to building powerful websites.
+Understanding how Zygo CMS structures data and renders content is key to building fast, scalable edge-native websites.
 
 ## Data Model Overview
 
-The core of Zygo CMS relies on a streamlined relational model inside Cloudflare D1. Below is a high-level Entity-Relationship overview of how Users, Entries (Posts and Pages), and Taxonomies interact.
+Zygo CMS runs entirely on Cloudflare edge primitives, storing all relational data in Cloudflare D1 (edge SQLite). Below is the complete relational entity-relationship schema reflecting the actual D1 tables and columns:
 
 ```mermaid
 erDiagram
-    USERS ||--o{ ENTRIES : authors
-    ENTRIES ||--o{ ENTRY_TAXONOMY : tagged_with
-    TAXONOMY ||--o{ ENTRY_TAXONOMY : applies_to
-    
-    USERS {
+    users ||--o{ entries : authors
+    entries ||--o{ entry_revisions : revisions
+    entries ||--o{ entries : parent_child
+    entries ||--o{ trackable_links : links
+
+    users {
         int id PK
-        string username
+        string auth_provider_id UK
         string email
-        string role
+        string display_name
+        string role "admin | author"
+        string bio
+        string website
+        string avatar_url
         datetime created_at
-    }
-    
-    ENTRIES {
-        int id PK
-        int author_id FK
-        string entry_type "post or page"
-        string title
-        string slug
-        string content
-        json custom_fields_json
-        datetime published_at
-    }
-    
-    TAXONOMY {
-        int id PK
-        string name
-        string slug
-        string tax_type "tag or category"
+        datetime updated_at
+        datetime deleted_at
     }
 
-    ENTRY_TAXONOMY {
+    entries {
+        int id PK
+        string slug UK
+        string title
+        string type "post | page | doc"
+        string status "draft | published"
+        string description
+        string cover_image
+        string canonical_url
+        string schema_json
+        string category
+        string tags
+        datetime published_at
+        string body_html
+        string body_json
+        string custom_fields_json
+        int parent_id FK
+        string path UK
+        int sort_order
+        int author_id FK
+        string search_text
+        datetime created_at
+        datetime updated_at
+        datetime deleted_at
+    }
+
+    entry_revisions {
+        int id PK
         int entry_id FK
-        int taxonomy_id FK
+        string title
+        string description
+        string cover_image
+        string body_html
+        string body_json
+        string custom_fields_json
+        string category
+        string tags
+        string preview_token UK
+        datetime created_at
+    }
+
+    section_templates {
+        string id PK
+        string name
+        string description
+        string schema_json
+        string template_html
+        string template_css
+        string css_classes_json
+        boolean is_locked
+        datetime created_at
+        datetime updated_at
+    }
+
+    layout_templates {
+        string id PK
+        string name
+        string description
+        string template_html
+        string template_css
+        boolean is_locked
+        datetime created_at
+        datetime updated_at
+    }
+
+    media {
+        int id PK
+        string key UK
+        string filename
+        string mime_type
+        int size_bytes
+        datetime created_at
+    }
+
+    menus {
+        int id PK
+        string name UK
+        string items_json
+        datetime created_at
+        datetime updated_at
+    }
+
+    settings {
+        string key PK
+        string value
+        datetime updated_at
+    }
+
+    redirects {
+        int id PK
+        string source_path UK
+        string target_url
+        int status_code
+        string notes
+        int hit_count
+        datetime created_at
+        datetime updated_at
+    }
+
+    trackable_links {
+        int id PK
+        int entry_id FK
+        string name
+        string url_params
+        datetime created_at
+        datetime deleted_at
+    }
+
+    form_submissions {
+        int id PK
+        string form_name
+        string page_path
+        string sender_name
+        string sender_email
+        string subject
+        string message
+        string metadata_json
+        string status
+        datetime created_at
     }
 ```
 
-## Posts vs. Pages
+## Content Types: Posts, Pages, and Docs
 
-Content in Zygo CMS is generally divided into two entry types, stored in the same `entries` table but handled differently by the routing and rendering engines:
+All content entries live in the unified `entries` table, categorized by the `type` column:
 
-### Posts
-- **Use Case:** Blog articles, news updates, time-sensitive content, or chronological feeds.
-- **Editor:** Standard rich-text editor (powered by Tiptap), optimized for long-form writing.
-- **Routing & SEO:** Automatically routed with a customizable prefix, e.g., `/post/my-article-slug`. Canonical URLs strictly omit trailing slashes for individual posts.
-- **Taxonomy & Metadata:** Natively supports tags, categories, author attribution, and scheduled publishing dates.
+### Posts (`post`)
+- **Use Case:** Blog articles, announcements, news, and chronological publications.
+- **Editor:** Rich-text editor powered by TipTap / ProseMirror, tailored for long-form editorial writing.
+- **Routing & SEO:** Prefixed with `/post/:slug` (e.g., `/post/hello-world`). Canonical URLs strictly omit trailing slashes.
+- **Taxonomy & Metadata:** Supports categories, comma-separated tags, author attribution, custom cover images, and publication scheduling.
 
-### Pages
-- **Use Case:** Landing pages, about pages, contact forms, and evergreen structural site content.
-- **Editor:** Built using the block-based **Section Templates** engine, allowing for drag-and-drop structural design rather than just text editing.
-- **Routing & SEO:** Routed natively to the root path without prefixes, e.g., `/about`. As with posts, canonical URLs omit trailing slashes (except the homepage `/`).
-- **Hierarchy:** Pages support parent-child relationships, enabling nested routing such as `/services/consulting` and automatic breadcrumb generation.
+### Pages (`page`)
+- **Use Case:** Landing pages, company overview, pricing, contact pages, and evergreen site architecture.
+- **Editor:** Modular **Section Templates** block builder where editors stack, rearrange, and configure structured sections.
+- **Routing & Hierarchy:** Routed directly at root paths (e.g., `/about`, `/pricing`). Supports parent-child hierarchies via `parent_id` (e.g., `/company/careers`) and automatic breadcrumb resolution. Canonical URLs omit trailing slashes except for the homepage root (`/`).
 
-## Content Types & Schema Builder
+### Docs (`doc`)
+- **Use Case:** Product guides, technical documentation, API manuals, and knowledge bases.
+- **Editor:** Rich-text TipTap / ProseMirror editor paired with tree navigation.
+- **Hierarchy:** Deep multi-level hierarchy supported through `parent_id`, `path`, and `sort_order`, powering multi-tier sidebar navigation trees.
 
-The Schema Builder allows you to define custom data structures dynamically directly from the Admin UI—meaning no database migrations or `ALTER TABLE` commands are required for new content fields.
+## Dual Content Model (`body_html` and `body_json`)
 
-- Navigate to **Settings -> Content Types**.
-- Define reusable fields like Text, Number, Date, Image, or Boolean.
-- When authors create content assigned to this custom type, the Editor Sidebar will dynamically render the appropriate form inputs based on the schema.
-- The structured data is safely persisted as a serialized JSON object in the `custom_fields_json` database column on the `entries` table.
+Zygo CMS implements a dual content architecture across all entries to deliver instant edge delivery alongside lossless editor fidelity:
 
-**Architecture Note:** To ensure resilience across two-worker architectures, the schema builder relies heavily on Serde attributes (`#[serde(default)]`). This guarantees that decoupled workers can parse JSON payloads even if the underlying dynamic schema changes, preventing unexpected panics in production.
+1. **`body_html` (Edge SSR Delivery):**
+   - Contains pre-rendered, server-sanitized HTML ready for direct injection into public layout templates.
+   - When visitors navigate to a page or post, the Public Worker serves `body_html` instantly with zero runtime JSON parsing or AST traversals, achieving sub-millisecond rendering latencies at Cloudflare edge locations worldwide.
+
+2. **`body_json` (Editing & Headless State):**
+   - Preserves the structured data representation tailored to the entry's format:
+     - **Posts & Docs:** Serialized TipTap / ProseMirror Abstract Syntax Tree (AST) JSON, retaining full document node trees, marks, attributes, and cursor history.
+     - **Pages:** Serialized JSON array of Section blocks (`[{"template_slug": "hero", "data": {...}}, {"template_slug": "features", "data": {...}}]`).
+   - Enables headless applications to consume raw structured data and render custom React, Vue, or native mobile components.
+
+When authors save content in the Admin UI or via API, the Admin API worker compiles `body_json` into `body_html` (rendering section templates via Minijinja or converting TipTap AST to clean HTML), validates and sanitizes the output, and writes both columns atomically to D1 alongside an automatic revision snapshot in `entry_revisions`.
+
+## Section Templates
+
+Instead of fixed page schemas or inflexible CMS plugins, Zygo CMS uses **Section Templates** to build rich, dynamic Pages:
+
+- **Schema Definition:** Each section template defines a JSON schema (`schema_json`) containing typed field specifications (such as `text`, `textarea`, `richtext`, `url`, `image`, `video`, `select`, or `boolean`).
+- **Minijinja Templating:** Paired with each schema is a Minijinja HTML template (`template_html`) and optional scoped styles (`template_css`).
+- **Dynamic Block Assembly:** Authors construct Pages by stacking section blocks in the Page Editor. The editor dynamically generates input forms matching each section's schema.
+- **Zero-Downtime Customization:** Section templates are managed directly inside the Admin UI at `/templates`. Developers and designers can create new templates, modify existing Minijinja HTML markup, update field schemas, and test changes in real time without running database migrations or redeploying worker binaries.
 
 ## Menus & Navigation
 
-Zygo CMS features a robust navigation builder.
-- Create menus (e.g., "Main Header", "Footer Links").
-- Add links to internal content (Pages/Posts) or external URLs.
-- The Public Worker automatically resolves internal links to their canonical URLs, meaning if you change a page's slug, the menu link updates automatically.
-- Automatic cache invalidation ensures that when navigation changes are published, edge caches and sitemaps are purged immediately.
+Zygo CMS provides a built-in menu navigation manager:
+- Define distinct menus (e.g., `header`, `footer`) in the `menus` table with structured JSON item hierarchies.
+- Supports internal links (Pages, Posts, Docs) as well as external URLs.
+- The Public Worker automatically resolves internal links to canonical paths, keeping navigation in sync when entry slugs change.
+- Publishing menu modifications automatically invalidates edge HTML caches.
 
 ## Media Library
 
-All images and files are managed through the centralized Media Library.
-- Media is primarily stored and served via Cloudflare R2 for high availability and low latency (D1 storage is available for smaller, text-heavy setups).
-- When inserting an image into a Post or Page, Zygo automatically generates optimized `<picture>` markup, providing responsive image sizing and modern formats.
+All uploaded assets (images, documents, video clips) are indexed in the `media` table:
+- Stored and distributed via Cloudflare R2 object storage with global edge CDN caching.
+- Media inserts generate responsive markup (`<picture>` and `<source>` elements with `srcset` and modern formats) for fast mobile rendering.
 
 ## Native Forms & Submissions Inbox
 
-Zygo CMS includes built-in lead generation and contact inquiry handling with zero external SaaS dependencies.
-- **Preset Section Templates**: Built-in `contact-form` and `newsletter` section templates can be added to any Page.
-- **Edge Zero-Write Spam Filtering**: `POST /forms/submit` on the Public Worker validates payload sizes (max 64 KB), enforces per-IP rate limiting via Cloudflare Cache API (max 5 submissions per 10m), detects off-screen decoy honeypots, and verifies Cloudflare Turnstile tokens before touching D1.
-- **Submissions Inbox**: Site administrators review, filter, mark read/unread, delete, and export inquiries to CSV from the Admin UI Submissions Inbox (`/submissions`), guarded by strict admin role-based access control.
+Lead capture, newsletter registrations, and contact inquiries are handled natively with zero third-party dependencies:
+- **Preset Form Templates:** Built-in `contact-form` and `newsletter` Section Templates can be placed onto any Page.
+- **Edge Zero-Write Spam Filtering:** The Public Worker enforces strict request size limits (max 64 KB), per-IP rate limiting via Cloudflare Cache API, invisible honeypot verification, and Cloudflare Turnstile token validation before persisting submissions to D1.
+- **Submissions Inbox:** Inquiries are stored in the `form_submissions` table and managed directly from the Admin UI at `/submissions` with CSV export, search, and status tracking.

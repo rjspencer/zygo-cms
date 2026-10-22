@@ -10,7 +10,7 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 - **Dual Content Storage**:
   - Pre-rendered `body_html` for high-speed public page rendering.
   - ProseMirror/TipTap `body_json` AST for reliable, lossless rich-text editing.
-- **Type-Safe Compile-Time Templating**: Uses **Askama** (Jinja/Twig syntax) to compile HTML templates directly into the Wasm binary with zero runtime filesystem overhead.
+- **Type-Safe Dynamic Templating**: Uses **Minijinja** (Jinja2/Twig syntax) for dynamic, sandboxed server-side rendering with embedded layouts and customizable section templates stored directly in D1.
 - **Edge SQLite (D1)**: Fast, ACID-compliant relational data storage with automatic migrations.
 - **Integrated R2 Media Pipeline**: Authenticated image uploads with streaming public delivery and caching headers.
 - **Publishing Lifecycle**: Draft vs. Published status management with automatic `published_at` timestamping.
@@ -25,8 +25,8 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 - **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) via the `worker` crate (v0.8)
 - **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (Edge SQLite)
 - **Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/) (Object storage)
-- **Templates**: [Askama](https://github.com/rinja-rs/askama)
-- **Frontend / Editor**: Vanilla JS + [TipTap](https://tiptap.dev/) + Space Mono & system typography
+- **Templates**: [Minijinja](https://github.com/mitsuhiko/minijinja) (Jinja2-compatible edge templating)
+- **Frontend / Editor**: React 19 + Radix Themes + [TipTap](https://tiptap.dev/)
 
 ---
 
@@ -34,16 +34,15 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 
 ```text
 ├── packages/
-│   ├── public-worker/         # Public-facing SSR worker (Askama + D1 edge cache)
-│   ├── admin-api-worker/      # Authenticated REST API worker (Cloudflare Access + D1)
-│   ├── admin-ui/              # Modern React + Vite SPA admin dashboard
+│   ├── public-worker/         # Public-facing SSR worker (Rust + Minijinja SSR + D1 cache)
+│   ├── admin-api-worker/      # Authenticated REST API worker (Rust + Cloudflare Access + D1 + R2)
+│   ├── admin-ui/              # Modern React 19 + Vite SPA admin dashboard (Radix Themes + TipTap)
 │   ├── core/                  # Shared Rust data models and sanitization (zygo-core)
 │   ├── create-zygo-app/       # CLI scaffolder for bootstrapping new Zygo CMS projects
 │   └── zygo-mcp/              # MCP server bridge for AI agents
 ├── migrations/                # D1 SQLite SQL migration scripts
 ├── scripts/                   # CLI automation scripts
 │   └── setup.mjs              # Interactive setup & deployment wizard
-├── templates/                 # Shared Askama HTML templates
 ├── public/                    # Shared static assets served at edge
 ├── docs/                      # Documentation, technical specs, and architecture audits
 │   ├── official/              # End-user & administrator guides
@@ -111,9 +110,9 @@ pnpm run dev
 ```
 
 The services will be accessible locally:
-- **Public Site**: `http://localhost:8788/`
-- **Admin REST API**: `http://localhost:8787/api`
-- **Admin UI Dashboard**: `http://localhost:3000/`
+- **Public Site**: `http://localhost:8788/` (Rust + Minijinja SSR)
+- **Admin REST API**: `http://localhost:8787/api` (Rust REST API)
+- **Admin UI Dashboard**: `http://localhost:5173/` (React 19 SPA, auto-authenticating as `admin@localhost` when `ENVIRONMENT=dev`)
 
 ---
 
@@ -186,6 +185,8 @@ The fastest and most seamless way to onboard, configure custom domains, provisio
 
 ```bash
 pnpm run setup
+# or:
+pnpm run wizard
 ```
 
 The setup wizard handles the entire onboarding flow out of the box:
