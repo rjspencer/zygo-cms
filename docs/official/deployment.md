@@ -16,44 +16,65 @@ Zygo's global caching architecture requires the Zone ID and API Token to broadca
 
 ## 2. Production Provisioning
 
-We provide a setup script to automatically provision the required production resources. The Zygo CMS architecture requires a decoupled, two-worker setup: one for public traffic and one for the authenticated admin API.
+We provide an interactive setup wizard to automatically provision the required production resources. The Zygo CMS architecture is deployed across a decoupled three-worker system:
+1. `packages/public-worker`: Public-facing website (Rust + Minijinja SSR)
+2. `packages/admin-api-worker`: Authenticated REST API (Rust + Cloudflare Access + D1 + R2)
+3. `packages/admin-ui`: Modern administrative dashboard (React 19 + Radix Themes SPA)
+
+Run the interactive wizard:
 
 ```bash
-node scripts/setup.mjs
+pnpm run setup
+# or:
+pnpm run wizard
 ```
 
 During this interactive process, the script will:
 - **Provision D1 Databases:** Create the primary SQLite database on Cloudflare's edge (`zygo-cms-db`).
-- **Configure Buckets / KV:** Set up necessary storage for assets or media.
-- **Environment Bindings:** Automatically inject the generated `database_id` and service tokens into your `wrangler.toml` files for both the public and admin workers.
-- **Custom Domains:** Prompt you to assign custom domains for public routing (e.g., `yourdomain.com`) and the admin interface (e.g., `admin.yourdomain.com`).
+- **Configure R2 Storage:** Set up the `zygo-cms-media` bucket for media assets.
+- **Environment Bindings:** Automatically inject the generated `database_id` and configuration into your `wrangler.toml` files across all packages.
+- **Custom Domains:** Prompt you to assign custom domains for public routing (e.g., `example.com`), the admin dashboard (e.g., `admin.example.com`), and the API (e.g., `api.example.com`).
+- **Zero Trust Integration:** Detect or provision your Cloudflare Zero Trust organization, Access applications, and admin user policies.
 
-## 3. Remote Migrations
+## 3. Database Migrations
 
-Before deploying your workers, you must initialize the production database schema. Zygo CMS uses Wrangler's D1 migration system to handle schema changes.
+Before deploying your workers to production, you must initialize the production database schema. Zygo CMS uses Wrangler's D1 migration system to handle schema changes.
 
-```bash
-npx wrangler d1 migrations apply zygo-cms-db --remote
-```
+- **Local Development:** Run migrations against the local SQLite state:
+  ```bash
+  pnpm run db:migrate:local
+  ```
+- **Production (Remote):** Apply migrations to the remote Cloudflare D1 database:
+  ```bash
+  pnpm run db:migrate
+  ```
+  *(or directly: `npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml`)*
 
 **Important Migration Guidelines:**
-- **Zero Downtime:** Always design migrations to be backward-compatible (e.g., don't use `SELECT *` in queries).
+- **Zero Downtime:** Always design migrations to be backward-compatible (e.g., list explicit column names, never use `SELECT *`).
 - **SQLite Limitations:** Cloudflare D1 strictly disallows non-constant defaults in `ALTER TABLE ... ADD COLUMN`. Add columns as nullable first, then backfill data using an `UPDATE` query.
 
 ## 4. Building and Deploying
 
-Compile the Rust workers to WebAssembly and deploy the React Admin UI static assets.
+Compile the Rust workers to WebAssembly and build the React 19 Admin UI:
 
 ```bash
 # Verify all tests pass
 pnpm run test:all
 cargo test
 
-# Build the project (Rust to Wasm, Vite to static files)
+# Build all 3 packages (Rust to Wasm, Vite to static assets)
 pnpm run build
 
-# Deploy to Cloudflare Workers
+# Deploy all 3 workers to Cloudflare
 pnpm run deploy
+```
+
+You can also deploy individual workers:
+```bash
+pnpm run deploy:public   # packages/public-worker
+pnpm run deploy:api      # packages/admin-api-worker
+pnpm run deploy:ui       # packages/admin-ui
 ```
 
 ## Cache Invalidation Architecture

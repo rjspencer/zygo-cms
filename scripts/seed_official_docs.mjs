@@ -51,6 +51,20 @@ const pages = [
     title: 'Development & Advanced',
     path: '/docs/advanced',
     parentPath: '/docs',
+  },
+  {
+    file: 'troubleshooting.md',
+    slug: 'troubleshooting',
+    title: 'Troubleshooting FAQ',
+    path: '/docs/troubleshooting',
+    parentPath: '/docs',
+  },
+  {
+    file: 'cli-cheat-sheet.md',
+    slug: 'cli-cheat-sheet',
+    title: 'CLI Cheat-Sheet',
+    path: '/docs/cli-cheat-sheet',
+    parentPath: '/docs',
   }
 ];
 
@@ -117,11 +131,14 @@ writeFileSync(tempSqlFile, sqlScript);
 const args = process.argv.slice(2);
 const isRemote = args.includes('--remote');
 const targetArg = isRemote ? '--remote' : '--local';
+const configArg = isRemote
+  ? '-c packages/admin-api-worker/wrangler.toml'
+  : '-c packages/admin-api-worker/wrangler.toml --persist-to=./.wrangler/state';
 
 console.log(`Executing SQL script against D1 database (${targetArg})...`);
 
 try {
-  execSync(`npx wrangler d1 execute zygo-cms-db ${targetArg} --file="${tempSqlFile}"`, { 
+  execSync(`npx wrangler d1 execute zygo-cms-db ${targetArg} ${configArg} --file="${tempSqlFile}"`, { 
     stdio: 'inherit',
     cwd: ROOT_DIR 
   });

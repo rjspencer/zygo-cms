@@ -23,6 +23,7 @@
         "deploy:api": "wrangler deploy -c packages/admin-api-worker/wrangler.toml",
         "deploy:ui": "wrangler deploy -c packages/admin-ui/wrangler.toml",
         "setup": "node scripts/setup.mjs",
+        "wizard": "node scripts/setup.mjs",
         "create:component": "node scripts/create-component-module.mjs",
         "seed:docs:official": "node scripts/seed_official_docs.mjs",
         "seed:theme-preview": "node scripts/seed_theme_preview.mjs",

@@ -17,39 +17,45 @@ Zygo CMS is engineered to provide high performance, robust security, and a seaml
 - **Rust (Wasm):** The core business logic, routing, and API handling are written in Rust and compiled to WebAssembly (Wasm). Rust guarantees memory safety and predictable, blazing-fast performance without garbage collection pauses, making it an ideal choice for high-throughput edge environments.
 - **React Admin UI:** A polished, fully decoupled modern dashboard built with React. It provides an intuitive interface for managing content, media, menus, and site settings without impacting the performance of the public-facing site.
 
-## Two-Worker Architecture
+## Three-Worker Architecture
 
-To maximize security and performance, Zygo CMS separates concerns into two distinct Cloudflare Workers sharing a D1 database. This decoupled approach ensures that the public site remains hyper-optimized for read operations, while the administrative worker is equipped with all the necessary tools for content authoring.
+To maximize security, performance, and developer ergonomics, Zygo CMS separates concerns into three distinct Cloudflare Workers sharing a D1 database and R2 storage bucket. This decoupled approach ensures that the public site remains hyper-optimized for read operations, while the administrative API and modern React 19 dashboard operate independently.
 
-1. **`admin-api-worker` (The Writer):** 
-   A secure, feature-rich worker that feeds the React Admin UI as its backend API. It handles authentication, complex data validation, media processing, workflow state transitions, and rich-text storage. Since it is entirely isolated from the public worker, administrative overhead never slows down the end-user experience.
-   
-2. **`public-worker` (The Reader):** 
-   An ultra-fast, read-only worker exclusively responsible for delivering your website. It queries D1, renders HTML using the fast Minijinja templating engine, and heavily leverages Cloudflare's Edge Cache to serve pages instantly. It minimizes moving parts to ensure the highest possible reliability.
+1. **`public-worker` (`packages/public-worker`) - Rust + Minijinja SSR (:8788):**
+   An ultra-fast, read-only worker exclusively responsible for delivering your public website. It queries D1, renders HTML dynamically using the Minijinja templating engine with embedded layouts and D1-backed section templates, and heavily leverages Cloudflare's Edge Cache to serve pages instantly with zero cold-starts.
+
+2. **`admin-api-worker` (`packages/admin-api-worker`) - Rust REST API (:8787):**
+   A secure, feature-rich worker acting as the backend REST API for admin operations and AI agents. It handles Cloudflare Access authentication, data validation, media uploads to R2, workflow state transitions, dual content storage (`body_html` and `body_json` ProseMirror AST), and cache invalidation.
+
+3. **`admin-ui` (`packages/admin-ui`) - React 19 SPA (:5173):**
+   A modern single-page application built with React 19, Radix Themes, and TipTap. Deployed as a static asset worker at the edge, it communicates with the `admin-api-worker` via `/api` to provide an intuitive, responsive management experience for authors and administrators.
 
 ### Architecture Diagram
 
-The following flowchart illustrates how traffic and data flow through the Zygo CMS Two-Worker Architecture:
+The following flowchart illustrates how traffic and data flow through the Zygo CMS Three-Worker Architecture:
 
 ```mermaid
 flowchart TD
     EndUser(("End User"))
-    AdminUser(("Admin User"))
+    AdminUser(("Admin User / Author"))
     
     CloudflareEdge{"Cloudflare Edge"}
-    PublicWorker["Public Worker"]
-    AdminAPIWorker["Admin API Worker"]
-    ReactUI["React UI"]
-    D1Database[("D1 Database")]
+    PublicWorker["Public Worker (:8788)\npackages/public-worker (Rust + Minijinja SSR)"]
+    AdminAPIWorker["Admin API Worker (:8787)\npackages/admin-api-worker (Rust REST API)"]
+    AdminUI["Admin UI (:5173)\npackages/admin-ui (React 19 SPA)"]
+    D1Database[("D1 Database (SQLite)")]
+    R2Storage[("R2 Media Storage")]
 
-    EndUser -->|Visits Website| CloudflareEdge
-    CloudflareEdge -->|Routes Traffic| PublicWorker
+    EndUser -->|Visits example.com| CloudflareEdge
+    CloudflareEdge -->|Routes Public Traffic| PublicWorker
     PublicWorker -->|Read-only Queries| D1Database
 
-    AdminUser -->|Accesses Dashboard| ReactUI
-    ReactUI -->|API Requests| CloudflareEdge
-    CloudflareEdge -->|Routes Secure API Traffic| AdminAPIWorker
+    AdminUser -->|Visits admin.example.com| CloudflareEdge
+    CloudflareEdge -->|Serves Dashboard SPA| AdminUI
+    AdminUI -->|API Requests /api| CloudflareEdge
+    CloudflareEdge -->|Cloudflare Access Auth| AdminAPIWorker
     AdminAPIWorker -->|Read/Write Queries| D1Database
+    AdminAPIWorker -->|Store/Retrieve Media| R2Storage
 ```
 
-By strictly splitting these responsibilities, the public-facing site remains incredibly lightweight and fast, while the admin side retains all the necessary power for flexible and comprehensive content management.
+By strictly splitting these responsibilities across three dedicated workers, the public-facing site remains incredibly lightweight and fast, while the admin side retains all the necessary power for flexible, secure, and modern content management.
