@@ -155,18 +155,18 @@ All content entries live in the unified `entries` table, categorized by the `typ
 
 ### Posts (`post`)
 - **Use Case:** Blog articles, announcements, news, and chronological publications.
-- **Editor:** Rich-text editor powered by TipTap / ProseMirror, tailored for long-form editorial writing.
+- **Editor:** Rich-text editor powered by TipTap / ProseMirror, tailored for long-form editorial writing. Stores the document AST in `body_json` and pre-rendered sanitized HTML in `body_html`.
 - **Routing & SEO:** Prefixed with `/post/:slug` (e.g., `/post/hello-world`). Canonical URLs strictly omit trailing slashes.
 - **Taxonomy & Metadata:** Supports categories, comma-separated tags, author attribution, custom cover images, and publication scheduling.
 
 ### Pages (`page`)
 - **Use Case:** Landing pages, company overview, pricing, contact pages, and evergreen site architecture.
-- **Editor:** Modular **Section Templates** block builder where editors stack, rearrange, and configure structured sections.
+- **Editor:** Modular **Section Templates** block builder where editors stack, rearrange, and configure structured sections. Stores the array of section blocks in `body_json` and compiled HTML in `body_html`.
 - **Routing & Hierarchy:** Routed directly at root paths (e.g., `/about`, `/pricing`). Supports parent-child hierarchies via `parent_id` (e.g., `/company/careers`) and automatic breadcrumb resolution. Canonical URLs omit trailing slashes except for the homepage root (`/`).
 
 ### Docs (`doc`)
 - **Use Case:** Product guides, technical documentation, API manuals, and knowledge bases.
-- **Editor:** Rich-text TipTap / ProseMirror editor paired with tree navigation.
+- **Editor:** Rich-text TipTap / ProseMirror editor paired with tree navigation. Stores the document AST in `body_json` and pre-rendered sanitized HTML in `body_html`.
 - **Hierarchy:** Deep multi-level hierarchy supported through `parent_id`, `path`, and `sort_order`, powering multi-tier sidebar navigation trees.
 
 ## Dual Content Model (`body_html` and `body_json`)
@@ -174,25 +174,26 @@ All content entries live in the unified `entries` table, categorized by the `typ
 Zygo CMS implements a dual content architecture across all entries to deliver instant edge delivery alongside lossless editor fidelity:
 
 1. **`body_html` (Edge SSR Delivery):**
-   - Contains pre-rendered, server-sanitized HTML ready for direct injection into public layout templates.
-   - When visitors navigate to a page or post, the Public Worker serves `body_html` instantly with zero runtime JSON parsing or AST traversals, achieving sub-millisecond rendering latencies at Cloudflare edge locations worldwide.
+   - Contains the pre-rendered, server-sanitized HTML ready for direct injection into layouts at edge SSR time.
+   - Compiled directly from `body_json` whenever an entry is saved (by evaluating section templates via MiniJinja for Pages, or converting the TipTap / ProseMirror AST to clean, sanitized HTML for Posts and Docs).
+   - When visitors navigate to a page, post, or doc, the Public Worker serves `body_html` instantly with zero runtime JSON parsing or AST traversals, achieving sub-millisecond rendering latencies at Cloudflare edge locations worldwide.
 
 2. **`body_json` (Editing & Headless State):**
-   - Preserves the structured data representation tailored to the entry's format:
-     - **Posts & Docs:** Serialized TipTap / ProseMirror Abstract Syntax Tree (AST) JSON, retaining full document node trees, marks, attributes, and cursor history.
-     - **Pages:** Serialized JSON array of Section blocks (`[{"template_slug": "hero", "data": {...}}, {"template_slug": "features", "data": {...}}]`).
+   - Preserves the lossless, structured data representation tailored to the entry's format:
+     - **Pages (`type: "page"`):** A JSON array of Section blocks (`[{"template_slug": "hero", "data": {...}}, ...]`), matching the section template's `schema_json`.
+     - **Posts (`type: "post"`) & Docs (`type: "doc"`):** Serialized TipTap / ProseMirror AST JSON (retaining marks, nodes, attributes, and cursor history).
    - Enables headless applications to consume raw structured data and render custom React, Vue, or native mobile components.
 
-When authors save content in the Admin UI or via API, the Admin API worker compiles `body_json` into `body_html` (rendering section templates via Minijinja or converting TipTap AST to clean HTML), validates and sanitizes the output, and writes both columns atomically to D1 alongside an automatic revision snapshot in `entry_revisions`.
+When authors save content in the Admin UI or via API, the Admin API worker compiles `body_json` into `body_html` (rendering section templates via MiniJinja or converting TipTap AST to clean HTML), validates and sanitizes the output, and writes both columns atomically to D1 alongside an automatic revision snapshot in `entry_revisions`.
 
 ## Section Templates
 
 Instead of fixed page schemas or inflexible CMS plugins, Zygo CMS uses **Section Templates** to build rich, dynamic Pages:
 
 - **Schema Definition:** Each section template defines a JSON schema (`schema_json`) containing typed field specifications (such as `text`, `textarea`, `richtext`, `url`, `image`, `video`, `select`, or `boolean`).
-- **Minijinja Templating:** Paired with each schema is a Minijinja HTML template (`template_html`) and optional scoped styles (`template_css`).
+- **MiniJinja Templating:** Paired with each schema is a MiniJinja HTML template (`template_html`) and optional scoped styles (`template_css`).
 - **Dynamic Block Assembly:** Authors construct Pages by stacking section blocks in the Page Editor. The editor dynamically generates input forms matching each section's schema.
-- **Zero-Downtime Customization:** Section templates are managed directly inside the Admin UI at `/templates`. Developers and designers can create new templates, modify existing Minijinja HTML markup, update field schemas, and test changes in real time without running database migrations or redeploying worker binaries.
+- **Zero-Downtime Customization:** Section templates are managed directly inside the Admin UI at `/templates`. Developers and designers can create new templates, modify existing MiniJinja HTML markup, update field schemas, and test changes in real time without running database migrations or redeploying worker binaries.
 
 ## Menus & Navigation
 

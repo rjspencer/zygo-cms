@@ -13,33 +13,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - **Onboarding Content & Production**:
     - [ ] **Core Onboarding Video Production**: Produce Video 1 ("Zero to Live Site in 5 Minutes") and Video 2 ("Cloudflare Access & Zero Trust Setup") per scripts in `docs/audits/setup-review/5-content.md`.
 
-### Headless CMS Content API
-- **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
-- **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
-  - Database entries already store both rendered `body_html` and structured TipTap JSON (`body_json`).
-  - Rust models already derive `serde::Serialize` and `serde_json` is integrated.
-  - Paginated D1 queries and filtering logic (category, tag, status) already exist.
-  - Edge caching infrastructure works seamlessly with JSON responses.
-- **Key Requirements**:
-  - **Public Content Delivery API**:
-    - `GET /api/v1/posts` & `GET /api/v1/pages`: Paginated listing with `?page=`, `?per_page=`, `?tag=`, and `?category=`.
-    - `GET /api/v1/posts/:slug` & `GET /api/v1/pages/*`: Single entry retrieval with full metadata, breadcrumbs, `body_html`, and `body_json`.
-    - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
-  - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
-  - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
-  - **Webhook Triggers**: Dispatch webhooks to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
-
----
-
-## 2. Soon
-
-### Instagram Feed Section with Automated Cron Sync
-- **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
-- **Details**:
-  - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
-  - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
-  - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
-
 ### Pre-Built Wasm Distribution & CI-Managed `release` Branch
 - **Goal**: Enable non-developers to scaffold, run, and deploy Zygo CMS without installing Rust (`rustup`, `cargo`, `worker-build`, `wasm-pack`) locally, while keeping daily CI build minutes low.
 - **Spec**: [`docs/specs/prebuilt_wasm_release_spec.md`](docs/specs/prebuilt_wasm_release_spec.md)
@@ -56,6 +29,33 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Detect conflicting `A`, `AAAA`, and `CNAME` records while strictly ignoring `MX`, `TXT`, and existing Worker Custom Domain records.
   - Display any conflicts to the user and prompt for confirmation to delete them via the Cloudflare API before deploying.
 
+---
+
+## 2. Soon
+
+### Headless CMS Content API
+- **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
+- **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
+  - Database entries already store both rendered `body_html` and structured TipTap JSON (`body_json`).
+  - Rust models already derive `serde::Serialize` and `serde_json` is integrated.
+  - Paginated D1 queries and filtering logic (category, tag, status) already exist.
+  - Edge caching infrastructure works seamlessly with JSON responses.
+- **Key Requirements**:
+  - **Public Content Delivery API**:
+    - `GET /api/v1/posts` & `GET /api/v1/pages`: Paginated listing with `?page=`, `?per_page=`, `?tag=`, and `?category=`.
+    - `GET /api/v1/posts/:slug` & `GET /api/v1/pages/*`: Single entry retrieval with full metadata, breadcrumbs, `body_html`, and `body_json`.
+    - `GET /api/v1/taxonomies`: List tags and categories with entry counts.
+  - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
+  - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
+  - **Webhook Triggers**: Dispatch webhooks to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
+
+### Instagram Feed Section with Automated Cron Sync
+- **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
+- **Details**:
+  - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
+  - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
+  - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
+
 ### Backend CLI MCP Server (`zygo-mcp`) Parity & Upgrade
 - **Goal**: Bring the standalone CLI MCP bridge (`packages/zygo-mcp`) into full parity with the current `/api/*` REST endpoints, page sections data model, and in-browser WebMCP tools.
 - **Spec**: [`docs/specs/zygo_mcp_parity_spec.md`](docs/specs/zygo_mcp_parity_spec.md)
@@ -71,13 +71,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Add `GET /api/admin/export` and `POST /api/admin/import` (with `dry_run` preview) to export and restore settings, menus, section & layout templates, entries, redirects, and media manifests as a versioned JSON bundle.
   - Add a **Backup & Portability** card in `Settings.tsx` alongside WebMCP and `zygo-mcp` tools.
 
-### Documentation Sync & Architecture Alignment
-- **Goal**: Synchronize `README.md`, `AGENTS.md`, and `docs/official/` with the current Zygo CMS architecture.
-- **Details**:
-  - Update outdated references to compile-time Askama templates in `README.md`, `AGENTS.md`, and `docs/official/advanced.md` to reflect dynamic database-backed **MiniJinja** templates and client-side Wasm previewing (`template-wasm`).
-  - Clarify the `body_json` (Page Sections JSON array) vs. `body_html` (Post/Doc rich text) data model in `README.md` and `docs/official/concepts.md`.
-  - Fix the local Admin UI port (`:3000` / `:5173`) and Cloudflare Access local dev auth instructions in `docs/official/quickstart.md`.
-
 ### Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
@@ -88,7 +81,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 - **Details**:
   - Add custom states such as "In Review", "Ready for Publish", or "Archived".
   - Integrate with RBAC to restrict who can transition between states.
-
 
 ---
 

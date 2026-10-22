@@ -8,6 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Documentation Sync & Architecture Alignment
+- **Templating Engine Realignment (`README.md`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `packages/public-worker/AGENTS.md`, `docs/official/advanced.md`, `packages/core/src/models/menu.rs`)**:
+  - Replaced obsolete references to compile-time Askama templates and on-disk `templates/` directories with dynamic database-backed **MiniJinja** templates and embedded Rust fallbacks (`views.rs`).
+  - Documented client-side live previewing in the React Admin UI powered by the **`template-wasm`** Rust Wasm crate.
+  - Added `template-wasm` to package trees in `README.md` and `AGENTS.md`.
+  - Replaced legacy public-worker rule with embedded MiniJinja testing instructions.
+  - Updated model comment in `menu.rs` to reference MiniJinja.
+- **Dual Content Storage Clarity (`README.md`, `docs/official/concepts.md`)**:
+  - Clarified `body_json` format differences: Page Sections JSON array (`[{"template_slug": "hero", "data": {...}}, ...]`) for Pages, and TipTap/ProseMirror AST for Posts and Docs.
+  - Clarified `body_html` as pre-rendered, server-sanitized HTML compiled from `body_json` at save time for zero-parsing edge SSR delivery.
+- **Port Consistency & Quickstart Fixes (`docs/official/quickstart.md`)**:
+  - Standardized all local development ports: Admin UI `:5173`, Admin API `:8787`, and Public Website Worker `:8788`.
+  - Clarified passwordless local authentication via `ENVIRONMENT=dev` in `.dev.vars` (mocking `admin@localhost`).
+  - Fixed broken Wrangler CLI URL to `https://developers.cloudflare.com/workers/wrangler/install-and-update/`.
+
 ### Documentation & Educational Content Alignment (P1 Remediation)
 - **Canonical Quickstart & README Overhaul (`README.md`, `docs/official/quickstart.md`, `package.json`)**:
   - Removed mythical password signup instructions across all documentation and clarified that Zygo CMS is 100% passwordless.

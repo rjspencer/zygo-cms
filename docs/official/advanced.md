@@ -27,14 +27,29 @@ Zygo CMS is powered by Cloudflare Workers written in Rust using the `worker-rs` 
 - **Database Queries:** Located in `packages/core/src/db`. Ensure all queries use prepared statements and explicitly name columns instead of using `SELECT *`.
 - **Models:** Defined in `packages/core/src/models`. We utilize `serde` heavily. Ensure new fields include `#[serde(default)]` to maintain backwards compatibility across workers during deployment rollouts.
 
+## Template Architecture (MiniJinja & `template-wasm`)
+
+Zygo CMS uses a unified, dynamic templating pipeline across both server and client:
+
+### Edge SSR with Dynamic MiniJinja
+Edge rendering in `packages/public-worker` is powered by dynamic **MiniJinja** (a lightweight Jinja2-compatible template engine for Rust):
+- **Embedded Default Templates:** Built-in default templates for layouts and standard sections are embedded directly in the worker binary via `packages/public-worker/src/views.rs`.
+- **Runtime D1 Overrides:** At runtime, the public worker queries the D1 database for custom templates in the `layout_templates` and `section_templates` tables. When a database record exists, it dynamically overrides the embedded default without requiring worker recompilation or redeployment.
+- **No Disk Templates:** There is no reliance on on-disk template directories (such as a `templates/` folder) or compile-time static template engines like Askama. Templates are dynamic, stored in D1, and evaluated in-memory by MiniJinja.
+
+### Client-Side Live Preview with `template-wasm`
+Live previewing in the Admin UI is powered by **`template-wasm`** (`packages/template-wasm`), a dedicated Rust WebAssembly crate:
+- **Client-Side Evaluation:** Compiles MiniJinja to Wasm so the Vite / React frontend can evaluate and render templates client-side directly in the browser.
+- **Zero Server Round-Trips:** As editors customize section data or developers modify section HTML/CSS templates in the Template Editor, `template-wasm` renders live previews instantly with 100% parity to the Edge SSR engine.
+
 ## Multi-Tier Testing Architecture
 
 We employ a comprehensive multi-tier testing strategy to separate fast, offline unit tests from full end-to-end integration tests.
 
 ### 1. Unit & Component Testing (Vitest & Cargo)
-- **Rust Unit Tests:** Run `cargo test` to execute unit tests for `zygo-core` models, D1 query builders, and Minijinja template validation.
+- **Rust Unit Tests:** Run `cargo test` to execute unit tests for `zygo-core` models, D1 query builders, and MiniJinja template validation across crates (including `packages/core` and `packages/template-wasm`).
 - **Admin UI Testing:** Run `pnpm run test:admin` to run component, hook, and WebMCP tool tests using Vitest and React Testing Library.
-- **Template & Schema Validation:** Section templates and layouts use Minijinja (Jinja2-compatible syntax). Dynamic template syntax and schema validation are tested both in Rust (`zygo-core`) and in TypeScript (`packages/admin-ui/src/lib/webmcp/templateTools.ts`).
+- **Template & Schema Validation:** Section templates and layouts use MiniJinja (Jinja2-compatible syntax). Dynamic template syntax and schema validation are tested both in Rust (`zygo-core`, `template-wasm`) and in TypeScript (`packages/admin-ui/src/lib/webmcp/templateTools.ts`).
 - **Offline CDN Import Mocking:** Client scripts using browser CDN imports (`https://esm.sh/...`) must be aliased in `vitest.config.js` to lightweight local stubs (`tests/mocks/esm.js`) to keep tests offline and fast.
 
 ### 2. Worker Integration (Level 2 - `unstable_dev`)

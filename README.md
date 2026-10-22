@@ -8,9 +8,9 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 
 - **Blazing Fast Edge Delivery**: Zero cold-start latency with compiled Rust WebAssembly.
 - **Dual Content Storage**:
-  - Pre-rendered `body_html` for high-speed public page rendering.
-  - ProseMirror/TipTap `body_json` AST for reliable, lossless rich-text editing.
-- **Type-Safe Dynamic Templating**: Uses **Minijinja** (Jinja2/Twig syntax) for dynamic, sandboxed server-side rendering with embedded layouts and customizable section templates stored directly in D1.
+  - Pre-rendered `body_html` for high-speed public page rendering (compiled at save time from sections or rich text).
+  - Structured `body_json`: stores a Page Sections JSON array (`[{"template_slug": "hero", "data": {...}}, ...]`) for Pages, and TipTap/ProseMirror AST for Posts and Docs.
+- **Type-Safe Dynamic Templating**: Uses **Minijinja** (Jinja2/Twig syntax) for dynamic, sandboxed server-side rendering with embedded layouts and customizable section templates stored directly in D1, coupled with client-side Wasm previewing via `template-wasm`.
 - **Edge SQLite (D1)**: Fast, ACID-compliant relational data storage with automatic migrations.
 - **Integrated R2 Media Pipeline**: Authenticated image uploads with streaming public delivery and caching headers.
 - **Publishing Lifecycle**: Draft vs. Published status management with automatic `published_at` timestamping.
@@ -25,7 +25,7 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 - **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) via the `worker` crate (v0.8)
 - **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/) (Edge SQLite)
 - **Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/) (Object storage)
-- **Templates**: [Minijinja](https://github.com/mitsuhiko/minijinja) (Jinja2-compatible edge templating)
+- **Templates**: [Minijinja](https://github.com/mitsuhiko/minijinja) (Jinja2-compatible edge templating) with client-side Wasm previewing via `template-wasm`
 - **Frontend / Editor**: React 19 + Radix Themes + [TipTap](https://tiptap.dev/)
 
 ---
@@ -38,6 +38,7 @@ A high-performance, edge-native Content Management System built with **Rust**, *
 │   ├── admin-api-worker/      # Authenticated REST API worker (Rust + Cloudflare Access + D1 + R2)
 │   ├── admin-ui/              # Modern React 19 + Vite SPA admin dashboard (Radix Themes + TipTap)
 │   ├── core/                  # Shared Rust data models and sanitization (zygo-core)
+│   ├── template-wasm/         # Section template rendering compiled to Wasm for live preview
 │   ├── create-zygo-app/       # CLI scaffolder for bootstrapping new Zygo CMS projects
 │   └── zygo-mcp/              # MCP server bridge for AI agents
 ├── migrations/                # D1 SQLite SQL migration scripts
