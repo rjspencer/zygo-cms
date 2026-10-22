@@ -6,6 +6,7 @@ import {
   DEFAULT_REPO,
   DEFAULT_BRANCH,
   PLACEHOLDER_DB_ID,
+  isCliInvocation,
   parseArgs,
   normalizePackageName,
   validateProjectName,
@@ -83,6 +84,21 @@ describe('create-zygo-app CLI Scaffolder', () => {
       expect(opts2.templateDir).toBe('/tmp/tpl2');
       expect(opts2.repo).toBe('org/repo2');
       expect(opts2.branch).toBe('feat');
+    });
+  });
+
+  describe('isCliInvocation', () => {
+    it('returns true when argv[1] is named create-zygo-app or index.mjs', () => {
+      expect(isCliInvocation('/usr/local/bin/create-zygo-app')).toBe(true);
+      expect(isCliInvocation('/Users/user/.npm/_npx/abc/node_modules/.bin/create-zygo-app')).toBe(true);
+      expect(isCliInvocation('./index.mjs')).toBe(true);
+    });
+
+    it('returns false when argv[1] is empty or run from a test runner like vitest', () => {
+      expect(isCliInvocation(undefined)).toBe(false);
+      expect(isCliInvocation(null)).toBe(false);
+      expect(isCliInvocation('/workspace/node_modules/.bin/vitest')).toBe(false);
+      expect(isCliInvocation('/usr/local/lib/node_modules/vitest/dist/cli.js')).toBe(false);
     });
   });
 

@@ -565,12 +565,24 @@ async function main() {
   );
 }
 
-const currentFile = fileURLToPath(import.meta.url);
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(currentFile)) {
+function isCliInvocation(argv1 = process.argv[1], importUrl = import.meta.url) {
+  if (!argv1) return false;
+  try {
+    const currentFile = fs.realpathSync(fileURLToPath(importUrl));
+    const invokedFile = fs.realpathSync(argv1);
+    if (currentFile === invokedFile) return true;
+  } catch (_) {}
+
+  const binName = path.basename(argv1);
+  return binName === 'create-zygo-app' || binName === 'create-zygo-app.js' || binName === 'index.mjs';
+}
+
+if (isCliInvocation()) {
   main();
 }
 
 export {
+  isCliInvocation,
   DEFAULT_REPO,
   DEFAULT_BRANCH,
   PLACEHOLDER_DB_ID,
