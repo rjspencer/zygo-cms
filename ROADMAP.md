@@ -10,10 +10,7 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 - **Goal**: Resolve critical setup script bugs, security vulnerabilities (fail-open Access AUD), cross-platform Windows/Linux blocks, and documentation discrepancies identified during the new-user setup review.
 - **Audit**: [`docs/audits/setup-review/SUMMARY.md`](docs/audits/setup-review/SUMMARY.md) (Full reports: [`1-docs.md`](docs/audits/setup-review/1-docs.md), [`2-script-ux.md`](docs/audits/setup-review/2-script-ux.md), [`3-script-accuracy.md`](docs/audits/setup-review/3-script-accuracy.md), [`4-opportunities.md`](docs/audits/setup-review/4-opportunities.md), [`5-content.md`](docs/audits/setup-review/5-content.md))
 - **Key Tasks**:
-  - **Documentation & Educational Content (P1)**:
-    - [ ] **Canonical Quickstart & README Overhaul**: Eliminate fictional password signup, document `:5173` dev auth bypass (`ENVIRONMENT=dev`), standardize on `pnpm run db:migrate:local`, fix `pnpm setup` collision, reconcile architecture to Three Workers + Minijinja + React 19 ([`1-docs.md` Issues 1, 2, 9, 10, 12](docs/audits/setup-review/1-docs.md)).
-    - [ ] **Data Model & Recipes Alignment**: Update `docs/official/concepts.md` with true D1 schema tables (replace fabricated Taxonomy diagrams); update `docs/official/examples.md` to document UI theme/template customization and Service Token API auth ([`1-docs.md` Issues 27, 28, 29, 30, 31, 33](docs/audits/setup-review/1-docs.md)).
-    - [ ] **Cross-Platform OS Guide & Troubleshooting FAQ**: Publish Guide 4 (Troubleshooting FAQ) and Guide 5 (CLI Cheat-Sheet); add explicit WSL2 recommendation and setup commands for Windows 11 ([`5-content.md` Guides 4 & 5](docs/audits/setup-review/5-content.md)).
+  - **Onboarding Content & Production**:
     - [ ] **Core Onboarding Video Production**: Produce Video 1 ("Zero to Live Site in 5 Minutes") and Video 2 ("Cloudflare Access & Zero Trust Setup") per scripts in `docs/audits/setup-review/5-content.md`.
 
 ### Headless CMS Content API

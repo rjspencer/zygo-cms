@@ -8,6 +8,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Documentation & Educational Content Alignment (P1 Remediation)
+- **Canonical Quickstart & README Overhaul (`README.md`, `docs/official/quickstart.md`, `package.json`)**:
+  - Removed mythical password signup instructions across all documentation and clarified that Zygo CMS is 100% passwordless.
+  - Documented local development authentication on `http://localhost:5173` via `ENVIRONMENT=dev` (auto-authenticating as `admin@localhost`).
+  - Standardized local database migration commands on `pnpm run db:migrate:local` (passing `--persist-to=./.wrangler/state`).
+  - Added `"wizard": "node scripts/setup.mjs"` alias to `package.json` to prevent command collisions with `pnpm setup`.
+  - Reconciled architecture descriptions and diagrams to the Three-Worker system (`public-worker` :8788, `admin-api-worker` :8787, `admin-ui` :5173) and replaced compile-time Askama with dynamic Minijinja.
+- **Data Model & Recipes Alignment (`docs/official/concepts.md`, `docs/official/examples.md`)**:
+  - Replaced fabricated taxonomy diagrams with the true 11-table D1 schema (`users`, `entries`, `entry_revisions`, `section_templates`, `layout_templates`, `media`, `menus`, `settings`, `redirects`, `trackable_links`, `form_submissions`).
+  - Documented the Dual Content Model: pre-rendered `body_html` for edge SSR vs `body_json` (TipTap ProseMirror AST for posts/docs; serialized section block JSON for pages).
+  - Replaced fictional Settings Schema Builder with the Section Templates block system.
+  - Updated Recipe 2 and Recipe 3 to explain UI theme and template management (`/theme` and `/templates`) rather than editing Rust strings in `src/views.rs`.
+  - Updated Recipe 4 with Cloudflare Access Service Token authentication (`CF-Access-Client-Id` and `CF-Access-Client-Secret`) and accurate JSON payloads.
+- **Cross-Platform OS Guides & Troubleshooting FAQ (`docs/official/troubleshooting.md`, `docs/official/cli-cheat-sheet.md`, `scripts/seed_official_docs.mjs`)**:
+  - Authored Guide 4 (`troubleshooting.md`): troubleshooting SQLite migration state mismatches, orphaned process cleanup across OS platforms, Access redirect loops/AUD tag configuration, and WSL2 Ubuntu recommendations.
+  - Authored Guide 5 (`cli-cheat-sheet.md`): cross-platform command matrix across macOS, Linux, and Windows (WSL2 / PowerShell), secret management commands, and direct Wrangler operations.
+  - Registered both new guides in `scripts/seed_official_docs.mjs` and ensured local seeding explicitly passes `-c packages/admin-api-worker/wrangler.toml --persist-to=./.wrangler/state`.
+
 ### Setup Experience: Preflight Doctor, Non-Interactive Automation & Rollback (`scripts/setup.mjs`)
 - **Preflight Diagnostic Engine & `--doctor` CLI Flag (`scripts/setup.mjs`)**:
   - Implemented `runPreflightChecks()` and `printPreflightReport()` to validate Node.js LTS (>= 22), pnpm (>= 11), Rust `wasm32-unknown-unknown` target, `worker-build`, Cloudflare Account ID detection, and Cloudflare Zone presence before modifying files.
