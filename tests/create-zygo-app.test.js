@@ -10,6 +10,7 @@ import {
   normalizePackageName,
   validateProjectName,
   isTargetDirAvailable,
+  copyTemplateDirectory,
   acquireTemplate,
   sanitizeWranglerConfigs,
   sanitizePackageJson,
@@ -39,6 +40,7 @@ describe('create-zygo-app CLI Scaffolder', () => {
 
   describe('parseArgs', () => {
     it('returns default options when no arguments are passed', () => {
+      expect(DEFAULT_BRANCH).toBe('release');
       const opts = parseArgs([]);
       expect(opts).toEqual({
         projectDir: null,
@@ -226,13 +228,13 @@ describe('create-zygo-app CLI Scaffolder', () => {
       await acquireTemplate({
         targetDir,
         repo: 'rjspencer/zygo-cms',
-        branch: 'main',
+        branch: 'release',
         execFileFn,
       });
 
       expect(execFileFn).toHaveBeenCalledWith(
         'git',
-        ['clone', '--depth', '1', '--branch', 'main', 'https://github.com/rjspencer/zygo-cms.git', targetDir],
+        ['clone', '--depth', '1', '--branch', 'release', 'https://github.com/rjspencer/zygo-cms.git', targetDir],
         { stdio: 'pipe' }
       );
       expect(fs.existsSync(path.join(targetDir, '.git'))).toBe(false);
@@ -258,12 +260,12 @@ describe('create-zygo-app CLI Scaffolder', () => {
       await acquireTemplate({
         targetDir,
         repo: 'rjspencer/zygo-cms',
-        branch: 'main',
+        branch: 'release',
         execFileFn,
         fetchFn,
       });
 
-      expect(fetchFn).toHaveBeenCalledWith('https://codeload.github.com/rjspencer/zygo-cms/tar.gz/refs/heads/main');
+      expect(fetchFn).toHaveBeenCalledWith('https://codeload.github.com/rjspencer/zygo-cms/tar.gz/refs/heads/release');
       expect(execFileFn).toHaveBeenCalledWith(
         'tar',
         ['-xzf', path.join(targetDir, '.zygo-template.tar.gz'), '--strip-components=1', '-C', targetDir],
@@ -276,7 +278,7 @@ describe('create-zygo-app CLI Scaffolder', () => {
     it('rejects malformed repo or branch arguments', async () => {
       const targetDir = path.join(tmpRoot, 'bad-repo');
       await expect(
-        acquireTemplate({ targetDir, repo: 'bad;rm -rf /', branch: 'main' })
+        acquireTemplate({ targetDir, repo: 'bad;rm -rf /', branch: 'release' })
       ).rejects.toThrow(/Invalid repository format/);
 
       await expect(
@@ -294,7 +296,6 @@ describe('create-zygo-app CLI Scaffolder', () => {
 
       expect(calls).toEqual([
         'pnpm install',
-        'pnpm --filter template-wasm run build',
         'pnpm run build',
         'pnpm run db:migrate:local',
         'git init',
@@ -315,6 +316,66 @@ describe('create-zygo-app CLI Scaffolder', () => {
     });
   });
 
+  describe('copyTemplateDirectory & pre-built Wasm preservation', () => {
+    it('preserves pre-built Wasm directories while still ignoring transient folders', () => {
+      const srcDir = path.join(tmpRoot, 'src-tpl');
+      const destDir = path.join(tmpRoot, 'dest-app');
+
+      // Create pre-built wasm directories and artifacts
+      const wasmDirs = [
+        'packages/public-worker/build',
+        'packages/admin-api-worker/build',
+        'packages/template-wasm/pkg',
+      ];
+      for (const d of wasmDirs) {
+        fs.mkdirSync(path.join(srcDir, d), { recursive: true });
+      }
+
+      fs.writeFileSync(path.join(srcDir, 'packages/public-worker/build/index.js'), 'export default {}');
+      fs.writeFileSync(path.join(srcDir, 'packages/public-worker/build/index.wasm'), 'wasm-pub-bytes');
+      fs.writeFileSync(path.join(srcDir, 'packages/admin-api-worker/build/index.js'), 'export default {}');
+      fs.writeFileSync(path.join(srcDir, 'packages/admin-api-worker/build/index.wasm'), 'wasm-api-bytes');
+      fs.writeFileSync(path.join(srcDir, 'packages/template-wasm/pkg/template_wasm.js'), 'export function render() {}');
+      fs.writeFileSync(path.join(srcDir, 'packages/template-wasm/pkg/template_wasm_bg.wasm'), 'wasm-tpl-bytes');
+
+      // Create normal files
+      fs.mkdirSync(path.join(srcDir, 'packages/public-worker/src'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'packages/public-worker/src/lib.rs'), '// rust code');
+
+      // Create directories that MUST be ignored
+      fs.mkdirSync(path.join(srcDir, '.git'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, '.git/config'), 'git-config');
+
+      fs.mkdirSync(path.join(srcDir, 'node_modules/some-pkg'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'node_modules/some-pkg/index.js'), 'pkg');
+
+      fs.mkdirSync(path.join(srcDir, 'build'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'build/temp.txt'), 'temp');
+
+      fs.mkdirSync(path.join(srcDir, 'packages/admin-ui/dist'), { recursive: true });
+      fs.writeFileSync(path.join(srcDir, 'packages/admin-ui/dist/app.js'), 'dist');
+
+      copyTemplateDirectory(srcDir, destDir);
+
+      // Verify pre-built Wasm artifacts are preserved
+      expect(fs.existsSync(path.join(destDir, 'packages/public-worker/build/index.js'))).toBe(true);
+      expect(fs.existsSync(path.join(destDir, 'packages/public-worker/build/index.wasm'))).toBe(true);
+      expect(fs.existsSync(path.join(destDir, 'packages/admin-api-worker/build/index.js'))).toBe(true);
+      expect(fs.existsSync(path.join(destDir, 'packages/admin-api-worker/build/index.wasm'))).toBe(true);
+      expect(fs.existsSync(path.join(destDir, 'packages/template-wasm/pkg/template_wasm.js'))).toBe(true);
+      expect(fs.existsSync(path.join(destDir, 'packages/template-wasm/pkg/template_wasm_bg.wasm'))).toBe(true);
+
+      // Verify regular files are copied
+      expect(fs.existsSync(path.join(destDir, 'packages/public-worker/src/lib.rs'))).toBe(true);
+
+      // Verify standard transient / ignored directories are not copied
+      expect(fs.existsSync(path.join(destDir, '.git'))).toBe(false);
+      expect(fs.existsSync(path.join(destDir, 'node_modules'))).toBe(false);
+      expect(fs.existsSync(path.join(destDir, 'build'))).toBe(false);
+      expect(fs.existsSync(path.join(destDir, 'packages/admin-ui/dist'))).toBe(false);
+    });
+  });
+
   describe('scaffoldProject end-to-end sanitization', () => {
     it('scaffolds a clean project from a template directory and removes internal files', async () => {
       // Construct a realistic mock template mirroring the monorepo structure
@@ -329,10 +390,13 @@ describe('create-zygo-app CLI Scaffolder', () => {
         '.github/workflows',
         'packages/create-zygo-app',
         'packages/public-worker/src',
+        'packages/public-worker/build',
         'packages/admin-api-worker/src',
+        'packages/admin-api-worker/build',
         'packages/admin-ui/src',
         'packages/core/src',
         'packages/template-wasm/src',
+        'packages/template-wasm/pkg',
         'packages/zygo-mcp',
         'migrations',
         'scripts',
@@ -379,6 +443,11 @@ describe('create-zygo-app CLI Scaffolder', () => {
       fs.writeFileSync(path.join(mockTpl, 'update_db.sh'), 'echo 1');
       fs.writeFileSync(path.join(mockTpl, '.env.production'), 'SECRET=123');
 
+      // Pre-built Wasm artifacts
+      fs.writeFileSync(path.join(mockTpl, 'packages/public-worker/build/index.js'), '// wasm public');
+      fs.writeFileSync(path.join(mockTpl, 'packages/admin-api-worker/build/index.js'), '// wasm api');
+      fs.writeFileSync(path.join(mockTpl, 'packages/template-wasm/pkg/template_wasm.js'), '// wasm template');
+
       const result = await scaffoldProject({
         targetDir,
         projectName: 'My New CMS',
@@ -416,6 +485,9 @@ describe('create-zygo-app CLI Scaffolder', () => {
       expect(fs.existsSync(path.join(targetDir, 'packages/public-worker'))).toBe(true);
       expect(fs.existsSync(path.join(targetDir, 'packages/admin-api-worker'))).toBe(true);
       expect(fs.existsSync(path.join(targetDir, 'packages/admin-ui'))).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, 'packages/public-worker/build/index.js'))).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, 'packages/admin-api-worker/build/index.js'))).toBe(true);
+      expect(fs.existsSync(path.join(targetDir, 'packages/template-wasm/pkg/template_wasm.js'))).toBe(true);
 
       // package.json must be sanitized
       const pkg = JSON.parse(fs.readFileSync(path.join(targetDir, 'package.json'), 'utf8'));
