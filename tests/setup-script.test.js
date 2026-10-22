@@ -19,6 +19,9 @@ import {
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,
+  getTargetHostnames,
+  findConflictingDnsRecords,
+  deleteDnsRecords,
   applyRemoteMigrations,
   deriveDefaultTeamSlug,
   ensureZeroTrustOrganization,
@@ -1311,6 +1314,188 @@ describe('Setup Script Helpers', () => {
 
       const result = await applyAiCrawlSettings('zone-456', 'test-token', { aiBotsProtection: 'block' });
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getTargetHostnames', () => {
+    it('returns default hostnames with apex included for redirect_to_sub', () => {
+      const config = { domain: 'example.com', apexHandling: 'redirect_to_sub' };
+      const targets = getTargetHostnames(config);
+      expect(targets).toEqual(expect.arrayContaining([
+        'www.example.com',
+        'admin.example.com',
+        'api.example.com',
+        'example.com'
+      ]));
+      expect(targets).toHaveLength(4);
+    });
+
+    it('returns default hostnames with apex included for redirect_to_apex', () => {
+      const config = { domain: 'example.com', apexHandling: 'redirect_to_apex' };
+      const targets = getTargetHostnames(config);
+      expect(targets).toEqual(expect.arrayContaining([
+        'www.example.com',
+        'admin.example.com',
+        'api.example.com',
+        'example.com'
+      ]));
+      expect(targets).toHaveLength(4);
+    });
+
+    it('excludes apex domain when apexHandling is do_nothing', () => {
+      const config = { domain: 'example.com', apexHandling: 'do_nothing' };
+      const targets = getTargetHostnames(config);
+      expect(targets).toContain('www.example.com');
+      expect(targets).toContain('admin.example.com');
+      expect(targets).toContain('api.example.com');
+      expect(targets).not.toContain('example.com');
+      expect(targets).toHaveLength(3);
+    });
+
+    it('respects custom subdomains and trims/lowercases inputs', () => {
+      const config = {
+        domain: '  MY-SITE.COM  ',
+        publicSubdomain: 'WEB',
+        adminUiSubdomain: 'DASH',
+        adminApiSubdomain: 'BACKEND',
+        apexHandling: 'do_nothing'
+      };
+      const targets = getTargetHostnames(config);
+      expect(targets).toEqual([
+        'web.my-site.com',
+        'dash.my-site.com',
+        'backend.my-site.com'
+      ]);
+    });
+
+    it('returns empty array when domain is missing or empty', () => {
+      expect(getTargetHostnames({})).toEqual([]);
+      expect(getTargetHostnames({ domain: '' })).toEqual([]);
+      expect(getTargetHostnames({ domain: '   ' })).toEqual([]);
+    });
+  });
+
+  describe('findConflictingDnsRecords', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('returns matching A, AAAA, and CNAME records while ignoring MX, TXT, and non-target hostnames', async () => {
+      const mockRecords = [
+        { id: 'rec-1', name: 'example.com', type: 'A', content: '192.0.2.1', proxiable: true },
+        { id: 'rec-2', name: 'www.example.com', type: 'CNAME', content: 'example.com', proxiable: true },
+        { id: 'rec-3', name: 'api.example.com', type: 'AAAA', content: '100::', proxiable: true },
+        // MX record matching target hostname - MUST BE IGNORED
+        { id: 'rec-4', name: 'example.com', type: 'MX', content: 'mail.example.com', proxiable: true },
+        // TXT record matching target hostname - MUST BE IGNORED
+        { id: 'rec-5', name: 'example.com', type: 'TXT', content: 'v=spf1 ~all', proxiable: true },
+        // Unrelated subdomain - MUST BE IGNORED
+        { id: 'rec-6', name: 'blog.example.com', type: 'A', content: '1.2.3.4', proxiable: true },
+        // Cloudflare Worker Custom Domain synthetic record (proxiable: false) - MUST BE IGNORED
+        { id: 'rec-7', name: 'admin.example.com', type: 'AAAA', content: '100::', proxiable: false }
+      ];
+
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, result: mockRecords })
+      });
+
+      const targets = ['example.com', 'www.example.com', 'api.example.com', 'admin.example.com'];
+      const conflicts = await findConflictingDnsRecords('zone-123', 'mock-token', targets, fetchMock);
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.cloudflare.com/client/v4/zones/zone-123/dns_records?per_page=100',
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'Authorization': 'Bearer mock-token' })
+        })
+      );
+
+      expect(conflicts).toHaveLength(3);
+      expect(conflicts).toEqual([
+        { id: 'rec-1', type: 'A', name: 'example.com', content: '192.0.2.1' },
+        { id: 'rec-2', type: 'CNAME', name: 'www.example.com', content: 'example.com' },
+        { id: 'rec-3', type: 'AAAA', name: 'api.example.com', content: '100::' }
+      ]);
+    });
+
+    it('returns empty array when API response is not ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Forbidden',
+        json: async () => ({ success: false, errors: [{ code: 10000, message: 'Authentication error' }] })
+      });
+
+      const conflicts = await findConflictingDnsRecords('zone-123', 'bad-token', ['example.com'], fetchMock);
+      expect(conflicts).toEqual([]);
+    });
+
+    it('gracefully handles network rejection without throwing', async () => {
+      const fetchMock = vi.fn().mockRejectedValueOnce(new Error('Connection refused'));
+      const conflicts = await findConflictingDnsRecords('zone-123', 'mock-token', ['example.com'], fetchMock);
+      expect(conflicts).toEqual([]);
+    });
+
+    it('returns empty array if zoneId, apiToken, or targetHostnames is missing', async () => {
+      expect(await findConflictingDnsRecords('', 'token', ['example.com'])).toEqual([]);
+      expect(await findConflictingDnsRecords('zone-123', '', ['example.com'])).toEqual([]);
+      expect(await findConflictingDnsRecords('zone-123', 'token', [])).toEqual([]);
+    });
+  });
+
+  describe('deleteDnsRecords', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('calls DELETE for each record and tallies deleted count', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) });
+
+      const records = [
+        { id: 'rec-1', type: 'A', name: 'example.com', content: '192.0.2.1' },
+        { id: 'rec-2', type: 'CNAME', name: 'www.example.com', content: 'example.com' }
+      ];
+
+      const result = await deleteDnsRecords('zone-123', 'mock-token', records, fetchMock);
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0][0]).toBe('https://api.cloudflare.com/client/v4/zones/zone-123/dns_records/rec-1');
+      expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+      expect(fetchMock.mock.calls[1][0]).toBe('https://api.cloudflare.com/client/v4/zones/zone-123/dns_records/rec-2');
+      expect(result).toEqual({ deleted: 2, failed: [] });
+    });
+
+    it('handles partial failures and network errors gracefully', async () => {
+      const fetchMock = vi.fn()
+        .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+        .mockResolvedValueOnce({
+          ok: false,
+          statusText: 'Forbidden',
+          json: async () => ({ success: false, errors: [{ code: 10000, message: 'Insufficient permissions' }] })
+        })
+        .mockRejectedValueOnce(new Error('Network failure'));
+
+      const records = [
+        { id: 'rec-1', type: 'A', name: 'example.com', content: '1.1.1.1' },
+        { id: 'rec-2', type: 'A', name: 'example.com', content: '2.2.2.2' },
+        { id: 'rec-3', type: 'A', name: 'example.com', content: '3.3.3.3' }
+      ];
+
+      const result = await deleteDnsRecords('zone-123', 'mock-token', records, fetchMock);
+
+      expect(result.deleted).toBe(1);
+      expect(result.failed).toHaveLength(2);
+      expect(result.failed[0].record.id).toBe('rec-2');
+      expect(result.failed[0].error).toContain('Insufficient permissions');
+      expect(result.failed[1].record.id).toBe('rec-3');
+      expect(result.failed[1].error).toBe('Network failure');
+    });
+
+    it('returns zero deleted when records array is empty or parameters missing', async () => {
+      expect(await deleteDnsRecords('', 'token', [{ id: '1' }])).toEqual({ deleted: 0, failed: [] });
+      expect(await deleteDnsRecords('zone', '', [{ id: '1' }])).toEqual({ deleted: 0, failed: [] });
+      expect(await deleteDnsRecords('zone', 'token', [])).toEqual({ deleted: 0, failed: [] });
     });
   });
 

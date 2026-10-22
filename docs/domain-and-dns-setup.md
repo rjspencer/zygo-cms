@@ -87,19 +87,33 @@ routes = [
 
 When Cloudflare attaches a Worker Custom Domain, it automatically creates and manages internal routing entries and provisions an SSL certificate. However, **Cloudflare will refuse to overwrite existing DNS records for the same hostname.**
 
-If pre-existing `A`, `AAAA`, or `CNAME` records exist, deployment will fail with an error similar to:
-```
+If pre-existing `A`, `AAAA`, or `CNAME` records exist (common with newly registered domains or parked placeholder records), deployment will fail with:
+```text
 Error: An externally managed DNS record already exists for this domain
 ```
 
-### Required Actions Before Deployment
+### Automated Conflict Detection in `pnpm run setup`
 
+The Zygo CMS setup wizard (`pnpm run setup`) automatically inspects your zone's DNS records before deploying. When conflicting records are found, it displays a detailed breakdown:
+```text
+⚠️  Found 2 conflicting DNS record(s) on target hostnames:
+    • A      example.com               -> 192.0.2.1
+    • CNAME  www.example.com           -> example.com
+  (Note: MX and TXT records for email/verification are never touched.)
+```
+The wizard will prompt:
+`Would you like to delete these conflicting DNS records so Cloudflare Workers can bind to your domains?`
+Selecting **Yes** removes the conflicting records automatically using your Cloudflare API token.
+
+### Manual Resolution (If Needed or Skipping Setup Wizard)
+
+If you are deploying manually without `scripts/setup.mjs` or your API token lacks `Zone > DNS > Edit` permissions:
 1. Open your [Cloudflare Dashboard](https://dash.cloudflare.com/) and navigate to your domain's **DNS** > **Records** tab.
 2. Locate and **delete** any existing `A`, `AAAA` (including placeholder IPv6 records like `100::`), or `CNAME` records for:
    - `@` (Apex domain)
-   - `www`
-   - `api`
-   - `admin`
+   - `www` (Public worker)
+   - `api` (Admin API worker)
+   - `admin` (Admin UI worker)
 3. Do **not** manually recreate DNS records for these hostnames. Cloudflare will automatically synthesize and manage the DNS routing when your workers are deployed.
 
 ### What Records to Keep

@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Setup Wizard DNS Pre-Flight Conflict Check (`scripts/setup.mjs`, `tests/setup-script.test.js`, `docs/domain-and-dns-setup.md`)
+- **Automated DNS Conflict Detection & Remediation (`scripts/setup.mjs`)**:
+  - Implemented `getTargetHostnames()` to determine all target custom domain hostnames (`public`, `admin`, `api`, and conditional apex) based on user configuration and `apexHandling`.
+  - Implemented `findConflictingDnsRecords()` to query Cloudflare DNS records and identify colliding `A`, `AAAA`, and `CNAME` records that would block Worker Custom Domain binding.
+  - Safely filters out Cloudflare Worker Custom Domain synthetic records (`proxiable: false`) and strictly ignores non-conflicting DNS records (`MX`, `TXT`, `CAA`, `SRV`).
+  - Added interactive prompt via `@clack/prompts` `confirm()` with non-interactive `--yes` / `-y` automation and detailed terminal formatting.
+  - Implemented `deleteDnsRecords()` to clean up conflicting records via Cloudflare REST API with error handling and fallback guidance.
+  - Added step 8 to dry-run execution plan (`--dry-run`).
+- **Comprehensive Unit Testing (`tests/setup-script.test.js`)**:
+  - Added 12 new Vitest unit tests covering hostname resolution across apex modes, record type filtering, proxiable checking, network failure resilience, and deletion tallying.
+- **Documentation (`docs/domain-and-dns-setup.md`)**:
+  - Updated Section 4 to document the automated conflict check in `pnpm run setup` while retaining manual dashboard cleanup instructions as fallback.
+
 ### Documentation Sync & Architecture Alignment
 - **Templating Engine Realignment (`README.md`, `AGENTS.md`, `docs/ARCHITECTURE.md`, `packages/public-worker/AGENTS.md`, `docs/official/advanced.md`, `packages/core/src/models/menu.rs`)**:
   - Replaced obsolete references to compile-time Askama templates and on-disk `templates/` directories with dynamic database-backed **MiniJinja** templates and embedded Rust fallbacks (`views.rs`).

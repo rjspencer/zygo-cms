@@ -967,6 +967,131 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
   }
 }
 
+function getTargetHostnames(config = {}) {
+  const domain = (config.domain || '').trim().toLowerCase();
+  if (!domain) return [];
+
+  const publicSub = (config.publicSubdomain || 'www').trim().toLowerCase();
+  const adminUiSub = (config.adminUiSubdomain || 'admin').trim().toLowerCase();
+  const adminApiSub = (config.adminApiSubdomain || 'api').trim().toLowerCase();
+  const apexHandling = config.apexHandling || 'redirect_to_sub';
+
+  const hostnames = new Set();
+  hostnames.add(`${publicSub}.${domain}`);
+  hostnames.add(`${adminUiSub}.${domain}`);
+  hostnames.add(`${adminApiSub}.${domain}`);
+
+  if (apexHandling !== 'do_nothing') {
+    hostnames.add(domain);
+  }
+
+  return Array.from(hostnames);
+}
+
+async function findConflictingDnsRecords(zoneId, apiToken, targetHostnames = [], fetchFn = fetch) {
+  if (!zoneId || !apiToken || !Array.isArray(targetHostnames) || targetHostnames.length === 0) {
+    return [];
+  }
+
+  const normalizedTargets = targetHostnames.map((h) => h.trim().toLowerCase());
+
+  try {
+    const res = await fetchFn(
+      `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records?per_page=100`,
+      {
+        headers: {
+          'Authorization': `Bearer ${apiToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      const errorStr = JSON.stringify(errorData?.errors || res.statusText);
+      console.warn(`⚠️  Failed to query DNS records: ${errorStr}`);
+      return [];
+    }
+
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.result)) {
+      return [];
+    }
+
+    const conflicts = [];
+    for (const record of data.result) {
+      const recType = (record.type || '').toUpperCase();
+      const recName = (record.name || '').toLowerCase();
+
+      // Only inspect A, AAAA, and CNAME
+      if (!['A', 'AAAA', 'CNAME'].includes(recType)) {
+        continue;
+      }
+
+      // Check if hostname matches any target
+      if (!normalizedTargets.includes(recName)) {
+        continue;
+      }
+
+      // Ignore Cloudflare Worker Custom Domain synthetic records (proxiable: false)
+      if (record.proxiable === false) {
+        continue;
+      }
+
+      conflicts.push({
+        id: record.id,
+        type: recType,
+        name: recName,
+        content: record.content || ''
+      });
+    }
+
+    return conflicts;
+  } catch (err) {
+    console.warn(`⚠️  Could not check DNS records for conflicts: ${err.message}`);
+    return [];
+  }
+}
+
+async function deleteDnsRecords(zoneId, apiToken, records = [], fetchFn = fetch) {
+  if (!zoneId || !apiToken || !Array.isArray(records) || records.length === 0) {
+    return { deleted: 0, failed: [] };
+  }
+
+  let deleted = 0;
+  const failed = [];
+
+  for (const record of records) {
+    try {
+      const res = await fetchFn(
+        `https://api.cloudflare.com/client/v4/zones/${zoneId}/dns_records/${record.id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${apiToken}`
+          }
+        }
+      );
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        failed.push({ record, error: JSON.stringify(errJson?.errors || res.statusText) });
+      } else {
+        const data = await res.json().catch(() => ({ success: true }));
+        if (data.success !== false) {
+          deleted++;
+        } else {
+          failed.push({ record, error: JSON.stringify(data?.errors || 'Delete failed') });
+        }
+      }
+    } catch (err) {
+      failed.push({ record, error: err.message });
+    }
+  }
+
+  return { deleted, failed };
+}
+
 const CONFIG_FILES = [
   'packages/public-worker/wrangler.toml',
   'packages/admin-api-worker/wrangler.toml',
@@ -1603,12 +1728,13 @@ async function main() {
       console.log('  6. Provision Cloudflare Access Application & Policy');
     }
     console.log('  7. Apply Cloudflare Zone Edge & WAF settings');
+    console.log('  8. Check & clear conflicting A/AAAA/CNAME DNS records on target hostnames');
     if (!flags['no-deploy']) {
-      console.log('  8. Build Zygo CMS packages (worker-build, vite)');
-      console.log('  9. Deploy to Cloudflare Workers & Pages');
-      console.log('  10. Verify deployment edge endpoints via HEAD requests');
+      console.log('  9. Build Zygo CMS packages (worker-build, vite)');
+      console.log('  10. Deploy to Cloudflare Workers & Pages');
+      console.log('  11. Verify deployment edge endpoints via HEAD requests');
     } else {
-      console.log('  8. Skip build & deployment (--no-deploy set)');
+      console.log('  9. Skip build & deployment (--no-deploy set)');
     }
     console.log('─'.repeat(50));
     console.log(pc.green('Dry run completed successfully. No changes were made.\n'));
@@ -1723,6 +1849,46 @@ async function main() {
             s.stop('⚠️ Failed to configure SEO Redirect Rule');
           }
         }
+
+        const targetHostnames = getTargetHostnames(config);
+        s.start('Checking DNS records for conflicts');
+        const conflicts = await findConflictingDnsRecords(zoneId, config.apiToken, targetHostnames);
+
+        if (conflicts.length === 0) {
+          s.stop('✓ No DNS conflicts detected');
+        } else {
+          s.stop(`⚠️  Found ${conflicts.length} conflicting DNS record(s) on target hostnames:`);
+          for (const c of conflicts) {
+            console.log(`    • ${pc.bold(c.type.padEnd(6))} ${c.name.padEnd(25)} -> ${c.content}`);
+          }
+          console.log(pc.dim('  (Note: MX and TXT records for email/verification are never touched.)\n'));
+
+          let shouldDelete = flags.yes;
+          if (!shouldDelete && isInteractive) {
+            const deleteAns = await confirm({
+              message: 'Would you like to delete these conflicting DNS records so Cloudflare Workers can bind to your domains?',
+              initialValue: true
+            });
+            if (!isCancel(deleteAns) && deleteAns) {
+              shouldDelete = true;
+            }
+          }
+
+          if (shouldDelete) {
+            s.start(`Removing ${conflicts.length} conflicting DNS record(s)`);
+            const { deleted, failed } = await deleteDnsRecords(zoneId, config.apiToken, conflicts);
+            if (failed.length === 0) {
+              s.stop(`✓ Removed ${deleted} conflicting DNS record(s)`);
+            } else {
+              s.stop(`⚠️  Removed ${deleted} record(s), failed to remove ${failed.length} record(s).`);
+              console.warn('⚠️  Cloudflare API token may require "Zone > DNS > Edit" permissions.');
+              console.warn('   Refer to docs/domain-and-dns-setup.md for manual DNS cleanup instructions.');
+            }
+          } else {
+            console.warn(pc.yellow('⚠️  Conflicting DNS records were not removed. Cloudflare deployment may fail.'));
+            console.warn(pc.yellow('   Refer to docs/domain-and-dns-setup.md for manual DNS cleanup instructions.\n'));
+          }
+        }
       } else {
         s.stop('⚠️ Could not fetch Zone ID to apply settings. Skipping.');
       }
@@ -1818,6 +1984,9 @@ export {
   applyAiCrawlSettings,
   updateAdminApiZoneVar,
   getZoneId,
+  getTargetHostnames,
+  findConflictingDnsRecords,
+  deleteDnsRecords,
   applyZoneSettings,
   applyBotFightMode,
   parseCliArgs,

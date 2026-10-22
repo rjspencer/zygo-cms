@@ -21,14 +21,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Add a tag/dispatch-triggered GitHub Action (`.github/workflows/release.yml`) that compiles `public-worker/build`, `admin-api-worker/build`, and `template-wasm/pkg` in `--release` mode and force-pushes the verified snapshot to a CI-owned `release` branch.
   - Point `create-zygo-app` to clone `release` by default and preserve pre-built Wasm bundles so end users only need Node.js (`npx` / `pnpm`).
 
-### Setup Wizard DNS Pre-Flight Conflict Check
-- **Goal**: Prevent `wrangler deploy` failures caused by pre-existing `A`, `AAAA`, or `CNAME` DNS records on target Custom Domains during initial setup.
-- **Spec**: [`docs/specs/setup_dns_conflict_check_spec.md`](docs/specs/setup_dns_conflict_check_spec.md)
-- **Details**:
-  - Query `/zones/:zoneId/dns_records` in `scripts/setup.mjs` for the configured Zygo hostnames (respecting `apexHandling`).
-  - Detect conflicting `A`, `AAAA`, and `CNAME` records while strictly ignoring `MX`, `TXT`, and existing Worker Custom Domain records.
-  - Display any conflicts to the user and prompt for confirmation to delete them via the Cloudflare API before deploying.
-
 ---
 
 ## 2. Soon
