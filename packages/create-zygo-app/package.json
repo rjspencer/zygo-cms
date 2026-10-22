@@ -20,7 +20,20 @@
     "cms",
     "scaffolder"
   ],
+  "author": "Ryan Spencer <ryanjoelspencer@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rjspencer/zygo-cms.git",
+    "directory": "packages/create-zygo-app"
+  },
+  "homepage": "https://github.com/rjspencer/zygo-cms/tree/main/packages/create-zygo-app#readme",
+  "bugs": {
+    "url": "https://github.com/rjspencer/zygo-cms/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=20.0.0"
   },
