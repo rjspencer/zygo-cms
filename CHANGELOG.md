@@ -8,6 +8,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Setup Experience & Security Hardening (P0 Remediation)
+- **Zero Trust Fail-Closed Authentication (`packages/admin-api-worker/src/auth.rs`)**:
+  - Enforced strict fail-closed authentication: requests in non-dev and non-test environments immediately fail with `HTTP 401 Unauthorized` if either `CF_ACCESS_AUD` or `CF_ACCESS_TEAM_DOMAIN` is empty or unconfigured.
+  - Implemented deterministic `check_access_config_validity()` eliminating runtime `std::env::var` dependencies in WebAssembly Cloudflare Worker isolates.
+- **D1 Migration Target & Root Configuration Sanitization (`wrangler.toml`, `package.json`, `scripts/setup.mjs`)**:
+  - Purged maintainer's hardcoded D1 UUID (`488417e7-...`) and author domains from root `wrangler.toml`, setting `database_id = ""` with guidance comments.
+  - Updated `scripts/setup.mjs` `applyRemoteMigrations()` and `package.json` `db:migrate` / `db:migrate:local` to explicitly pass `-c packages/admin-api-worker/wrangler.toml`.
+- **Windows 11 Path Handling & Cross-Platform Utilities (`scripts/setup.mjs`, `scripts/wait.mjs`, `package.json`)**:
+  - Switched `scripts/setup.mjs` path math to `fileURLToPath(import.meta.url)`, fixing Windows drive letter path resolution bugs (`/C:/`).
+  - Added cross-platform wait utility `scripts/wait.mjs` and replaced POSIX `sleep 3 &&` in `package.json` (`dev:public`).
+- **Terminal Ergonomics, Secret Masking & Credential Propagation (`scripts/setup.mjs`)**:
+  - Masked Cloudflare API tokens and Google client secrets using `@clack/prompts` `password()`.
+  - Injected `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` into all Wrangler subprocess calls (`childEnv`).
+  - Propagated non-zero exit codes on build/deploy failures to prevent false-positive completion reports.
+- **Cache Purge & Subdomain Wiring (`scripts/setup.mjs`, `packages/admin-api-worker/src/lib.rs`)**:
+  - Updated `updateAdminApiZoneVar()` to write `CF_ZONE_ID` to both `admin-api-worker/wrangler.toml` and `public-worker/wrangler.toml`.
+  - Updated `updatePublicWrangler()` to support and persist custom `ADMIN_SUBDOMAIN`.
+  - Generalized CORS origin checking in `packages/admin-api-worker/src/lib.rs` to support custom API/Admin subdomains with strict dot-boundary validation preventing suffix spoofing.
+  - Handled Cloudflare redirect ruleset API errors gracefully with user-facing token scope guidance.
+
 ### Tiptap Editor Medium Image Sizing & Responsive Width Attributes
 - **Medium Image Resolution & Responsive Attributes (`packages/admin-ui/src/components/RichTextEditor/`)**:
   - Implemented `toMediumImageUrl` in `useRichTextEditor.ts` to automatically route Media Picker image selections to the medium tier (`?size=md` or `&size=md`).

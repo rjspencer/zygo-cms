@@ -7,25 +7,68 @@ mod handlers;
 
 use worker::*;
 
+pub fn extract_root_domain(host: &str) -> String {
+    let is_ip = host.parse::<std::net::IpAddr>().is_ok();
+    let parts: Vec<&str> = host.split('.').collect();
+    if !is_ip && parts.len() > 2 {
+        parts[1..].join(".")
+    } else {
+        host.to_string()
+    }
+}
+
+pub fn is_valid_cors_origin(
+    origin: &str,
+    root_domain: &str,
+    admin_sub: &str,
+    public_sub: &str,
+) -> bool {
+    if origin.is_empty() {
+        return false;
+    }
+    if origin.starts_with("http://localhost:") || origin.starts_with("http://127.0.0.1:") {
+        return true;
+    }
+    if origin == format!("https://{}.{}", admin_sub, root_domain)
+        || origin == format!("https://{}.{}", public_sub, root_domain)
+        || origin == format!("https://{}", root_domain)
+    {
+        return true;
+    }
+    // Subdomain of root_domain (e.g. https://sub.root_domain)
+    if let Some(host_part) = origin.strip_prefix("https://") {
+        let host_no_port = host_part.split(':').next().unwrap_or(host_part);
+        if host_no_port.ends_with(&format!(".{}", root_domain)) {
+            return true;
+        }
+    }
+    false
+}
+
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     let req_url = req.url()?;
     let host = req_url.host_str().unwrap_or("");
-    let root_domain = if host.starts_with("api.") {
-        host.strip_prefix("api.").unwrap_or(host)
-    } else {
-        host
-    };
+    let admin_sub = env
+        .var("ADMIN_SUBDOMAIN")
+        .ok()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "admin".to_string());
+    let public_sub = env
+        .var("PUBLIC_SUBDOMAIN")
+        .ok()
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "www".to_string());
+
+    let root_domain = extract_root_domain(host);
 
     let origin = req.headers().get("Origin")?.unwrap_or_default();
-    let is_valid_origin = origin.ends_with(root_domain) 
-        || origin.starts_with("http://localhost:") 
-        || origin.starts_with("http://127.0.0.1:");
+    let is_valid_origin = is_valid_cors_origin(&origin, &root_domain, &admin_sub, &public_sub);
         
     let allowed_origin = if is_valid_origin && !origin.is_empty() {
         origin
     } else {
-        format!("https://admin.{}", root_domain)
+        format!("https://{}.{}", admin_sub, root_domain)
     };
     
     let cors = Cors::new()
@@ -178,5 +221,48 @@ async fn scheduled(event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
         if let Err(e) = media::sync_r2_to_d1(&env).await {
             worker::console_error!("Scheduled R2-to-D1 sync error: {e}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_root_domain() {
+        assert_eq!(extract_root_domain("api.example.com"), "example.com");
+        assert_eq!(extract_root_domain("admin-api.example.com"), "example.com");
+        assert_eq!(extract_root_domain("custom.sub.example.com"), "sub.example.com");
+        assert_eq!(extract_root_domain("example.com"), "example.com");
+        assert_eq!(extract_root_domain("localhost"), "localhost");
+        assert_eq!(extract_root_domain("127.0.0.1"), "127.0.0.1");
+    }
+
+    #[test]
+    fn test_is_valid_cors_origin() {
+        let root = "example.com";
+        let admin = "admin";
+        let public = "www";
+
+        // Admin and public subdomains
+        assert!(is_valid_cors_origin("https://admin.example.com", root, admin, public));
+        assert!(is_valid_cors_origin("https://www.example.com", root, admin, public));
+        assert!(is_valid_cors_origin("https://example.com", root, admin, public));
+
+        // Custom admin subdomain
+        assert!(is_valid_cors_origin("https://custom-admin.example.com", root, "custom-admin", public));
+
+        // Arbitrary subdomain of root
+        assert!(is_valid_cors_origin("https://blog.example.com", root, admin, public));
+
+        // Localhost / 127.0.0.1
+        assert!(is_valid_cors_origin("http://localhost:5173", root, admin, public));
+        assert!(is_valid_cors_origin("http://127.0.0.1:8787", root, admin, public));
+
+        // Invalid origins
+        assert!(!is_valid_cors_origin("", root, admin, public));
+        assert!(!is_valid_cors_origin("https://evil.com", root, admin, public));
+        assert!(!is_valid_cors_origin("https://notexample.com", root, admin, public));
+        assert!(!is_valid_cors_origin("https://evilexample.com", root, admin, public));
     }
 }
