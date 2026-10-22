@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Setup Experience: Preflight Doctor, Non-Interactive Automation & Rollback (`scripts/setup.mjs`)
+- **Preflight Diagnostic Engine & `--doctor` CLI Flag (`scripts/setup.mjs`)**:
+  - Implemented `runPreflightChecks()` and `printPreflightReport()` to validate Node.js LTS (>= 22), pnpm (>= 11), Rust `wasm32-unknown-unknown` target, `worker-build`, Cloudflare Account ID detection, and Cloudflare Zone presence before modifying files.
+  - Added standalone `node scripts/setup.mjs --doctor` command that runs diagnostics, outputs a formatted terminal report with remediation commands, and exits with code 0 (or 1 on critical missing tools).
+- **Non-Interactive Automation & CLI Flags (`scripts/setup.mjs`)**:
+  - Implemented `parseCliArgs()` using `node:util.parseArgs` supporting `--doctor`, `--yes` (`-y`), `--dry-run`, `--no-deploy`, `--domain`, `--email`, `--account-id`, `--token`, `--public-subdomain`, `--admin-ui-subdomain`, `--admin-api-subdomain`, `--apex-handling`, `--team-name`, `--bot-fight-mode`, `--security-level`, and `--skip-access`.
+  - Added non-interactive flag validation: requires `--domain` and `--email` when `--yes` is specified, exiting cleanly with helpful error messages.
+  - Implemented `--dry-run` displaying a comprehensive 10-step execution plan without mutating files or provisioning remote resources.
+  - Added `--no-deploy` option to provision and configure resources without triggering build and deploy.
+- **Progressive Disclosure Wizard (`scripts/setup.mjs`)**:
+  - Replaced 6 granular Edge and WAF prompts with production defaults (Bot Fight on, AI blocked, Medium WAF, HTTP/3, Tiered Cache, IPv6, Brotli, Early Hints) and a single opt-in prompt for advanced customization.
+- **In-Memory Configuration Snapshots & Atomic Rollback (`scripts/setup.mjs`)**:
+  - Implemented `backupConfigs()` and `rollbackConfigs()` snapshotting `wrangler.toml` files and `.env.production` in memory prior to provisioning.
+  - Automatically restores pre-run configuration files and deletes newly created `.env.production` if an unhandled error occurs during provisioning.
+- **Post-Deployment Edge Verification & Health Check (`scripts/setup.mjs`)**:
+  - Implemented `verifyDeployment()` issuing manual-redirect `HEAD` requests to the Public Site (200/301/302), Admin UI (200/302), and Admin API `/api/me` (200/302/401) with status reporting.
+- **Dead Code Cleanup & Exports (`scripts/setup.mjs`)**:
+  - Removed obsolete readline functions `promptInput` and `promptYesNo`.
+  - Exported all new helper functions for unit testability.
+- **Comprehensive Vitest Suite (`tests/setup-script.test.js`)**:
+  - Added 19 unit test cases covering argument parsing, toolchain preflight checks, doctor report printing, backup/rollback filesystem operations, and deployment health check responses (total 91 tests passing).
+
 ### Setup Experience & Security Hardening (P0 Remediation)
 - **Zero Trust Fail-Closed Authentication (`packages/admin-api-worker/src/auth.rs`)**:
   - Enforced strict fail-closed authentication: requests in non-dev and non-test environments immediately fail with `HTTP 401 Unauthorized` if either `CF_ACCESS_AUD` or `CF_ACCESS_TEAM_DOMAIN` is empty or unconfigured.

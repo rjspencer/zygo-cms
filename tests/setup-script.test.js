@@ -21,7 +21,13 @@ import {
   updateAdminApiZoneVar,
   applyRemoteMigrations,
   deriveDefaultTeamSlug,
-  ensureZeroTrustOrganization
+  ensureZeroTrustOrganization,
+  parseCliArgs,
+  runPreflightChecks,
+  printPreflightReport,
+  backupConfigs,
+  rollbackConfigs,
+  verifyDeployment
 } from '../scripts/setup.mjs';
 
 describe('Setup Script Helpers', () => {
@@ -1376,6 +1382,360 @@ describe('Setup Script Helpers', () => {
       expect(rootWrangler).not.toContain('488417e7-4ad1-4875-90e9-71a0ac3dbc63');
       expect(rootWrangler).not.toContain('zygodactylstudios.com');
       expect(rootWrangler).toContain('database_id = ""');
+    });
+  });
+
+  describe('parseCliArgs', () => {
+    it('returns default flag values and isInteractive=true when called with empty args', () => {
+      const { flags, isInteractive } = parseCliArgs([]);
+      expect(flags.doctor).toBe(false);
+      expect(flags.yes).toBe(false);
+      expect(flags['dry-run']).toBe(false);
+      expect(flags['no-deploy']).toBe(false);
+      expect(flags['public-subdomain']).toBe('www');
+      expect(flags['admin-ui-subdomain']).toBe('admin');
+      expect(flags['admin-api-subdomain']).toBe('api');
+      expect(flags['apex-handling']).toBe('redirect_to_sub');
+      expect(flags['skip-access']).toBe(false);
+      expect(isInteractive).toBe(true);
+    });
+
+    it('sets flags.yes to true and isInteractive to false when -y short flag is passed', () => {
+      const { flags, isInteractive } = parseCliArgs(['-y']);
+      expect(flags.yes).toBe(true);
+      expect(isInteractive).toBe(false);
+    });
+
+    it('sets flags.doctor to true and isInteractive to false when --doctor is passed', () => {
+      const { flags, isInteractive } = parseCliArgs(['--doctor']);
+      expect(flags.doctor).toBe(true);
+      expect(isInteractive).toBe(false);
+    });
+
+    it('sets flags["dry-run"] to true and isInteractive to false when --dry-run is passed', () => {
+      const { flags, isInteractive } = parseCliArgs(['--dry-run']);
+      expect(flags['dry-run']).toBe(true);
+      expect(isInteractive).toBe(false);
+    });
+
+    it('parses all long flags correctly', () => {
+      const args = [
+        '--doctor',
+        '--dry-run',
+        '--no-deploy',
+        '--domain', 'example.com',
+        '--email', 'test@test.com',
+        '--account-id', '12345',
+        '--token', 'mytoken',
+        '--public-subdomain', 'blog',
+        '--admin-ui-subdomain', 'cpanel',
+        '--admin-api-subdomain', 'backend',
+        '--apex-handling', 'redirect_to_apex',
+        '--team-name', 'myteam',
+        '--bot-fight-mode',
+        '--security-level', 'high',
+        '--skip-access'
+      ];
+      const { flags } = parseCliArgs(args);
+      expect(flags.doctor).toBe(true);
+      expect(flags['dry-run']).toBe(true);
+      expect(flags['no-deploy']).toBe(true);
+      expect(flags.domain).toBe('example.com');
+      expect(flags.email).toBe('test@test.com');
+      expect(flags['account-id']).toBe('12345');
+      expect(flags.token).toBe('mytoken');
+      expect(flags['public-subdomain']).toBe('blog');
+      expect(flags['admin-ui-subdomain']).toBe('cpanel');
+      expect(flags['admin-api-subdomain']).toBe('backend');
+      expect(flags['apex-handling']).toBe('redirect_to_apex');
+      expect(flags['team-name']).toBe('myteam');
+      expect(flags['bot-fight-mode']).toBe(true);
+      expect(flags['security-level']).toBe('high');
+      expect(flags['skip-access']).toBe(true);
+    });
+
+    it('keeps isInteractive as true when non-terminating configuration flags are passed without -y, --doctor, or --dry-run', () => {
+      const { flags, isInteractive } = parseCliArgs(['--domain', 'example.com', '--email', 'test@test.com']);
+      expect(flags.domain).toBe('example.com');
+      expect(flags.email).toBe('test@test.com');
+      expect(isInteractive).toBe(true);
+    });
+  });
+
+  describe('runPreflightChecks', () => {
+    it('verifies Node major version >= 22', async () => {
+      const checks = await runPreflightChecks({}, { exec: vi.fn(), fetchFn: vi.fn() });
+      const nodeCheck = checks.find(c => /node/i.test(c.name));
+      expect(nodeCheck).toBeDefined();
+      expect(nodeCheck.ok).toBe(true);
+      expect(nodeCheck.critical).toBe(true);
+    });
+
+    it('passes toolchain checks when pnpm, rust wasm32, and worker-build are valid', async () => {
+      const mockExec = vi.fn().mockImplementation((cmd) => {
+        if (/pnpm/i.test(cmd)) return '11.0.0\n';
+        if (/rustup/i.test(cmd)) return 'wasm32-unknown-unknown (installed)\naarch64-apple-darwin (installed)\n';
+        if (/worker-build/i.test(cmd)) return 'worker-build 0.2.0\n';
+        return '';
+      });
+
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn() });
+
+      const pnpmCheck = checks.find(c => /pnpm/i.test(c.name));
+      expect(pnpmCheck).toBeDefined();
+      expect(pnpmCheck.ok).toBe(true);
+
+      const rustCheck = checks.find(c => /rust|wasm32/i.test(c.name));
+      expect(rustCheck).toBeDefined();
+      expect(rustCheck.ok).toBe(true);
+
+      const workerBuildCheck = checks.find(c => /worker-build/i.test(c.name));
+      expect(workerBuildCheck).toBeDefined();
+      expect(workerBuildCheck.ok).toBe(true);
+    });
+
+    it('marks pnpm check critical: true and ok: false when pnpm version is outdated or throws', async () => {
+      const mockExecOld = vi.fn().mockImplementation((cmd) => {
+        if (/pnpm/i.test(cmd)) return '9.1.0\n';
+        return '';
+      });
+
+      const checksOld = await runPreflightChecks({}, { exec: mockExecOld, fetchFn: vi.fn() });
+      const pnpmCheckOld = checksOld.find(c => /pnpm/i.test(c.name));
+      expect(pnpmCheckOld).toBeDefined();
+      expect(pnpmCheckOld.ok).toBe(false);
+      expect(pnpmCheckOld.critical).toBe(true);
+      expect(pnpmCheckOld.fix).toBeDefined();
+
+      const mockExecThrow = vi.fn().mockImplementation((cmd) => {
+        if (/pnpm/i.test(cmd)) throw new Error('pnpm: command not found');
+        return '';
+      });
+
+      const checksThrow = await runPreflightChecks({}, { exec: mockExecThrow, fetchFn: vi.fn() });
+      const pnpmCheckThrow = checksThrow.find(c => /pnpm/i.test(c.name));
+      expect(pnpmCheckThrow).toBeDefined();
+      expect(pnpmCheckThrow.ok).toBe(false);
+      expect(pnpmCheckThrow.critical).toBe(true);
+    });
+
+    it('marks rust wasm32 check ok: false and critical: true with fix command when wasm32 target is missing', async () => {
+      const mockExec = vi.fn().mockImplementation((cmd) => {
+        if (/rustup/i.test(cmd)) return 'aarch64-apple-darwin (installed)\n';
+        return '';
+      });
+
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn() });
+      const rustCheck = checks.find(c => /rust|wasm32/i.test(c.name));
+      expect(rustCheck).toBeDefined();
+      expect(rustCheck.ok).toBe(false);
+      expect(rustCheck.critical).toBe(true);
+      expect(rustCheck.fix).toContain('wasm32-unknown-unknown');
+    });
+
+    it('marks worker-build check ok: false when worker-build throws error or missing', async () => {
+      const mockExec = vi.fn().mockImplementation((cmd) => {
+        if (/worker-build/i.test(cmd)) throw new Error('worker-build: command not found');
+        return '';
+      });
+
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn() });
+      const workerBuildCheck = checks.find(c => /worker-build/i.test(c.name));
+      expect(workerBuildCheck).toBeDefined();
+      expect(workerBuildCheck.ok).toBe(false);
+      expect(workerBuildCheck.critical).toBe(true);
+      expect(workerBuildCheck.fix).toBeDefined();
+    });
+
+    it('validates Cloudflare account ID when present in config', async () => {
+      const checks = await runPreflightChecks({ accountId: '12345' }, { exec: vi.fn(), fetchFn: vi.fn() });
+      const accCheck = checks.find(c => /account/i.test(c.name));
+      expect(accCheck).toBeDefined();
+      expect(accCheck.ok).toBe(true);
+      expect(accCheck.detail).toContain('12345');
+    });
+
+    it('resolves zone lookup successfully when apiToken and domain are provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          result: [{ id: 'zone-xyz-789', name: 'example.com' }]
+        })
+      });
+
+      const checks = await runPreflightChecks(
+        { apiToken: 'mytoken', domain: 'example.com' },
+        { exec: vi.fn(), fetchFn: mockFetch }
+      );
+
+      const zoneCheck = checks.find(c => /zone/i.test(c.name));
+      expect(zoneCheck).toBeDefined();
+      expect(zoneCheck.ok).toBe(true);
+      expect(zoneCheck.detail).toContain('zone-xyz-789');
+    });
+
+    it('marks zone check ok: false when zone lookup fails', async () => {
+      const mockFetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ success: false, errors: [{ message: 'Forbidden' }] })
+      });
+
+      const checks = await runPreflightChecks(
+        { apiToken: 'badtoken', domain: 'example.com' },
+        { exec: vi.fn(), fetchFn: mockFetch }
+      );
+
+      const zoneCheck = checks.find(c => /zone/i.test(c.name));
+      expect(zoneCheck).toBeDefined();
+      expect(zoneCheck.ok).toBe(false);
+    });
+  });
+
+  describe('printPreflightReport', () => {
+    it('formats and outputs preflight report without throwing', () => {
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const checks = [
+        { name: 'Node.js LTS (v22+)', ok: true, detail: 'v22.12.0', critical: true },
+        { name: 'pnpm (v11+)', ok: false, detail: 'v9.0.0', fix: 'npm i -g pnpm@latest', critical: true }
+      ];
+
+      expect(() => printPreflightReport(checks)).not.toThrow();
+      expect(logSpy).toHaveBeenCalled();
+      const output = logSpy.mock.calls.map(c => c.join(' ')).join('\n');
+      expect(output).toContain('Node.js');
+      expect(output).toContain('pnpm');
+      logSpy.mockRestore();
+    });
+  });
+
+  describe('backupConfigs and rollbackConfigs', () => {
+    const tmpBackupDir = path.resolve('tests/mocks/backup-rollback-test');
+
+    beforeEach(() => {
+      fs.mkdirSync(tmpBackupDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      fs.rmSync(tmpBackupDir, { recursive: true, force: true });
+    });
+
+    it('snapshots configs and successfully rolls back modifications and newly created files', () => {
+      const pubDir = path.join(tmpBackupDir, 'packages/public-worker');
+      const apiDir = path.join(tmpBackupDir, 'packages/admin-api-worker');
+      const uiDir = path.join(tmpBackupDir, 'packages/admin-ui');
+
+      fs.mkdirSync(pubDir, { recursive: true });
+      fs.mkdirSync(apiDir, { recursive: true });
+      fs.mkdirSync(uiDir, { recursive: true });
+
+      const pubFile = path.join(pubDir, 'wrangler.toml');
+      const apiFile = path.join(apiDir, 'wrangler.toml');
+      const uiFile = path.join(uiDir, 'wrangler.toml');
+      const envFile = path.join(uiDir, '.env.production');
+
+      fs.writeFileSync(pubFile, 'original-public-toml', 'utf8');
+      fs.writeFileSync(apiFile, 'original-api-toml', 'utf8');
+      fs.writeFileSync(uiFile, 'original-ui-toml', 'utf8');
+      // envFile is intentionally left absent
+
+      // Take backup
+      const backups = backupConfigs(tmpBackupDir);
+
+      const getVal = (rel) => {
+        if (backups instanceof Map) {
+          return backups.get(rel) ?? backups.get(path.join(tmpBackupDir, rel));
+        }
+        return backups[rel] ?? backups[path.join(tmpBackupDir, rel)];
+      };
+
+      expect(getVal('packages/public-worker/wrangler.toml')).toBe('original-public-toml');
+      expect(getVal('packages/admin-api-worker/wrangler.toml')).toBe('original-api-toml');
+      expect(getVal('packages/admin-ui/wrangler.toml')).toBe('original-ui-toml');
+      expect(getVal('packages/admin-ui/.env.production')).toBeNull();
+
+      // Mutate files and create .env.production
+      fs.writeFileSync(pubFile, 'mutated-public-toml', 'utf8');
+      fs.writeFileSync(apiFile, 'mutated-api-toml', 'utf8');
+      fs.writeFileSync(uiFile, 'mutated-ui-toml', 'utf8');
+      fs.writeFileSync(envFile, 'VITE_API_BASE_URL=https://mutated.com', 'utf8');
+
+      expect(fs.readFileSync(pubFile, 'utf8')).toBe('mutated-public-toml');
+      expect(fs.existsSync(envFile)).toBe(true);
+
+      // Rollback
+      rollbackConfigs(backups, tmpBackupDir);
+
+      // Verify files are restored
+      expect(fs.readFileSync(pubFile, 'utf8')).toBe('original-public-toml');
+      expect(fs.readFileSync(apiFile, 'utf8')).toBe('original-api-toml');
+      expect(fs.readFileSync(uiFile, 'utf8')).toBe('original-ui-toml');
+      // Verify .env.production is deleted because it was not in the original snapshot
+      expect(fs.existsSync(envFile)).toBe(false);
+    });
+
+    it('restores .env.production if it existed prior to backup', () => {
+      const uiDir = path.join(tmpBackupDir, 'packages/admin-ui');
+      fs.mkdirSync(uiDir, { recursive: true });
+      const envFile = path.join(uiDir, '.env.production');
+      fs.writeFileSync(envFile, 'ORIGINAL_ENV_VAR=123', 'utf8');
+
+      const backups = backupConfigs(tmpBackupDir);
+      fs.writeFileSync(envFile, 'MUTATED_ENV_VAR=456', 'utf8');
+
+      rollbackConfigs(backups, tmpBackupDir);
+      expect(fs.readFileSync(envFile, 'utf8')).toBe('ORIGINAL_ENV_VAR=123');
+    });
+  });
+
+  describe('verifyDeployment', () => {
+    const config = {
+      domain: 'example.com',
+      adminUiSubdomain: 'admin',
+      adminApiSubdomain: 'api'
+    };
+
+    it('marks all endpoints as ok: true when receiving expected HTTP status codes (200 public, 302 admin ui, 401 admin api)', async () => {
+      const mockFetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('admin.example.com')) {
+          return Promise.resolve({ status: 302, ok: true });
+        }
+        if (url.includes('api.example.com')) {
+          return Promise.resolve({ status: 401, ok: false });
+        }
+        return Promise.resolve({ status: 200, ok: true });
+      });
+
+      const results = await verifyDeployment(config, { fetchFn: mockFetch });
+      expect(results).toHaveLength(3);
+
+      const publicCheck = results.find(r => /public/i.test(r.name));
+      expect(publicCheck).toBeDefined();
+      expect(publicCheck.ok).toBe(true);
+
+      const uiCheck = results.find(r => /admin ui/i.test(r.name));
+      expect(uiCheck).toBeDefined();
+      expect(uiCheck.ok).toBe(true);
+
+      const apiCheck = results.find(r => /admin api/i.test(r.name));
+      expect(apiCheck).toBeDefined();
+      expect(apiCheck.ok).toBe(true);
+    });
+
+    it('marks endpoints as ok: false on HTTP 500 error or network rejection without throwing unhandled error', async () => {
+      const mockFetch = vi.fn().mockImplementation((url) => {
+        if (url.includes('api.example.com')) {
+          return Promise.reject(new Error('Network connection refused'));
+        }
+        return Promise.resolve({ status: 500, ok: false });
+      });
+
+      const results = await expect(verifyDeployment(config, { fetchFn: mockFetch })).resolves.not.toThrow();
+      expect(results).toBeDefined();
+      expect(results.length).toBeGreaterThan(0);
+      results.forEach(res => {
+        expect(res.ok).toBe(false);
+      });
     });
   });
 });
