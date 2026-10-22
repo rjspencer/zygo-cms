@@ -67,20 +67,24 @@ cd my-zygo-site
 pnpm run dev
 ```
 
-`create-zygo-app` automatically downloads the starter template, strips internal files, sanitizes `wrangler.toml` configurations, configures local `.dev.vars`, installs dependencies, builds the Rust WebAssembly workers and Admin UI, and initializes your local D1 database.
+`create-zygo-app` automatically downloads the pre-compiled starter template from the `release` branch, strips internal files, sanitizes `wrangler.toml` configurations, configures local `.dev.vars`, installs dependencies, builds the Admin UI, and initializes your local D1 database.
 
 ### 1. Prerequisites
 
+Zygo CMS supports a **zero-Rust setup** for standard website creation, theme styling, and content editing thanks to pre-built WebAssembly distribution (see [Pre-Built Wasm Distribution Guide](./docs/official/wasm-distribution.md)).
+
+#### For Standard Users, Site Operators & Designers
+If you scaffolded with `create-zygo-app` or are working with templates, themes, and content:
+- **Node.js** (v22 or higher) & **pnpm** (v11 or higher) are the **only** required prerequisites.
+- Cloudflare Wrangler (installed locally or via `pnpm add -g wrangler`).
+
+#### For Rust & Worker Contributors (Optional)
+A Rust toolchain and compiler tools are **only required** if you are modifying backend worker code in `packages/core/`, `packages/public-worker/`, `packages/admin-api-worker/`, or `packages/template-wasm/`:
 - [Rust](https://rustup.rs/) (stable toolchain)
-- Node.js & pnpm
-- Cloudflare Wrangler:
-  ```bash
-  pnpm add -g wrangler
-  ```
-- Rust WebAssembly target and worker builder:
+- WebAssembly target & builders:
   ```bash
   rustup target add wasm32-unknown-unknown
-  cargo install worker-build
+  cargo install worker-build wasm-pack
   ```
 
 ### 2. Apply Local Migrations
@@ -242,11 +246,17 @@ npx wrangler d1 migrations apply zygo-cms-db --remote
 
 #### 4. Build and Deploy All Workers
 
-Compile the Rust WebAssembly binaries, build the Admin UI SPA, and deploy to Cloudflare:
+Compile or package WebAssembly binaries, build the Admin UI SPA, and deploy to Cloudflare:
 
 ```bash
-# Build all 3 packages
+# Build packages (uses pre-built Wasm if present; builds Admin UI)
 pnpm run build
+
+# Compile all Rust workers and template-wasm (requires Rust & worker-build)
+pnpm run build:rust
+
+# Compile template-wasm only (requires wasm-pack)
+pnpm run build:wasm
 
 # Deploy all 3 workers
 pnpm run deploy

@@ -11,7 +11,9 @@ All core lifecycle commands are executed from the repository root via `pnpm`:
 | Command | Description | Ports / Targets |
 | :--- | :--- | :--- |
 | `pnpm run dev` | Boots all three local services concurrently | API `:8787`, Public `:8788`, UI `:5173` |
-| `pnpm run build` | Compiles Rust workers to Wasm and builds Vite UI | `packages/*` |
+| `pnpm run build` | Smart build runner (auto-detects pre-built Wasm; compiles Rust if available/needed) | `packages/*` |
+| `pnpm run build:rust` | Compiles all Rust WebAssembly workers and template-wasm | `packages/*-worker`, `template-wasm` |
+| `pnpm run build:wasm` | Compiles template-wasm with wasm-pack | `packages/template-wasm/pkg` |
 | `pnpm run db:migrate:local` | Applies all D1 SQLite migrations to local `.wrangler/state` | Local SQLite state |
 | `pnpm run db:migrate` | Applies all D1 SQLite migrations to remote Cloudflare D1 | Remote D1 database |
 | `pnpm run db:reset` | Wipes and re-initializes the local SQLite database schema | Local `.wrangler/state` |
@@ -22,6 +24,17 @@ All core lifecycle commands are executed from the repository root via `pnpm`:
 | `pnpm run seed:theme-preview` | Seeds default themes and section templates into D1 | D1 `templates` table |
 | `pnpm run test:all` | Runs the full Vitest suite across workers, UI, and E2E | Node / Vitest |
 | `cargo test` | Runs native Rust unit and integration test suites | Rust / Cargo |
+
+### Build Script Flags & Advanced Options
+When invoking the build runner via Node, specific flags can control Rust compilation behavior:
+
+| Invocation | Behavior |
+| :--- | :--- |
+| `node scripts/build.mjs --force-rust` | Force recompilation of Rust workers and `template-wasm` before building UI |
+| `node scripts/build.mjs --skip-rust` | Force skip Rust recompilation and proceed directly to UI build |
+| `node scripts/build.mjs` | Default smart mode: auto-detects pre-built Wasm; compiles Rust only if needed and toolchain is installed |
+
+For detailed documentation on the pre-compiled WebAssembly distribution model, see the [Pre-Built Wasm Distribution Guide](./wasm-distribution.md).
 
 ---
 

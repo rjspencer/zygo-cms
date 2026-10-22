@@ -1,0 +1,88 @@
+name: Build & Publish Release Branch
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch to push pre-compiled Wasm snapshot to'
+        required: true
+        default: 'release'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install worker-build
+        run: cargo install worker-build --locked
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install JS Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Run Test Suites & Quality Gates
+        run: |
+          cargo test --lib
+          pnpm --filter template-wasm run build
+          pnpm run build:api
+          pnpm run build:public
+          pnpm --filter admin-ui exec tsc --noEmit
+          pnpm run test
+
+      - name: Verify Pre-Compiled Artifacts Exist
+        run: |
+          test -f packages/public-worker/build/index.js || { echo "Missing public-worker build"; exit 1; }
+          test -f packages/admin-api-worker/build/index.js || { echo "Missing admin-api-worker build"; exit 1; }
+          test -f packages/template-wasm/pkg/template_wasm.js || { echo "Missing template-wasm pkg"; exit 1; }
+
+      - name: Commit & Force-Push Pre-Compiled Release Snapshot
+        env:
+          TARGET_BRANCH: ${{ github.event.inputs.target_branch || 'release' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # worker-build and wasm-pack place .gitignore files in build/ and pkg/ that ignore everything.
+          # Remove those local .gitignore files so git tracks the compiled Wasm bundles on release.
+          rm -f packages/public-worker/build/.gitignore
+          rm -f packages/admin-api-worker/build/.gitignore
+          rm -f packages/template-wasm/pkg/.gitignore
+          
+          git checkout -B "$TARGET_BRANCH"
+          git add -f packages/public-worker/build packages/admin-api-worker/build packages/template-wasm/pkg
+          
+          # If a tag triggered this, include the tag in commit message
+          COMMIT_MSG="chore(release): pre-compiled wasm snapshot for ${GITHUB_REF_NAME:-manual-dispatch} [skip ci]"
+          git commit -m "$COMMIT_MSG"
+          git push origin "$TARGET_BRANCH" --force
