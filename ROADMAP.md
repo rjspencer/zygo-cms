@@ -7,19 +7,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 ## 1. Immediate Priority
 
 ### Setup Experience & Onboarding Remediation
-- **Goal**: Resolve critical setup script bugs, security vulnerabilities (fail-open Access AUD), cross-platform Windows/Linux blocks, and documentation discrepancies identified during the new-user setup review.
-- **Audit**: [`docs/audits/setup-review/SUMMARY.md`](docs/audits/setup-review/SUMMARY.md) (Full reports: [`1-docs.md`](docs/audits/setup-review/1-docs.md), [`2-script-ux.md`](docs/audits/setup-review/2-script-ux.md), [`3-script-accuracy.md`](docs/audits/setup-review/3-script-accuracy.md), [`4-opportunities.md`](docs/audits/setup-review/4-opportunities.md), [`5-content.md`](docs/audits/setup-review/5-content.md))
-- **Key Tasks**:
-  - **Onboarding Content & Production**:
-    - [ ] **Core Onboarding Video Production**: Produce Video 1 ("Zero to Live Site in 5 Minutes") and Video 2 ("Cloudflare Access & Zero Trust Setup") per scripts in `docs/audits/setup-review/5-content.md`.
-
-### Pre-Built Wasm Distribution & CI-Managed `release` Branch
-- **Goal**: Enable non-developers to scaffold, run, and deploy Zygo CMS without installing Rust (`rustup`, `cargo`, `worker-build`, `wasm-pack`) locally, while keeping daily CI build minutes low.
-- **Spec**: [`docs/specs/prebuilt_wasm_release_spec.md`](docs/specs/prebuilt_wasm_release_spec.md)
-- **Details**:
-  - Maintain `main` as the single human-authored branch (with `build/` and `pkg/` ignored).
-  - Add a tag/dispatch-triggered GitHub Action (`.github/workflows/release.yml`) that compiles `public-worker/build`, `admin-api-worker/build`, and `template-wasm/pkg` in `--release` mode and force-pushes the verified snapshot to a CI-owned `release` branch.
-  - Point `create-zygo-app` to clone `release` by default and preserve pre-built Wasm bundles so end users only need Node.js (`npx` / `pnpm`).
 
 ---
 

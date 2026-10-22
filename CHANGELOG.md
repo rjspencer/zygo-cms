@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Pre-Built Wasm Distribution & CI-Managed `release` Branch
+- **Smart Build Runner (`scripts/build.mjs`, `package.json`)**:
+  - Implemented `scripts/build.mjs` to auto-detect pre-compiled Wasm artifacts (`packages/public-worker/build/index.js`, `packages/admin-api-worker/build/index.js`, `packages/template-wasm/pkg/template_wasm.js`).
+  - Defaults to using pre-built Wasm for non-developers and content creators, bypassing Rust compiler invocations and building the Admin UI directly.
+  - Added `--force-rust` and `--skip-rust` CLI options and separate `"build:rust"` / `"build:wasm"` scripts for backend Rust contributors.
+  - Added comprehensive toolchain check for `cargo`, `worker-build`, and `wasm-pack`.
+- **Scaffolder Dual-Branch Alignment (`packages/create-zygo-app/index.mjs`)**:
+  - Updated `DEFAULT_BRANCH` to `'release'` so `npx create-zygo-app` clones pre-compiled Wasm bundles by default.
+  - Updated `copyTemplateDirectory` filtering to safely preserve `packages/public-worker/build`, `packages/admin-api-worker/build`, and `packages/template-wasm/pkg` during local template copying while ignoring transient files.
+  - Updated `runBootstrapSteps` to execute `pnpm run build` directly via `scripts/build.mjs`.
+  - Standardized output messaging and Admin UI local port on `http://localhost:5173/`.
+- **GitHub Actions Release Automation & PR Path Filtering (`.github/workflows/release.yml`, `.github/workflows/deploy.yml`)**:
+  - Authored `.github/workflows/release.yml` triggered on semantic version tags (`v*.*.*`) and manual `workflow_dispatch`. Runs quality gates, compiles release Wasm bundles, clears inner `.gitignore` files, and force-pushes pre-built artifacts to `origin/release` with `[skip ci]`.
+  - Hardened workflow against script injection by passing step inputs via environment variables.
+  - Added path filtering to `.github/workflows/deploy.yml` on pull requests to avoid unnecessary worker compilation when only docs or markdown are modified.
+- **Unit Test Coverage (`tests/build-script.test.js`, `tests/create-zygo-app.test.js`)**:
+  - Added 20 new Vitest unit tests in `tests/build-script.test.js` covering argument parsing, artifact detection, toolchain validation (`cargo`, `worker-build`, `wasm-pack`), execution scenarios, and error states.
+  - Updated 15 unit tests in `tests/create-zygo-app.test.js` covering the `'release'` branch, bootstrap commands, and pre-built Wasm directory preservation.
+- **Documentation & User Guide (`docs/official/wasm-distribution.md`, `README.md`, `docs/official/quickstart.md`, `docs/official/cli-cheat-sheet.md`)**:
+  - Authored Guide (`docs/official/wasm-distribution.md`) explaining how to run and operate the system across End User (Zero-Rust), Contributor (Rust compilation), and Maintainer (release cutting & verification) personas.
+  - Clarified prerequisites across `README.md` and `quickstart.md`.
+
 ### Setup Wizard DNS Pre-Flight Conflict Check (`scripts/setup.mjs`, `tests/setup-script.test.js`, `docs/domain-and-dns-setup.md`)
 - **Automated DNS Conflict Detection & Remediation (`scripts/setup.mjs`)**:
   - Implemented `getTargetHostnames()` to determine all target custom domain hostnames (`public`, `admin`, `api`, and conditional apex) based on user configuration and `apexHandling`.

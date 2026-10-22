@@ -4,12 +4,18 @@ Get up and running with Zygo CMS on your local machine in minutes. This guide wa
 
 ## Prerequisites
 
-Before you begin, ensure your development environment is properly configured with the following tools:
+Zygo CMS features a **zero-Rust onboarding path** for site operators, designers, and content editors. Thanks to pre-compiled WebAssembly worker distribution, you can run, build, and deploy a complete CMS site using only Node.js and pnpm.
 
-- **[Node.js](https://nodejs.org/)** (v18 or higher): The JavaScript runtime used for our frontend tooling and scripts.
-- **[pnpm](https://pnpm.io/)**: Our preferred package manager. It is fast and disk-space efficient.
-- **[Rust & Cargo](https://rustup.rs/)**: Required for compiling the Cloudflare Workers backend, which is written in Rust using `worker-rs`.
-- **[Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing and deploying Workers and D1 databases.
+### Standard Setup (Zero-Rust)
+- **[Node.js](https://nodejs.org/)** (v22 or higher): JavaScript runtime for scripts and frontend tooling.
+- **[pnpm](https://pnpm.io/)** (v11 or higher): Fast, disk-efficient package manager.
+- **[Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing Workers and D1 databases (run via `npx wrangler` or installed globally).
+
+### Rust Worker Development (Optional)
+A Rust toolchain is **only required** if you plan to modify the backend Rust worker code (`packages/core/`, `packages/public-worker/`, `packages/admin-api-worker/`, or `packages/template-wasm/`). For details, see the [Pre-Built Wasm Distribution Guide](./wasm-distribution.md).
+- **[Rust & Cargo](https://rustup.rs/)** (stable toolchain)
+- `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
+- `worker-build` & `wasm-pack` (`cargo install worker-build wasm-pack`)
 
 ## 1. Installation
 
@@ -76,4 +82,4 @@ If you run into issues during the quickstart process, consider these common solu
 
 - **Address in Use (Port Conflict)**: If you see an error about `EADDRINUSE`, ensure ports `8787`, `8788`, and `5173` are not occupied by other applications. You can terminate orphaned Wrangler processes or modify the dev script ports if necessary.
 - **Database Errors (No Such Table)**: If the Admin UI throws a "table not found" or 500 error on your first visit, verify that you successfully ran `pnpm run db:migrate:local`.
-- **Rust Compilation Failures**: If Cargo fails to build the workers, ensure your Rust toolchain is up-to-date by running `rustup update`. Additionally, verify that `worker-build` is installed (`cargo install worker-build`) and target `wasm32-unknown-unknown` is added.
+- **Rust Compilation Failures (Contributors Only)**: If you are building workers from source and Cargo fails, ensure your Rust toolchain is up-to-date by running `rustup update`. Additionally, verify that `worker-build` and `wasm-pack` are installed (`cargo install worker-build wasm-pack`) and target `wasm32-unknown-unknown` is added. If you do not intend to modify Rust code, you can use the zero-Rust setup by scaffolding with `npx create-zygo-app` (which uses pre-compiled Wasm from the `release` branch).
