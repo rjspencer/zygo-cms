@@ -9,7 +9,7 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_REPO = 'rjspencer/zygo-cms';
-const DEFAULT_BRANCH = 'main';
+const DEFAULT_BRANCH = 'release';
 const PLACEHOLDER_DB_ID = '00000000-0000-0000-0000-000000000000';
 
 const STRIP_PATHS = [
@@ -52,6 +52,27 @@ const COPY_IGNORE_DIRS = new Set([
   '.worktrees',
   'storybook-static',
 ]);
+
+const PRESERVED_COPY_DIRS = new Set([
+  'packages/public-worker/build',
+  'packages/admin-api-worker/build',
+  'packages/template-wasm/pkg',
+]);
+
+function shouldIgnoreDirectory(dirName, relPathFromRoot) {
+  if (PRESERVED_COPY_DIRS.has(relPathFromRoot)) {
+    return false;
+  }
+  for (const preserved of PRESERVED_COPY_DIRS) {
+    if (relPathFromRoot.startsWith(`${preserved}/`)) {
+      if (dirName === '.git' || dirName === 'node_modules') {
+        return true;
+      }
+      return false;
+    }
+  }
+  return COPY_IGNORE_DIRS.has(dirName);
+}
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {
@@ -148,19 +169,20 @@ function isTargetDirAvailable(targetDir) {
   return { available: true };
 }
 
-function copyTemplateDirectory(srcDir, destDir) {
+function copyTemplateDirectory(srcDir, destDir, rootSrcDir = srcDir) {
   fs.mkdirSync(destDir, { recursive: true });
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
 
   for (const entry of entries) {
     if (entry.name === '.DS_Store') continue;
-    if (entry.isDirectory() && COPY_IGNORE_DIRS.has(entry.name)) continue;
 
     const srcPath = path.join(srcDir, entry.name);
     const destPath = path.join(destDir, entry.name);
+    const relFromRoot = path.relative(rootSrcDir, srcPath).replace(/\\/g, '/');
 
     if (entry.isDirectory()) {
-      copyTemplateDirectory(srcPath, destPath);
+      if (shouldIgnoreDirectory(entry.name, relFromRoot)) continue;
+      copyTemplateDirectory(srcPath, destPath, rootSrcDir);
     } else if (entry.isFile() || entry.isSymbolicLink()) {
       fs.copyFileSync(srcPath, destPath);
     }
@@ -333,10 +355,9 @@ function runBootstrapSteps(targetDir, options = {}, execFn = execSync, onStep = 
   }
 
   if (!options.skipBuild) {
-    notify('start', 'Building Rust Wasm workers and Admin UI...');
-    execFn('pnpm --filter template-wasm run build', { cwd: targetDir, stdio: 'pipe' });
+    notify('start', 'Building project assets and Admin UI...');
     execFn('pnpm run build', { cwd: targetDir, stdio: 'pipe' });
-    notify('stop', '✓ Built Wasm workers and Admin UI');
+    notify('stop', '✓ Built project assets and Admin UI');
   }
 
   if (!options.skipDb) {
@@ -418,7 +439,7 @@ ${pc.bold('Options:')}
   --repo <owner/repo>     GitHub repository to fetch (default: ${DEFAULT_REPO})
   --branch <branch>       Git branch to fetch (default: ${DEFAULT_BRANCH})
   --skip-install          Skip running pnpm install
-  --skip-build            Skip building Wasm workers and Admin UI
+  --skip-build            Skip building project assets and Admin UI
   --skip-db               Skip applying local D1 database migrations
   --skip-git              Skip initializing a Git repository
   -y, --yes               Skip interactive confirmation prompts
@@ -493,7 +514,7 @@ async function main() {
 
     if (!options.skipBuild) {
       const buildAns = await confirm({
-        message: 'Build Rust Wasm workers and Admin UI during setup?',
+        message: 'Build project assets and Admin UI during setup?',
         initialValue: true,
       });
       if (isCancel(buildAns)) {
@@ -533,13 +554,13 @@ async function main() {
       `${pc.bold('Next steps:')}\n` +
       `  ${pc.cyan(`cd ${relDir}`)}\n` +
       (options.skipInstall ? `  ${pc.cyan('pnpm install')}\n` : '') +
-      (options.skipBuild ? `  ${pc.cyan('pnpm --filter template-wasm run build && pnpm run build')}\n` : '') +
+      (options.skipBuild ? `  ${pc.cyan('pnpm run build')}\n` : '') +
       (options.skipDb ? `  ${pc.cyan('pnpm run db:migrate:local')}\n` : '') +
       `  ${pc.cyan('pnpm run dev')}\n\n` +
       `${pc.bold('Local services:')}\n` +
       `  • Public Site:   http://localhost:8788/\n` +
       `  • Admin API:     http://localhost:8787/api\n` +
-      `  • Admin UI:      http://localhost:3000/\n\n` +
+      `  • Admin UI:      http://localhost:5173/\n\n` +
       `${pc.dim('When you are ready to deploy to Cloudflare production, run:')} ${pc.cyan('pnpm run setup')}`
   );
 }
@@ -554,6 +575,9 @@ export {
   DEFAULT_BRANCH,
   PLACEHOLDER_DB_ID,
   STRIP_PATHS,
+  COPY_IGNORE_DIRS,
+  PRESERVED_COPY_DIRS,
+  shouldIgnoreDirectory,
   parseArgs,
   normalizePackageName,
   validateProjectName,
