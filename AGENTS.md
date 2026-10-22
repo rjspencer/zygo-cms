@@ -4,10 +4,11 @@ Architecture map: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Package-specif
 
 ## 1. Packages
 
-- `packages/public-worker`: Public SSR worker (Rust + Askama + D1 cache).
+- `packages/public-worker`: Public SSR worker (Rust + MiniJinja + D1 cache).
 - `packages/admin-api-worker`: Authenticated REST API worker (Rust + Cloudflare Access + D1 + R2).
 - `packages/admin-ui`: Admin SPA (React 19 + Vite + Radix Themes).
 - `packages/core`: Shared Rust models, errors, validation (`zygo-core`).
+- `packages/template-wasm`: Section template rendering compiled to Wasm for live preview in admin-ui.
 - `packages/zygo-mcp`: MCP server bridge for external AI agents.
 - `migrations/`: D1 SQL migrations.
 

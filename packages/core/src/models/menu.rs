@@ -36,7 +36,7 @@ pub fn render_menu_html(items: &[MenuItem], depth: usize) -> String {
         return String::new();
     }
     
-    // We use a basic HTML builder. Askama is used for the main shell.
+    // We use a basic HTML builder. MiniJinja is used for the main shell.
     let mut html = String::from(r#"<ul class="nav-menu">"#);
     for item in items {
         let title = item.title.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&#x27;");

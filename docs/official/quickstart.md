@@ -9,7 +9,7 @@ Before you begin, ensure your development environment is properly configured wit
 - **[Node.js](https://nodejs.org/)** (v18 or higher): The JavaScript runtime used for our frontend tooling and scripts.
 - **[pnpm](https://pnpm.io/)**: Our preferred package manager. It is fast and disk-space efficient.
 - **[Rust & Cargo](https://rustup.rs/)**: Required for compiling the Cloudflare Workers backend, which is written in Rust using `worker-rs`.
-- **[Wrangler CLI](https://developers.cloudflarecom/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing and deploying Workers and D1 databases.
+- **[Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing and deploying Workers and D1 databases.
 
 ## 1. Installation
 
@@ -46,14 +46,14 @@ pnpm run dev
 The `dev` script utilizes the `concurrently` package to orchestrate multiple processes within a single terminal window. This ensures all pieces of the architecture are running in sync:
 
 1. **Admin API Worker (Rust REST API)**: Serves the authenticated REST endpoints on port `8787` (`http://localhost:8787`).
-2. **Public Website Worker (Rust + Minijinja SSR)**: Renders and serves the public-facing website and Minijinja templates on port `8788` (`http://localhost:8788`).
+2. **Public Website Worker (Rust + MiniJinja SSR)**: Renders and serves the public-facing website and MiniJinja templates on port `8788` (`http://localhost:8788`).
 3. **Admin UI (Vite / React 19 SPA)**: Serves the administrative dashboard frontend on port `5173` (`http://localhost:5173`) and proxies `/api` requests to the Admin API worker (`:8787`).
 
 ```mermaid
 flowchart TD
     A["pnpm run dev"] --> B{"concurrently"}
     B --> C["Admin API Worker (Rust REST API)"]
-    B --> D["Public Worker (Rust + Minijinja SSR)"]
+    B --> D["Public Worker (Rust + MiniJinja SSR)"]
     B --> E["Admin UI (Vite / React 19 SPA)"]
     
     C -.->|serves on :8787| F[Local Machine]
@@ -66,7 +66,7 @@ flowchart TD
 Once the terminal output stabilizes and indicates all servers are running:
 
 1. Open **[http://localhost:5173](http://localhost:5173)** in your web browser.
-2. Zygo CMS is **100% passwordless** — there are no passwords or manual registration screens to configure. When running in development mode (`ENVIRONMENT=dev` in your `.dev.vars`), the Admin API automatically bypasses Cloudflare Access and authenticates you as `admin@localhost` with full administrative privileges. (In production, authentication is handled cryptographically at the edge via Cloudflare Access Zero Trust).
+2. Zygo CMS is **100% passwordless** — there are no passwords or manual registration screens to configure. When running in development mode (`ENVIRONMENT=dev` in `packages/admin-api-worker/.dev.vars` or project root), the Admin API automatically bypasses Cloudflare Access and authenticates the user as `admin@localhost` with full admin privileges, so no registration or password is required. (In production, authentication is handled cryptographically at the edge via Cloudflare Access Zero Trust).
 3. Once the dashboard loads, navigate to **Content -> Entries** in the sidebar to start creating and editing content!
 4. View your public-facing rendered site at **[http://localhost:8788](http://localhost:8788)**.
 

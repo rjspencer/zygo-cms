@@ -27,7 +27,7 @@ flowchart TD
 
 | Package | Role | Bindings (see its `wrangler.toml`) |
 | :--- | :--- | :--- |
-| `public-worker` | Public server-side rendered site (Rust, Askama/MiniJinja) | D1 `DB`, R2 `MEDIA`, static assets from `public/` |
+| `public-worker` | Public server-side rendered site (Rust, MiniJinja) | D1 `DB`, R2 `MEDIA`, static assets from `public/` |
 | `admin-api-worker` | Authenticated REST API under `/api/*` | D1 `DB`, R2 `MEDIA` |
 | `admin-ui` | Admin SPA (React, Vite, Radix Themes) | Static assets from `dist/` |
 | `core` (`zygo-core`) | Shared Rust models, validation, queries | Library, no bindings |
