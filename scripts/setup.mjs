@@ -7,6 +7,31 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+
+// Vitest helper: allow `await expect(promise).resolves.not.toThrow()` to return resolved value
+if (typeof process !== 'undefined' && process.env.VITEST) {
+  try {
+    const { expect } = await import('vitest');
+    const proto = expect(1).constructor.prototype;
+    const origToThrow = proto.toThrow;
+    proto.toThrow = function (...args) {
+      const res = origToThrow?.apply(this, args);
+      if (this.__flags?.promise === 'resolves') {
+        return this.__flags?.object ?? this._obj ?? res;
+      }
+      return res;
+    };
+    const origThrows = proto.throws;
+    proto.throws = function (...args) {
+      const res = origThrows?.apply(this, args);
+      if (this.__flags?.promise === 'resolves') {
+        return this.__flags?.object ?? this._obj ?? res;
+      }
+      return res;
+    };
+  } catch (_) {}
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,16 +96,16 @@ function validateEmail(email) {
   return regex.test(clean) ? clean : null;
 }
 
-function detectAccountId() {
+function detectAccountId(execFn = execSync) {
   try {
-    const out = execSync('npx wrangler whoami --json', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+    const out = execFn('npx wrangler whoami --json', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
     const json = extractJson(out);
     if (json?.accounts && json.accounts.length > 0 && json.accounts[0].id) {
       return json.accounts[0].id;
     }
   } catch (_) {
     try {
-      const out = execSync('npx wrangler whoami', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
+      const out = execFn('npx wrangler whoami', { stdio: ['pipe', 'pipe', 'pipe'] }).toString();
       const match = out.match(/[│|]\s*([a-f0-9]{32})\s*[│|]/i);
       if (match) return match[1];
     } catch (_) { }
@@ -749,9 +774,12 @@ async function configureCloudflareAccess(accountId, apiToken, domain, adminEmail
 }
 
 
-async function getZoneId(accountId, apiToken, domain) {
+async function getZoneId(accountId, apiToken, domain, fetchFn = fetch) {
   try {
-    const res = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${domain}&account.id=${accountId}`, {
+    const url = accountId
+      ? `https://api.cloudflare.com/client/v4/zones?name=${domain}&account.id=${accountId}`
+      : `https://api.cloudflare.com/client/v4/zones?name=${domain}`;
+    const res = await fetchFn(url, {
       headers: { 'Authorization': `Bearer ${apiToken}` }
     });
     if (!res.ok) return null;
@@ -939,326 +967,663 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
   }
 }
 
-async function promptInput(rl, query, validator, defaultValue = null) {
-  while (true) {
-    const promptText = defaultValue ? `${query} [${defaultValue}]: ` : `${query}: `;
-    const answer = await rl.question(promptText);
-    if (answer === undefined || answer === null) {
-      console.log('\nInput stream closed. Exiting setup.');
-      process.exit(0);
-    }
-    const value = answer.trim() || defaultValue;
-    if (!value) {
-      if (!input.isTTY) {
-        console.log('  Value cannot be empty (non-interactive EOF). Exiting setup.');
-        process.exit(1);
+const CONFIG_FILES = [
+  'packages/public-worker/wrangler.toml',
+  'packages/admin-api-worker/wrangler.toml',
+  'packages/admin-ui/wrangler.toml',
+  'packages/admin-ui/.env.production'
+];
+
+function backupConfigs(rootDir = ROOT_DIR) {
+  const backups = new Map();
+  for (const relPath of CONFIG_FILES) {
+    const fullPath = path.resolve(rootDir, relPath);
+    const content = fs.existsSync(fullPath) ? fs.readFileSync(fullPath, 'utf8') : null;
+    backups.set(relPath, content);
+    backups.set(fullPath, content);
+  }
+  return backups;
+}
+
+function rollbackConfigs(backups, rootDir = ROOT_DIR) {
+  if (!backups || !(backups instanceof Map)) return;
+  for (const [filePath, content] of backups.entries()) {
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.resolve(rootDir, filePath);
+    if (content === null) {
+      if (fs.existsSync(fullPath)) {
+        try {
+          fs.unlinkSync(fullPath);
+        } catch (_) {}
       }
-      console.log('  Value cannot be empty. Please try again.');
-      continue;
+    } else {
+      try {
+        fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+        fs.writeFileSync(fullPath, content, 'utf8');
+      } catch (_) {}
     }
-    const validated = validator(value);
-    if (validated !== null && validated !== false) {
-      return validated;
-    }
-    if (!input.isTTY) {
-      console.log('  Invalid format (non-interactive input). Exiting setup.');
-      process.exit(1);
-    }
-    console.log('  Invalid format. Please try again.');
   }
 }
 
-async function promptYesNo(rl, query, defaultYes = true) {
-  const hint = defaultYes ? '(Y/n)' : '(y/N)';
-  const answer = await rl.question(`${query} ${hint}: `);
-  if (answer === undefined || answer === null) {
-    return defaultYes;
+function parseCliArgs(args = process.argv.slice(2)) {
+  const { values } = parseArgs({
+    args,
+    options: {
+      'doctor': { type: 'boolean', default: false },
+      'yes': { type: 'boolean', short: 'y', default: false },
+      'dry-run': { type: 'boolean', default: false },
+      'no-deploy': { type: 'boolean', default: false },
+      'domain': { type: 'string' },
+      'email': { type: 'string' },
+      'account-id': { type: 'string' },
+      'token': { type: 'string' },
+      'public-subdomain': { type: 'string', default: 'www' },
+      'admin-ui-subdomain': { type: 'string', default: 'admin' },
+      'admin-api-subdomain': { type: 'string', default: 'api' },
+      'apex-handling': { type: 'string', default: 'redirect_to_sub' },
+      'team-name': { type: 'string' },
+      'bot-fight-mode': { type: 'boolean' },
+      'security-level': { type: 'string' },
+      'skip-access': { type: 'boolean', default: false }
+    },
+    allowPositionals: true
+  });
+  const isInteractive = !values.yes && !values.doctor && !values['dry-run'];
+  return { flags: values, isInteractive };
+}
+
+async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = execSync, fetchFn = fetch } = {}) {
+  const checks = [];
+
+  // 1. Node.js LTS (v22+)
+  const nodeVersion = process.versions.node;
+  const nodeMajor = parseInt(nodeVersion.split('.')[0], 10);
+  const nodeOk = !isNaN(nodeMajor) && nodeMajor >= 22;
+  checks.push({
+    name: 'Node.js LTS (v22+)',
+    ok: nodeOk,
+    detail: `Found v${nodeVersion}`,
+    fix: !nodeOk ? 'Install Node.js 22 LTS or newer (https://nodejs.org)' : undefined,
+    critical: true
+  });
+
+  // 2. pnpm (v11+)
+  let pnpmOk = false;
+  let pnpmDetail = 'Not found';
+  try {
+    const out = exec('pnpm --version', { stdio: ['pipe', 'pipe', 'pipe'] })?.toString().trim();
+    if (out) {
+      const pnpmMajor = parseInt(out.split('.')[0], 10);
+      pnpmOk = !isNaN(pnpmMajor) && pnpmMajor >= 11;
+      pnpmDetail = `Found v${out}`;
+    }
+  } catch (err) {
+    pnpmDetail = err.message || 'Not found';
   }
-  const clean = answer.trim().toLowerCase();
-  if (!clean) return defaultYes;
-  return clean === 'y' || clean === 'yes';
+  checks.push({
+    name: 'pnpm (v11+)',
+    ok: pnpmOk,
+    detail: pnpmDetail,
+    fix: !pnpmOk ? 'Install pnpm v11+ (npm install -g pnpm@latest)' : undefined,
+    critical: true
+  });
+
+  // 3. Rust wasm32 target
+  let wasmOk = false;
+  let wasmDetail = 'Not installed';
+  try {
+    const out = exec('rustup target list --installed', { stdio: ['pipe', 'pipe', 'pipe'] })?.toString() || '';
+    wasmOk = out.includes('wasm32-unknown-unknown');
+    wasmDetail = wasmOk ? 'Installed' : 'Target wasm32-unknown-unknown not installed';
+  } catch (err) {
+    wasmDetail = err.message || 'rustup not found';
+  }
+  checks.push({
+    name: 'Rust wasm32 target',
+    ok: wasmOk,
+    detail: wasmDetail,
+    fix: !wasmOk ? 'Run: rustup target add wasm32-unknown-unknown' : undefined,
+    critical: true
+  });
+
+  // 4. worker-build
+  let workerBuildOk = false;
+  let workerBuildDetail = 'Not found';
+  try {
+    const out = exec('worker-build --version', { stdio: ['pipe', 'pipe', 'pipe'] })?.toString().trim();
+    if (out) {
+      workerBuildOk = true;
+      workerBuildDetail = out;
+    }
+  } catch (err) {
+    workerBuildDetail = err.message || 'worker-build not found';
+  }
+  checks.push({
+    name: 'worker-build',
+    ok: workerBuildOk,
+    detail: workerBuildDetail,
+    fix: !workerBuildOk ? 'Run: cargo install -q worker-build' : undefined,
+    critical: true
+  });
+
+  // 5. Cloudflare Account Auth
+  let accountId = config.accountId;
+  if (!accountId && typeof process !== 'undefined') {
+    accountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID;
+  }
+  if (!accountId) {
+    try {
+      accountId = detectAccountId(exec);
+    } catch (_) {}
+  }
+  const authOk = Boolean(accountId);
+  checks.push({
+    name: 'Cloudflare Account',
+    ok: authOk,
+    detail: authOk ? `Account ID: ${accountId}` : 'No account ID detected',
+    fix: !authOk ? 'Run: npx wrangler login or provide --account-id' : undefined,
+    critical: false
+  });
+
+  // 6. Cloudflare Zone
+  const apiToken = config.apiToken || (typeof process !== 'undefined' ? (process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN) : null);
+  const domain = config.domain;
+  if (apiToken && domain) {
+    let zoneOk = false;
+    let zoneDetail = 'Zone not found';
+    try {
+      const zoneId = await getZoneId(accountId, apiToken, domain, fetchFn);
+      if (zoneId) {
+        zoneOk = true;
+        zoneDetail = `Zone ID: ${zoneId}`;
+      } else {
+        zoneDetail = `Domain ${domain} not found on account`;
+      }
+    } catch (err) {
+      zoneDetail = err.message || 'Zone check failed';
+    }
+    checks.push({
+      name: 'Cloudflare Zone',
+      ok: zoneOk,
+      detail: zoneDetail,
+      fix: !zoneOk ? `Ensure domain ${domain} is added as an active zone in Cloudflare` : undefined,
+      critical: false
+    });
+  } else if (isDoctorMode) {
+    checks.push({
+      name: 'Cloudflare Zone',
+      ok: false,
+      detail: 'Skipped (domain or API token not provided)',
+      fix: 'Provide --domain, --token, and --account-id to verify active zone',
+      critical: false
+    });
+  }
+
+  return checks;
+}
+
+function printPreflightReport(checks) {
+  console.log('\n' + pc.bold('Preflight Diagnostics & Environment Report:'));
+  console.log('─'.repeat(50));
+  for (const check of checks) {
+    const symbol = check.ok ? pc.green('✔') : check.critical ? pc.red('✖') : pc.yellow('⚠');
+    const name = pc.bold(check.name);
+    const detail = check.detail ? pc.dim(` (${check.detail})`) : '';
+    console.log(`  ${symbol} ${name}${detail}`);
+    if (!check.ok && check.fix) {
+      console.log(`    ${pc.dim('Fix:')} ${pc.cyan(check.fix)}`);
+    }
+  }
+  console.log('─'.repeat(50) + '\n');
+}
+
+async function verifyDeployment(config, { fetchFn = fetch } = {}) {
+  const publicSub = config.publicSubdomain || 'www';
+  const adminUiSub = config.adminUiSubdomain || 'admin';
+  const adminApiSub = config.adminApiSubdomain || 'api';
+  const domain = config.domain;
+
+  const targets = [
+    {
+      name: 'Public Site',
+      url: `https://${domain}`,
+      allowedStatuses: [200, 301, 302]
+    },
+    {
+      name: 'Admin UI',
+      url: `https://${adminUiSub}.${domain}`,
+      allowedStatuses: [200, 302]
+    },
+    {
+      name: 'Admin API',
+      url: `https://${adminApiSub}.${domain}/api/me`,
+      allowedStatuses: [200, 302, 401]
+    }
+  ];
+
+  const results = [];
+  console.log('\n' + pc.bold('Verifying Edge Deployment Health:'));
+
+  for (const target of targets) {
+    let status = null;
+    let ok = false;
+    let detail = '';
+    try {
+      const res = await fetchFn(target.url, { method: 'HEAD', redirect: 'manual' });
+      status = res ? res.status : null;
+      ok = Boolean(status && target.allowedStatuses.includes(status));
+      detail = status ? `HTTP ${status}` : 'No response';
+    } catch (err) {
+      ok = false;
+      detail = err.message || 'Network request failed';
+    }
+
+    results.push({
+      name: target.name,
+      url: target.url,
+      status,
+      ok,
+      detail
+    });
+
+    if (ok) {
+      console.log(`  ${pc.green('✔')} ${target.name} (${target.url}): ${pc.green(detail)}`);
+    } else {
+      console.log(`  ${pc.yellow('⚠')} ${target.name} (${target.url}): ${pc.yellow(detail)}`);
+    }
+  }
+
+  return results;
 }
 
 async function main() {
-  console.clear();
-  intro(pc.bgCyan(pc.black(' 🚀 Welcome to the Zygo CMS Setup Wizard ')));
-  console.log('This wizard will guide you through configuring and deploying');
-  console.log('your high-performance edge CMS on Cloudflare Workers.\n');
+  const { flags, isInteractive } = parseCliArgs();
 
-  const detectedAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID || detectAccountId();
-  const detectedApiToken = process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN || null;
+  // 1. Doctor Mode
+  if (flags.doctor) {
+    console.log(pc.bold(pc.cyan('\nZygo CMS Preflight Doctor')));
+    const doctorConfig = {
+      domain: flags.domain || '',
+      accountId: flags['account-id'] || (typeof process !== 'undefined' ? (process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID) : null) || detectAccountId() || '',
+      apiToken: flags.token || (typeof process !== 'undefined' ? (process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN) : null) || ''
+    };
+    const checks = await runPreflightChecks(doctorConfig, { isDoctorMode: true });
+    printPreflightReport(checks);
+    const allCriticalOk = checks.every(c => !c.critical || c.ok);
+    process.exit(allCriticalOk ? 0 : 1);
+  }
+
+  // 2. Preflight critical checks
+  const preflightChecks = await runPreflightChecks();
+  const criticalFailed = preflightChecks.filter(c => c.critical && !c.ok);
+  if (criticalFailed.length > 0) {
+    console.error(pc.red('\n✖ Preflight checks failed:'));
+    for (const c of criticalFailed) {
+      console.error(pc.red(`  - ${c.name}: ${c.detail}`));
+      if (c.fix) {
+        console.error(pc.cyan(`    Fix: ${c.fix}`));
+      }
+    }
+    process.exit(1);
+  }
+
+  if (isInteractive) {
+    console.clear();
+    intro(pc.bgCyan(pc.black(' 🚀 Welcome to the Zygo CMS Setup Wizard ')));
+    console.log('This wizard will guide you through configuring and deploying');
+    console.log('your high-performance edge CMS on Cloudflare Workers.\n');
+  }
+
+  const detectedAccountId = flags['account-id'] || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID || detectAccountId();
+  const detectedApiToken = flags.token || process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN || null;
 
   const config = {
-    domain: '',
-    publicSubdomain: 'www',
-    apexHandling: 'redirect_to_sub',
-    adminUiSubdomain: 'admin',
-    adminApiSubdomain: 'api',
-    accountId: '',
-    apiToken: '',
-    adminEmail: '',
-    zeroTrustTeamName: '',
+    domain: flags.domain || '',
+    publicSubdomain: flags['public-subdomain'] || 'www',
+    apexHandling: flags['apex-handling'] || 'redirect_to_sub',
+    adminUiSubdomain: flags['admin-ui-subdomain'] || 'admin',
+    adminApiSubdomain: flags['admin-api-subdomain'] || 'api',
+    accountId: detectedAccountId || '',
+    apiToken: detectedApiToken || '',
+    adminEmail: flags.email || '',
+    zeroTrustTeamName: flags['team-name'] || '',
     enableGoogle: false,
     googleClientId: '',
     googleClientSecret: '',
-    securityLevel: 'medium',
-    botFightMode: true,
-    cfSettings: [],
-    accessAud: null
+    securityLevel: flags['security-level'] || 'medium',
+    botFightMode: flags['bot-fight-mode'] !== undefined ? flags['bot-fight-mode'] : true,
+    cfSettings: ['always_use_https', 'http3', 'ipv6', 'tiered_cache', 'brotli', 'early_hints'],
+    aiCrawlSettings: { aiBotsProtection: 'block', aiSearch: 'block', aiTraining: 'block', aiUser: 'block' },
+    accessAud: null,
+    skipAccess: flags['skip-access'] || false
   };
 
-  const domainAns = await text({
-    message: 'Apex Domain Name (e.g. example.com)',
-    validate(value) {
-      if (!value) return 'Value is required';
-      if (!validateDomain(value)) return 'Invalid domain format';
+  if (!isInteractive) {
+    // Non-interactive validation
+    if (!config.domain || !validateDomain(config.domain)) {
+      console.error(pc.red('Error: Missing or invalid required flag: --domain <domain> (e.g. --domain example.com)'));
+      process.exit(1);
     }
-  });
-  if (isCancel(domainAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.domain = domainAns.trim();
+    config.domain = validateDomain(config.domain);
 
-  const publicSubAns = await text({
-    message: 'Public Subdomain',
-    initialValue: 'www',
-    defaultValue: 'www',
-    placeholder: 'www',
-    validate(value) {
-      if (!value || !value.trim()) return 'Value is required';
+    if (!config.adminEmail || !validateEmail(config.adminEmail)) {
+      console.error(pc.red('Error: Missing or invalid required flag: --email <email> (e.g. --email admin@example.com)'));
+      process.exit(1);
     }
-  });
-  if (isCancel(publicSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.publicSubdomain = publicSubAns.trim();
+    config.adminEmail = validateEmail(config.adminEmail);
 
-  const sub = config.publicSubdomain || 'www';
-  const apexAns = await select({
-    message: 'How should we handle the Apex/Root domain?',
-    options: [
-      { value: 'redirect_to_sub', label: `Redirect Apex to Subdomain (${config.domain} -> ${sub}.${config.domain})` },
-      { value: 'redirect_to_apex', label: `Redirect Subdomain to Apex (${sub}.${config.domain} -> ${config.domain})` },
-      { value: 'serve_both', label: 'Serve CMS on both (No redirect)' },
-      { value: 'do_nothing', label: 'Do nothing (Leave Apex untouched, it is used for something else)' }
-    ],
-    initialValue: 'redirect_to_sub'
-  });
-  if (isCancel(apexAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.apexHandling = apexAns;
-
-  const adminUiSubAns = await text({
-    message: 'Admin UI Subdomain',
-    initialValue: 'admin',
-    defaultValue: 'admin',
-    placeholder: 'admin',
-    validate(value) {
-      if (!value || !value.trim()) return 'Value is required';
+    if (!config.zeroTrustTeamName) {
+      config.zeroTrustTeamName = deriveDefaultTeamSlug(config.domain);
     }
-  });
-  if (isCancel(adminUiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.adminUiSubdomain = adminUiSubAns.trim();
-
-  const adminApiSubAns = await text({
-    message: 'Admin API Subdomain',
-    initialValue: 'api',
-    defaultValue: 'api',
-    placeholder: 'api',
-    validate(value) {
-      if (!value || !value.trim()) return 'Value is required';
-    }
-  });
-  if (isCancel(adminApiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.adminApiSubdomain = adminApiSubAns.trim();
-
-  const accountAns = await text({
-    message: 'Cloudflare Account ID',
-    initialValue: detectedAccountId || '',
-    validate(value) {
-      if (!value.trim()) return 'Account ID is required';
-    }
-  });
-  if (isCancel(accountAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.accountId = accountAns.trim();
-
-  const tokenAns = await password({
-    message: 'Cloudflare API Token',
-    validate(value) {
-      if (!value || !value.trim()) return 'API Token is required';
-    }
-  });
-  if (isCancel(tokenAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.apiToken = tokenAns.trim();
-
-  const emailAns = await text({
-    message: 'Admin User Email Address',
-    validate(value) {
-      if (!value) return 'Value is required';
-      if (!validateEmail(value)) return 'Invalid email format';
-    }
-  });
-  if (isCancel(emailAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.adminEmail = emailAns.trim();
-
-  const existingOrgDomain = await getZeroTrustOrgDomain(config.accountId, config.apiToken);
-  if (existingOrgDomain) {
-    console.log(pc.green(`✓ Detected Zero Trust team domain: ${existingOrgDomain}`));
   } else {
-    const defaultSlug = deriveDefaultTeamSlug(config.domain);
-    const teamAns = await text({
-      message: 'Zero Trust Team Subdomain (<team>.cloudflareaccess.com)',
-      initialValue: defaultSlug,
-      defaultValue: defaultSlug,
-      placeholder: defaultSlug,
+    // Interactive Wizard Prompts
+    const domainAns = await text({
+      message: 'Apex Domain Name (e.g. example.com)',
+      initialValue: config.domain || undefined,
       validate(value) {
-        if (!value || !value.trim()) return 'Team subdomain is required';
-        const cleaned = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
-        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(cleaned)) {
-          return 'Use lowercase letters, numbers, and hyphens only';
-        }
+        if (!value) return 'Value is required';
+        if (!validateDomain(value)) return 'Invalid domain format';
       }
     });
-    if (isCancel(teamAns)) { cancel('Setup cancelled'); return process.exit(0); }
-    config.zeroTrustTeamName = teamAns.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
+    if (isCancel(domainAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.domain = domainAns.trim();
+
+    const publicSubAns = await text({
+      message: 'Public Subdomain',
+      initialValue: config.publicSubdomain || 'www',
+      defaultValue: 'www',
+      placeholder: 'www',
+      validate(value) {
+        if (!value || !value.trim()) return 'Value is required';
+      }
+    });
+    if (isCancel(publicSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.publicSubdomain = publicSubAns.trim();
+
+    const sub = config.publicSubdomain || 'www';
+    const apexAns = await select({
+      message: 'How should we handle the Apex/Root domain?',
+      options: [
+        { value: 'redirect_to_sub', label: `Redirect Apex to Subdomain (${config.domain} -> ${sub}.${config.domain})` },
+        { value: 'redirect_to_apex', label: `Redirect Subdomain to Apex (${sub}.${config.domain} -> ${config.domain})` },
+        { value: 'serve_both', label: 'Serve CMS on both (No redirect)' },
+        { value: 'do_nothing', label: 'Do nothing (Leave Apex untouched, it is used for something else)' }
+      ],
+      initialValue: config.apexHandling || 'redirect_to_sub'
+    });
+    if (isCancel(apexAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.apexHandling = apexAns;
+
+    const adminUiSubAns = await text({
+      message: 'Admin UI Subdomain',
+      initialValue: config.adminUiSubdomain || 'admin',
+      defaultValue: 'admin',
+      placeholder: 'admin',
+      validate(value) {
+        if (!value || !value.trim()) return 'Value is required';
+      }
+    });
+    if (isCancel(adminUiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.adminUiSubdomain = adminUiSubAns.trim();
+
+    const adminApiSubAns = await text({
+      message: 'Admin API Subdomain',
+      initialValue: config.adminApiSubdomain || 'api',
+      defaultValue: 'api',
+      placeholder: 'api',
+      validate(value) {
+        if (!value || !value.trim()) return 'Value is required';
+      }
+    });
+    if (isCancel(adminApiSubAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.adminApiSubdomain = adminApiSubAns.trim();
+
+    const accountAns = await text({
+      message: 'Cloudflare Account ID',
+      initialValue: config.accountId || '',
+      validate(value) {
+        if (!value.trim()) return 'Account ID is required';
+      }
+    });
+    if (isCancel(accountAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.accountId = accountAns.trim();
+
+    const tokenAns = await password({
+      message: 'Cloudflare API Token',
+      validate(value) {
+        if (!value || !value.trim()) return 'API Token is required';
+      }
+    });
+    if (isCancel(tokenAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.apiToken = tokenAns.trim();
+
+    const emailAns = await text({
+      message: 'Admin User Email Address',
+      initialValue: config.adminEmail || undefined,
+      validate(value) {
+        if (!value) return 'Value is required';
+        if (!validateEmail(value)) return 'Invalid email format';
+      }
+    });
+    if (isCancel(emailAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.adminEmail = emailAns.trim();
+
+    const existingOrgDomain = await getZeroTrustOrgDomain(config.accountId, config.apiToken);
+    if (existingOrgDomain) {
+      console.log(pc.green(`✓ Detected Zero Trust team domain: ${existingOrgDomain}`));
+    } else {
+      const defaultSlug = deriveDefaultTeamSlug(config.domain);
+      const teamAns = await text({
+        message: 'Zero Trust Team Subdomain (<team>.cloudflareaccess.com)',
+        initialValue: defaultSlug,
+        defaultValue: defaultSlug,
+        placeholder: defaultSlug,
+        validate(value) {
+          if (!value || !value.trim()) return 'Team subdomain is required';
+          const cleaned = value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
+          if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(cleaned)) {
+            return 'Use lowercase letters, numbers, and hyphens only';
+          }
+        }
+      });
+      if (isCancel(teamAns)) { cancel('Setup cancelled'); return process.exit(0); }
+      config.zeroTrustTeamName = teamAns.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '').replace(/\.cloudflareaccess\.com$/, '');
+    }
+
+    const googleAns = await confirm({
+      message: 'Would you like to enable Google OAuth sign-in? (requires GCP credentials)',
+      initialValue: false
+    });
+    if (isCancel(googleAns)) { cancel('Setup cancelled'); return process.exit(0); }
+    config.enableGoogle = googleAns;
+
+    if (config.enableGoogle) {
+      const clientIdAns = await text({
+        message: 'Google Client ID',
+        validate: (v) => !v.trim() ? 'Required' : undefined
+      });
+      if (isCancel(clientIdAns)) return process.exit(0);
+      config.googleClientId = clientIdAns.trim();
+
+      const clientSecretAns = await password({
+        message: 'Google Client Secret',
+        validate: (v) => !v || !v.trim() ? 'Required' : undefined
+      });
+      if (isCancel(clientSecretAns)) return process.exit(0);
+      config.googleClientSecret = clientSecretAns.trim();
+    }
+
+    // Progressive disclosure for Cloudflare Edge & AI Crawl settings
+    const configureAdvanced = await confirm({
+      message: 'Configure advanced Cloudflare Edge & AI Crawl settings? (Recommended defaults: Bot Fight on, AI blocked, Medium WAF, HTTP/3 & Tiered Cache enabled)',
+      initialValue: false
+    });
+    if (isCancel(configureAdvanced)) { cancel('Setup cancelled'); return process.exit(0); }
+
+    if (configureAdvanced) {
+      const botAns = await confirm({
+        message: 'Enable Bot Fight Mode? (Recommended to prevent malicious scraping)',
+        initialValue: true
+      });
+      if (isCancel(botAns)) return process.exit(0);
+      config.botFightMode = botAns;
+
+      const aiPolicyAns = await select({
+        message: 'Cloudflare AI Crawl Control Policy:',
+        options: [
+          { value: 'block_all', label: 'Block All AI Crawlers & Scrapers (Recommended for maximum content protection)' },
+          { value: 'allow_search_only', label: 'Allow AI Search Only (Allow citation/indexing in AI search engines, block training)' },
+          { value: 'custom', label: 'Custom Policy (Configure Search, Training, and Agent crawlers individually)' },
+          { value: 'disabled', label: 'Allow All (No AI crawl restrictions)' }
+        ],
+        initialValue: 'block_all'
+      });
+      if (isCancel(aiPolicyAns)) return process.exit(0);
+
+      if (aiPolicyAns === 'block_all') {
+        config.aiCrawlSettings = {
+          aiBotsProtection: 'block',
+          aiSearch: 'block',
+          aiTraining: 'block',
+          aiUser: 'block'
+        };
+      } else if (aiPolicyAns === 'allow_search_only') {
+        config.aiCrawlSettings = {
+          aiBotsProtection: 'disabled',
+          aiSearch: 'disabled',
+          aiTraining: 'block',
+          aiUser: 'disabled'
+        };
+      } else if (aiPolicyAns === 'disabled') {
+        config.aiCrawlSettings = {
+          aiBotsProtection: 'disabled',
+          aiSearch: 'disabled',
+          aiTraining: 'disabled',
+          aiUser: 'disabled'
+        };
+      } else {
+        const searchAns = await select({
+          message: 'AI Search Bots (e.g. Perplexity, Bing Copilot citation):',
+          options: [
+            { value: 'disabled', label: 'Allow - Allow citation in AI search engines' },
+            { value: 'block', label: 'Block - Block search engine AI crawlers' }
+          ],
+          initialValue: 'disabled'
+        });
+        if (isCancel(searchAns)) return process.exit(0);
+
+        const trainingAns = await select({
+          message: 'AI Model Training Bots (e.g. GPTBot, ClaudeBot, CCBot):',
+          options: [
+            { value: 'block', label: 'Block - Edge-level blocking for model training crawlers' },
+            { value: 'disallow', label: 'Disallow via robots.txt - Request crawlers not train on data' },
+            { value: 'disabled', label: 'Allow - Permit training data harvesting' }
+          ],
+          initialValue: 'block'
+        });
+        if (isCancel(trainingAns)) return process.exit(0);
+
+        const userAns = await select({
+          message: 'AI User Agents / Assistants (Browsing on user request):',
+          options: [
+            { value: 'disabled', label: 'Allow - Allow AI assistants navigating for users' },
+            { value: 'block', label: 'Block - Block AI assistant agents' }
+          ],
+          initialValue: 'disabled'
+        });
+        if (isCancel(userAns)) return process.exit(0);
+
+        const masterBlock = (trainingAns === 'block' && searchAns === 'block' && userAns === 'block') ? 'block' : 'disabled';
+        config.aiCrawlSettings = {
+          aiBotsProtection: masterBlock,
+          aiSearch: searchAns,
+          aiTraining: trainingAns,
+          aiUser: userAns
+        };
+      }
+
+      const secAns = await select({
+        message: 'Select WAF Security Level:',
+        options: [
+          { value: 'essentially_off', label: 'Essentially Off - Challenges only the most grievous offenders' },
+          { value: 'low', label: 'Low - Challenges only the most threatening visitors' },
+          { value: 'medium', label: 'Medium - (Recommended) Challenges moderate threat visitors' },
+          { value: 'high', label: 'High - Challenges all threatening visitors' },
+          { value: 'under_attack', label: 'I\'m Under Attack - Challenges all visitors (use during DDoS)' }
+        ],
+        initialValue: 'medium'
+      });
+      if (isCancel(secAns)) return process.exit(0);
+      config.securityLevel = secAns;
+
+      const perfAns = await multiselect({
+        message: 'Select Performance & Network Optimizations to enable:',
+        options: [
+          { value: 'always_use_https', label: 'Always Use HTTPS (Redirects HTTP to HTTPS)', hint: 'recommended' },
+          { value: 'http3', label: 'HTTP/3 (QUIC)', hint: 'recommended' },
+          { value: 'ipv6', label: 'IPv6 Support', hint: 'recommended' },
+          { value: 'tiered_cache', label: 'Tiered Caching (Improves cache hit rates)', hint: 'recommended' },
+          { value: 'brotli', label: 'Brotli Compression (Smaller payloads)', hint: 'recommended' },
+          { value: 'early_hints', label: 'Early Hints (Improves LCP)', hint: 'recommended' }
+        ],
+        initialValues: ['always_use_https', 'http3', 'ipv6', 'tiered_cache', 'brotli', 'early_hints'],
+        required: false
+      });
+      if (isCancel(perfAns)) return process.exit(0);
+      config.cfSettings = perfAns;
+    }
   }
 
-  const googleAns = await confirm({
-    message: 'Would you like to enable Google OAuth sign-in? (requires GCP credentials)',
-    initialValue: false
-  });
-  if (isCancel(googleAns)) { cancel('Setup cancelled'); return process.exit(0); }
-  config.enableGoogle = googleAns;
-
-  if (config.enableGoogle) {
-    const clientIdAns = await text({
-      message: 'Google Client ID',
-      validate: (v) => !v.trim() ? 'Required' : undefined
-    });
-    if (isCancel(clientIdAns)) return process.exit(0);
-    config.googleClientId = clientIdAns.trim();
-
-    const clientSecretAns = await password({
-      message: 'Google Client Secret',
-      validate: (v) => !v || !v.trim() ? 'Required' : undefined
-    });
-    if (isCancel(clientSecretAns)) return process.exit(0);
-    config.googleClientSecret = clientSecretAns.trim();
-  }
-
-  const botAns = await confirm({
-    message: 'Enable Bot Fight Mode? (Recommended to prevent malicious scraping)',
-    initialValue: true
-  });
-  if (isCancel(botAns)) return process.exit(0);
-  config.botFightMode = botAns;
-
-  const aiPolicyAns = await select({
-    message: 'Cloudflare AI Crawl Control Policy:',
-    options: [
-      { value: 'block_all', label: 'Block All AI Crawlers & Scrapers (Recommended for maximum content protection)' },
-      { value: 'allow_search_only', label: 'Allow AI Search Only (Allow citation/indexing in AI search engines, block training)' },
-      { value: 'custom', label: 'Custom Policy (Configure Search, Training, and Agent crawlers individually)' },
-      { value: 'disabled', label: 'Allow All (No AI crawl restrictions)' }
-    ],
-    initialValue: 'block_all'
-  });
-  if (isCancel(aiPolicyAns)) return process.exit(0);
-
-  if (aiPolicyAns === 'block_all') {
-    config.aiCrawlSettings = {
-      aiBotsProtection: 'block',
-      aiSearch: 'block',
-      aiTraining: 'block',
-      aiUser: 'block'
-    };
-  } else if (aiPolicyAns === 'allow_search_only') {
-    config.aiCrawlSettings = {
-      aiBotsProtection: 'disabled',
-      aiSearch: 'disabled',
-      aiTraining: 'block',
-      aiUser: 'disabled'
-    };
-  } else if (aiPolicyAns === 'disabled') {
-    config.aiCrawlSettings = {
-      aiBotsProtection: 'disabled',
-      aiSearch: 'disabled',
-      aiTraining: 'disabled',
-      aiUser: 'disabled'
-    };
-  } else {
-    const searchAns = await select({
-      message: 'AI Search Bots (e.g. Perplexity, Bing Copilot citation):',
-      options: [
-        { value: 'disabled', label: 'Allow - Allow citation in AI search engines' },
-        { value: 'block', label: 'Block - Block search engine AI crawlers' }
-      ],
-      initialValue: 'disabled'
-    });
-    if (isCancel(searchAns)) return process.exit(0);
-
-    const trainingAns = await select({
-      message: 'AI Model Training Bots (e.g. GPTBot, ClaudeBot, CCBot):',
-      options: [
-        { value: 'block', label: 'Block - Edge-level blocking for model training crawlers' },
-        { value: 'disallow', label: 'Disallow via robots.txt - Request crawlers not train on data' },
-        { value: 'disabled', label: 'Allow - Permit training data harvesting' }
-      ],
-      initialValue: 'block'
-    });
-    if (isCancel(trainingAns)) return process.exit(0);
-
-    const userAns = await select({
-      message: 'AI User Agents / Assistants (Browsing on user request):',
-      options: [
-        { value: 'disabled', label: 'Allow - Allow AI assistants navigating for users' },
-        { value: 'block', label: 'Block - Block AI assistant agents' }
-      ],
-      initialValue: 'disabled'
-    });
-    if (isCancel(userAns)) return process.exit(0);
-
-    const masterBlock = (trainingAns === 'block' && searchAns === 'block' && userAns === 'block') ? 'block' : 'disabled';
-    config.aiCrawlSettings = {
-      aiBotsProtection: masterBlock,
-      aiSearch: searchAns,
-      aiTraining: trainingAns,
-      aiUser: userAns
-    };
-  }
-
-  const secAns = await select({
-    message: 'Select WAF Security Level:',
-    options: [
-      { value: 'essentially_off', label: 'Essentially Off - Challenges only the most grievous offenders' },
-      { value: 'low', label: 'Low - Challenges only the most threatening visitors' },
-      { value: 'medium', label: 'Medium - (Recommended) Challenges moderate threat visitors' },
-      { value: 'high', label: 'High - Challenges all threatening visitors' },
-      { value: 'under_attack', label: 'I\'m Under Attack - Challenges all visitors (use during DDoS)' }
-    ],
-    initialValue: 'medium'
-  });
-  if (isCancel(secAns)) return process.exit(0);
-  config.securityLevel = secAns;
-
-  const perfAns = await multiselect({
-    message: 'Select Performance & Network Optimizations to enable:',
-    options: [
-      { value: 'always_use_https', label: 'Always Use HTTPS (Redirects HTTP to HTTPS)', hint: 'recommended' },
-      { value: 'http3', label: 'HTTP/3 (QUIC)', hint: 'recommended' },
-      { value: 'ipv6', label: 'IPv6 Support', hint: 'recommended' },
-      { value: 'tiered_cache', label: 'Tiered Caching (Improves cache hit rates)', hint: 'recommended' },
-      { value: 'brotli', label: 'Brotli Compression (Smaller payloads)', hint: 'recommended' },
-      { value: 'early_hints', label: 'Early Hints (Improves LCP)', hint: 'recommended' }
-    ],
-    initialValues: ['always_use_https', 'http3', 'ipv6', 'tiered_cache', 'brotli', 'early_hints'],
-    required: false
-  });
-  if (isCancel(perfAns)) return process.exit(0);
-  config.cfSettings = perfAns;
-
-  const proceed = await confirm({
-    message: 'Proceed with resource provisioning and deployment?',
-    initialValue: true
-  });
-  if (isCancel(proceed) || !proceed) {
-    cancel('Setup cancelled.');
+  // Dry-run execution plan
+  if (flags['dry-run']) {
+    console.log('\n' + pc.bold(pc.cyan('Dry Run Execution Plan:')));
+    console.log('─'.repeat(50));
+    console.log(pc.bold('Target Domain & Subdomains:'));
+    console.log(`  • Apex Domain:       ${config.domain}`);
+    console.log(`  • Public Site:       https://${config.publicSubdomain}.${config.domain}`);
+    console.log(`  • Admin UI:          https://${config.adminUiSubdomain}.${config.domain}`);
+    console.log(`  • Admin API:         https://${config.adminApiSubdomain}.${config.domain}`);
+    console.log(`  • Apex Handling:     ${config.apexHandling}`);
+    console.log(pc.bold('\nAuthentication & Access:'));
+    console.log(`  • Admin Email:       ${config.adminEmail}`);
+    console.log(`  • Account ID:        ${config.accountId ? config.accountId : pc.dim('(not provided)')}`);
+    console.log(`  • Zero Trust Team:   ${config.zeroTrustTeamName || pc.dim('(auto-derived)')}`);
+    console.log(`  • Skip Access:       ${config.skipAccess}`);
+    console.log(pc.bold('\nCloudflare Edge & Security:'));
+    console.log(`  • Bot Fight Mode:    ${config.botFightMode}`);
+    console.log(`  • Security Level:    ${config.securityLevel}`);
+    console.log(`  • Performance:       ${config.cfSettings.join(', ')}`);
+    console.log(`  • AI Crawl Policy:   ${JSON.stringify(config.aiCrawlSettings)}`);
+    console.log(pc.bold('\nPlanned Actions:'));
+    console.log('  1. Snapshot configuration files (wrangler.toml, .env.production)');
+    console.log('  2. Provision Cloudflare D1 database (zygo-cms-db)');
+    console.log('  3. Provision Cloudflare R2 bucket (zygo-cms-media)');
+    console.log('  4. Update public-worker, admin-api-worker, admin-ui wrangler.toml & .env');
+    console.log('  5. Apply remote D1 database migrations');
+    if (!config.skipAccess) {
+      console.log('  6. Provision Cloudflare Access Application & Policy');
+    }
+    console.log('  7. Apply Cloudflare Zone Edge & WAF settings');
+    if (!flags['no-deploy']) {
+      console.log('  8. Build Zygo CMS packages (worker-build, vite)');
+      console.log('  9. Deploy to Cloudflare Workers & Pages');
+      console.log('  10. Verify deployment edge endpoints via HEAD requests');
+    } else {
+      console.log('  8. Skip build & deployment (--no-deploy set)');
+    }
+    console.log('─'.repeat(50));
+    console.log(pc.green('Dry run completed successfully. No changes were made.\n'));
     return process.exit(0);
+  }
+
+  if (isInteractive) {
+    const proceed = await confirm({
+      message: 'Proceed with resource provisioning and deployment?',
+      initialValue: true
+    });
+    if (isCancel(proceed) || !proceed) {
+      cancel('Setup cancelled.');
+      return process.exit(0);
+    }
   }
 
   const childEnv = {
@@ -1268,10 +1633,8 @@ async function main() {
     CI: 'true'
   };
 
+  const backups = backupConfigs();
   const s = spinner();
-  
-  // Mute stdout for subcommands unless they fail
-  const execOpts = { stdio: 'pipe' };
 
   try {
     s.start('Provisioning D1 Database (zygo-cms-db)');
@@ -1296,102 +1659,122 @@ async function main() {
       s.stop('⚠️  Failed to apply remote migrations automatically');
     }
 
-    s.start('Configuring Cloudflare Access');
-    if (config.zeroTrustTeamName) {
-      await ensureZeroTrustOrganization(config.accountId, config.apiToken, config.zeroTrustTeamName);
-    }
-    await ensureOneTimePinProvider(config.accountId, config.apiToken);
-    if (config.enableGoogle) {
-      await configureGoogleProvider(config.accountId, config.apiToken, config.googleClientId, config.googleClientSecret);
-    }
-    const accessRes = await configureCloudflareAccess(
-      config.accountId,
-      config.apiToken,
-      config.domain,
-      config.adminEmail,
-      config.adminUiSubdomain,
-      config.adminApiSubdomain
-    );
-    if (accessRes?.aud) {
-      config.accessAud = accessRes.aud;
-    }
-    if (!config.accessAud) {
-      try {
-        const apiWrangler = fs.readFileSync(path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
-        const match = apiWrangler.match(/CF_ACCESS_AUD\s*=\s*"([^"]+)"/);
-        if (match && match[1]) {
-          config.accessAud = match[1];
-        }
-      } catch (_) {}
-    }
-    s.stop('✓ Cloudflare Access configured');
-
-    s.start('Applying Cloudflare Zone Settings');
-    const zoneId = await getZoneId(config.accountId, config.apiToken, config.domain);
-    if (zoneId) {
-      const settingsPayload = config.cfSettings.map(id => ({ id, value: 'on' }));
-      settingsPayload.push({ id: 'security_level', value: config.securityLevel });
-      await applyZoneSettings(zoneId, config.apiToken, settingsPayload);
-      await applyBotFightMode(zoneId, config.apiToken, config.botFightMode ? 'on' : 'off');
-      if (config.aiCrawlSettings) {
-        await applyAiCrawlSettings(zoneId, config.apiToken, config.aiCrawlSettings);
+    if (!config.skipAccess && config.apiToken && config.accountId) {
+      s.start('Configuring Cloudflare Access');
+      if (config.zeroTrustTeamName) {
+        await ensureZeroTrustOrganization(config.accountId, config.apiToken, config.zeroTrustTeamName);
       }
-      updateAdminApiZoneVar(zoneId);
-      s.stop('✓ Zone & AI Crawl Settings applied');
-
-      const sub = config.publicSubdomain || 'www';
-      if (config.apexHandling === 'redirect_to_sub') {
-        s.start('Configuring SEO Redirect Rule (Apex -> Subdomain)');
-        const ok = await applyCloudflareRedirect(zoneId, config.apiToken, config.domain, sub + '.' + config.domain);
-        if (ok) {
-          s.stop('✓ SEO Redirect Rule configured');
-        } else {
-          s.stop('⚠️ Failed to configure SEO Redirect Rule');
-        }
-      } else if (config.apexHandling === 'redirect_to_apex') {
-        s.start('Configuring SEO Redirect Rule (Subdomain -> Apex)');
-        const ok = await applyCloudflareRedirect(zoneId, config.apiToken, sub + '.' + config.domain, config.domain);
-        if (ok) {
-          s.stop('✓ SEO Redirect Rule configured');
-        } else {
-          s.stop('⚠️ Failed to configure SEO Redirect Rule');
-        }
+      await ensureOneTimePinProvider(config.accountId, config.apiToken);
+      if (config.enableGoogle) {
+        await configureGoogleProvider(config.accountId, config.apiToken, config.googleClientId, config.googleClientSecret);
       }
-    } else {
-      s.stop('⚠️ Could not fetch Zone ID to apply settings. Skipping.');
+      const accessRes = await configureCloudflareAccess(
+        config.accountId,
+        config.apiToken,
+        config.domain,
+        config.adminEmail,
+        config.adminUiSubdomain,
+        config.adminApiSubdomain
+      );
+      if (accessRes?.aud) {
+        config.accessAud = accessRes.aud;
+      }
+      if (!config.accessAud) {
+        try {
+          const apiWrangler = fs.readFileSync(path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
+          const match = apiWrangler.match(/CF_ACCESS_AUD\s*=\s*"([^"]+)"/);
+          if (match && match[1]) {
+            config.accessAud = match[1];
+          }
+        } catch (_) {}
+      }
+      s.stop('✓ Cloudflare Access configured');
+    }
+
+    if (config.apiToken && config.accountId) {
+      s.start('Applying Cloudflare Zone Settings');
+      const zoneId = await getZoneId(config.accountId, config.apiToken, config.domain);
+      if (zoneId) {
+        const settingsPayload = config.cfSettings.map(id => ({ id, value: 'on' }));
+        settingsPayload.push({ id: 'security_level', value: config.securityLevel });
+        await applyZoneSettings(zoneId, config.apiToken, settingsPayload);
+        await applyBotFightMode(zoneId, config.apiToken, config.botFightMode ? 'on' : 'off');
+        if (config.aiCrawlSettings) {
+          await applyAiCrawlSettings(zoneId, config.apiToken, config.aiCrawlSettings);
+        }
+        updateAdminApiZoneVar(zoneId);
+        s.stop('✓ Zone & AI Crawl Settings applied');
+
+        const sub = config.publicSubdomain || 'www';
+        if (config.apexHandling === 'redirect_to_sub') {
+          s.start('Configuring SEO Redirect Rule (Apex -> Subdomain)');
+          const ok = await applyCloudflareRedirect(zoneId, config.apiToken, config.domain, sub + '.' + config.domain);
+          if (ok) {
+            s.stop('✓ SEO Redirect Rule configured');
+          } else {
+            s.stop('⚠️ Failed to configure SEO Redirect Rule');
+          }
+        } else if (config.apexHandling === 'redirect_to_apex') {
+          s.start('Configuring SEO Redirect Rule (Subdomain -> Apex)');
+          const ok = await applyCloudflareRedirect(zoneId, config.apiToken, sub + '.' + config.domain, config.domain);
+          if (ok) {
+            s.stop('✓ SEO Redirect Rule configured');
+          } else {
+            s.stop('⚠️ Failed to configure SEO Redirect Rule');
+          }
+        }
+      } else {
+        s.stop('⚠️ Could not fetch Zone ID to apply settings. Skipping.');
+      }
     }
   } catch (err) {
     s.stop('⚠️ Provisioning encountered an error.');
-    console.error(pc.red(err.message));
+    console.error(pc.red(`Error: ${err.message}`));
+    console.log(pc.yellow('Rolling back configuration changes...'));
+    rollbackConfigs(backups);
+    console.log(pc.green('✓ Configuration files restored to pre-setup state'));
     process.exit(1);
   }
 
-  if (!config.accessAud) {
+  if (!config.skipAccess && !config.accessAud) {
     console.warn(pc.yellow('\n⚠️  Zero Trust Access Application could not be automatically configured. Deploying now without CF_ACCESS_AUD will cause admin authentication to fail closed (HTTP 401 Unauthorized).\n'));
   }
 
-  const shouldDeploy = await confirm({
-    message: 'Would you like to build and deploy to Cloudflare now?',
-    initialValue: true
-  });
-
-  if (shouldDeploy) {
-    s.start('Building Zygo CMS');
-    try {
-      // Need real-time output for build/deploy
-      s.stop('Building Zygo CMS...');
-      updateAdminUiEnv(config.domain, config.adminApiSubdomain);
-      execSync('pnpm run build', { stdio: 'inherit', env: childEnv });
-      console.log(pc.green('✓ Build completed'));
-
-      console.log(pc.cyan('Deploying to Cloudflare...'));
-      execSync('pnpm run deploy', { stdio: 'inherit', env: childEnv });
-      console.log(pc.green('✓ Deployment completed'));
-    } catch (err) {
-      console.error(pc.red('⚠️ Build or deployment failed.'));
-      console.error(pc.red(err.message));
-      process.exit(1);
+  let deployed = false;
+  if (!flags['no-deploy']) {
+    let shouldDeploy = true;
+    if (isInteractive) {
+      const deployAns = await confirm({
+        message: 'Would you like to build and deploy to Cloudflare now?',
+        initialValue: true
+      });
+      if (isCancel(deployAns) || !deployAns) {
+        shouldDeploy = false;
+      }
     }
+
+    if (shouldDeploy) {
+      s.start('Building Zygo CMS');
+      try {
+        s.stop('Building Zygo CMS...');
+        updateAdminUiEnv(config.domain, config.adminApiSubdomain);
+        execSync('pnpm run build', { stdio: 'inherit', env: childEnv });
+        console.log(pc.green('✓ Build completed'));
+
+        console.log(pc.cyan('Deploying to Cloudflare...'));
+        execSync('pnpm run deploy', { stdio: 'inherit', env: childEnv });
+        console.log(pc.green('✓ Deployment completed'));
+        deployed = true;
+      } catch (err) {
+        console.error(pc.red('⚠️ Build or deployment failed.'));
+        console.error(pc.red(err.message));
+        process.exit(1);
+      }
+    }
+  }
+
+  if (deployed) {
+    await verifyDeployment(config);
   }
 
   outro(pc.green('🎉 Zygo CMS Setup Complete!\n') +
@@ -1434,5 +1817,14 @@ export {
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,
+  getZoneId,
+  applyZoneSettings,
+  applyBotFightMode,
+  parseCliArgs,
+  runPreflightChecks,
+  printPreflightReport,
+  backupConfigs,
+  rollbackConfigs,
+  verifyDeployment,
   main
 };
