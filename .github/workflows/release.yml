@@ -86,3 +86,12 @@ jobs:
           COMMIT_MSG="chore(release): pre-compiled wasm snapshot for ${GITHUB_REF_NAME:-manual-dispatch} [skip ci]"
           git commit -m "$COMMIT_MSG"
           git push origin "$TARGET_BRANCH" --force
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "Zygo CMS ${GITHUB_REF_NAME}" \
+            --generate-notes

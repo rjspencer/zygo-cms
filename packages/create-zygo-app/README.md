@@ -25,7 +25,7 @@ npx create-zygo-app my-zygo-site --yes
    - Creates `.dev.vars` (`ENVIRONMENT=dev`) and `.env.development` (`VITE_PUBLIC_SITE_URL=http://localhost:8788`) so local authentication bypass works out of the box.
 4. **Bootstraps Workspace**:
    - Installs dependencies (`pnpm install`).
-   - Builds the Rust Wasm workers and React Admin UI (`pnpm --filter template-wasm run build` & `pnpm run build`).
+   - Builds the React Admin UI while using pre-compiled Rust Wasm workers (`pnpm run build`).
    - Applies local D1 SQLite migrations (`pnpm run db:migrate:local`).
    - Initializes a fresh Git repository (`git init`).
 
@@ -36,7 +36,7 @@ npx create-zygo-app my-zygo-site --yes
 | `<project-directory>` | Target directory name for the new Zygo CMS project |
 | `--template-dir <path>` | Copy template from a local directory instead of GitHub |
 | `--repo <owner/repo>` | Override source GitHub repository (default: `rjspencer/zygo-cms`) |
-| `--branch <branch>` | Override source Git branch (default: `main`) |
+| `--branch <branch>` | Override source Git branch (default: `release`) |
 | `--skip-install` | Skip running `pnpm install` |
 | `--skip-build` | Skip building Wasm workers and Admin UI |
 | `--skip-db` | Skip initializing local D1 migrations |
