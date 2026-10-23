@@ -89,6 +89,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/api/admin/section-templates", handlers::admin::section_templates)
         .get_async("/api/admin/content-types", handlers::admin::content_types)
         .get_async("/api/admin/analytics", handlers::admin::analytics)
+        .get_async("/api/admin/export", handlers::backup::export_backup)
+        .post_async("/api/admin/import", handlers::backup::import_backup)
         .get_async("/api/settings", handlers::api::get_settings)
         .post_async("/api/settings", handlers::api::update_setting)
         .get_async("/api/cloudflare/ai-crawl", handlers::cloudflare::get_ai_crawl)
