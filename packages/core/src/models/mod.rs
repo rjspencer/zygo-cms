@@ -12,6 +12,7 @@ pub mod layout_template;
 pub mod layout_defaults;
 pub mod redirect;
 pub mod form_submission;
+pub mod backup;
 
 pub use section_template::*;
 pub use entry::*;
@@ -26,3 +27,4 @@ pub use layout_template::*;
 pub use layout_defaults::*;
 pub use redirect::*;
 pub use form_submission::*;
+pub use backup::*;
