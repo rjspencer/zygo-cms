@@ -8,7 +8,7 @@ interface DashboardMetricsGridProps {
 
 export const DashboardMetricsGrid: React.FC<DashboardMetricsGridProps> = ({ metrics }) => {
   return (
-    <Grid columns={{ initial: '1', sm: '2', md: '4' }} gap="4" mb="6">
+    <Grid columns={{ initial: '1', sm: '2', md: '3', lg: '5' }} gap="4" mb="6">
       {metrics.map((m) => (
         <Card key={m.title} size="2">
           <Flex justify="between" align="start">

@@ -27,6 +27,7 @@ const createQueryClient = (metrics?: any, entries?: any[]) => {
 const sampleMetrics = {
   post_count: 14,
   page_count: 6,
+  doc_count: 8,
   media_count: 42,
 };
 
@@ -88,7 +89,7 @@ export const Empty: Story = {
       <MemoryRouter initialEntries={['/']}>
         <Theme appearance="light" accentColor="cyan" radius="medium">
           <QueryClientProvider
-            client={createQueryClient({ post_count: 0, page_count: 0, media_count: 0 }, [])}
+            client={createQueryClient({ post_count: 0, page_count: 0, doc_count: 0, media_count: 0 }, [])}
           >
             <Story />
           </QueryClientProvider>

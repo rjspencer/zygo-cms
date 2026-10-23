@@ -27,7 +27,7 @@ export const RecentEntriesTable: React.FC<RecentEntriesTableProps> = ({ entries 
         <Box>
           <Heading size="4">Recent Content</Heading>
           <Text size="2" color="gray">
-            Recently updated posts and pages
+            Recently updated content
           </Text>
         </Box>
         <Button variant="ghost" size="2" onClick={() => navigate('/posts')}>
@@ -65,7 +65,16 @@ export const RecentEntriesTable: React.FC<RecentEntriesTableProps> = ({ entries 
                   </a>
                 </Table.RowHeaderCell>
                 <Table.Cell>
-                  <Badge variant="outline" color={entry.type === 'post' ? 'crimson' : 'cyan'}>
+                  <Badge
+                    variant="outline"
+                    color={
+                      entry.type === 'post'
+                        ? 'crimson'
+                        : entry.type === 'doc'
+                        ? 'blue'
+                        : 'cyan'
+                    }
+                  >
                     {entry.type}
                   </Badge>
                 </Table.Cell>
@@ -102,6 +111,8 @@ export const RecentEntriesTable: React.FC<RecentEntriesTableProps> = ({ entries 
                         navigate(
                           entry.type === 'page'
                             ? `/pages/editor/${entry.id}`
+                            : entry.type === 'doc'
+                            ? `/docs/editor/${entry.id}`
                             : `/posts/editor/${entry.id}`
                         )
                       }

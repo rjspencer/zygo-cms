@@ -3,6 +3,7 @@ import { http, HttpResponse } from 'msw';
 export const mockDashboardMetrics = {
   post_count: 10,
   page_count: 5,
+  doc_count: 2,
   author_count: 2,
   media_count: 7,
   auth_url: '/cdn-cgi/access/logout?custom=true',

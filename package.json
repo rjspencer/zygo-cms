@@ -6,10 +6,12 @@
         "pnpm": ">11.0.0"
     },
     "scripts": {
-        "dev": "concurrently -k -c \"blue,green,magenta\" -n \"api,public,ui\" \"pnpm run dev:api\" \"pnpm run dev:public\" \"pnpm run dev:ui\"",
-        "dev:api": "wrangler dev packages/admin-api-worker/build/index.js -c packages/admin-api-worker/wrangler.toml --port 8787 --persist-to=./.wrangler/state",
+        "dev": "concurrently -k -c \"blue,green,magenta,cyan\" -n \"api,public,ui,watch:api\" \"pnpm run dev:api:serve\" \"pnpm run dev:public\" \"pnpm run dev:ui\" \"pnpm run watch:api\"",
+        "dev:api": "concurrently -k -c \"blue,cyan\" -n \"api,watch:api\" \"pnpm run dev:api:serve\" \"pnpm run watch:api\"",
+        "dev:api:serve": "wrangler dev packages/admin-api-worker/build/index.js -c packages/admin-api-worker/wrangler.toml --port 8787 --persist-to=./.wrangler/state",
         "dev:public": "node scripts/wait.mjs 3000 && wrangler dev packages/public-worker/build/index.js -c packages/public-worker/wrangler.toml --port 8788 --persist-to=./.wrangler/state",
         "dev:ui": "pnpm --filter admin-ui run dev",
+        "watch:api": "node scripts/watch-worker.mjs packages/admin-api-worker",
         "build": "node scripts/build.mjs",
         "build:api": "cd packages/admin-api-worker && worker-build --release",
         "build:public": "cd packages/public-worker && worker-build --release",

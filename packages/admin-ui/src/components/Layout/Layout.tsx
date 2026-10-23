@@ -49,17 +49,6 @@ export const Layout: React.FC = () => {
           { to: '/pages', icon: <LayersIcon width="18" height="18" />, label: 'Pages' },
           { to: '/posts', icon: <FileTextIcon width="18" height="18" />, label: 'Posts' },
           ...(docsModeEnabled ? [{ to: '/docs', icon: <ArchiveIcon width="18" height="18" />, label: 'Docs' }] : []),
-          {
-            to: '/submissions',
-            icon: <EnvelopeClosedIcon width="18" height="18" />,
-            label: 'Submissions',
-            badge:
-              unreadSubmissionsCount > 0 ? (
-                <Badge color="red" variant="solid" size="1" radius="full">
-                  {unreadSubmissionsCount}
-                </Badge>
-              ) : undefined,
-          },
           { to: '/media', icon: <ImageIcon width="18" height="18" />, label: 'Media Library' },
           { to: '/navigation', icon: <HamburgerMenuIcon width="18" height="18" />, label: 'Site Navigation' },
           { to: '/redirects', icon: <ResetIcon width="18" height="18" />, label: 'Redirects' },
@@ -92,6 +81,17 @@ export const Layout: React.FC = () => {
       {
         title: 'Admin',
         items: [
+          {
+            to: '/submissions',
+            icon: <EnvelopeClosedIcon width="18" height="18" />,
+            label: 'Submissions',
+            badge:
+              unreadSubmissionsCount > 0 ? (
+                <Badge color="red" variant="solid" size="1" radius="full">
+                  {unreadSubmissionsCount}
+                </Badge>
+              ) : undefined,
+          },
           { to: '/users', icon: <PersonIcon width="18" height="18" />, label: 'Users' },
           { to: '/settings', icon: <GearIcon width="18" height="18" />, label: 'Settings' },
         ],
