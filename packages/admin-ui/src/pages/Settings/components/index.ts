@@ -6,3 +6,4 @@ export { AiCrawlSettingsCard } from './AiCrawlSettingsCard';
 export { DocsSettingsCard } from './DocsSettingsCard';
 export { EdgeEnvironmentCard } from './EdgeEnvironmentCard';
 export { CacheSettingsCard } from './CacheSettingsCard';
+export { BackupPortabilityCard } from './BackupPortabilityCard';
