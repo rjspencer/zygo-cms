@@ -6,12 +6,45 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
-### Setup Experience & Onboarding Remediation
+### Custom Workflow Statuses
+- **Goal**: Extend editorial workflows beyond basic draft/published states.
+- **Details**:
+  - Add custom states such as "In Review", "Ready for Publish", or "Archived".
+  - Integrate with RBAC to restrict who can transition between states.
 
 ---
 
 ## 2. Soon
 
+### Instagram Feed Section with Automated Cron Sync
+- **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
+- **Details**:
+  - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
+  - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
+  - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
+
+### 1-Click Site Backup, Export & Import
+- **Goal**: Give site owners full data portability and 1-click backup/restore capabilities directly from the Admin UI Settings page.
+- **Spec**: [`docs/specs/site_backup_export_import_spec.md`](docs/specs/site_backup_export_import_spec.md)
+- **Details**:
+  - Add `GET /api/admin/export` and `POST /api/admin/import` (with `dry_run` preview) to export and restore settings, menus, section & layout templates, entries, redirects, and media manifests as a versioned JSON bundle.
+  - Add a **Backup & Portability** card in `Settings.tsx` alongside WebMCP and `zygo-mcp` tools.
+
+---
+
+## 3. Icebox & Long-Term Considerations
+
+### Webhooks & API Integrations
+- **Goal**: Notify external systems of CMS events.
+- **Details**:
+  - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
+
+### Cloudflare Images (Paid Add-On) Integration
+- **Goal**: Optional integration with Cloudflare's paid Image Transformations / Cloudflare Images service for on-the-fly edge resizing, AVIF/WebP negotiation, and custom crop focal points.
+- **Details**:
+  - Allow users on paid Cloudflare plans to toggle native `/cdn-cgi/image/...` URL rewriting as an alternative or supplement to Zygo's built-in client-side upload resizer.
+
+  
 ### Headless CMS Content API
 - **Concept**: Enable Zygo CMS to function as a decoupled, headless CMS powering external static site generators, mobile apps, or modern JAMstack frontends (Astro, Next.js, SvelteKit).
 - **Feasibility & Effort**: **Low to Moderate**. Zygo is already ~70% of the way there:
@@ -27,48 +60,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - **CORS Support**: Provide configurable CORS headers (`Access-Control-Allow-Origin`, `OPTIONS` preflight) on `/api/*` routes for decoupled frontends.
   - **API Token Auth (Optional)**: Optional read-only API key support (`Authorization: Bearer <token>` or `X-Api-Key`) for private/draft preview consumption.
   - **Webhook Triggers**: Dispatch webhooks to trigger external frontend builds (Cloudflare Pages, Vercel, Netlify) on publish/update events.
-
-### Instagram Feed Section with Automated Cron Sync
-- **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
-- **Details**:
-  - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
-  - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
-  - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
-
-### Backend CLI MCP Server (`zygo-mcp`) Parity & Upgrade
-- **Goal**: Bring the standalone CLI MCP bridge (`packages/zygo-mcp`) into full parity with the current `/api/*` REST endpoints, page sections data model, and in-browser WebMCP tools.
-- **Spec**: [`docs/specs/zygo_mcp_parity_spec.md`](docs/specs/zygo_mcp_parity_spec.md)
-- **Details**:
-  - Fix legacy unprefixed `/posts` and `/entries` endpoints to use `/api/*`.
-  - Support the current `body_json` Page Sections array format alongside `body_html` for posts/docs.
-  - Add CLI MCP tools for pages/sections, section & layout templates, navigation menus, media, settings, and bulk entry actions.
-
-### 1-Click Site Backup, Export & Import
-- **Goal**: Give site owners full data portability and 1-click backup/restore capabilities directly from the Admin UI Settings page.
-- **Spec**: [`docs/specs/site_backup_export_import_spec.md`](docs/specs/site_backup_export_import_spec.md)
-- **Details**:
-  - Add `GET /api/admin/export` and `POST /api/admin/import` (with `dry_run` preview) to export and restore settings, menus, section & layout templates, entries, redirects, and media manifests as a versioned JSON bundle.
-  - Add a **Backup & Portability** card in `Settings.tsx` alongside WebMCP and `zygo-mcp` tools.
-
-### Webhooks & API Integrations
-- **Goal**: Notify external systems of CMS events.
-- **Details**:
-  - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
-
-### Custom Workflow Statuses
-- **Goal**: Extend editorial workflows beyond basic draft/published states.
-- **Details**:
-  - Add custom states such as "In Review", "Ready for Publish", or "Archived".
-  - Integrate with RBAC to restrict who can transition between states.
-
----
-
-## 3. Icebox & Long-Term Considerations
-
-### Cloudflare Images (Paid Add-On) Integration
-- **Goal**: Optional integration with Cloudflare's paid Image Transformations / Cloudflare Images service for on-the-fly edge resizing, AVIF/WebP negotiation, and custom crop focal points.
-- **Details**:
-  - Allow users on paid Cloudflare plans to toggle native `/cdn-cgi/image/...` URL rewriting as an alternative or supplement to Zygo's built-in client-side upload resizer.
 
 ### Public AI Discovery (`/llms.txt`)
 - **Goal**: Serve an auto-generated `/llms.txt` route on `public-worker` summarizing published pages, posts, and docs for external AI search engines and LLM crawlers.

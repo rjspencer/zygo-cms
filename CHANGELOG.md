@@ -8,6 +8,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Backend CLI MCP Server (`zygo-mcp`) Parity & Upgrade (`packages/zygo-mcp/`)
+- **Route Normalization & Authentication (`packages/zygo-mcp/index.mjs`)**:
+  - Normalized all endpoint paths through `getApiUrl(path)` ensuring all REST requests target `/api/*` (`/api/entries`, `/api/posts`, `/api/settings`, etc.).
+  - Fixed legacy broken route endpoints (`${url}/posts` and `${url}/entries`).
+  - Preserved Cloudflare Access Service Token authentication headers (`CF-Access-Client-Id` and `CF-Access-Client-Secret`).
+- **Entry Content Model Parity**:
+  - Implemented automatic payload normalization in `zygo_create_entry` and `zygo_update_entry`:
+    - For `page` entries: serializes the `sections` array into `body_json` and leaves `body_html` blank.
+    - For `post` and `doc` entries: populates `body_html` and defaults `body_json` to empty object string `'{}'`.
+  - Updated `zygo_get_entry` to automatically parse `body_json` into a structured `sections` array when querying pages.
+- **Full WebMCP Tool Parity (37 Tools Total)**:
+  - **Entries**: Added `zygo_list_entries`, `zygo_get_entry`, `zygo_create_entry`, `zygo_update_entry`, `zygo_delete_entry` (soft-delete to Trash), `zygo_restore_entry`, and `zygo_bulk_entries` (batch publish, unpublish, trash, tag additions/removals).
+  - **Section & Layout Templates**: Added `zygo_list_section_templates`, `zygo_get_section_template`, `zygo_upsert_section_template`, `zygo_delete_section_template`, `zygo_list_layout_templates`, `zygo_get_layout_template`, and `zygo_update_layout_template`.
+  - **Navigation Menus**: Added `zygo_get_menu` and `zygo_update_menu`.
+  - **Media & Themes**: Added `zygo_list_media`, `zygo_delete_media`, `zygo_get_theme_settings`, `zygo_update_theme_settings`, and `zygo_reset_theme_to_defaults`.
+  - Retained and verified all existing redirect, settings, AI crawl control, cache, and form submission tools.
+- **Comprehensive Vitest Test Suite (`packages/zygo-mcp/__tests__/`)**:
+  - Created `entries.test.mjs` (30 tests), `templates.test.mjs` (15 tests), and `navigation_media.test.mjs` (18 tests), bringing total `zygo-mcp` test coverage to 73 unit/integration tests with 100% pass rate.
+- **Documentation (`packages/zygo-mcp/AGENTS.md`)**:
+  - Documented CLI MCP architectural standards, naming conventions (`zygo_*`), structured return contracts (`{ toolResult, content }`), and the full catalog of registered tools.
+
+
 ### Pre-Built Wasm Distribution & CI-Managed `release` Branch
 - **Smart Build Runner (`scripts/build.mjs`, `package.json`)**:
   - Implemented `scripts/build.mjs` to auto-detect pre-compiled Wasm artifacts (`packages/public-worker/build/index.js`, `packages/admin-api-worker/build/index.js`, `packages/template-wasm/pkg/template_wasm.js`).
