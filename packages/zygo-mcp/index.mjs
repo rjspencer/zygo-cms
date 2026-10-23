@@ -33,11 +33,17 @@ export const server = new Server(
 );
 
 // Define standard headers
-export const getHeaders = (overrideClientId, overrideClientSecret) => ({
-    "CF-Access-Client-Id": overrideClientId || clientId,
-    "CF-Access-Client-Secret": overrideClientSecret || clientSecret,
-    "Content-Type": "application/json"
-});
+export const getHeaders = (overrideClientId, overrideClientSecret, overrideCookie) => {
+    const headers = {
+        "CF-Access-Client-Id": overrideClientId || clientId,
+        "CF-Access-Client-Secret": overrideClientSecret || clientSecret,
+        "Content-Type": "application/json"
+    };
+    if (overrideCookie) {
+        headers["Cookie"] = overrideCookie;
+    }
+    return headers;
+};
 
 export const getApiUrl = (path, overrideUrl) => {
     const base = (overrideUrl || url).replace(/\/$/, "");
@@ -540,6 +546,40 @@ export const tools = [
             },
             required: ["id"]
         }
+    },
+    // ==========================================
+    // I. Site Backup (Export & Import)
+    // ==========================================
+    {
+        name: "zygo_export_site_backup",
+        description: "Export the full Zygo CMS site backup as a structured JSON object containing settings, menus, templates, entries, and redirects.",
+        inputSchema: {
+            type: "object",
+            properties: {}
+        }
+    },
+    {
+        name: "zygo_import_site_backup",
+        description: "Import a Zygo CMS site backup JSON bundle into the CMS, with optional dry-run preview mode.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                backup: {
+                    type: "object",
+                    description: "The site backup JSON object exported from Zygo CMS"
+                },
+                dry_run: {
+                    type: "boolean",
+                    description: "If true, validates schema and calculates item counts without persisting changes"
+                },
+                mode: {
+                    type: "string",
+                    enum: ["merge", "overwrite"],
+                    description: "Import mode (merge or overwrite)"
+                }
+            },
+            required: ["backup"]
+        }
     }
 ];
 
@@ -550,7 +590,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 
 export async function handleCallTool(request, customContext = {}) {
     const activeUrl = customContext.url || url;
-    const activeHeaders = getHeaders(customContext.clientId, customContext.clientSecret);
+    const activeHeaders = {
+        ...getHeaders(customContext.clientId, customContext.clientSecret, customContext.cookie),
+        ...(customContext.headers || {})
+    };
     const activeGetApiUrl = (path) => getApiUrl(path, activeUrl);
 
     try {
@@ -1108,6 +1151,35 @@ export async function handleCallTool(request, customContext = {}) {
             } catch {
                 data = { success: true, id: numId };
             }
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        // ==========================================
+        // I. Site Backup (Export & Import)
+        // ==========================================
+        if (request.params.name === "zygo_export_site_backup") {
+            const res = await fetch(activeGetApiUrl('/admin/export'), { headers: activeHeaders });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_import_site_backup") {
+            const args = request.params.arguments || {};
+            if (!args.backup) {
+                throw new Error("Backup object is required");
+            }
+            const res = await fetch(activeGetApiUrl('/admin/import'), {
+                method: "POST",
+                headers: activeHeaders,
+                body: JSON.stringify({
+                    backup: args.backup,
+                    dry_run: args.dry_run ?? false,
+                    mode: args.mode
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
         }
 
