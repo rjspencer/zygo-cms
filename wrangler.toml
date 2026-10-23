@@ -30,3 +30,4 @@ binding = "DB"
 database_name = "zygo-cms-db"
 database_id = ""
 migrations_dir = "migrations"
+
