@@ -6,6 +6,7 @@ use super::menu::MenuItem;
 pub struct DashboardResponse {
     pub page_count: i64,
     pub post_count: i64,
+    pub doc_count: i64,
     pub author_count: i64,
     pub media_count: i64,
     pub auth_url: Option<String>,
@@ -24,6 +25,7 @@ mod tests {
         let resp: DashboardResponse = serde_json::from_str(json).expect("should deserialize");
         assert_eq!(resp.page_count, 5);
         assert_eq!(resp.post_count, 0);
+        assert_eq!(resp.doc_count, 0);
         assert_eq!(resp.author_count, 0);
         assert_eq!(resp.media_count, 0);
         assert_eq!(resp.auth_url, None);
@@ -37,6 +39,7 @@ mod tests {
         let resp = DashboardResponse {
             page_count: 10,
             post_count: 20,
+            doc_count: 5,
             author_count: 2,
             media_count: 15,
             auth_url: Some("/logout".into()),
@@ -48,6 +51,7 @@ mod tests {
         let deserialized: DashboardResponse = serde_json::from_str(&serialized).expect("deserialize");
         assert_eq!(deserialized.page_count, 10);
         assert_eq!(deserialized.post_count, 20);
+        assert_eq!(deserialized.doc_count, 5);
         assert_eq!(deserialized.media_count, 15);
         assert_eq!(deserialized.auth_url.as_deref(), Some("/logout"));
         assert!(deserialized.analytics_enabled);
