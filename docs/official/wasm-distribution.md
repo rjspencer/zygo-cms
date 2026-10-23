@@ -14,7 +14,7 @@ Zygo CMS's backend services are written in Rust and compiled to WebAssembly runn
 ### Why Standard Users Do Not Need Rust
 
 In many traditional CMS frameworks, changing templates or styling requires recompiling the server binary. Zygo CMS takes a different approach:
-- **Dynamic Templates in D1**: MiniJinja section templates and layouts are stored dynamically in Cloudflare D1 SQLite database records (`templates` table).
+- **Dynamic Templates in D1**: MiniJinja section templates and layouts are stored dynamically in Cloudflare D1 SQLite database records (`section_templates` and `layout_templates` tables).
 - **Dynamic Theme Tokens**: Theme tokens, colors, fonts, and typography presets are stored in D1 and rendered at runtime.
 - **Dynamic Content**: Pages, blog posts, documentation, and media references are loaded directly from D1 and R2.
 

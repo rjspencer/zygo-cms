@@ -12,26 +12,34 @@ Zygo CMS features a **zero-Rust onboarding path** for site operators, designers,
 - **[Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing Workers and D1 databases (run via `npx wrangler` or installed globally).
 
 ### Rust Worker Development (Optional)
-A Rust toolchain is **only required** if you plan to modify the backend Rust worker code (`packages/core/`, `packages/public-worker/`, `packages/admin-api-worker/`, or `packages/template-wasm/`). For details, see the [Pre-Built Wasm Distribution Guide](./wasm-distribution.md).
+A Rust toolchain is **only required** if you plan to modify the backend Rust worker code (`packages/core/`, `packages/public-worker/`, `packages/admin-api-worker/`, or `packages/template-wasm/`). For details, see the [Pre-Built Wasm Distribution Guide](/docs/wasm-distribution).
 - **[Rust & Cargo](https://rustup.rs/)** (stable toolchain)
 - `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
 - `worker-build` & `wasm-pack` (`cargo install worker-build wasm-pack`)
 
 ## 1. Installation
 
-Bootstrap a new project using our CLI tool. This command will scaffold a new directory with the complete Zygo CMS structure.
+Bootstrap a new project using our CLI tool. This command will scaffold a new directory with the complete Zygo CMS structure:
 
 ```bash
 npx create-zygo-app my-new-site
 cd my-new-site
-pnpm install
 ```
 
-*Note: If you are contributing directly to the Zygo CMS repository, you can simply clone the repo and run `pnpm install` instead.*
+> [!NOTE]
+> During scaffolding, `npx create-zygo-app` automatically executes `pnpm install`, builds the assets (`pnpm run build`), and initializes the local database (`pnpm run db:migrate:local`) out of the box (unless `--skip-*` flags like `--skip-install`, `--skip-build`, or `--skip-migrate` are passed).
+>
+> If you are contributing directly by cloning the Zygo CMS repository manually (or if you scaffolded with `--skip-install`), run `pnpm install` after cloning:
+> ```bash
+> pnpm install
+> ```
 
 ## 2. Local Database Setup
 
-Zygo CMS relies on Cloudflare D1 for its database. For local development, Wrangler provides a local SQLite environment that mimics D1. Before starting the server, you must initialize the local database schema by applying the migrations:
+Zygo CMS relies on Cloudflare D1 for its database. For local development, Wrangler provides a local SQLite environment that mimics D1.
+
+- **Scaffolded via `create-zygo-app`**: The initial migration is already completed automatically during setup. You can jump directly to [Section 3: Start the Development Server](#3-start-the-development-server).
+- **Manual Repository Clone (or `--skip-migrate`)**: If you cloned the repository manually or passed `--skip-migrate`, apply the database migrations to initialize the local SQLite database schema:
 
 ```bash
 pnpm run db:migrate:local
@@ -73,7 +81,7 @@ Once the terminal output stabilizes and indicates all servers are running:
 
 1. Open **[http://localhost:5173](http://localhost:5173)** in your web browser.
 2. Zygo CMS is **100% passwordless** — there are no passwords or manual registration screens to configure. When running in development mode (`ENVIRONMENT=dev` in `packages/admin-api-worker/.dev.vars` or project root), the Admin API automatically bypasses Cloudflare Access and authenticates the user as `admin@localhost` with full admin privileges, so no registration or password is required. (In production, authentication is handled cryptographically at the edge via Cloudflare Access Zero Trust).
-3. Once the dashboard loads, navigate to **Content -> Entries** in the sidebar to start creating and editing content!
+3. Once the dashboard loads, navigate to **Pages** or **Posts** (under **Content**) in the sidebar to start creating and editing content!
 4. View your public-facing rendered site at **[http://localhost:8788](http://localhost:8788)**.
 
 ## Troubleshooting

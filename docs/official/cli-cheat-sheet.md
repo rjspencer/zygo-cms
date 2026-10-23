@@ -20,8 +20,10 @@ All core lifecycle commands are executed from the repository root via `pnpm`:
 | `pnpm run db:reset:remote` | Wipes and re-initializes the remote production D1 schema | Remote D1 database |
 | `pnpm run setup` / `pnpm run wizard` | Runs interactive setup wizard for D1, R2, Zero Trust, and workers | Interactive CLI |
 | `pnpm run deploy` | Deploys public worker, admin API worker, and admin UI | Cloudflare Edge |
-| `pnpm run seed:docs:official` | Parses official markdown docs and seeds them into D1 | D1 `entries` table |
-| `pnpm run seed:theme-preview` | Seeds default themes and section templates into D1 | D1 `templates` table |
+| `pnpm run seed:docs:official` | Parses official markdown docs and seeds them into local D1 | Local D1 `entries` table |
+| `pnpm run seed:docs:official -- --remote` | Seeds official markdown docs into remote production D1 | Remote D1 `entries` table |
+| `pnpm run seed:theme-preview` | Seeds default themes and section templates into local D1 | Local D1 `section_templates` & `entries` tables |
+| `pnpm run seed:theme-preview -- --remote` | Seeds default themes and section templates into remote production D1 | Remote D1 `section_templates` & `entries` tables |
 | `pnpm run test:all` | Runs the full Vitest suite across workers, UI, and E2E | Node / Vitest |
 | `cargo test` | Runs native Rust unit and integration test suites | Rust / Cargo |
 
@@ -34,7 +36,18 @@ When invoking the build runner via Node, specific flags can control Rust compila
 | `node scripts/build.mjs --skip-rust` | Force skip Rust recompilation and proceed directly to UI build |
 | `node scripts/build.mjs` | Default smart mode: auto-detects pre-built Wasm; compiles Rust only if needed and toolchain is installed |
 
-For detailed documentation on the pre-compiled WebAssembly distribution model, see the [Pre-Built Wasm Distribution Guide](./wasm-distribution.md).
+For detailed documentation on the pre-compiled WebAssembly distribution model, see the [Pre-Built Wasm Distribution Guide](/docs/wasm-distribution).
+
+### Setup Wizard Flags (scripts/setup.mjs)
+
+The provisioning setup wizard supports CLI flags for preflight diagnostics, dry runs, and unattended CI automation:
+
+| Flag / Invocation | Description |
+| :--- | :--- |
+| `node scripts/setup.mjs --doctor` | Preflight diagnostic mode: validates Node.js (>= 22), pnpm (>= 11), Rust Wasm target, Cloudflare Account ID, and Zone without modifying files |
+| `node scripts/setup.mjs --dry-run` | Prints the 10-step execution plan and resolves configuration without modifying local files or remote Cloudflare resources |
+| `node scripts/setup.mjs --yes` / `-y` | Non-interactive mode for CI/headless provisioning; skips confirmation prompts (requires `--domain <domain> --email <email>`) |
+| `node scripts/setup.mjs --no-deploy` | Provisions D1, R2, DNS, and Access resources and updates configurations without running worker deployment |
 
 ---
 

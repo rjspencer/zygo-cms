@@ -36,11 +36,56 @@ Edge rendering in `packages/public-worker` is powered by dynamic **MiniJinja** (
 - **Embedded Default Templates:** Built-in default templates for layouts and standard sections are embedded directly in the worker binary via `packages/public-worker/src/views.rs`.
 - **Runtime D1 Overrides:** At runtime, the public worker queries the D1 database for custom templates in the `layout_templates` and `section_templates` tables. When a database record exists, it dynamically overrides the embedded default without requiring worker recompilation or redeployment.
 - **No Disk Templates:** There is no reliance on on-disk template directories (such as a `templates/` folder) or compile-time static template engines like Askama. Templates are dynamic, stored in D1, and evaluated in-memory by MiniJinja.
+- **Shared `media_srcset` Filter:** Registered in `packages/core/src/template_engine.rs` (available to both Public SSR and Wasm preview), `{{ image|media_srcset|safe }}` automatically generates responsive `srcset` attributes for uploaded WebP media assets (`/media/{key}.webp` or `/api/media/{key}.webp`), outputting:
+  `{url}?size=thumb 400w, {url}?size=md 1024w, {url} 2048w`. Non-WebP assets or external URLs safely return an empty string. Example usage in section templates:
+  ```html
+  <img src="{{ image }}" srcset="{{ image|media_srcset|safe }}" sizes="(max-width: 768px) 100vw, 1024px" alt="{{ title }}" loading="lazy" />
+  ```
 
 ### Client-Side Live Preview with `template-wasm`
 Live previewing in the Admin UI is powered by **`template-wasm`** (`packages/template-wasm`), a dedicated Rust WebAssembly crate:
 - **Client-Side Evaluation:** Compiles MiniJinja to Wasm so the Vite / React frontend can evaluate and render templates client-side directly in the browser.
 - **Zero Server Round-Trips:** As editors customize section data or developers modify section HTML/CSS templates in the Template Editor, `template-wasm` renders live previews instantly with 100% parity to the Edge SSR engine.
+
+## MCP & Agent Parity Architecture (WebMCP & `zygo-mcp`)
+
+Zygo CMS enforces a mandatory **Human-Agent Parity Gate**: any feature, REST API endpoint, or editing capability added to `packages/admin-ui` or `packages/admin-api-worker` must be fully usable by AI agents through both **in-browser WebMCP** (`packages/admin-ui/src/lib/webmcp/`) and the standalone **CLI MCP bridge** (`packages/zygo-mcp/index.mjs`).
+
+### 1. Dual-Bridge Architecture
+
+Agent interaction is split across two synchronized runtimes:
+
+- **In-Browser WebMCP (`packages/admin-ui/src/lib/webmcp/`):**
+  - **Standard Global Bridges:** Every tool registered in the UI is bound synchronously to both `window.webmcp` and the emerging W3C standard `navigator.modelContext` (`registerTool`, `unregisterTool`, `provideContext`, `executeTool`).
+  - **Live Editor State Synchronization:** Tool handlers integrate directly with active React components, React Hook Form instances, TipTap rich text, and page section arrangements via `EditorUIStateContext`. When an agent invokes a tool (e.g. `editor_set_sections` or `editor_save_draft`), the active UI updates immediately, avoiding stale closures and resetting unsaved-change indicators (`isDirty`).
+  - **Same-Tick Sequential Mutation Safety:** Handlers updating state arrays or objects synchronously mirror mutations to `optionsRef.current` alongside React state setters (`opts.setSections(next)`), ensuring sequential or batch tool calls within the same render tick do not overwrite each other.
+
+- **CLI MCP Bridge (`packages/zygo-mcp/index.mjs`):**
+  - A standalone Model Context Protocol stdio server providing 37 tools prefixed with `zygo_` (e.g., `zygo_list_entries`, `zygo_create_entry`, `zygo_bulk_entries`, `zygo_upsert_section_template`, `zygo_update_theme_settings`, `zygo_list_form_submissions`, `zygo_clear_cache`).
+  - Connects to `/api/*` endpoints authenticated via Cloudflare Access Service Tokens (`CF-Access-Client-Id` and `CF-Access-Client-Secret`).
+
+### 2. Structured Return Contract
+
+Every MCP tool across both WebMCP and `zygo-mcp` adheres to a strict return contract:
+
+```typescript
+return {
+  toolResult: data, // Structured JSON object for programmatic agent inspection
+  content: [
+    {
+      type: "text",
+      text: "Human- and agent-readable summary of the action outcome"
+    }
+  ]
+};
+```
+
+On errors, handlers catch exceptions and return structured errors with `{ isError: true, content: [{ type: "text", text: error.message }] }` rather than throwing uncaught exceptions.
+
+### 3. Testing & Verification Requirements
+
+- **Vitest Parity Coverage:** All WebMCP tools must include comprehensive unit and integration tests in `packages/admin-ui/src/lib/webmcp/__tests__/`, verifying strict input schema validation, valid execution paths, and error scenarios.
+- **Static Parity Audit:** Before commits, developers and agents run `node .agents/skills/webmcp-parity-audit/scripts/audit-webmcp.mjs` to audit tool inventory, global bridge bindings (`window.webmcp` / `navigator.modelContext`), and editor lifecycle parity.
 
 ## Multi-Tier Testing Architecture
 

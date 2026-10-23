@@ -9,6 +9,6 @@ This directory (`docs/`) stores user-facing documentation, technical specificati
 
 ## Guidelines
 - **Target Audience for Official Docs**: Zygo CMS users, site administrators, and developers integrating with Zygo.
-- **Content Maintenance**: When adding or modifying CMS features, update corresponding reference guides in `docs/official/` (`introduction.md`, `quickstart.md`, `concepts.md`, `deployment.md`, `advanced.md`, `examples.md`).
+- **Content Maintenance**: When adding or modifying CMS features, update corresponding reference guides in `docs/official/` (`introduction.md`, `quickstart.md`, `concepts.md`, `deployment.md`, `advanced.md`, `examples.md`, `troubleshooting.md`, `cli-cheat-sheet.md`, `wasm-distribution.md`).
 - **Technical Specs**: Before implementing large or architectural features, author or reference an RFC/spec in `docs/specs/<feature>_spec.md` and link it in the root `ROADMAP.md`.
 - **Accuracy**: Ensure configuration files, commands (`wrangler`, `pnpm`), and schema examples accurately reflect current codebase practices.
