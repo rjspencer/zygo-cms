@@ -141,3 +141,15 @@ ALTER TABLE users ADD COLUMN is_active INTEGER;
 -- Backfill existing users to be active by default
 UPDATE users SET is_active = 1 WHERE is_active IS NULL;
 ```
+
+## Site Backup, Export & Import
+
+Zygo CMS provides built-in 1-click site backup and restore capabilities for full data portability:
+
+- **Portable Archive Format**: Downloads a structured JSON bundle (`zygo-backup-YYYY-MM-DD.json`) capturing settings, menus, section templates, layout templates, entries, redirects, and media manifests.
+- **Admin Endpoints**:
+  - `GET /api/admin/export`: Downloads the versioned JSON archive.
+  - `POST /api/admin/import`: Validates schema & MiniJinja templates, supports `dry_run` preview counts, upserts data, preserves page hierarchies via slugs, and purges the edge cache.
+- **Admin UI**: Available on the **Settings** page under **Backup & Portability**.
+- **MCP Parity**: Fully accessible via both in-browser WebMCP (`export_site_backup`, `import_site_backup`) and CLI MCP (`zygo_export_site_backup`, `zygo_import_site_backup`).
+

@@ -8,3 +8,4 @@ export * from './themeAndMediaTools';
 export * from './navigationTools';
 export * from './layoutTemplateTools';
 export * from './submissionTools';
+export * from './backupTools';

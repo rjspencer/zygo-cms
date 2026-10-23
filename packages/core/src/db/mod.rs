@@ -10,6 +10,7 @@ pub mod setting;
 pub mod layout_template;
 pub mod redirect;
 pub mod form_submission;
+pub mod backup;
 
 pub use entry::*;
 pub use media::*;

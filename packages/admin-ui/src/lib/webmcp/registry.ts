@@ -7,6 +7,7 @@ import {
 } from './types';
 import { createGlobalRedirectTools } from './redirectTools';
 import { createGlobalSubmissionTools } from './submissionTools';
+import { createGlobalBackupTools } from './backupTools';
 
 export class WebMCPRegistry {
   private tools = new Map<string, WebMCPToolDefinition>();
@@ -256,7 +257,7 @@ export class WebMCPRegistry {
     return this.tools.get(name);
   }
 
-  async callTool(name: string, args?: Record<string, any>): Promise<WebMCPToolResult> {
+  async callTool(name: string, args?: Record<string, any>): Promise<WebMCPToolResult & { toolResult?: any }> {
     const safeArgs = (args && typeof args === 'object') ? args : {};
     const tool = this.tools.get(name);
 
@@ -357,7 +358,12 @@ export class WebMCPRegistry {
   registerSubmissionTools(): () => void {
     return this.registerTools(createGlobalSubmissionTools());
   }
+
+  registerBackupTools(): () => void {
+    return this.registerTools(createGlobalBackupTools());
+  }
 }
 
 export { createGlobalRedirectTools } from './redirectTools';
 export { createGlobalSubmissionTools } from './submissionTools';
+export { createGlobalBackupTools } from './backupTools';

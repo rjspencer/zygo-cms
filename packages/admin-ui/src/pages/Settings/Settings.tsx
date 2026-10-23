@@ -12,11 +12,17 @@ import {
   DocsSettingsCard,
   EdgeEnvironmentCard,
   CacheSettingsCard,
+  BackupPortabilityCard,
 } from './components';
+import { useRegisterWebMCPTools } from '../../providers/WebMCPProvider';
+import { createGlobalBackupTools } from '../../lib/webmcp/backupTools';
 import { useSettingsData, useSettingsForm } from './hooks';
 import type { SettingsProps } from './types';
 
 export const Settings: React.FC<SettingsProps> = () => {
+  const backupTools = React.useMemo(() => createGlobalBackupTools(), []);
+  useRegisterWebMCPTools(backupTools);
+
   const {
     data: settingsData,
     isLoading,
@@ -73,6 +79,7 @@ export const Settings: React.FC<SettingsProps> = () => {
           <AnalyticsSettingsCard />
           <AiCrawlSettingsCard configured={aiCrawlData?.configured ?? false} />
           <DocsSettingsCard />
+          <BackupPortabilityCard />
           <CacheSettingsCard
             onClear={() => clearCache()}
             isClearing={isClearingCache}

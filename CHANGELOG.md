@@ -8,6 +8,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### 1-Click Site Backup, Export & Import
+- **Backend Core & Database Logic (`packages/core/`)**:
+  - Defined versioned JSON schema `ZygoBackupPayload` in `packages/core/src/models/backup.rs` supporting settings, menus, section templates, layout templates, entries, redirects, and media manifests.
+  - Implemented `export_site_backup` and `import_site_backup` in `packages/core/src/db/backup.rs` strictly using explicit SQL columns (zero `SELECT *`).
+  - Added portable hierarchy preservation (`parent_slug`) with two-pass upsert relinking.
+  - Added template validation before database commits using `validate_template` and MiniJinja syntax checks.
+- **Admin API Worker (`packages/admin-api-worker/`)**:
+  - Added `GET /api/admin/export` downloading `zygo-backup-YYYY-MM-DD.json` with admin role enforcement.
+  - Added `POST /api/admin/import` with `dry_run` preview support, template validation, and edge cache purging.
+- **Admin UI Settings Integration (`packages/admin-ui/`)**:
+  - Implemented `BackupPortabilityCard` in `Settings.tsx` with export file download, JSON upload, dry-run confirmation modal, and import execution.
+  - Created Storybook stories covering default, dry-run preview, warning, and dark mode states.
+- **MCP Parity (`packages/admin-ui/src/lib/webmcp/`, `packages/zygo-mcp/`)**:
+  - Added in-browser WebMCP tools `export_site_backup` and `import_site_backup`.
+  - Added CLI MCP bridge tools `zygo_export_site_backup` and `zygo_import_site_backup` in `packages/zygo-mcp/index.mjs`.
+- **Quality Gates & Tests**:
+  - Rust unit tests in `zygo-core` and `admin-api-worker` passing (75/75 tests).
+  - Vitest component tests (`BackupPortabilityCard.test.tsx`) and WebMCP integration tests (`WebMCPBackupTools.test.tsx`) passing.
+  - 1+2+4 Protocol verified across viewports and accessibility.
+
+
 ### Backend CLI MCP Server (`zygo-mcp`) Parity & Upgrade (`packages/zygo-mcp/`)
 - **Route Normalization & Authentication (`packages/zygo-mcp/index.mjs`)**:
   - Normalized all endpoint paths through `getApiUrl(path)` ensuring all REST requests target `/api/*` (`/api/entries`, `/api/posts`, `/api/settings`, etc.).

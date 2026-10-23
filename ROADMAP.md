@@ -23,13 +23,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
   - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
 
-### 1-Click Site Backup, Export & Import
-- **Goal**: Give site owners full data portability and 1-click backup/restore capabilities directly from the Admin UI Settings page.
-- **Spec**: [`docs/specs/site_backup_export_import_spec.md`](docs/specs/site_backup_export_import_spec.md)
-- **Details**:
-  - Add `GET /api/admin/export` and `POST /api/admin/import` (with `dry_run` preview) to export and restore settings, menus, section & layout templates, entries, redirects, and media manifests as a versioned JSON bundle.
-  - Add a **Backup & Portability** card in `Settings.tsx` alongside WebMCP and `zygo-mcp` tools.
-
 ---
 
 ## 3. Icebox & Long-Term Considerations
