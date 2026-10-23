@@ -43,6 +43,7 @@ const mockEntries = [
 const mockMetrics = {
   post_count: 10,
   page_count: 5,
+  doc_count: 2,
   media_count: 3,
 };
 
@@ -55,6 +56,7 @@ const renderDashboard = () => {
       { path: '/posts/editor/new', element: <div>New Post View</div> },
       { path: '/posts/editor/:id', element: <div>Edit Post View</div> },
       { path: '/pages/editor/:id', element: <div>Edit Page View</div> },
+      { path: '/docs/editor/:id', element: <div>Edit Doc View</div> },
     ],
     { initialEntries: ['/'] }
   );
@@ -93,6 +95,7 @@ describe('Dashboard Component Integration Tests', () => {
     expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeDefined();
     expect(screen.getByText('Total Posts')).toBeDefined();
     expect(screen.getByText('Total Pages')).toBeDefined();
+    expect(screen.getByText('Total Docs')).toBeDefined();
     expect(screen.getByText('Media Files')).toBeDefined();
     expect(screen.getByText('Edge Status')).toBeDefined();
 
@@ -103,6 +106,7 @@ describe('Dashboard Component Integration Tests', () => {
 
     expect(screen.getByText('10')).toBeDefined();
     expect(screen.getByText('5')).toBeDefined();
+    expect(screen.getByText('2')).toBeDefined();
     expect(screen.getByText('3')).toBeDefined();
   });
 

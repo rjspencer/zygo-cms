@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   FileTextIcon,
   LayersIcon,
+  ArchiveIcon,
   ImageIcon,
   ActivityLogIcon,
 } from '@radix-ui/react-icons';
@@ -51,16 +52,26 @@ export function useDashboardData(): UseDashboardDataReturn {
     staleTime: 30000,
   });
 
-  const totalPosts = metricsData.post_count || 0;
-  const totalPages = metricsData.page_count || 0;
+  const totalPosts =
+    metricsData.post_count !== undefined
+      ? metricsData.post_count
+      : entries.filter((e: any) => e.type === 'post').length;
+  const totalPages =
+    metricsData.page_count !== undefined
+      ? metricsData.page_count
+      : entries.filter((e: any) => e.type === 'page').length;
+  const totalDocs =
+    metricsData.doc_count !== undefined
+      ? metricsData.doc_count
+      : entries.filter((e: any) => e.type === 'doc').length;
   const totalMedia = metricsData.media_count !== undefined ? metricsData.media_count : 0;
 
   const edgeColor: 'green' | 'gray' | 'amber' =
     edgeStatus === 'Operational'
       ? 'green'
       : edgeStatus === 'Checking...'
-      ? 'gray'
-      : 'amber';
+        ? 'gray'
+        : 'amber';
 
   const metrics: DashboardMetricItem[] = [
     {
@@ -74,6 +85,12 @@ export function useDashboardData(): UseDashboardDataReturn {
       value: totalPages.toString(),
       icon: <LayersIcon width="20" height="20" />,
       color: 'cyan',
+    },
+    {
+      title: 'Total Docs',
+      value: totalDocs.toString(),
+      icon: <ArchiveIcon width="20" height="20" />,
+      color: 'blue',
     },
     {
       title: 'Media Files',
@@ -90,7 +107,7 @@ export function useDashboardData(): UseDashboardDataReturn {
   ];
 
   const recentEntries: RecentEntryItem[] = entries.slice(0, 5).map((e: any) => {
-    const entryPath = e.type === 'page' ? (e.slug || '') : `/post/${e.slug || ''}`;
+    const entryPath = e.path || (e.type === 'page' ? (e.slug || '') : e.type === 'doc' ? `/docs/${e.slug || ''}` : `/post/${e.slug || ''}`);
     const liveUrl = getPublicSiteUrl(entryPath);
     return {
       id: e.id,

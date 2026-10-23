@@ -6,7 +6,7 @@ export interface DashboardMetricItem {
   title: string;
   value: string;
   icon: React.ReactNode;
-  color: 'crimson' | 'cyan' | 'amber' | 'green' | 'gray';
+  color: 'crimson' | 'cyan' | 'blue' | 'amber' | 'green' | 'gray';
 }
 
 export interface RecentEntryItem {
@@ -21,6 +21,7 @@ export interface RecentEntryItem {
 export interface DashboardApiResponse {
   post_count?: number;
   page_count?: number;
+  doc_count?: number;
   media_count?: number;
 }
 
