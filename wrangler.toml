@@ -28,6 +28,6 @@
 [[d1_databases]]
 binding = "DB"
 database_name = "zygo-cms-db"
-database_id = "488417e7-4ad1-4875-90e9-71a0ac3dbc63"
+database_id = ""
 migrations_dir = "migrations"
 
