@@ -65,6 +65,13 @@ const pages = [
     title: 'CLI Cheat-Sheet',
     path: '/docs/cli-cheat-sheet',
     parentPath: '/docs',
+  },
+  {
+    file: 'wasm-distribution.md',
+    slug: 'wasm-distribution',
+    title: 'Pre-Built Wasm Distribution',
+    path: '/docs/wasm-distribution',
+    parentPath: '/docs',
   }
 ];
 

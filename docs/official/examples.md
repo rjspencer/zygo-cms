@@ -16,7 +16,8 @@ Zygo CMS is optimized for blogging and publication sites out of the box.
 Landing pages require structured, multi-column layouts rather than continuous rich text. Zygo CMS achieves this using its modular **Section Templates** block architecture.
 
 1. **Select or Create Section Templates:**
-   Zygo includes built-in section templates (`hero`, `features`, `text-image`, `carousel`, `gallery`, `testimonial`, `faq`, `contact-form`, `newsletter`). You can also create custom section templates under **Templates** (`/templates`).
+   Zygo includes **17 built-in preset section templates** out of the box:
+   `hero`, `text`, `text-image`, `gallery`, `image-carousel`, `call-to-action`, `feature-grid`, `testimonial`, `faq`, `video-embed`, `pricing`, `stats`, `logo-cloud`, `team`, `steps`, `contact-form`, and `newsletter`. You can also create custom section templates under **Templates** (`/templates`).
 
    A Section Template defines a schema (`schema_json`) specifying editable fields:
    ```json
@@ -47,9 +48,9 @@ Landing pages require structured, multi-column layouts rather than continuous ri
 
 3. **Stack Section Blocks:**
    In the Page Editor, stack sections using the block builder:
-   - Add a `Hero` section and fill in the headline and CTA button.
-   - Add a `Features` section to showcase product capabilities.
-   - Add a `Contact Form` or `Newsletter` section for lead capture.
+   - Add a `Hero` section (`hero`) and fill in the headline and CTA button.
+   - Add a `Feature Grid` section (`feature-grid`) to showcase product capabilities.
+   - Add a `Contact Form` (`contact-form`) or `Newsletter` (`newsletter`) section for lead capture.
    - Reorder sections via drag-and-drop.
 
 4. **Persistence & SSR Compilation:**
@@ -57,7 +58,7 @@ Landing pages require structured, multi-column layouts rather than continuous ri
    ```json
    [
      {
-       "template_slug": "hero",
+       "type_id": "hero",
        "data": {
          "headline": "Ship Faster with Edge Architecture",
          "subheadline": "Built on Cloudflare Workers and D1.",
@@ -66,9 +67,10 @@ Landing pages require structured, multi-column layouts rather than continuous ri
        }
      },
      {
-       "template_slug": "features",
+       "type_id": "feature-grid",
        "data": {
-         "items": [
+         "title": "Core Capabilities",
+         "features": [
            { "title": "Ultra-Fast SSR", "description": "Sub-millisecond edge response." },
            { "title": "Zero Ops", "description": "Powered entirely by serverless primitives." }
          ]
@@ -76,30 +78,42 @@ Landing pages require structured, multi-column layouts rather than continuous ri
      }
    ]
    ```
-   At save time, the Admin API worker compiles and sanitizes the output into `body_html`, enabling instantaneous edge SSR on the Public Worker with no runtime template compilation overhead.
+   For pages, `body_json` stores the section array while `body_html` is stored as `""` (empty string) in D1. The Public Worker dynamically renders the sections via MiniJinja at SSR time (caching the resulting HTML at the Cloudflare Edge), so template updates made in `/templates` apply immediately across all pages without requiring entries to be re-saved.
 
-## Recipe 3: Customizing the Theme
+## Recipe 3: Customizing the Theme & Site Branding
 
-In Zygo CMS, themes and templates are completely dynamic and managed at runtime without modifying or recompiling Rust binaries.
+In Zygo CMS, themes, site branding, and templates are completely dynamic and managed at runtime without modifying or recompiling Rust binaries.
 
-### 1. Theme Editor (`/theme`)
+### 1. Site Branding & Social Settings (`/settings`)
 
-Site branding, typography, and styling tokens are managed directly in the Admin UI:
+Site-wide branding, social media metadata, and identity tokens are configured under **Settings** (`/settings`):
+
+- **Site Logo (`site_logo`):** URL of the primary light-mode logo (stored in Cloudflare R2).
+- **Dark Mode Logo (`site_logo_dark`):** URL of the dark-mode brand logo. When configured, the Public SSR Worker renders an automated `<picture>` element with `<source media="(prefers-color-scheme: dark)" srcset="...">` so the logo switches seamlessly based on the visitor's system theme.
+- **Favicon (`site_favicon`):** URL of the site favicon used for browser tabs and bookmarks.
+- **Default Open Graph Image (`default_og_image`):** Global fallback social sharing preview image for Twitter/X, LinkedIn, and messaging apps. When viewing individual posts or pages, any per-entry `cover_image` automatically takes precedence over this default.
+- **Site Tagline:** Optional header tagline rendered adjacent to the site title or logo. When left blank, it is cleanly omitted from SSR HTML.
+- **Footer Text (`footer_text`):** Markdown-compatible copyright or attribution text rendered across the global layout footer.
+
+### 2. Theme Editor (`/theme`)
+
+Styling tokens and typography presets are managed directly in the Admin UI:
 
 - **Color Tokens:** Customize primary brand colors, accent colors, neutral surfaces, text tones, and borders. Includes dark mode tokens and instant preview.
 - **Typography Presets:** Select from pre-configured font pairings (such as Modern Editorial, Bento Brutalism, Clean Sans, or Monospace) or specify custom Google Fonts URLs.
 - **Layout & Header Settings:** Adjust container max-widths, border radiuses, and header navigation styles (centered, split, or inline).
 - **Persistence:** All theme choices are saved directly to the `settings` table as CSS design tokens. The Public Worker injects these tokens as CSS variables (`:root { --color-primary: ...; }`) into edge-rendered pages with immediate cache invalidation.
 
-### 2. Customizing Templates in the Admin UI (`/templates`)
+### 3. Customizing Templates in the Admin UI (`/templates`)
 
 Templates are stored in Cloudflare D1 and can be edited live:
 
 - **Section Templates:** Modify the Minijinja HTML and scoped CSS of any content block in `/templates`. Changes take effect across all pages using that section template once saved.
+- **Theme Preview Integration:** The `/templates` page includes an inline **Preview** link to `/theme-preview`, which showcases all 17 built-in section templates rendered live under the active theme styling and font pairings.
 - **Layout Templates:** Edit the outer HTML frame (headers, navigation, footers, `<head>` tags) for your site.
 - **Revision History:** All template modifications record automated revisions (`/templates/:id/revisions`) with one-click restore.
 
-### 3. Developer Note: Embedded Fallbacks
+### 4. Developer Note: Embedded Fallbacks
 
 Developers only need to modify Rust code (`packages/public-worker/src/views.rs`) if changing the default embedded fallback templates compiled into worker binaries for fresh installations prior to initial database seeding. All production theming is handled through the Admin UI.
 
@@ -112,7 +126,7 @@ Zygo CMS can act as a headless backend for modern frontend frameworks such as Ne
 All endpoints under `/api/*` require authentication. For headless frontend servers, build workers, or CI/CD pipelines, authenticate using Cloudflare Access Service Tokens by including the `CF-Access-Client-Id` and `CF-Access-Client-Secret` headers with every request:
 
 ```bash
-curl -X GET "https://admin.yourdomain.com/api/entries" \
+curl -X GET "https://api.yourdomain.com/api/entries" \
   -H "CF-Access-Client-Id: your-service-token-client-id.access" \
   -H "CF-Access-Client-Secret: your-service-token-client-secret-value" \
   -H "Accept: application/json"
@@ -138,7 +152,7 @@ A `GET /api/entries` request returns an array of entries matching the unified sc
     "tags": "release,cloudflare,workers",
     "published_at": "2026-10-15 10:00:00",
     "body_html": "<p>Welcome to our new publication built on edge infrastructure.</p>",
-    "body_json": "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Welcome to our new publication built on edge infrastructure.\"}]}]}",
+    "body_json": "{}",
     "custom_fields_json": null,
     "parent_id": null,
     "path": "/post/welcome-to-zygo",
@@ -162,8 +176,8 @@ A `GET /api/entries` request returns an array of entries matching the unified sc
     "category": null,
     "tags": null,
     "published_at": "2026-10-15 10:00:00",
-    "body_html": "<section class=\"section-hero\"><h1>About Our Team</h1></section>",
-    "body_json": "[{\"template_slug\":\"hero\",\"data\":{\"headline\":\"About Our Team\",\"subheadline\":\"Building edge-first software.\"}}]",
+    "body_html": "",
+    "body_json": "[{\"type_id\":\"hero\",\"data\":{\"headline\":\"About Our Team\",\"subheadline\":\"Building edge-first software.\"}}]",
     "custom_fields_json": null,
     "parent_id": null,
     "path": "/about",
@@ -179,7 +193,50 @@ A `GET /api/entries` request returns an array of entries matching the unified sc
 
 ### 3. Headless Frontend Rendering Strategies
 
-Headless consumers have two flexible approaches for rendering Zygo CMS content:
+Headless consumers have two flexible approaches for rendering Zygo CMS content depending on the entry type:
 
-- **Pre-rendered HTML Injection:** Use `body_html` to directly inject edge-compiled HTML (e.g., `set:html` in Astro, `dangerouslySetInnerHTML` in React). This preserves Zygo's theme styling and responsive picture markup without maintaining separate frontend template components.
-- **Structured JSON AST Rendering:** Parse `body_json` to map ProseMirror AST nodes (for Posts and Docs) or Section Template slugs (for Pages) to native React, Vue, or Svelte design system components for custom layout control.
+- **Rendered HTML Injection (`body_html`):** Used for **Posts** and **Docs**. Directly inject edge-compiled HTML (`body_html`) via `dangerouslySetInnerHTML` in React or `set:html` in Astro. This preserves Zygo's theme styling and responsive picture markup without maintaining separate frontend template components.
+- **Structured Section Blocks (`body_json`):** Used for **Pages**. Parse `body_json` into structured section blocks (`type_id` and `data`, e.g., `hero`, `feature-grid`, `testimonial`, `pricing`) to map directly to your native React, Vue, or Svelte design system components for custom layout control.
+
+## Recipe 5: Automating Content & Site Management with AI Agents (WebMCP & `zygo-mcp`)
+
+Zygo CMS provides native integration for AI agents, enabling autonomous coding, authoring, and site administration workflows through two interfaces:
+
+### 1. In-Browser WebMCP (`window.webmcp` & `navigator.modelContext`)
+
+Available directly within the Admin UI for real-time agent collaboration:
+- **Global Standard Bridges:** Automatically registers tools on both `window.webmcp` and the W3C standard `navigator.modelContext`.
+- **Assistant Drawer & Batch RPC Console:** Human operators and in-browser agents can open the built-in Assistant Drawer or Batch RPC Console to run multi-step actions, inspect tool schemas, and execute batch updates.
+- **Live Editor State Synchronization:** Tool calls directly update active React state (React Hook Form metadata, TipTap rich text, and page section arrangements via `EditorUIStateContext`), triggering live preview re-renders and auto-saving drafts without requiring DOM clicking.
+
+### 2. Standalone CLI MCP Server (`packages/zygo-mcp/index.mjs`)
+
+For external AI developer environments (such as Antigravity, Claude Desktop, Cursor, or Cline), Zygo CMS provides a standalone Model Context Protocol stdio server.
+
+The server exposes **37 tools** covering all CMS operations:
+- **Entries & Content:** `zygo_list_entries`, `zygo_get_entry`, `zygo_create_entry`, `zygo_update_entry`, `zygo_delete_entry`, `zygo_restore_entry`, `zygo_bulk_entries`.
+- **Templates & Layouts:** `zygo_list_section_templates`, `zygo_get_section_template`, `zygo_upsert_section_template`, `zygo_delete_section_template`, `zygo_list_layout_templates`, `zygo_get_layout_template`, `zygo_update_layout_template`.
+- **Navigation:** `zygo_get_menu`, `zygo_update_menu`.
+- **Media & Theming:** `zygo_list_media`, `zygo_delete_media`, `zygo_get_theme_settings`, `zygo_update_theme_settings`, `zygo_reset_theme_to_defaults`.
+- **Settings, Cache & SEO:** `zygo_get_settings`, `zygo_update_settings`, `zygo_get_ai_crawl_settings`, `zygo_update_ai_crawl_settings`, `zygo_clear_cache`.
+- **Redirects & Forms:** `zygo_list_redirects`, `zygo_create_redirect`, `zygo_update_redirect`, `zygo_delete_redirect`, `zygo_list_form_submissions`, `zygo_get_form_submission`, `zygo_update_form_submission_status`, `zygo_delete_form_submission`.
+
+#### MCP Client Configuration
+
+Add the server to your MCP client configuration (e.g., `claude_desktop_config.json` or Antigravity MCP settings):
+
+```json
+{
+  "mcpServers": {
+    "zygo": {
+      "command": "node",
+      "args": ["/path/to/zygo-cms/packages/zygo-mcp/index.mjs"],
+      "env": {
+        "ZYGO_API_URL": "https://api.yourdomain.com",
+        "CF_ACCESS_CLIENT_ID": "your-service-token-client-id.access",
+        "CF_ACCESS_CLIENT_SECRET": "your-service-token-client-secret-value"
+      }
+    }
+  }
+}
+```

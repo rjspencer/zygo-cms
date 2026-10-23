@@ -325,4 +325,6 @@ cargo install worker-build
   ```
 
 #### Initial Compilation Duration
-The first time you run `pnpm run build` or `pnpm run dev`, Rust compiles all crate dependencies (Minijinja, serde, worker-rs) to WebAssembly. This initial build typically takes 60 to 90 seconds. Subsequent compilations utilize target cache artifacts and complete in 2 to 5 seconds.
+If you scaffolded your project with `npx create-zygo-app` or are working from the `release` branch, pre-compiled WebAssembly bundles are already included, meaning **zero Rust compilation occurs** during `pnpm run build` or `pnpm run dev`.
+
+The initial 60 to 90 second Cargo compilation duration (where Rust compiles crate dependencies like Minijinja, serde, and worker-rs to WebAssembly) only applies to contributors compiling the Rust workers from source for the first time. Subsequent compilations utilize target cache artifacts and complete in 2 to 5 seconds.
