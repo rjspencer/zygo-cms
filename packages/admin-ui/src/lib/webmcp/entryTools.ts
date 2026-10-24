@@ -5,7 +5,9 @@ import { useRegisterWebMCPTools } from '../../providers/WebMCPProvider';
 import type { WebMCPToolDefinition, WebMCPToolResult } from './types';
 import type { SectionInstance, SectionTemplate } from '../../types/sectionTemplate';
 
-export interface UseTipTapWebMCPOptions {
+export type WorkflowStatus = 'draft' | 'in_review' | 'ready_for_publish' | 'published' | 'archived' | 'scheduled';
+
+export interface UseTipTapWebMCPOptions<S extends string = WorkflowStatus> {
   editor: TipTapEditor | null;
   getFormValues?: () => Record<string, any>;
   content?: string;
@@ -14,8 +16,8 @@ export interface UseTipTapWebMCPOptions {
   setTitle?: (title: string) => void;
   slug?: string;
   setSlug?: (slug: string) => void;
-  status?: 'draft' | 'published' | 'scheduled';
-  setStatus?: (status: 'draft' | 'published' | 'scheduled') => void;
+  status?: S;
+  setStatus?: (status: S) => void;
   entryType: string;
   description?: string;
   setDescription?: (description: string) => void;
@@ -41,6 +43,8 @@ export interface UseTipTapWebMCPOptions {
   onPublish?: () => Promise<any> | any;
 }
 
+export type EditorToolsOptions = UseTipTapWebMCPOptions;
+
 /**
  * Creates global WebMCP tools for entry management across the Zygo CMS admin dashboard.
  */
@@ -58,8 +62,8 @@ export function createGlobalEntryTools(): WebMCPToolDefinition[] {
         },
         status: {
           type: 'string',
-          enum: ['draft', 'published', 'scheduled'],
-          description: 'Filter entries by status (draft, published, scheduled)',
+          enum: ['draft', 'in_review', 'ready_for_publish', 'published', 'archived', 'scheduled'],
+          description: 'Filter entries by status (draft, in_review, ready_for_publish, published, archived, scheduled)',
         },
         search: {
           type: 'string',
@@ -171,8 +175,8 @@ export function createGlobalEntryTools(): WebMCPToolDefinition[] {
         },
         status: {
           type: 'string',
-          enum: ['draft', 'published'],
-          description: 'Publication status (draft or published)',
+          enum: ['draft', 'in_review', 'ready_for_publish', 'published', 'archived', 'scheduled'],
+          description: 'Publication status (draft, in_review, ready_for_publish, published, archived, scheduled)',
         },
         body_html: {
           type: 'string',
@@ -400,8 +404,8 @@ export function createGlobalEntryTools(): WebMCPToolDefinition[] {
  * Registers contextual active editor WebMCP tools for the TipTap editor and entry state.
  * Uses a ref to ensure handlers always access fresh values without re-registering on every keystroke.
  */
-export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
-  const optionsRef = React.useRef(options);
+export function useTipTapWebMCP<S extends string = WorkflowStatus>(options: UseTipTapWebMCPOptions<S>): void {
+  const optionsRef = React.useRef<UseTipTapWebMCPOptions<any>>(options);
   optionsRef.current = options;
 
   const getResolvedValues = () => {
@@ -612,8 +616,8 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           },
           status: {
             type: 'string',
-            enum: ['draft', 'published', 'scheduled'],
-            description: 'Publication status',
+            enum: ['draft', 'in_review', 'ready_for_publish', 'published', 'archived', 'scheduled'],
+            description: 'Publication status (draft, in_review, ready_for_publish, published, archived, scheduled)',
           },
           cover_image: { type: 'string', description: 'Cover image URL' },
           canonical_url: { type: 'string', description: 'Canonical URL for SEO' },
@@ -647,7 +651,7 @@ export function useTipTapWebMCP(options: UseTipTapWebMCPOptions): void {
           opts.setTags(tagsStr);
           updated.tags = tagsStr;
         }
-        if (args.status && ['draft', 'published', 'scheduled'].includes(args.status) && opts.setStatus) {
+        if (args.status && ['draft', 'in_review', 'ready_for_publish', 'published', 'archived', 'scheduled'].includes(args.status) && opts.setStatus) {
           opts.setStatus(args.status);
           updated.status = args.status;
         }
