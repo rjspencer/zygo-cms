@@ -4,6 +4,7 @@ import { ThemeEditor } from './ThemeEditor';
 import {
   MODERN_EDITORIAL_PRESET,
   BENTO_BRUTALISM_PRESET,
+  BENTO_BRUTALISM_DARK_PRESET,
 } from './constants';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -67,6 +68,22 @@ export const BentoBrutalismDocsPreview: Story = {
   args: {
     initialTokens: BENTO_BRUTALISM_PRESET,
     initialThemeName: 'Bento-Brutalism',
+    initialPreviewMode: 'docs',
+  },
+};
+
+export const BentoBrutalismDark: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_DARK_PRESET,
+    initialThemeName: 'Bento-Brutalism (Dark)',
+    initialPreviewMode: 'editorial',
+  },
+};
+
+export const BentoBrutalismDarkDocsPreview: Story = {
+  args: {
+    initialTokens: BENTO_BRUTALISM_DARK_PRESET,
+    initialThemeName: 'Bento-Brutalism (Dark)',
     initialPreviewMode: 'docs',
   },
 };

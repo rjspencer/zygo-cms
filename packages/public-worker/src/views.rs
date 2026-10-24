@@ -2526,6 +2526,30 @@ mod tests {
         assert!(bento_html.contains("Subscribe Today"));
         assert!(bento_html.contains("Join"));
         assert!(bento_html.contains(r#"action="/forms/submit""#));
+
+        // 3. Render under Bento-Brutalism (Dark)
+        let mut dark_settings = std::collections::HashMap::new();
+        dark_settings.insert("theme_active_name".to_string(), "Bento-Brutalism (Dark)".to_string());
+        let dark_html = render_page(
+            &templates,
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&dark_settings),
+            None,
+        ).unwrap();
+
+        assert!(dark_html.contains("header-split"));
+        assert!(dark_html.contains("#38bdf8")); // Sky cyan accent
+        assert!(dark_html.contains("#0b0f19")); // Deep slate midnight canvas
+        assert!(dark_html.contains("#334155")); // Deep slate border
+        assert!(dark_html.contains("Hero Title"));
+        assert!(dark_html.contains("Video Title"));
+        assert!(dark_html.contains("Pricing Title"));
+        assert!(dark_html.contains("Subscribe Today"));
     }
 
     #[test]

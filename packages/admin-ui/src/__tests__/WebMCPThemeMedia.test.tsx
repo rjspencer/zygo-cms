@@ -701,6 +701,12 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
           font_preset: 'Space Grotesk & IBM Plex Mono',
         },
       });
+
+      const darkResult = await testRegistry.callTool('theme_select_preset', {
+        theme_name: 'Bento-Brutalism (Dark)',
+      });
+      expect(darkResult.isError).toBeFalsy();
+      expect(mockSelectPreset).toHaveBeenCalledWith('Bento-Brutalism (Dark)');
     });
 
     it('integrates seamlessly with the real ThemeEditor component', async () => {

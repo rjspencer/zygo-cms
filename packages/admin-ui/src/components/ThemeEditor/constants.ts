@@ -48,9 +48,34 @@ export const BENTO_BRUTALISM_PRESET: ThemeTokens = {
   boxShadow: '4px 6px 0 #0f172a',
 };
 
+export const BENTO_BRUTALISM_DARK_PRESET: ThemeTokens = {
+  fontUrl:
+    'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap',
+  fontHeadline: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif",
+  fontBody: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  colorBg: '#0b0f19',
+  colorText: '#f8fafc',
+  colorTextMuted: '#94a3b8',
+  colorAccent: '#38bdf8',
+  colorSurface: '#151d2f',
+  colorBorder: '#334155',
+  maxWidth: '1920px',
+  fontSizeBase: '16px',
+  lineHeightBody: '1.5',
+  headerLayout: 'split',
+  headerBorderStyle: 'solid',
+  headerTitleSize: '1.5rem',
+  headerNavTransform: 'uppercase',
+  headerPadding: '1.25rem 2rem',
+  headerTagline: '',
+  borderRadius: '2px',
+  boxShadow: '4px 6px 0 #000000',
+};
+
 export const BUILT_IN_THEMES: Record<string, ThemeTokens> = {
   'Modern Editorial': MODERN_EDITORIAL_PRESET,
   'Bento-Brutalism': BENTO_BRUTALISM_PRESET,
+  'Bento-Brutalism (Dark)': BENTO_BRUTALISM_DARK_PRESET,
 };
 
 export const CMYK_INK_SWATCHES: Swatch[] = [

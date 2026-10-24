@@ -382,6 +382,56 @@ describe('ThemeEditor component', () => {
     });
   });
 
+  it('selects and switches to Bento-Brutalism (Dark) preset in Theme Picker', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        theme_active_name: 'Modern Editorial',
+      }),
+    });
+
+    const user = userEvent.setup();
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <ThemeWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await screen.findByText('The Zygo Review');
+
+    // Open Theme Picker dropdown and pick Bento-Brutalism (Dark)
+    const pickerTrigger = screen.getByRole('combobox', { name: /Theme Picker/i });
+    fireEvent.keyDown(pickerTrigger, { key: ' ' });
+    const bentoDarkOption = await screen.findByRole('option', { name: 'Bento-Brutalism (Dark)' });
+    fireEvent.click(bentoDarkOption);
+
+    // Verify Bento-Brutalism (Dark) tokens loaded into preview
+    await waitFor(() => {
+      expect(screen.getAllByDisplayValue('#38bdf8').length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue('#0b0f19').length).toBeGreaterThan(0);
+      expect(screen.getAllByDisplayValue('#151d2f').length).toBeGreaterThan(0);
+    });
+
+    const switchToBtn = screen.getByRole('button', { name: /Switch to:/i }) as HTMLButtonElement;
+    expect(switchToBtn.textContent).toContain('Switch to: Bento-Brutalism (Dark)');
+
+    // Switch active theme
+    await user.click(switchToBtn);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/settings',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"theme_active_name":"Bento-Brutalism (Dark)"'),
+        })
+      );
+    });
+  });
+
   it('toggles between Editorial / Bento and Docs Layout in the Live Preview', async () => {
     (apiFetch as any).mockResolvedValue({
       ok: true,
