@@ -8,6 +8,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Custom Workflow Statuses with RBAC
+- **State Machine & Database Layer (`packages/core/`)**:
+  - Expanded entry statuses: `draft`, `in_review`, `ready_for_publish`, `published`, `archived`, and `scheduled`.
+  - Added strict validation `VALID_ENTRY_STATUSES` rejecting unrecognized status values in `CreateEntryRequest` and `UpdateEntryRequest`.
+  - Updated `update_entry` SQL `published_at` case logic to trigger publication timestamps only upon transitioning to `published`, preserve existing publication dates on review changes, and maintain nulls for preliminary review states.
+  - Replaced `RETURNING *` in `publish_scheduled_entries` with explicit column projection `RETURNING {ALL_COLUMNS}` enforcing zero `SELECT *` across all D1 queries.
+- **Admin API Worker & RBAC Security (`packages/admin-api-worker/`)**:
+  - Implemented role-based status transition restrictions: `author` role is strictly restricted to `draft` $\leftrightarrow$ `in_review` transitions for their own entries (`author_id == user.id`).
+  - Enforced HTTP 403 Forbidden when an author attempts to set status to `published`, `ready_for_publish`, `archived`, or `scheduled`, or attempts to bulk-publish.
+  - Admin and Editor roles retain full authority to transition between any status, approve reviews, publish, or archive.
+  - Live public SSR queries remain strictly isolated to `status = 'published' AND deleted_at IS NULL`.
+- **Admin UI Workflow Experience (`packages/admin-ui/`)**:
+  - **`StatusField`**: Accessible Radix UI `Select` component displaying workflow statuses with color badges. Integrates `/api/me` role checking; authors have restricted statuses disabled with explanatory helper text.
+  - **`EditorHeader`**: Role-adaptive action buttons. Authors see "Save Draft" and "Submit for Review". Editors and Admins see "Save Draft", "Mark Ready" (when in review), "Publish", and "Archive".
+  - **`EntryBadges`**: Formatted status labels with standardized Radix Themes color tokens (gray, amber, blue, green, red, purple).
+  - **Status Filtering Tabs**: Added accessible status filter tabs (`all`, `published`, `in_review`, `ready_for_publish`, `draft`, `archived`) synchronized with URL parameters across `PostsList`, `PagesList`, and `DocsList`.
+  - **Dashboard**: Updated `RecentEntriesTable` status badges and formatting.
+- **Dual MCP Parity (`packages/admin-ui/src/lib/webmcp/`, `packages/zygo-mcp/`)**:
+  - Updated in-browser WebMCP tool schemas (`list_entries`, `create_entry`, `editor_set_metadata`) to enumerate all 6 workflow statuses.
+  - Updated CLI MCP bridge schemas (`zygo_list_entries`, `zygo_create_entry`, `zygo_update_entry`) in `packages/zygo-mcp/index.mjs`.
+  - Added unit test suites verifying tool execution and status filtering in `packages/admin-ui/src/__tests__/WebMCPEntryTools.test.tsx` and `packages/zygo-mcp/__tests__/entries.test.mjs`.
+- **Quality Gates & Tests**:
+  - Rust unit tests passing (60 in `admin-api-worker`, 77 in `zygo-core`, 32 in `public-worker`).
+  - Vitest test suites passing (93 test files, 918 tests passed).
+  - TypeScript diagnostics: 0 errors (`pnpm --filter admin-ui exec tsc --noEmit`).
+  - Production build: clean production bundle compilation.
+  - 1+2+4 Protocol verified: Storybook stories for `StatusField`, `EditorHeader`, `EntryBadges`, `PostsList`, `PagesList`, and `DocsList`.
+
 ### 1-Click Site Backup, Export & Import
 - **Backend Core & Database Logic (`packages/core/`)**:
   - Defined versioned JSON schema `ZygoBackupPayload` in `packages/core/src/models/backup.rs` supporting settings, menus, section templates, layout templates, entries, redirects, and media manifests.

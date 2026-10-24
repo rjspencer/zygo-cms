@@ -34,7 +34,7 @@ erDiagram
         string slug UK
         string title
         string type "post | page | doc"
-        string status "draft | published"
+        string status "draft | in_review | ready_for_publish | published | archived | scheduled"
         string description
         string cover_image
         string canonical_url
@@ -210,6 +210,22 @@ Zygo CMS implements a tailored dual content architecture across all entries to a
    - **Edge SSR Delivery & Dynamic Re-rendering:** At SSR time, `public-worker` dynamically evaluates each section instance's `type_id` against the current MiniJinja `section_templates` retrieved from D1 and caches the rendered HTML at the Cloudflare Edge. This architectural separation ensures that editing or polishing a Section Template in `/templates` immediately updates all pages utilizing that template across the entire site without needing to touch or re-save each individual page.
 
 Whenever an entry is saved in the Admin UI or via API, an automatic snapshot is recorded in `entry_revisions`, supporting revision comparison, preview tokens, and instant rollbacks.
+
+## Editorial Workflows & RBAC
+
+Zygo CMS features a multi-stage editorial workflow with role-based access control (RBAC):
+
+- **Workflow Statuses:**
+  - `draft`: Work-in-progress content visible only in the Admin panel.
+  - `in_review`: Content submitted by authors for editorial inspection and review.
+  - `ready_for_publish`: Content reviewed and approved by editors, ready for publication or scheduling.
+  - `published`: Content live and publicly accessible via edge SSR routes.
+  - `archived`: Decommissioned or withdrawn content, retained in the CMS for audit and historical records.
+  - `scheduled`: Content scheduled for automated publishing at a designated future timestamp.
+- **Role Permissions:**
+  - **Authors:** Can create and edit their own entries. Authors are restricted to transitioning between `draft` and `in_review` ("Submit for Review"). Authors cannot publish, archive, or set status to `ready_for_publish`.
+  - **Editors & Admins:** Have full editorial authority across all entries, allowing them to review, approve ("Mark Ready"), publish, or archive content.
+- **Status Filtering:** Posts, Pages, and Docs listing views provide dedicated status tabs (`All`, `Published`, `In Review`, `Ready for Publish`, `Draft`, `Archived`) with direct URL synchronization.
 
 ## Bulk Content Operations & Trash/Restore
 

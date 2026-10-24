@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Text, Badge, Flex, IconButton, Checkbox } from '@radix-ui/themes';
 import { Pencil1Icon, TrashIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { getPublicSiteUrl } from '../../../utils/api';
-import type { PageItem } from '../types';
+import type { PageItem, PageStatus } from '../types';
 
 export interface PagesTableProps {
   pages: PageItem[];
@@ -13,6 +13,38 @@ export interface PagesTableProps {
   onToggleSelect?: (id: number) => void;
   onToggleSelectAll?: () => void;
 }
+
+const getPageStatusColor = (
+  status: PageStatus
+): 'gray' | 'amber' | 'blue' | 'green' | 'red' | 'purple' => {
+  switch (status) {
+    case 'draft':
+      return 'gray';
+    case 'in_review':
+      return 'amber';
+    case 'ready_for_publish':
+      return 'blue';
+    case 'published':
+      return 'green';
+    case 'archived':
+      return 'red';
+    case 'scheduled':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+};
+
+const formatPageStatus = (status: PageStatus): string => {
+  switch (status) {
+    case 'in_review':
+      return 'in review';
+    case 'ready_for_publish':
+      return 'ready for publish';
+    default:
+      return status;
+  }
+};
 
 export const PagesTable: React.FC<PagesTableProps> = ({
   pages,
@@ -84,8 +116,8 @@ export const PagesTable: React.FC<PagesTableProps> = ({
                 </Text>
               </Table.Cell>
               <Table.Cell>
-                <Badge color={page.status === 'published' ? 'green' : 'gray'}>
-                  {page.status}
+                <Badge color={getPageStatusColor(page.status)}>
+                  {formatPageStatus(page.status)}
                 </Badge>
               </Table.Cell>
               <Table.Cell>

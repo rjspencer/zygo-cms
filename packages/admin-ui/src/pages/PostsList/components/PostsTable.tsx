@@ -14,14 +14,35 @@ export interface PostsTableProps {
   onToggleSelectAll?: () => void;
 }
 
-const getStatusColor = (status: PostStatus) => {
+const getStatusColor = (
+  status: PostStatus
+): 'gray' | 'amber' | 'blue' | 'green' | 'red' | 'purple' => {
   switch (status) {
-    case 'published':
-      return 'green';
     case 'draft':
       return 'gray';
-    case 'scheduled':
+    case 'in_review':
       return 'amber';
+    case 'ready_for_publish':
+      return 'blue';
+    case 'published':
+      return 'green';
+    case 'archived':
+      return 'red';
+    case 'scheduled':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+};
+
+const formatStatus = (status: PostStatus): string => {
+  switch (status) {
+    case 'in_review':
+      return 'in review';
+    case 'ready_for_publish':
+      return 'ready for publish';
+    default:
+      return status;
   }
 };
 
@@ -95,7 +116,7 @@ export const PostsTable: React.FC<PostsTableProps> = ({
                 </Text>
               </Table.Cell>
               <Table.Cell>
-                <Badge color={getStatusColor(post.status)}>{post.status}</Badge>
+                <Badge color={getStatusColor(post.status)}>{formatStatus(post.status)}</Badge>
               </Table.Cell>
               <Table.Cell>
                 <Text size="2" color="gray">

@@ -56,6 +56,34 @@ const mockPostsData = [
   },
 ];
 
+const workflowPostsData = [
+  ...mockPostsData,
+  {
+    id: 105,
+    type: 'post',
+    title: 'In Review Post',
+    slug: 'in-review-post',
+    status: 'in_review',
+    created_at: '2026-03-05 10:00:00',
+  },
+  {
+    id: 106,
+    type: 'post',
+    title: 'Ready for Publish Post',
+    slug: 'ready-for-publish-post',
+    status: 'ready_for_publish',
+    created_at: '2026-03-06 10:00:00',
+  },
+  {
+    id: 107,
+    type: 'post',
+    title: 'Archived Post',
+    slug: 'archived-post',
+    status: 'archived',
+    created_at: '2026-03-07 10:00:00',
+  },
+];
+
 const renderPostsList = (initialEntries = ['/posts']) => {
   const queryClient = createTestQueryClient();
   const router = createMemoryRouter(
@@ -364,6 +392,66 @@ describe('PostsList component', () => {
           body: JSON.stringify({ ids: [102], action: 'trash' }),
         })
       );
+    });
+  });
+
+  it('filters posts based on status tab click', async () => {
+    const user = userEvent.setup();
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPostsData,
+    });
+
+    renderPostsList();
+
+    await waitFor(() => {
+      expect(screen.getByText('First Blog Post')).toBeDefined();
+      expect(screen.getByText('In Review Post')).toBeDefined();
+    });
+
+    // Click "In Review" tab
+    const inReviewTab = screen.getByTestId('status-tab-in_review');
+    await user.click(inReviewTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('In Review Post')).toBeDefined();
+      expect(screen.queryByText('First Blog Post')).toBeNull();
+      expect(screen.queryByText('Upcoming Features')).toBeNull();
+    });
+  });
+
+  it('filters posts based on URL status param', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPostsData,
+    });
+
+    renderPostsList(['/posts?status=ready_for_publish']);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ready for Publish Post')).toBeDefined();
+      expect(screen.queryByText('First Blog Post')).toBeNull();
+      expect(screen.queryByText('In Review Post')).toBeNull();
+    });
+  });
+
+  it('renders correct badge colors for workflow statuses', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPostsData,
+    });
+
+    renderPostsList();
+
+    await waitFor(() => {
+      const inReviewBadge = screen.getByText('in review');
+      expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
+
+      const readyBadge = screen.getByText('ready for publish');
+      expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
+
+      const archivedBadge = screen.getByText('archived');
+      expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
     });
   });
 });

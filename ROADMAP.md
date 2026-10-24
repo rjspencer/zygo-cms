@@ -6,22 +6,18 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority
 
-### Custom Workflow Statuses
-- **Goal**: Extend editorial workflows beyond basic draft/published states.
-- **Details**:
-  - Add custom states such as "In Review", "Ready for Publish", or "Archived".
-  - Integrate with RBAC to restrict who can transition between states.
-
----
-
-## 2. Soon
-
 ### Instagram Feed Section with Automated Cron Sync
 - **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
 - **Details**:
   - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
   - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
   - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
+
+---
+
+## 2. Soon
+
+(See Backlog & Icebox below for upcoming candidates)
 
 ---
 

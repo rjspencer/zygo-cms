@@ -65,7 +65,7 @@ export const tools = [
             type: "object",
             properties: {
                 type: { type: "string", enum: ["post", "page", "doc"], description: "Filter by type" },
-                status: { type: "string", enum: ["draft", "published", "scheduled"], description: "Filter by status" },
+                status: { type: "string", enum: ["draft", "in_review", "ready_for_publish", "published", "archived", "scheduled"], description: "Filter by status (draft, in_review, ready_for_publish, published, archived, scheduled)" },
                 search: { type: "string", description: "Search query matching title or slug" }
             }
         }
@@ -90,7 +90,7 @@ export const tools = [
                 title: { type: "string" },
                 slug: { type: "string" },
                 type: { type: "string", enum: ["post", "page", "doc"] },
-                status: { type: "string", enum: ["draft", "published", "scheduled"] },
+                status: { type: "string", enum: ["draft", "in_review", "ready_for_publish", "published", "archived", "scheduled"] },
                 description: { type: "string" },
                 body_html: { type: "string", description: "Raw HTML content (used for posts/docs)" },
                 sections: { type: "array", items: { type: "object" }, description: "Array of section instances (used for pages)" },
@@ -115,7 +115,7 @@ export const tools = [
                 title: { type: "string" },
                 slug: { type: "string" },
                 type: { type: "string", enum: ["post", "page", "doc"] },
-                status: { type: "string", enum: ["draft", "published", "scheduled"] },
+                status: { type: "string", enum: ["draft", "in_review", "ready_for_publish", "published", "archived", "scheduled"] },
                 description: { type: "string" },
                 body_html: { type: "string", description: "Raw HTML content (used for posts/docs)" },
                 sections: { type: "array", items: { type: "object" }, description: "Array of section instances (used for pages)" },

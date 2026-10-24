@@ -6,6 +6,7 @@ export function useDocsFilters(): UseDocsFiltersReturn {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const search = useMemo(() => searchParams.get('q') ?? '', [searchParams]);
+  const status = useMemo(() => searchParams.get('status') ?? 'all', [searchParams]);
 
   const setSearch = useCallback(
     (value: string) => {
@@ -22,8 +23,25 @@ export function useDocsFilters(): UseDocsFiltersReturn {
     [setSearchParams]
   );
 
+  const setStatus = useCallback(
+    (value: string) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value && value !== 'all') {
+          next.set('status', value);
+        } else {
+          next.delete('status');
+        }
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
   return {
     search,
     setSearch,
+    status,
+    setStatus,
   };
 }

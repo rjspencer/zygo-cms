@@ -83,9 +83,31 @@ export const useSaveEntry = ({
   });
 
   /** Returns the preview token on success, or null on failure. */
-  const save = async (publish = false, isPreview = false): Promise<string | null> => {
+  const save = async (
+    targetStatus?: EntryStatus | boolean,
+    isPreview = false
+  ): Promise<string | null> => {
     const values = getValues();
-    const finalStatus: EntryStatus = isPreview ? values.status : publish ? 'published' : 'draft';
+    let finalStatus: EntryStatus;
+    if (isPreview) {
+      finalStatus = values.status;
+    } else if (typeof targetStatus === 'string') {
+      finalStatus = targetStatus;
+    } else if (targetStatus === true) {
+      finalStatus = 'published';
+    } else if (targetStatus === false) {
+      if (
+        values.status === 'in_review' ||
+        values.status === 'ready_for_publish' ||
+        values.status === 'archived'
+      ) {
+        finalStatus = values.status;
+      } else {
+        finalStatus = 'draft';
+      }
+    } else {
+      finalStatus = values.status || 'draft';
+    }
 
     const title = values.title.trim();
     if (title !== values.title) setValue('title', title, { shouldDirty: true });

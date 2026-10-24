@@ -76,6 +76,17 @@ describe('Zygo MCP CLI Bridge - Entries Tools', () => {
         expect.arrayContaining(['action', 'ids'])
       );
     });
+
+    it('defines workflow statuses enum for entries tools', () => {
+      const expectedStatuses = ['draft', 'in_review', 'ready_for_publish', 'published', 'archived', 'scheduled'];
+      const listTool = tools.find((t) => t.name === 'zygo_list_entries');
+      const createTool = tools.find((t) => t.name === 'zygo_create_entry');
+      const updateTool = tools.find((t) => t.name === 'zygo_update_entry');
+
+      expect(listTool.inputSchema.properties.status.enum).toEqual(expectedStatuses);
+      expect(createTool.inputSchema.properties.status.enum).toEqual(expectedStatuses);
+      expect(updateTool.inputSchema.properties.status.enum).toEqual(expectedStatuses);
+    });
   });
 
   describe('zygo_list_entries execution', () => {
@@ -372,6 +383,47 @@ describe('Zygo MCP CLI Bridge - Entries Tools', () => {
       expect(res.isError).toBe(true);
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    it('creates an entry with custom workflow statuses (in_review, ready_for_publish, archived)', async () => {
+      const statuses = ['in_review', 'ready_for_publish', 'archived'];
+      for (const status of statuses) {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            id: `entry-${status}`,
+            title: `Post ${status}`,
+            slug: `post-${status}`,
+            type: 'post',
+            status,
+            body_html: '<p>Content</p>',
+            body_json: '{}'
+          })
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_create_entry',
+            arguments: {
+              title: `Post ${status}`,
+              slug: `post-${status}`,
+              type: 'post',
+              status,
+              body_html: '<p>Content</p>'
+            }
+          }
+        });
+
+        expect(res.isError).toBeFalsy();
+        expect(res.toolResult.status).toBe(status);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/entries'),
+          expect.objectContaining({
+            method: 'POST',
+            body: expect.stringContaining(`"status":"${status}"`)
+          })
+        );
+      }
+    });
   });
 
   describe('zygo_update_entry execution', () => {
@@ -428,6 +480,45 @@ describe('Zygo MCP CLI Bridge - Entries Tools', () => {
 
       expect(res.isError).toBe(true);
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('updates an entry with custom workflow statuses (in_review, ready_for_publish, archived)', async () => {
+      const statuses = ['in_review', 'ready_for_publish', 'archived'];
+      for (const status of statuses) {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            id: 'uuid-1',
+            title: 'Updated Post',
+            slug: 'updated-post',
+            type: 'post',
+            status,
+            body_html: '<p>Updated content</p>',
+            body_json: '{}'
+          })
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_entry',
+            arguments: {
+              id: 'uuid-1',
+              title: 'Updated Post',
+              status
+            }
+          }
+        });
+
+        expect(res.isError).toBeFalsy();
+        expect(res.toolResult.status).toBe(status);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/entries/uuid-1'),
+          expect.objectContaining({
+            method: 'PUT',
+            body: expect.stringContaining(`"status":"${status}"`)
+          })
+        );
+      }
     });
   });
 
