@@ -218,7 +218,7 @@ export function useThemeEditorWebMCP<T extends Record<string, any> = Record<stri
           properties: {
             theme_name: {
               type: 'string',
-              description: 'Name of built-in or custom theme preset to select (e.g., "Modern Editorial", "Warm Contemporary", "Bento-Brutalism")',
+              description: 'Name of built-in or custom theme preset to select (e.g., "Modern Editorial", "Warm Contemporary", "Bento-Brutalism", "Bento-Brutalism (Dark)")',
             },
             font_preset: {
               type: 'string',
