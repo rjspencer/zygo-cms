@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Bento-Brutalism Dark Mode Theme Preset
+- **Theme Architecture & Core Models (`packages/core/`)**:
+  - Implemented `ThemeTokens::bento_brutalism_dark()` preset with high-contrast industrial neo-brutalist styling: deep slate midnight canvas (`#0b0f19`), elevated surface containers (`#151d2f`), crisp white typography (`#f8fafc`, WCAG AAA compliant), muted slate metadata (`#94a3b8`), vibrant sky cyan accents (`#38bdf8`), deep slate perimeter borders (`#334155`), and hard geometric offset drop shadows (`4px 6px 0 #000000`).
+  - Updated `ThemeTokens::get_preset(name)` to recognize `"Bento-Brutalism (Dark)"` and alias `"Bento-Brutalism Dark"`.
+  - Added unit test coverage for preset tokens and settings resolution in `packages/core/src/models/theme.rs`.
+- **Public Edge SSR Rendering (`packages/public-worker/`)**:
+  - Validated edge template rendering across all 15 built-in section templates under `Bento-Brutalism (Dark)`.
+  - Tested dynamic CSS token injection (`views::generate_theme_root_css`), ensuring sharp 2px border radiuses, split header layouts, and WCAG AA color-mix contrast.
+- **Admin UI ThemeEditor Integration (`packages/admin-ui/`)**:
+  - Exported `BENTO_BRUTALISM_DARK_PRESET` and registered `"Bento-Brutalism (Dark)"` in `BUILT_IN_THEMES`.
+  - Added Storybook preview stories (`BentoBrutalismDark` and `BentoBrutalismDarkDocsPreview`) in `ThemeEditor.stories.tsx`.
+  - Added automated test in `ThemeEditor.test.tsx` verifying theme selection, live preview token updates, and persistence via `POST /api/settings`.
+- **WebMCP Parity (`packages/admin-ui/src/lib/webmcp/`)**:
+  - Updated `theme_select_preset` schema description to list `"Bento-Brutalism (Dark)"`.
+  - Expanded WebMCP theme tools test suite in `packages/admin-ui/src/__tests__/WebMCPThemeMedia.test.tsx`.
+
 ### Custom Workflow Statuses with RBAC
 - **State Machine & Database Layer (`packages/core/`)**:
   - Expanded entry statuses: `draft`, `in_review`, `ready_for_publish`, `published`, `archived`, and `scheduled`.

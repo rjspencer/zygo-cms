@@ -99,7 +99,7 @@ Site-wide branding, social media metadata, and identity tokens are configured un
 
 Styling tokens and typography presets are managed directly in the Admin UI:
 
-- **Color Tokens:** Customize primary brand colors, accent colors, neutral surfaces, text tones, and borders. Includes dark mode tokens and instant preview.
+- **Color Tokens:** Customize primary brand colors, accent colors, neutral surfaces, text tones, and borders. Built-in presets include Modern Editorial, Bento-Brutalism, and Bento-Brutalism (Dark) with live instant preview.
 - **Typography Presets:** Select from pre-configured font pairings (such as Modern Editorial, Bento Brutalism, Clean Sans, or Monospace) or specify custom Google Fonts URLs.
 - **Layout & Header Settings:** Adjust container max-widths, border radiuses, and header navigation styles (centered, split, or inline).
 - **Persistence:** All theme choices are saved directly to the `settings` table as CSS design tokens. The Public Worker injects these tokens as CSS variables (`:root { --color-primary: ...; }`) into edge-rendered pages with immediate cache invalidation.
