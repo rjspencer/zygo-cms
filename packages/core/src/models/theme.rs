@@ -83,10 +83,36 @@ impl ThemeTokens {
         }
     }
 
+    pub fn bento_brutalism_dark() -> Self {
+        Self {
+            font_url: "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap".to_string(),
+            font_headline: "'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif".to_string(),
+            font_body: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif".to_string(),
+            color_bg: "#0b0f19".to_string(),
+            color_text: "#f8fafc".to_string(),
+            color_text_muted: "#94a3b8".to_string(),
+            color_accent: "#38bdf8".to_string(),
+            color_surface: "#151d2f".to_string(),
+            color_border: "#334155".to_string(),
+            max_width: "1920px".to_string(),
+            font_size_base: "16px".to_string(),
+            line_height_body: "1.5".to_string(),
+            header_layout: "split".to_string(),
+            header_border_style: "solid".to_string(),
+            header_title_size: "1.5rem".to_string(),
+            header_nav_transform: "uppercase".to_string(),
+            header_padding: "1.25rem 2rem".to_string(),
+            header_tagline: "".to_string(),
+            border_radius: "2px".to_string(),
+            box_shadow: "4px 6px 0 #000000".to_string(),
+        }
+    }
+
     pub fn get_preset(name: &str) -> Option<Self> {
         match name {
             "Modern Editorial" => Some(Self::modern_editorial()),
             "Bento-Brutalism" => Some(Self::bento_brutalism()),
+            "Bento-Brutalism (Dark)" | "Bento-Brutalism Dark" => Some(Self::bento_brutalism_dark()),
             _ => None,
         }
     }
@@ -230,6 +256,24 @@ mod tests {
         assert_eq!(bento.line_height_body, "1.5");
         assert_eq!(bento.border_radius, "2px");
         assert_eq!(bento.box_shadow, "4px 6px 0 #0f172a");
+    }
+
+    #[test]
+    fn test_bento_brutalism_dark_preset() {
+        let dark = ThemeTokens::bento_brutalism_dark();
+        assert_eq!(dark.color_bg, "#0b0f19");
+        assert_eq!(dark.color_surface, "#151d2f");
+        assert_eq!(dark.color_text, "#f8fafc");
+        assert_eq!(dark.color_text_muted, "#94a3b8");
+        assert_eq!(dark.color_accent, "#38bdf8");
+        assert_eq!(dark.color_border, "#334155");
+        assert_eq!(dark.box_shadow, "4px 6px 0 #000000");
+        assert_eq!(dark.border_radius, "2px");
+        assert_eq!(dark.header_layout, "split");
+
+        // Assert get_preset matches both formatted name and alias
+        assert_eq!(ThemeTokens::get_preset("Bento-Brutalism (Dark)").unwrap(), dark);
+        assert_eq!(ThemeTokens::get_preset("Bento-Brutalism Dark").unwrap(), dark);
     }
 
     #[test]
