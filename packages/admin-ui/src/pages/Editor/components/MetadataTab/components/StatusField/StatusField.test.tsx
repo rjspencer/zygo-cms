@@ -39,66 +39,71 @@ const renderStatusField = (status: EntryStatus = 'draft', role = 'editor') => {
 };
 
 describe('StatusField', () => {
-  it('renders status label and combobox with aria-label="Publication status"', () => {
+  it('renders status label and all workflow status buttons', () => {
     renderStatusField('draft', 'editor');
 
     expect(screen.getByText('Status')).toBeDefined();
-    const trigger = screen.getByRole('combobox', { name: 'Publication status' });
-    expect(trigger).toBeDefined();
-    expect(trigger.textContent).toContain('Draft');
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'In Review' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Ready for Publish' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Published' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Archived' })).toBeDefined();
+
+    const draftBtn = screen.getByRole('button', { name: 'Draft' });
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
-  it('renders for author with helper text and disables publishing options', async () => {
+  it('renders for author with helper text and disables restricted status buttons', () => {
     renderStatusField('draft', 'author');
 
     expect(
       screen.getByText('Only editors and admins can approve, publish, or archive entries.')
     ).toBeDefined();
 
-    const trigger = screen.getByRole('combobox', { name: 'Publication status' });
-    fireEvent.keyDown(trigger, { key: ' ' });
+    const draftBtn = screen.getByRole('button', { name: 'Draft' });
+    const inReviewBtn = screen.getByRole('button', { name: 'In Review' });
+    const readyBtn = screen.getByRole('button', { name: 'Ready for Publish' });
+    const publishedBtn = screen.getByRole('button', { name: 'Published' });
+    const archivedBtn = screen.getByRole('button', { name: 'Archived' });
 
-    expect(await screen.findByRole('option', { name: 'Draft' })).toBeDefined();
-    expect(await screen.findByRole('option', { name: 'In Review' })).toBeDefined();
-
-    const readyOption = await screen.findByRole('option', { name: 'Ready for Publish' });
-    const publishedOption = await screen.findByRole('option', { name: 'Published' });
-    const archivedOption = await screen.findByRole('option', { name: 'Archived' });
-
-    expect(readyOption.getAttribute('aria-disabled') === 'true' || readyOption.hasAttribute('data-disabled')).toBe(true);
-    expect(publishedOption.getAttribute('aria-disabled') === 'true' || publishedOption.hasAttribute('data-disabled')).toBe(true);
-    expect(archivedOption.getAttribute('aria-disabled') === 'true' || archivedOption.hasAttribute('data-disabled')).toBe(true);
+    expect(draftBtn.hasAttribute('disabled')).toBe(false);
+    expect(inReviewBtn.hasAttribute('disabled')).toBe(false);
+    expect(readyBtn.hasAttribute('disabled')).toBe(true);
+    expect(publishedBtn.hasAttribute('disabled')).toBe(true);
+    expect(archivedBtn.hasAttribute('disabled')).toBe(true);
   });
 
-  it('renders for editor without helper text and enables all options', async () => {
-    renderStatusField('in_review', 'editor');
+  it('renders for editor/admin without helper text and enables all buttons', () => {
+    renderStatusField('in_review', 'admin');
 
     expect(
       screen.queryByText('Only editors and admins can approve, publish, or archive entries.')
     ).toBeNull();
 
-    const trigger = screen.getByRole('combobox', { name: 'Publication status' });
-    expect(trigger.textContent).toContain('In Review');
-    fireEvent.keyDown(trigger, { key: ' ' });
+    const readyBtn = screen.getByRole('button', { name: 'Ready for Publish' });
+    const publishedBtn = screen.getByRole('button', { name: 'Published' });
+    const archivedBtn = screen.getByRole('button', { name: 'Archived' });
 
-    const readyOption = await screen.findByRole('option', { name: 'Ready for Publish' });
-    const publishedOption = await screen.findByRole('option', { name: 'Published' });
-    const archivedOption = await screen.findByRole('option', { name: 'Archived' });
-
-    expect(readyOption.getAttribute('aria-disabled')).not.toBe('true');
-    expect(publishedOption.getAttribute('aria-disabled')).not.toBe('true');
-    expect(archivedOption.getAttribute('aria-disabled')).not.toBe('true');
+    expect(readyBtn.hasAttribute('disabled')).toBe(false);
+    expect(publishedBtn.hasAttribute('disabled')).toBe(false);
+    expect(archivedBtn.hasAttribute('disabled')).toBe(false);
   });
 
-  it('supports selecting in_review as author', async () => {
+  it('supports selecting in_review as author', () => {
     renderStatusField('draft', 'author');
 
-    const trigger = screen.getByRole('combobox', { name: 'Publication status' });
-    fireEvent.keyDown(trigger, { key: ' ' });
+    const inReviewBtn = screen.getByRole('button', { name: 'In Review' });
+    fireEvent.click(inReviewBtn);
 
-    const inReviewOption = await screen.findByRole('option', { name: 'In Review' });
-    fireEvent.click(inReviewOption);
+    expect(inReviewBtn.getAttribute('aria-pressed')).toBe('true');
+  });
 
-    expect(trigger.textContent).toContain('In Review');
+  it('supports selecting ready_for_publish as administrator', () => {
+    renderStatusField('draft', 'admin');
+
+    const readyBtn = screen.getByRole('button', { name: 'Ready for Publish' });
+    fireEvent.click(readyBtn);
+
+    expect(readyBtn.getAttribute('aria-pressed')).toBe('true');
   });
 });

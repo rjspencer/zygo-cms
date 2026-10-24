@@ -55,7 +55,8 @@ describe('MetadataTab', () => {
 
     // Status
     expect(screen.getByText('Status')).toBeDefined();
-    expect(screen.getByRole('combobox', { name: 'Publication status' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Draft' })).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Published' })).toBeDefined();
 
     // Tags
     expect(screen.getByText('Tags (comma separated)')).toBeDefined();
@@ -136,9 +137,10 @@ describe('MetadataTab', () => {
       { status: 'draft' }
     );
 
-    const select = screen.getByRole('combobox', { name: 'Publication status' });
-    expect(select).toBeDefined();
-    expect(select.textContent).toContain('Draft');
+    expect(screen.getByText('Status')).toBeDefined();
+    const draftBtn = screen.getByRole('button', { name: 'Draft' });
+    expect(draftBtn).toBeDefined();
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('supports removing cover image', () => {

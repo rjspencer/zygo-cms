@@ -8,7 +8,7 @@ import type { SectionTemplate } from '../../../../types/sectionTemplate';
 import { useEditorWebMCP } from '../../hooks/useEditorWebMCP';
 import { useSaveEntry } from '../../hooks/useSaveEntry';
 import { useWasmPreview } from '../../hooks/useWasmPreview';
-import type { EntryFormValues, EntryType } from '../../types';
+import type { EntryFormValues, EntryType, EntryStatus } from '../../types';
 import { EditorHeader } from '../EditorHeader/EditorHeader';
 import { EditorTabs } from '../EditorTabs/EditorTabs';
 import { LivePreviewPane } from '../LivePreviewPane/LivePreviewPane';
@@ -53,6 +53,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({ id, isEditing, entry
 
   const saveDraft = () => save(false);
   const publish = () => save(true);
+  const saveWithStatus = (targetStatus: EntryStatus) => save(targetStatus);
   useEditorWebMCP({ editor: tiptapEditor, entryType, sectionTemplates, saveDraft, publish });
 
   return (
@@ -64,6 +65,7 @@ export const EditorLayout: React.FC<EditorLayoutProps> = ({ id, isEditing, entry
           isSaved={isSaved}
           onSaveDraft={saveDraft}
           onPublish={publish}
+          onSaveWithStatus={saveWithStatus}
         />
 
         <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch" style={{ flexGrow: 1, minHeight: 0 }}>

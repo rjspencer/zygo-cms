@@ -80,10 +80,15 @@ export const EditorHeaderInner: React.FC<EditorHeaderProps & { role: string }> =
     <>
       <Flex justify="between" align="center" mb="2">
         <BackButton />
-        <Flex gap="2" align="center">
+        <Flex gap="2" align="center" wrap="wrap">
           {isAuthor ? (
             <>
-              <Button variant="soft" color="gray" onClick={handleSaveDraft}>
+              <Button
+                variant="soft"
+                color="gray"
+                data-testid="editor-save-draft-btn"
+                onClick={handleSaveDraft}
+              >
                 Save Draft
               </Button>
               <Button
@@ -97,21 +102,32 @@ export const EditorHeaderInner: React.FC<EditorHeaderProps & { role: string }> =
             </>
           ) : (
             <>
-              <Button variant="soft" color="gray" onClick={handleSaveDraft}>
+              <Button
+                variant={status === 'draft' ? 'solid' : 'soft'}
+                color="gray"
+                data-testid="editor-save-draft-btn"
+                onClick={handleSaveDraft}
+              >
                 Save Draft
               </Button>
-              {status === 'in_review' && (
-                <Button
-                  variant="solid"
-                  color="blue"
-                  data-testid="editor-mark-ready-btn"
-                  onClick={handleMarkReady}
-                >
-                  Mark Ready
-                </Button>
-              )}
               <Button
-                variant="solid"
+                variant={status === 'in_review' ? 'solid' : 'soft'}
+                color="amber"
+                data-testid="editor-submit-review-btn"
+                onClick={handleSubmitReview}
+              >
+                In Review
+              </Button>
+              <Button
+                variant={status === 'ready_for_publish' ? 'solid' : 'soft'}
+                color="blue"
+                data-testid="editor-mark-ready-btn"
+                onClick={handleMarkReady}
+              >
+                Mark Ready
+              </Button>
+              <Button
+                variant={status === 'published' ? 'solid' : 'solid'}
                 color="cyan"
                 data-testid="editor-publish-btn"
                 onClick={handlePublish}
@@ -119,7 +135,7 @@ export const EditorHeaderInner: React.FC<EditorHeaderProps & { role: string }> =
                 Publish
               </Button>
               <Button
-                variant="soft"
+                variant={status === 'archived' ? 'solid' : 'soft'}
                 color="red"
                 data-testid="editor-archive-btn"
                 disabled={status === 'archived'}
