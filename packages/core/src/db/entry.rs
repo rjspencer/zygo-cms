@@ -503,7 +503,7 @@ pub async fn update_entry(db: &D1Database, id: &str, payload: &UpdateEntryReques
                  WHEN ?19 IS NOT NULL THEN ?19
                  WHEN COALESCE(?3, status) = 'scheduled' THEN published_at
                  WHEN COALESCE(?3, status) = 'published' AND published_at IS NULL THEN CURRENT_TIMESTAMP
-                 WHEN COALESCE(?3, status) = 'draft' THEN NULL
+                 WHEN COALESCE(?3, status) IN ('draft', 'in_review') AND published_at IS NULL THEN NULL
                  ELSE published_at
              END,
              body_html = COALESCE(?10, body_html),
@@ -615,9 +615,10 @@ pub async fn restore_entry(db: &D1Database, id: &str) -> Result<bool> {
 }
 
 pub async fn publish_scheduled_entries(db: &D1Database) -> Result<Vec<Entry>> {
-    let statement = db.prepare(
-        "UPDATE entries SET status = 'published' WHERE status = 'scheduled' AND published_at <= CURRENT_TIMESTAMP RETURNING *"
+    let query = format!(
+        "UPDATE entries SET status = 'published' WHERE status = 'scheduled' AND published_at <= CURRENT_TIMESTAMP RETURNING {ALL_COLUMNS}"
     );
+    let statement = db.prepare(&query);
     let result = statement.run().await?;
     result.results::<Entry>()
 }

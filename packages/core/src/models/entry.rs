@@ -18,6 +18,15 @@ pub const RESERVED_SLUGS: &[&str] = &[
     "categories",
 ];
 
+pub const VALID_ENTRY_STATUSES: &[&str] = &[
+    "draft",
+    "in_review",
+    "ready_for_publish",
+    "published",
+    "archived",
+    "scheduled",
+];
+
 fn default_type() -> String {
     "post".to_string()
 }
@@ -397,9 +406,9 @@ impl CreateEntryRequest {
         }
 
         if let Some(ref status) = self.status {
-            if status != "draft" && status != "published" {
+            if !VALID_ENTRY_STATUSES.contains(&status.as_str()) {
                 return Err(AppError::BadRequest(
-                    "Status must be either 'draft' or 'published'".into(),
+                    "Status must be one of: draft, in_review, ready_for_publish, published, archived, scheduled".into(),
                 ));
             }
         }
@@ -470,9 +479,9 @@ impl UpdateEntryRequest {
         }
 
         if let Some(ref status) = self.status {
-            if status != "draft" && status != "published" {
+            if !VALID_ENTRY_STATUSES.contains(&status.as_str()) {
                 return Err(AppError::BadRequest(
-                    "Status must be either 'draft' or 'published'".into(),
+                    "Status must be one of: draft, in_review, ready_for_publish, published, archived, scheduled".into(),
                 ));
             }
         }
@@ -1082,6 +1091,125 @@ mod tests {
         let req: BulkEntriesRequest = serde_json::from_str(json).expect("Deserialization should succeed");
         assert_eq!(req.ids, vec![10, 20]);
         assert_eq!(req.action, BulkActionType::Trash);
+    }
+
+    #[test]
+    fn test_valid_entry_statuses_validation() {
+        for &status in VALID_ENTRY_STATUSES {
+            let create_req = CreateEntryRequest {
+                slug: "valid-slug".into(),
+                title: "Valid Title".into(),
+                r#type: Some("post".into()),
+                status: Some(status.into()),
+                description: None,
+                cover_image: None,
+                canonical_url: None,
+                schema_json: None,
+                category: None,
+                tags: None,
+                parent_id: None,
+                sort_order: None,
+                body_html: "<p>test</p>".into(),
+                body_json: "{}".into(),
+                custom_fields_json: None,
+                published_at: None,
+                author_id: None,
+            };
+            assert!(
+                create_req.validate().is_ok(),
+                "Status '{}' should be valid for CreateEntryRequest",
+                status
+            );
+
+            let update_req = UpdateEntryRequest {
+                title: None,
+                r#type: None,
+                status: Some(status.into()),
+                description: None,
+                cover_image: None,
+                canonical_url: None,
+                schema_json: None,
+                category: None,
+                tags: None,
+                parent_id: None,
+                sort_order: None,
+                body_html: None,
+                body_json: None,
+                custom_fields_json: None,
+                draft_only: None,
+                published_at: None,
+            };
+            assert!(
+                update_req.validate().is_ok(),
+                "Status '{}' should be valid for UpdateEntryRequest",
+                status
+            );
+        }
+    }
+
+    #[test]
+    fn test_invalid_entry_status_validation() {
+        let invalid_statuses = &["pending", "unknown", "rejected", "deleted", "foo", ""];
+        for &status in invalid_statuses {
+            let create_req = CreateEntryRequest {
+                slug: "valid-slug".into(),
+                title: "Valid Title".into(),
+                r#type: Some("post".into()),
+                status: Some(status.into()),
+                description: None,
+                cover_image: None,
+                canonical_url: None,
+                schema_json: None,
+                category: None,
+                tags: None,
+                parent_id: None,
+                sort_order: None,
+                body_html: "<p>test</p>".into(),
+                body_json: "{}".into(),
+                custom_fields_json: None,
+                published_at: None,
+                author_id: None,
+            };
+            let create_err = create_req.validate().unwrap_err();
+            match create_err {
+                AppError::BadRequest(msg) => {
+                    assert_eq!(
+                        msg,
+                        "Status must be one of: draft, in_review, ready_for_publish, published, archived, scheduled"
+                    );
+                }
+                _ => panic!("Expected AppError::BadRequest for status '{}'", status),
+            }
+
+            let update_req = UpdateEntryRequest {
+                title: None,
+                r#type: None,
+                status: Some(status.into()),
+                description: None,
+                cover_image: None,
+                canonical_url: None,
+                schema_json: None,
+                category: None,
+                tags: None,
+                parent_id: None,
+                sort_order: None,
+                body_html: None,
+                body_json: None,
+                custom_fields_json: None,
+                draft_only: None,
+                published_at: None,
+            };
+            let update_err = update_req.validate().unwrap_err();
+            match update_err {
+                AppError::BadRequest(msg) => {
+                    assert_eq!(
+                        msg,
+                        "Status must be one of: draft, in_review, ready_for_publish, published, archived, scheduled"
+                    );
+                }
+                _ => panic!("Expected AppError::BadRequest for status '{}'", status),
+            }
+        }
     }
 }
 

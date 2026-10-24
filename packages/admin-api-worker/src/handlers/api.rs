@@ -131,6 +131,37 @@ pub async fn get_posts(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     Response::from_json(&entries)
 }
 
+pub const AUTHOR_RESTRICTED_STATUSES: &[&str] = &["published", "ready_for_publish", "archived", "scheduled"];
+
+pub fn validate_author_entry_creation(role: &str, status: Option<&str>) -> std::result::Result<(), &'static str> {
+    if role == "author" {
+        if let Some(st) = status {
+            if AUTHOR_RESTRICTED_STATUSES.contains(&st) {
+                return Err("Authors cannot create entries directly in published, ready for publish, or archived status. Please submit for review.");
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_author_entry_update(role: &str, status: Option<&str>) -> std::result::Result<(), &'static str> {
+    if role == "author" {
+        if let Some(st) = status {
+            if AUTHOR_RESTRICTED_STATUSES.contains(&st) {
+                return Err("Authors cannot publish or archive entries directly. Please submit for review.");
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn validate_author_bulk_action(role: &str, action: models::BulkActionType) -> std::result::Result<(), &'static str> {
+    if role == "author" && action == models::BulkActionType::Publish {
+        return Err("Authors cannot publish or archive entries directly. Please submit for review.");
+    }
+    Ok(())
+}
+
 pub async fn create_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
 
@@ -142,6 +173,10 @@ pub async fn create_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
 
     if let Err(err) = payload.validate() {
         return err.to_response();
+    }
+
+    if let Err(msg) = validate_author_entry_creation(&_user.role, payload.status.as_deref()) {
+        return Response::error(msg, 403);
     }
 
     payload.body_html = sanitize::sanitize_html(&payload.body_html);
@@ -290,8 +325,13 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
             None => return AppError::NotFound.to_response(),
         };
 
-        if _user.role == "author" && existing_entry.author_id != Some(_user.id) {
-            return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+        if _user.role == "author" {
+            if existing_entry.author_id != Some(_user.id) {
+                return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+            }
+            if let Err(msg) = validate_author_entry_update(&_user.role, payload.status.as_deref()) {
+                return Response::error(msg, 403);
+            }
         }
 
         let preview_token = utils::generate_preview_token();
@@ -318,8 +358,13 @@ pub async fn update_entry(mut req: Request, ctx: RouteContext<()>) -> Result<Res
 
     let existing_entry = db::find_entry_by_id(&db, id).await?;
     if let Some(ref e) = existing_entry {
-        if _user.role == "author" && e.author_id != Some(_user.id) {
-            return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+        if _user.role == "author" {
+            if e.author_id != Some(_user.id) {
+                return AppError::Unauthorized("You do not have permission to edit this entry".into()).to_response();
+            }
+            if let Err(msg) = validate_author_entry_update(&_user.role, payload.status.as_deref()) {
+                return Response::error(msg, 403);
+            }
         }
     }
     let update_result = db::update_entry(&db, id, &payload).await;
@@ -523,6 +568,10 @@ pub async fn bulk_entries(mut req: Request, ctx: RouteContext<()>) -> Result<Res
 
     if let Err(err) = payload.validate() {
         return err.to_response();
+    }
+
+    if let Err(msg) = validate_author_bulk_action(&_user.role, payload.action) {
+        return Response::error(msg, 403);
     }
 
     let db = ctx.env.d1("DB")?;
@@ -1049,5 +1098,71 @@ mod tests {
         redact_settings(&mut map);
 
         assert!(map.get("turnstile_secret_key").is_none());
+    }
+
+    #[test]
+    fn test_validate_author_entry_creation_rbac() {
+        // Author restricted statuses
+        for &status in AUTHOR_RESTRICTED_STATUSES {
+            let res = validate_author_entry_creation("author", Some(status));
+            assert_eq!(
+                res,
+                Err("Authors cannot create entries directly in published, ready for publish, or archived status. Please submit for review.")
+            );
+        }
+
+        // Author allowed statuses
+        assert!(validate_author_entry_creation("author", Some("draft")).is_ok());
+        assert!(validate_author_entry_creation("author", Some("in_review")).is_ok());
+        assert!(validate_author_entry_creation("author", None).is_ok());
+
+        // Admin and Editor can create with any status
+        for &status in AUTHOR_RESTRICTED_STATUSES {
+            assert!(validate_author_entry_creation("admin", Some(status)).is_ok());
+            assert!(validate_author_entry_creation("editor", Some(status)).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_validate_author_entry_update_rbac() {
+        // Author restricted statuses
+        for &status in AUTHOR_RESTRICTED_STATUSES {
+            let res = validate_author_entry_update("author", Some(status));
+            assert_eq!(
+                res,
+                Err("Authors cannot publish or archive entries directly. Please submit for review.")
+            );
+        }
+
+        // Author allowed statuses
+        assert!(validate_author_entry_update("author", Some("draft")).is_ok());
+        assert!(validate_author_entry_update("author", Some("in_review")).is_ok());
+        assert!(validate_author_entry_update("author", None).is_ok());
+
+        // Admin and Editor can update with any status
+        for &status in AUTHOR_RESTRICTED_STATUSES {
+            assert!(validate_author_entry_update("admin", Some(status)).is_ok());
+            assert!(validate_author_entry_update("editor", Some(status)).is_ok());
+        }
+    }
+
+    #[test]
+    fn test_validate_author_bulk_action_rbac() {
+        // Author cannot bulk publish
+        let res = validate_author_bulk_action("author", models::BulkActionType::Publish);
+        assert_eq!(
+            res,
+            Err("Authors cannot publish or archive entries directly. Please submit for review.")
+        );
+
+        // Author can perform other bulk actions
+        assert!(validate_author_bulk_action("author", models::BulkActionType::Unpublish).is_ok());
+        assert!(validate_author_bulk_action("author", models::BulkActionType::Trash).is_ok());
+        assert!(validate_author_bulk_action("author", models::BulkActionType::AddTags).is_ok());
+        assert!(validate_author_bulk_action("author", models::BulkActionType::RemoveTags).is_ok());
+
+        // Admin and Editor can bulk publish
+        assert!(validate_author_bulk_action("admin", models::BulkActionType::Publish).is_ok());
+        assert!(validate_author_bulk_action("editor", models::BulkActionType::Publish).is_ok());
     }
 }
