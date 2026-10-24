@@ -49,6 +49,27 @@ const samplePosts: PostItem[] = [
     status: 'scheduled',
     date: '2026-04-01',
   },
+  {
+    id: 5,
+    title: 'Editorial: Custom Workflow Statuses Spec',
+    slug: 'custom-workflow-statuses-spec',
+    status: 'in_review',
+    date: '2026-04-05',
+  },
+  {
+    id: 6,
+    title: 'Release Notes: Zygo Admin UI v2',
+    slug: 'release-notes-zygo-admin-ui-v2',
+    status: 'ready_for_publish',
+    date: '2026-04-08',
+  },
+  {
+    id: 7,
+    title: 'Deprecated: Legacy Section Rendering',
+    slug: 'deprecated-legacy-section-rendering',
+    status: 'archived',
+    date: '2026-01-15',
+  },
 ];
 
 const meta = {
@@ -94,6 +115,20 @@ export const FilteredBySearch: Story = {
   decorators: [
     (Story) => (
       <MemoryRouter initialEntries={['/posts?q=Draft']}>
+        <Theme appearance="light" accentColor="cyan" radius="medium">
+          <QueryClientProvider client={createQueryClient(samplePosts)}>
+            <Story />
+          </QueryClientProvider>
+        </Theme>
+      </MemoryRouter>
+    ),
+  ],
+};
+
+export const FilteredByInReview: Story = {
+  decorators: [
+    (Story) => (
+      <MemoryRouter initialEntries={['/posts?status=in_review']}>
         <Theme appearance="light" accentColor="cyan" radius="medium">
           <QueryClientProvider client={createQueryClient(samplePosts)}>
             <Story />

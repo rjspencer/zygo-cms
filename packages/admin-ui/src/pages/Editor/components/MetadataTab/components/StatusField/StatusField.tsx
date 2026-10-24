@@ -1,39 +1,81 @@
 import React from 'react';
-import { Box, Button, Flex, Text } from '@radix-ui/themes';
+import { Box, Select, Text } from '@radix-ui/themes';
+import { QueryClientContext, useQuery } from '@tanstack/react-query';
 import { useFormContext } from 'react-hook-form';
-import type { EntryFormValues } from '../../../../types';
+import { apiFetch } from '../../../../../../utils/api';
+import type { EntryFormValues, EntryStatus } from '../../../../types';
 
-export const StatusField: React.FC = () => {
+interface StatusFieldProps {
+  role?: string;
+}
+
+export const StatusFieldInner: React.FC<StatusFieldProps> = ({ role = 'editor' }) => {
   const { watch, setValue } = useFormContext<EntryFormValues>();
-  const status = watch('status');
+  const status = watch('status') || 'draft';
+  const isAuthor = role.toLowerCase() === 'author';
 
   return (
     <Box>
-      <Text as="div" id="editor-status-label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
+      <Text as="label" htmlFor="editor-status-select" id="editor-status-label" size="2" weight="bold" mb="1" style={{ display: 'block' }}>
         Status
       </Text>
-      <Flex gap="2" role="group" aria-labelledby="editor-status-label">
-        <Button
-          type="button"
-          size="1"
-          variant={status === 'draft' ? 'solid' : 'soft'}
-          color="gray"
-          aria-pressed={status === 'draft'}
-          onClick={() => setValue('status', 'draft', { shouldDirty: true })}
-        >
-          Draft
-        </Button>
-        <Button
-          type="button"
-          size="1"
-          variant={status === 'published' ? 'solid' : 'soft'}
-          color="green"
-          aria-pressed={status === 'published'}
-          onClick={() => setValue('status', 'published', { shouldDirty: true })}
-        >
-          Published
-        </Button>
-      </Flex>
+      <Select.Root
+        value={status}
+        onValueChange={(val) => setValue('status', val as EntryStatus, { shouldDirty: true })}
+      >
+        <Select.Trigger
+          id="editor-status-select"
+          aria-label="Publication status"
+          aria-describedby={isAuthor ? 'editor-status-help' : undefined}
+        />
+        <Select.Content>
+          <Select.Item value="draft">Draft</Select.Item>
+          <Select.Item value="in_review">In Review</Select.Item>
+          <Select.Item value="ready_for_publish" disabled={isAuthor}>
+            Ready for Publish
+          </Select.Item>
+          <Select.Item value="published" disabled={isAuthor}>
+            Published
+          </Select.Item>
+          <Select.Item value="archived" disabled={isAuthor}>
+            Archived
+          </Select.Item>
+          {status === 'scheduled' && (
+            <Select.Item value="scheduled" disabled={isAuthor}>
+              Scheduled
+            </Select.Item>
+          )}
+        </Select.Content>
+      </Select.Root>
+      {isAuthor && (
+        <Text id="editor-status-help" size="1" color="gray" mt="1" style={{ display: 'block' }}>
+          Only editors and admins can approve, publish, or archive entries.
+        </Text>
+      )}
     </Box>
   );
 };
+
+const StatusFieldWithQuery: React.FC<StatusFieldProps> = ({ role: roleProp }) => {
+  const { data: meData } = useQuery({
+    queryKey: ['me'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/me');
+      if (!res.ok) throw new Error('Failed to fetch me');
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const effectiveRole = roleProp || meData?.role?.toLowerCase() || 'editor';
+  return <StatusFieldInner role={effectiveRole} />;
+};
+
+export const StatusField: React.FC<StatusFieldProps> = ({ role }) => {
+  const queryClient = React.useContext(QueryClientContext);
+  if (!queryClient) {
+    return <StatusFieldInner role={role || 'admin'} />;
+  }
+  return <StatusFieldWithQuery role={role} />;
+};
+
+export default StatusField;

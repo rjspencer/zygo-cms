@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Card } from '@radix-ui/themes';
+import { Box, Card, Tabs } from '@radix-ui/themes';
 import {
   PagesHeader,
   PagesSearchBar,
@@ -17,7 +17,7 @@ export const PagesList: React.FC = () => {
   const { pages, isLoading, deletePage, isDeleting } = usePagesData({
     onDeleteSettled: () => setPageToDelete(null),
   });
-  const { search, setSearch } = usePagesFilters();
+  const { search, setSearch, status, setStatus } = usePagesFilters();
 
   const { bulkMutate, isPending: isBulkPending } = useBulkEntries({
     onSuccess: () => {
@@ -27,13 +27,16 @@ export const PagesList: React.FC = () => {
 
   const filteredPages = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return pages;
-    return pages.filter(
-      (p) =>
+    return pages.filter((p) => {
+      const matchesSearch =
+        !q ||
         p.title.toLowerCase().includes(q) ||
-        p.slug.toLowerCase().includes(q)
-    );
-  }, [pages, search]);
+        p.slug.toLowerCase().includes(q);
+      const matchesStatus =
+        !status || status === 'all' || p.status === status;
+      return matchesSearch && matchesStatus;
+    });
+  }, [pages, search, status]);
 
   const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) => {
@@ -93,6 +96,17 @@ export const PagesList: React.FC = () => {
       />
 
       <Card size="2">
+        <Tabs.Root value={status} onValueChange={setStatus}>
+          <Tabs.List mb="3" aria-label="Filter pages by status">
+            <Tabs.Trigger value="all" data-testid="status-tab-all">All</Tabs.Trigger>
+            <Tabs.Trigger value="published" data-testid="status-tab-published">Published</Tabs.Trigger>
+            <Tabs.Trigger value="in_review" data-testid="status-tab-in_review">In Review</Tabs.Trigger>
+            <Tabs.Trigger value="ready_for_publish" data-testid="status-tab-ready_for_publish">Ready for Publish</Tabs.Trigger>
+            <Tabs.Trigger value="draft" data-testid="status-tab-draft">Draft</Tabs.Trigger>
+            <Tabs.Trigger value="archived" data-testid="status-tab-archived">Archived</Tabs.Trigger>
+          </Tabs.List>
+        </Tabs.Root>
+
         <PagesSearchBar value={search} onChange={setSearch} />
         <PagesTable
           pages={filteredPages}

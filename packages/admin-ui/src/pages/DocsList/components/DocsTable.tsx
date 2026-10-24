@@ -16,7 +16,7 @@ import {
   ChevronDownIcon,
 } from '@radix-ui/react-icons';
 import { getPublicSiteUrl } from '../../../utils/api';
-import type { DocItem } from '../types';
+import type { DocItem, DocStatus } from '../types';
 
 export interface DocsTableProps {
   docs: DocItem[];
@@ -24,6 +24,38 @@ export interface DocsTableProps {
   isLoading?: boolean;
   onDeleteClick?: (doc: DocItem) => void;
 }
+
+const getDocStatusColor = (
+  status: DocStatus
+): 'gray' | 'amber' | 'blue' | 'green' | 'red' | 'purple' => {
+  switch (status) {
+    case 'draft':
+      return 'gray';
+    case 'in_review':
+      return 'amber';
+    case 'ready_for_publish':
+      return 'blue';
+    case 'published':
+      return 'green';
+    case 'archived':
+      return 'red';
+    case 'scheduled':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+};
+
+const formatDocStatus = (status: DocStatus): string => {
+  switch (status) {
+    case 'in_review':
+      return 'in review';
+    case 'ready_for_publish':
+      return 'ready for publish';
+    default:
+      return status;
+  }
+};
 
 export const DocsTable: React.FC<DocsTableProps> = ({ docs, search, isLoading, onDeleteClick }) => {
   const navigate = useNavigate();
@@ -76,8 +108,8 @@ export const DocsTable: React.FC<DocsTableProps> = ({ docs, search, isLoading, o
               </Text>
             </Table.Cell>
             <Table.Cell>
-              <Badge color={doc.status === 'published' ? 'green' : 'gray'}>
-                {doc.status}
+              <Badge color={getDocStatusColor(doc.status)}>
+                {formatDocStatus(doc.status)}
               </Badge>
             </Table.Cell>
             <Table.Cell>

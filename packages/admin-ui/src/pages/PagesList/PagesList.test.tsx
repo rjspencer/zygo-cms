@@ -48,6 +48,34 @@ const mockPagesData = [
   },
 ];
 
+const workflowPagesData = [
+  ...mockPagesData,
+  {
+    id: 10,
+    type: 'page',
+    title: 'In Review Page',
+    slug: 'in-review-page',
+    status: 'in_review',
+    created_at: '2026-03-05 10:00:00',
+  },
+  {
+    id: 11,
+    type: 'page',
+    title: 'Ready Page',
+    slug: 'ready-page',
+    status: 'ready_for_publish',
+    created_at: '2026-03-06 10:00:00',
+  },
+  {
+    id: 12,
+    type: 'page',
+    title: 'Archived Page',
+    slug: 'archived-page',
+    status: 'archived',
+    created_at: '2026-03-07 10:00:00',
+  },
+];
+
 const renderPagesList = (initialEntries = ['/pages']) => {
   const queryClient = createTestQueryClient();
   const router = createMemoryRouter(
@@ -363,6 +391,65 @@ describe('PagesList component', () => {
           body: JSON.stringify({ ids: [2], action: 'trash' }),
         })
       );
+    });
+  });
+
+  it('filters pages based on status tab click', async () => {
+    const user = userEvent.setup();
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPagesData,
+    });
+
+    renderPagesList();
+
+    await waitFor(() => {
+      expect(screen.getByText('About Us')).toBeDefined();
+      expect(screen.getByText('In Review Page')).toBeDefined();
+    });
+
+    const inReviewTab = screen.getByTestId('status-tab-in_review');
+    await user.click(inReviewTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('In Review Page')).toBeDefined();
+      expect(screen.queryByText('About Us')).toBeNull();
+      expect(screen.queryByText('Contact')).toBeNull();
+    });
+  });
+
+  it('filters pages based on URL status param', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPagesData,
+    });
+
+    renderPagesList(['/pages?status=ready_for_publish']);
+
+    await waitFor(() => {
+      expect(screen.getByText('Ready Page')).toBeDefined();
+      expect(screen.queryByText('About Us')).toBeNull();
+      expect(screen.queryByText('In Review Page')).toBeNull();
+    });
+  });
+
+  it('renders correct badge colors for workflow statuses', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => workflowPagesData,
+    });
+
+    renderPagesList();
+
+    await waitFor(() => {
+      const inReviewBadge = screen.getByText('in review');
+      expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
+
+      const readyBadge = screen.getByText('ready for publish');
+      expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
+
+      const archivedBadge = screen.getByText('archived');
+      expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
     });
   });
 });

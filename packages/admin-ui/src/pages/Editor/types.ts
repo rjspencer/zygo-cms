@@ -1,7 +1,7 @@
 import type { SectionInstance } from '../../types/sectionTemplate';
 
 export type EntryType = 'page' | 'post' | 'doc';
-export type EntryStatus = 'published' | 'draft' | 'scheduled';
+export type EntryStatus = 'draft' | 'in_review' | 'ready_for_publish' | 'published' | 'archived' | 'scheduled';
 
 /** The react-hook-form value shape for the entry editor. `entryType` is derived from the URL and is not a form field. */
 export interface EntryFormValues {

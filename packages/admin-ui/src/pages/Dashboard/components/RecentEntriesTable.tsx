@@ -18,6 +18,38 @@ interface RecentEntriesTableProps {
   entries: RecentEntryItem[];
 }
 
+const getRecentEntryStatusColor = (
+  status: string
+): 'gray' | 'amber' | 'blue' | 'green' | 'red' | 'purple' => {
+  switch (status) {
+    case 'draft':
+      return 'gray';
+    case 'in_review':
+      return 'amber';
+    case 'ready_for_publish':
+      return 'blue';
+    case 'published':
+      return 'green';
+    case 'archived':
+      return 'red';
+    case 'scheduled':
+      return 'purple';
+    default:
+      return 'gray';
+  }
+};
+
+const formatRecentEntryStatus = (status: string): string => {
+  switch (status) {
+    case 'in_review':
+      return 'in review';
+    case 'ready_for_publish':
+      return 'ready for publish';
+    default:
+      return status;
+  }
+};
+
 export const RecentEntriesTable: React.FC<RecentEntriesTableProps> = ({ entries }) => {
   const navigate = useNavigate();
 
@@ -79,8 +111,8 @@ export const RecentEntriesTable: React.FC<RecentEntriesTableProps> = ({ entries 
                   </Badge>
                 </Table.Cell>
                 <Table.Cell>
-                  <Badge color={entry.status === 'published' ? 'green' : 'gray'}>
-                    {entry.status}
+                  <Badge color={getRecentEntryStatusColor(entry.status)}>
+                    {formatRecentEntryStatus(entry.status)}
                   </Badge>
                 </Table.Cell>
                 <Table.Cell>
