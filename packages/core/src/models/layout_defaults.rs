@@ -43,9 +43,6 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
-        {% if theme_switcher_html %}
-        {{ theme_switcher_html|safe }}
-        {% endif %}
     </header>
     <main id="main-content">
         {% if is_preview %}
@@ -67,11 +64,16 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
         </article>
     </main>
     <footer>
-        <nav aria-label="Footer Navigation">
-            {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
-            {% endfor %}
-        </nav>
+        <div class="footer-nav-row">
+            <nav aria-label="Footer Navigation">
+                {% for item in footer_menu %}
+                <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
+                {% endfor %}
+            </nav>
+            {% if theme_switcher_html %}
+            {{ theme_switcher_html|safe }}
+            {% endif %}
+        </div>
         {% if footer_text %}
         <div class="footer-text">{{ footer_text }}</div>
         {% endif %}
@@ -198,9 +200,6 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
-        {% if theme_switcher_html %}
-        {{ theme_switcher_html|safe }}
-        {% endif %}
     </header>
     <main id="main-content">
         {% if is_preview %}
@@ -240,11 +239,16 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
         </article>
     </main>
     <footer>
-        <nav aria-label="Footer Navigation">
-            {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
-            {% endfor %}
-        </nav>
+        <div class="footer-nav-row">
+            <nav aria-label="Footer Navigation">
+                {% for item in footer_menu %}
+                <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
+                {% endfor %}
+            </nav>
+            {% if theme_switcher_html %}
+            {{ theme_switcher_html|safe }}
+            {% endif %}
+        </div>
         {% if footer_text %}
         <div class="footer-text">{{ footer_text }}</div>
         {% endif %}
@@ -297,9 +301,6 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
-        {% if theme_switcher_html %}
-        {{ theme_switcher_html|safe }}
-        {% endif %}
     </header>
     <div class="docs-layout">
         <aside class="docs-sidebar" aria-label="Documentation Sidebar">
@@ -345,11 +346,16 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
         </aside>
     </div>
     <footer>
-        <nav aria-label="Footer Navigation">
-            {% for item in footer_menu %}
-            <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
-            {% endfor %}
-        </nav>
+        <div class="footer-nav-row">
+            <nav aria-label="Footer Navigation">
+                {% for item in footer_menu %}
+                <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
+                {% endfor %}
+            </nav>
+            {% if theme_switcher_html %}
+            {{ theme_switcher_html|safe }}
+            {% endif %}
+        </div>
         {% if footer_text %}
         <div class="footer-text">{{ footer_text }}</div>
         {% endif %}

@@ -3173,6 +3173,196 @@ mod tests {
         assert!(switcher_pos > footer_pos, "theme-switcher must be inside footer");
     }
 
+    fn assert_theme_switcher_footer_only(html: &str) {
+        let header_start = html.find("<header").expect("header must be present");
+        let header_end = html.find("</header>").expect("header end must be present");
+        let header_html = &html[header_start..header_end];
+        assert!(
+            !header_html.contains("theme-switcher"),
+            "theme-switcher must NOT be inside <header>"
+        );
+
+        let footer_start = html.find("<footer>").expect("footer must be present");
+        let footer_end = html.find("</footer>").expect("footer end must be present");
+        let footer_html = &html[footer_start..footer_end];
+        assert!(
+            footer_html.contains(r#"class="theme-switcher""#),
+            "theme-switcher MUST be inside <footer>"
+        );
+        assert!(
+            footer_html.contains(r#"class="footer-nav-row""#),
+            "footer MUST contain .footer-nav-row"
+        );
+    }
+
+    #[test]
+    fn test_theme_switcher_footer_only_all_fallback_templates() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "My Tech Blog".to_string());
+        settings.insert("theme_primary_id".to_string(), "modern-editorial".to_string());
+        settings.insert("theme_dark_id".to_string(), "modern-editorial-dark".to_string());
+
+        // 1. Index Template
+        let index_html = render_index(
+            &[],
+            &[dummy_post()],
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&index_html);
+
+        // 2. Post Template
+        let post_html = render_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&post_html);
+
+        // 3. Page Template
+        let page_html = render_page(
+            &[],
+            &dummy_page(),
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&page_html);
+
+        // 4. Doc Template
+        let doc = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_nav = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_html = render_doc(
+            &[],
+            &doc,
+            &[doc_nav],
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&doc_html);
+
+        // 5. Search Template
+        let search_html = render_search_html(
+            &[],
+            "test query",
+            &[dummy_post()],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&search_html);
+    }
+
+    #[test]
+    fn test_theme_switcher_footer_only_all_d1_layout_templates() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_title".to_string(), "My Tech Blog".to_string());
+        settings.insert("theme_primary_id".to_string(), "modern-editorial".to_string());
+        settings.insert("theme_dark_id".to_string(), "modern-editorial-dark".to_string());
+
+        let post_seed = zygo_core::models::layout_defaults::get_default_layout_template("post").unwrap();
+        let page_seed = zygo_core::models::layout_defaults::get_default_layout_template("page").unwrap();
+        let doc_seed = zygo_core::models::layout_defaults::get_default_layout_template("doc").unwrap();
+
+        let lts = vec![
+            LayoutTemplate {
+                id: "post".to_string(),
+                name: post_seed.name.unwrap_or_default(),
+                description: post_seed.description,
+                template_html: post_seed.template_html.unwrap_or_default(),
+                template_css: post_seed.template_css.unwrap_or_default(),
+                is_locked: true,
+                created_at: String::new(),
+                updated_at: String::new(),
+            },
+            LayoutTemplate {
+                id: "page".to_string(),
+                name: page_seed.name.unwrap_or_default(),
+                description: page_seed.description,
+                template_html: page_seed.template_html.unwrap_or_default(),
+                template_css: page_seed.template_css.unwrap_or_default(),
+                is_locked: true,
+                created_at: String::new(),
+                updated_at: String::new(),
+            },
+            LayoutTemplate {
+                id: "doc".to_string(),
+                name: doc_seed.name.unwrap_or_default(),
+                description: doc_seed.description,
+                template_html: doc_seed.template_html.unwrap_or_default(),
+                template_css: doc_seed.template_css.unwrap_or_default(),
+                is_locked: true,
+                created_at: String::new(),
+                updated_at: String::new(),
+            },
+        ];
+
+        // 1. Post Template with D1 override
+        let post_html = render_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            Some(&lts),
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&post_html);
+
+        // 2. Page Template with D1 override
+        let page_html = render_page(
+            &[],
+            &dummy_page(),
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            Some(&lts),
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&page_html);
+
+        // 3. Doc Template with D1 override
+        let doc = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_nav = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_html = render_doc(
+            &[],
+            &doc,
+            &[doc_nav],
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            Some(&lts),
+        )
+        .unwrap();
+        assert_theme_switcher_footer_only(&doc_html);
+    }
+
     #[test]
     fn test_explicit_site_tagline_rendering() {
         let mut settings = std::collections::HashMap::new();
