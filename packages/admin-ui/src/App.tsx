@@ -13,7 +13,8 @@ import Redirects from './pages/Redirects';
 import Submissions from './pages/Submissions';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
-import ThemePage from './pages/Theme';
+import ThemesList from './pages/ThemesList';
+import ThemeEditorPage from './pages/ThemeEditor';
 import NotFound from './pages/NotFound';
 import TemplatesList from './pages/TemplatesList';
 import TemplateEditor from './pages/TemplateEditor';
@@ -107,7 +108,9 @@ export const App: React.FC = () => {
             }
           />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="theme" element={<ThemePage />} />
+          <Route path="theme" element={<ThemesList />} />
+          <Route path="theme/editor" element={<Navigate to="/theme" replace />} />
+          <Route path="theme/editor/:id" element={<ThemeEditorPage />} />
           <Route path="settings" element={<Settings />} />
           <Route path="admin" element={<Navigate to="/" replace />} />
           <Route path="*" element={<NotFound />} />

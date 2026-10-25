@@ -15,8 +15,10 @@ import {
 import { useThemeSettingsApi } from './useThemeSettingsApi';
 import { useGoogleFontInjector } from './useGoogleFontInjector';
 import { useThemeDialogs } from './useThemeDialogs';
+import { useThemeById } from './useThemeById';
 
 export function useThemeEditorState({
+  themeId,
   initialTokens,
   initialThemeName = 'Modern Editorial',
   initialPreviewMode = 'editorial',
@@ -24,6 +26,15 @@ export function useThemeEditorState({
 }: ThemeEditorProps = {}) {
   const hasInitializedRef = useRef(false);
   const { settingsData, isLoading, isSaving, saveSettings } = useThemeSettingsApi();
+  const {
+    themeRecord,
+    isLoadingTheme,
+    isSavingTheme,
+    isDuplicatingTheme,
+    themeError,
+    saveTheme,
+    duplicateTheme,
+  } = useThemeById({ themeId, onSaveSuccess });
 
   const basePreset = BUILT_IN_THEMES[initialThemeName] || MODERN_EDITORIAL_PRESET;
 
@@ -64,6 +75,7 @@ export function useThemeEditorState({
   // Sync with fetched settings on initial load
   useEffect(() => {
     if (
+      !themeId &&
       !initialTokens &&
       settingsData &&
       Object.keys(settingsData).length > 0 &&
@@ -86,12 +98,22 @@ export function useThemeEditorState({
       setTokens(loadedTokens);
       setBaselineTokens(loadedTokens);
     }
-  }, [settingsData, initialThemeName, initialTokens]);
+  }, [themeId, settingsData, initialThemeName, initialTokens]);
+
+  // Sync with theme fetched by ID
+  useEffect(() => {
+    if (themeRecord) {
+      setSelectedThemeName(themeRecord.name);
+      setTokens(themeRecord.tokens);
+      setBaselineTokens(themeRecord.tokens);
+    }
+  }, [themeRecord]);
 
   useGoogleFontInjector(tokens.fontUrl);
 
   const isDirty = !areTokensEqual(tokens, baselineTokens);
   const isBuiltInSelected = Boolean(BUILT_IN_THEMES[selectedThemeName]);
+  const isLocked = Boolean(themeRecord?.is_locked);
   const canSwitchToSelected = selectedThemeName !== activeThemeName || isDirty;
 
   const { blocker } = useUnsavedChangesBlocker(isDirty);
@@ -116,6 +138,20 @@ export function useThemeEditorState({
 
   const handleSave = async () => {
     setError(null);
+    if (themeRecord) {
+      if (themeRecord.is_locked) {
+        openSaveAsDialog(false);
+        return;
+      }
+      const success = await saveTheme(tokens);
+      if (success) {
+        setBaselineTokens({ ...tokens });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+      return;
+    }
+
     if (isBuiltInSelected) {
       openSaveAsDialog(false);
       return;
@@ -270,8 +306,12 @@ export function useThemeEditorState({
   };
 
   return {
-    isLoading: isLoading && !initialTokens && Object.keys(settingsData).length === 0,
-    isSaving,
+    isLoading:
+      isLoadingTheme || (isLoading && !initialTokens && Object.keys(settingsData).length === 0),
+    isSaving: isSaving || isSavingTheme,
+    isLocked,
+    isDuplicating: isDuplicatingTheme,
+    handleDuplicateToEdit: duplicateTheme,
     activeThemeName,
     selectedThemeName,
     customThemes,
@@ -284,7 +324,7 @@ export function useThemeEditorState({
     saved,
     switchedFeedback,
     copiedCss,
-    error,
+    error: error || themeError,
     pendingThemeSwitch,
     setPendingThemeSwitch,
     saveAsDialogOpen,

@@ -18,6 +18,9 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
   const {
     isLoading,
     isSaving,
+    isLocked,
+    isDuplicating,
+    handleDuplicateToEdit,
     activeThemeName,
     selectedThemeName,
     customThemes,
@@ -81,11 +84,25 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
         isSaving={isSaving}
         saved={saved}
         switchedFeedback={switchedFeedback}
+        isLocked={isLocked}
+        onDuplicate={handleDuplicateToEdit}
+        isDuplicating={isDuplicating}
         onThemePickerChange={handleThemePickerChange}
         onSwitchActiveTheme={handleSwitchActiveTheme}
         onSave={handleSave}
         onOpenSaveAsDialog={() => openSaveAsDialog(false)}
       />
+
+      {isLocked && (
+        <Callout.Root color="amber" size="2" mb="4">
+          <Callout.Icon>
+            <InfoCircledIcon />
+          </Callout.Icon>
+          <Callout.Text>
+            This is a built-in theme and is read-only. Duplicate this theme to customize its tokens and save changes.
+          </Callout.Text>
+        </Callout.Root>
+      )}
 
       {error && (
         <Callout.Root color="red" size="2" mb="4">

@@ -29,6 +29,7 @@ export interface CustomThemeEntry {
 }
 
 export interface ThemeEditorProps {
+  themeId?: string;
   initialTokens?: Partial<ThemeTokens>;
   initialThemeName?: string;
   initialPreviewMode?: 'editorial' | 'docs';
