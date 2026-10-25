@@ -128,7 +128,7 @@ describe('ThemeEditorPage', () => {
     });
   });
 
-  it('renders locked built-in theme with read-only badge and duplicate button', async () => {
+  it('renders locked built-in theme with read-only badge and clone theme button', async () => {
     renderWithRouter('/theme/editor/modern-editorial');
 
     await waitFor(() => {
@@ -136,8 +136,50 @@ describe('ThemeEditorPage', () => {
     });
 
     expect(screen.getByText('Built-in (Read-Only)')).toBeDefined();
-    expect(screen.getByRole('button', { name: /Duplicate to Edit/i })).toBeDefined();
+    expect(screen.getByText('Active Primary')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /Back to Themes/i })).toBeDefined();
+  });
+
+  it('calls duplicate API when Clone Theme is clicked', async () => {
+    (apiFetch as any).mockImplementation((url: string, options?: any) => {
+      if (url === '/api/themes/modern-editorial' && !options) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockLockedTheme,
+        });
+      }
+      if (url === '/api/themes/modern-editorial/duplicate' && options?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ...mockLockedTheme, id: 'modern-editorial-copy', name: 'Modern Editorial (Copy)' }),
+        });
+      }
+      if (url === '/api/settings') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ theme_primary_id: 'modern-editorial' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderWithRouter('/theme/editor/modern-editorial');
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Clone Theme/i }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/themes/modern-editorial/duplicate',
+        expect.objectContaining({
+          method: 'POST',
+        })
+      );
+    });
   });
 
   it('renders custom theme and saves modifications via PUT /api/themes/:id', async () => {
@@ -162,6 +204,55 @@ describe('ThemeEditorPage', () => {
         '/api/themes/custom-midnight',
         expect.objectContaining({
           method: 'PUT',
+        })
+      );
+    });
+  });
+
+  it('supports inline rename for custom themes via PUT /api/themes/:id/rename', async () => {
+    (apiFetch as any).mockImplementation((url: string, options?: any) => {
+      if (url === '/api/themes/custom-midnight' && !options) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => mockCustomTheme,
+        });
+      }
+      if (url === '/api/themes/custom-midnight/rename' && options?.method === 'PUT') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ...mockCustomTheme, name: 'Custom Midnight Renamed' }),
+        });
+      }
+      if (url === '/api/settings') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ theme_primary_id: 'modern-editorial' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderWithRouter('/theme/editor/custom-midnight');
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Custom Midnight').length).toBeGreaterThanOrEqual(1);
+    });
+
+    const renameButton = screen.getByRole('button', { name: /Rename theme/i });
+    fireEvent.click(renameButton);
+
+    const input = screen.getByRole('textbox', { name: /Theme name/i });
+    fireEvent.change(input, { target: { value: 'Custom Midnight Renamed' } });
+
+    const saveRenameButton = screen.getByRole('button', { name: /Save theme name/i });
+    fireEvent.click(saveRenameButton);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        '/api/themes/custom-midnight/rename',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ name: 'Custom Midnight Renamed' }),
         })
       );
     });

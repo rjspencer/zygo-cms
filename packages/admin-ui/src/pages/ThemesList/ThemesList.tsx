@@ -111,7 +111,7 @@ export const ThemesList: React.FC = () => {
   };
 
   return (
-    <Box style={{ maxWidth: '1600px', margin: '0 auto' }}>
+    <Box>
       <ThemesHeader onCreateClick={() => setCreateDialogOpen(true)} />
 
       {error && (

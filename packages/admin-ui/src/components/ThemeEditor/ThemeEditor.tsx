@@ -19,19 +19,20 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
     isLoading,
     isSaving,
     isLocked,
+    isPrimary,
+    isDark,
+    isActive,
     isDuplicating,
     handleDuplicateToEdit,
+    handleRename,
     activeThemeName,
     selectedThemeName,
-    customThemes,
     tokens,
     setTokens,
     previewMode,
     setPreviewMode,
     isDirty,
-    canSwitchToSelected,
     saved,
-    switchedFeedback,
     copiedCss,
     error,
     pendingThemeSwitch,
@@ -42,12 +43,10 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
     setSaveAsName,
     blocker,
     generatedCss,
-    handleThemePickerChange,
     applyThemeSelection,
     openSaveAsDialog,
     handleSave,
     handleConfirmSaveAs,
-    handleSwitchActiveTheme,
     handleApplyFontPreset,
     handleResetToModernEditorial,
     handleCopyCss,
@@ -76,21 +75,19 @@ export const ThemeEditor: React.FC<ThemeEditorProps> = (props) => {
   return (
     <Box style={{ maxWidth: '2000px', margin: '0 auto', paddingBottom: '3rem' }}>
       <ThemeEditorHeader
+        themeName={selectedThemeName}
         selectedThemeName={selectedThemeName}
-        activeThemeName={activeThemeName}
-        customThemes={customThemes}
+        isLocked={isLocked}
+        isPrimary={isPrimary}
+        isDark={isDark}
+        isActive={isActive}
         isDirty={isDirty}
-        canSwitchToSelected={canSwitchToSelected}
         isSaving={isSaving}
         saved={saved}
-        switchedFeedback={switchedFeedback}
-        isLocked={isLocked}
         onDuplicate={handleDuplicateToEdit}
         isDuplicating={isDuplicating}
-        onThemePickerChange={handleThemePickerChange}
-        onSwitchActiveTheme={handleSwitchActiveTheme}
+        onRename={handleRename}
         onSave={handleSave}
-        onOpenSaveAsDialog={() => openSaveAsDialog(false)}
       />
 
       {isLocked && (

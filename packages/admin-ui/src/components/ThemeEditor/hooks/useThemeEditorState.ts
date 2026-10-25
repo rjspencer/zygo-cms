@@ -34,6 +34,7 @@ export function useThemeEditorState({
     themeError,
     saveTheme,
     duplicateTheme,
+    renameTheme,
   } = useThemeById({ themeId, onSaveSuccess });
 
   const basePreset = BUILT_IN_THEMES[initialThemeName] || MODERN_EDITORIAL_PRESET;
@@ -115,6 +116,64 @@ export function useThemeEditorState({
   const isBuiltInSelected = Boolean(BUILT_IN_THEMES[selectedThemeName]);
   const isLocked = Boolean(themeRecord?.is_locked);
   const canSwitchToSelected = selectedThemeName !== activeThemeName || isDirty;
+
+  const currentId = themeRecord?.id || themeId;
+  const currentName = themeRecord?.name || selectedThemeName;
+
+  const primaryId =
+    settingsData?.theme_primary_id ||
+    (settingsData?.theme_active_name
+      ? undefined
+      : 'modern-editorial');
+
+  const isPrimary = Boolean(
+    (currentId && primaryId && currentId === primaryId) ||
+    (currentName && settingsData?.theme_active_name && currentName === settingsData.theme_active_name) ||
+    (!settingsData?.theme_primary_id && !settingsData?.theme_active_name && (currentId === 'modern-editorial' || currentName === 'Modern Editorial'))
+  );
+
+  const darkId = settingsData?.theme_dark_id?.trim();
+  const isDark = Boolean(
+    darkId && (
+      (currentId && currentId === darkId) ||
+      (currentName && currentName === darkId)
+    )
+  );
+
+  const isActive = isPrimary || isDark;
+
+  const handleRename = async (newName: string) => {
+    setError(null);
+    if (themeRecord) {
+      const ok = await renameTheme(newName);
+      if (ok) {
+        setSelectedThemeName(newName);
+      }
+      return;
+    }
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      const { updatedCustomList } = createOrUpdateCustomTheme(
+        trimmed,
+        selectedThemeName,
+        customThemes,
+        tokens
+      );
+      const payload: Record<string, string> = {
+        theme_custom_themes: JSON.stringify(updatedCustomList),
+      };
+      if (activeThemeName === selectedThemeName) {
+        payload.theme_active_name = trimmed;
+        setActiveThemeName(trimmed);
+      }
+      await saveSettings(payload);
+      setCustomThemes(updatedCustomList);
+      setSelectedThemeName(trimmed);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to rename theme');
+    }
+  };
 
   const { blocker } = useUnsavedChangesBlocker(isDirty);
 
@@ -310,8 +369,12 @@ export function useThemeEditorState({
       isLoadingTheme || (isLoading && !initialTokens && Object.keys(settingsData).length === 0),
     isSaving: isSaving || isSavingTheme,
     isLocked,
+    isPrimary,
+    isDark,
+    isActive,
     isDuplicating: isDuplicatingTheme,
     handleDuplicateToEdit: duplicateTheme,
+    handleRename,
     activeThemeName,
     selectedThemeName,
     customThemes,

@@ -113,6 +113,42 @@ export function useThemeById({ themeId, onSaveSuccess }: UseThemeByIdOptions) {
     }
   };
 
+  const renameTheme = async (newName: string): Promise<boolean> => {
+    if (!themeRecord) return false;
+    if (themeRecord.is_locked) {
+      setThemeError('Built-in themes cannot be renamed.');
+      return false;
+    }
+    const trimmed = newName.trim();
+    if (!trimmed) {
+      setThemeError('Theme name cannot be empty');
+      return false;
+    }
+    setIsSavingTheme(true);
+    setThemeError(null);
+    try {
+      const res = await apiFetch(`/api/themes/${themeRecord.id}/rename`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to rename theme');
+      }
+      const updated: ThemeRecord = await res.json();
+      setThemeRecord(updated);
+      onSaveSuccess?.();
+      return true;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to rename theme';
+      setThemeError(msg);
+      return false;
+    } finally {
+      setIsSavingTheme(false);
+    }
+  };
+
   return {
     themeRecord,
     isLoadingTheme,
@@ -122,6 +158,7 @@ export function useThemeById({ themeId, onSaveSuccess }: UseThemeByIdOptions) {
     setThemeError,
     saveTheme,
     duplicateTheme,
+    renameTheme,
     refetchTheme: fetchTheme,
   };
 }

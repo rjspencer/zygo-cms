@@ -744,7 +744,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       render(<RouterProvider router={router} />);
 
       await waitFor(() => {
-        expect(screen.getByText('Theme Settings')).toBeDefined();
+        expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeDefined();
       });
 
       // Verify the WebMCP tools are registered

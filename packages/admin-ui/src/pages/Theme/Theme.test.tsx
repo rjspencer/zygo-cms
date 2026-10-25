@@ -59,7 +59,7 @@ describe('ThemePage Component', () => {
     renderThemePage();
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Theme Settings' })).toBeDefined();
+      expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeDefined();
     });
   });
 });

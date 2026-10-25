@@ -1,6 +1,6 @@
 import React from 'react';
 import { Flex, Box, Heading, Text, Button } from '@radix-ui/themes';
-import { PlusIcon, ColorWheelIcon } from '@radix-ui/react-icons';
+import { PlusIcon, BlendingModeIcon } from '@radix-ui/react-icons';
 import type { ThemesHeaderProps } from '../../types';
 
 export const ThemesHeader: React.FC<ThemesHeaderProps> = ({ onCreateClick }) => {
@@ -8,7 +8,7 @@ export const ThemesHeader: React.FC<ThemesHeaderProps> = ({ onCreateClick }) => 
     <Flex justify="between" align="start" mb="5" wrap="wrap" gap="3">
       <Box>
         <Flex align="center" gap="2">
-          <ColorWheelIcon width="24" height="24" style={{ color: 'var(--cyan-9)' }} />
+          <BlendingModeIcon width="24" height="24" style={{ color: 'var(--cyan-9)' }} />
           <Heading size="6" weight="bold">
             Themes
           </Heading>
