@@ -261,19 +261,19 @@ All uploaded assets are managed through the Media Library (`/media`) backed by C
 - **Edge Variant Resolution:** Public and Admin Worker media endpoints resolve `?size=thumb` and `?size=md` with automatic fallback to the master image if a tier is omitted.
 - **TipTap & MiniJinja Integration:** The rich-text editor automatically inserts `?size=md` with explicit sizing attributes (`width="1024" style="max-width: 100%"`). In MiniJinja templates, the `{{ image|media_srcset|safe }}` filter automatically expands media URLs into full responsive `srcset` markup.
 
-## Site Branding & Dark Mode Logo
+## Site Branding & Strict Dual-Mode Logo Synchronization
 
-Global site presentation and identity are managed via the `settings` key-value store:
+Global site presentation and identity are managed via the `settings` key-value store and the `themes` table (see [Themes & Dual-Mode Styling](themes.md)):
 
 - **Branding Assets:** Configure `site_logo`, `site_logo_dark`, `site_favicon`, `default_og_image`, `footer_text`, and optional `site_tagline`.
-- **Automatic Dark Mode Logo Resolution:** When both light and dark logos are configured, the public SSR worker renders a semantic `<picture>` element:
+- **Strict Theme-Synchronized Logo Display:** When both light and dark logos are configured, the public SSR worker renders dual logo markup:
   ```html
-  <picture class="site-logo-picture">
-      <source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)">
-      <img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">
-  </picture>
+  <img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">
+  {% if site_logo_dark %}
+  <img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">
+  {% endif %}
   ```
-  This switches the logo seamlessly according to the visitor's operating system color scheme without executing client-side JavaScript.
+  Edge CSS rules switch logo visibility based on the active theme mode and visitor toggle overrides (`data-theme="dark"` / `data-theme="light"`), ensuring that logos strictly match the active color scheme without color inversion or mismatch. When no dark theme is active, `.site-logo-dark` remains hidden.
 
 ## Redirects & Trackable Links (with QR Codes)
 

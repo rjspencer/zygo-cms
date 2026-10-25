@@ -8,6 +8,46 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Themes Architecture Overhaul & Dual-Mode Theming
+- **Database Schema & Migration (`migrations/0014_themes_table.sql`)**:
+  - Created first-class `themes` table (`id`, `name`, `description`, `tokens_json`, `is_locked`, `created_at`, `updated_at`).
+  - Seeded built-in locked presets: `modern-editorial`, `bento-brutalism`, and `bento-brutalism-dark` (`is_locked = 1`).
+  - Added safe setting seeds for `theme_primary_id` (`modern-editorial`) and `theme_dark_id` (`NULL`).
+  - Migrated layout templates from `<picture class="site-logo-picture">` to strict responsive dual-mode classes (`.site-logo-light` and `.site-logo-dark`).
+- **Core Models & Database Repository (`packages/core/`)**:
+  - Added strongly-typed `Theme` and `ThemeRow` models in `packages/core/src/models/theme.rs` with lenient boolean SQLite deserialization.
+  - Implemented D1 theme repository in `packages/core/src/db/theme.rs` with explicit column projection: `get_all`, `get_by_id`, `create`, `update`, `rename`, `delete` (strictly zero `SELECT *`).
+  - Preserved backward compatibility for resolving presets and settings fallbacks via `ThemeTokens::resolve_from_settings`.
+- **Admin API Worker REST Endpoints (`packages/admin-api-worker/`)**:
+  - Implemented authenticated endpoints in `src/handlers/themes.rs`:
+    - `GET /api/themes`: List all themes.
+    - `GET /api/themes/:id`: Retrieve single theme.
+    - `POST /api/themes`: Create new custom theme with auto-generated unique slug.
+    - `PUT /api/themes/:id`: Update tokens/metadata (guards locked presets with 403 Forbidden).
+    - `PUT /api/themes/:id/rename`: Rename theme (guards locked presets with 403 Forbidden).
+    - `POST /api/themes/:id/duplicate`: Duplicate theme to sequential `<name> copy` with `is_locked = 0`.
+    - `DELETE /api/themes/:id`: Delete custom theme (rejects locked presets with 403; rejects active primary/dark themes with 400).
+    - `PUT /api/themes/activate`: Atomically set `theme_primary_id` or `theme_dark_id` (or clear dark variant).
+  - Integrated automated cache invalidation and `styles_hash` recalculation via `recompute_and_purge` on all theme mutations.
+- **Public SSR Worker & Dual-Mode Edge Rendering (`packages/public-worker/`)**:
+  - Dynamically emits primary tokens on `:root, :root[data-theme="light"]` and dark tokens on `:root[data-theme="dark"]` + `@media (prefers-color-scheme: dark)`.
+  - Injects zero-FOUC inline script restoring `localStorage.getItem('zygo_theme')` into `<head>` when a dark theme is configured.
+  - Injects accessible 3-way visitor theme switcher (`Auto`, `Light`, `Dark`) with dynamic `aria-pressed` states into header navigation when a dark theme is active; cleanly omits when dark variant is unset.
+  - Enforced strict logo synchronization via CSS: light logo displays in light mode, dark logo displays in dark mode, and dark logo is never shown if no dark theme is active.
+- **Admin UI Themes Experience (`packages/admin-ui/`)**:
+  - Created modular Themes List page at `/theme` (`packages/admin-ui/src/pages/ThemesList/`) with:
+    - Side-by-side active cards for Primary Theme and Dark Mode Variant (with `[Remove]` button).
+    - `[Create Theme]` dialog with Base Preset picker.
+    - Themes table with 4-color palette swatches, type badges, status tags, and action dialogs (`Activate`, `Rename`, `Duplicate`, `Edit`, `Delete`).
+  - Refactored dedicated theme editor at `/theme/editor/:id` (`packages/admin-ui/src/pages/ThemeEditor/`):
+    - Dedicated single-theme editing with breadcrumbs back to `/theme`.
+    - Read-only protection banner and `[Duplicate to Edit]` workflow for built-in presets.
+    - Live split-screen preview and `UnsavedChangesDialog` integration.
+- **Dual MCP Parity (`packages/admin-ui/src/lib/webmcp/`, `packages/zygo-mcp/`)**:
+  - Added in-browser WebMCP tools: `theme_list`, `theme_get`, `theme_create`, `theme_activate`, `theme_duplicate`, `theme_rename`, `theme_delete`.
+  - Added matching CLI MCP bridge tools: `zygo_list_themes`, `zygo_get_theme`, `zygo_create_theme`, `zygo_activate_theme`, `zygo_duplicate_theme`, `zygo_rename_theme`, `zygo_delete_theme`.
+  - Comprehensive unit test suites covering WebMCP and CLI MCP tools in `packages/admin-ui/src/__tests__/WebMCPThemes.test.tsx` and `packages/zygo-mcp/__tests__/themes.test.mjs`.
+
 ### Bento-Brutalism Dark Mode Theme Preset
 - **Theme Architecture & Core Models (`packages/core/`)**:
   - Implemented `ThemeTokens::bento_brutalism_dark()` preset with high-contrast industrial neo-brutalist styling: deep slate midnight canvas (`#0b0f19`), elevated surface containers (`#151d2f`), crisp white typography (`#f8fafc`, WCAG AAA compliant), muted slate metadata (`#94a3b8`), vibrant sky cyan accents (`#38bdf8`), deep slate perimeter borders (`#334155`), and hard geometric offset drop shadows (`4px 6px 0 #000000`).
