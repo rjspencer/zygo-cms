@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Color Mode Switcher Relocation to Footer Across All Template Types
+- **Core Layout Defaults (`packages/core/src/models/layout_defaults.rs`)**:
+  - Removed `theme_switcher_html` from `<header>` in `DEFAULT_POST_HTML`, `DEFAULT_PAGE_HTML`, and `DEFAULT_DOC_HTML`.
+  - Wrapped footer navigation in `<div class="footer-nav-row">` and added `theme_switcher_html` inside `<footer>` across all core layout defaults.
+- **Database Layout Templates Migration (`migrations/0016_layout_templates_theme_switcher_footer.sql`)**:
+  - Created migration 0016 to migrate existing D1 `layout_templates` rows (`post`, `page`, `doc`), removing `theme_switcher_html` from `<header>` and placing it exclusively in `<footer>` within `<div class="footer-nav-row">`.
+- **SSR Unit Test Coverage (`packages/public-worker/src/views.rs`)**:
+  - Added `test_theme_switcher_footer_only_all_fallback_templates` verifying that `theme-switcher` is rendered strictly in the footer and never in the header across all fallback template types (`index`, `post`, `page`, `doc`, `search`).
+  - Added `test_theme_switcher_footer_only_all_d1_layout_templates` verifying that `theme-switcher` is rendered strictly in the footer and never in the header when layout templates are loaded from D1 database rows.
+
+
 ### Public Site Automatic Favicon Injection & Fallback Route
 - **Theme-Agnostic Favicon Injection (`public-worker`)**:
   - Implemented automatic HTML `<head>` injection via `inject_favicon` in `packages/public-worker/src/views.rs`, guaranteeing the browser tab favicon displays across all themes and custom database layout templates without needing theme-level template tags.
