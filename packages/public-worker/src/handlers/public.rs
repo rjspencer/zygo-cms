@@ -72,6 +72,50 @@ pub async fn serve_styles(req: Request, ctx: RouteContext<()>) -> Result<Respons
     Ok(res)
 }
 
+pub async fn serve_favicon(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let db = match ctx.env.d1("DB") {
+        Ok(d) => d,
+        Err(_) => {
+            let mut res = Response::empty().map(|r| r.with_status(404))?;
+            let _ = res.headers_mut().set("Cache-Control", "public, max-age=3600");
+            return Ok(res);
+        }
+    };
+    let settings = zygo_core::db::setting::get_settings_map(&db).await.unwrap_or_default();
+    let site_favicon = settings
+        .get("site_favicon")
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
+    if let Some(fav) = site_favicon {
+        // Prevent redirect loop if setting is literally "/favicon.ico"
+        if fav == "/favicon.ico" {
+            let mut res = Response::empty().map(|r| r.with_status(404))?;
+            let _ = res.headers_mut().set("Cache-Control", "public, max-age=3600");
+            return Ok(res);
+        }
+
+        let origin = utils::get_canonical_origin(&req, &ctx.env);
+        let target_str = if fav.starts_with('/') {
+            format!("{}{}", origin.trim_end_matches('/'), fav)
+        } else if fav.starts_with("http://") || fav.starts_with("https://") {
+            fav.to_string()
+        } else {
+            format!("{}/{}", origin.trim_end_matches('/'), fav)
+        };
+
+        if let Ok(target_url) = worker::Url::parse(&target_str) {
+            let mut res = Response::redirect_with_status(target_url, 302)?;
+            let _ = res.headers_mut().set("Cache-Control", "public, max-age=86400");
+            return Ok(res);
+        }
+    }
+
+    let mut res = Response::empty().map(|r| r.with_status(404))?;
+    let _ = res.headers_mut().set("Cache-Control", "public, max-age=3600");
+    Ok(res)
+}
+
 
 pub async fn posts_index(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     if let Some(cached) = cache::get_cached(&req).await {

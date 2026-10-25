@@ -11,9 +11,6 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ page_title }}</title>
     <link rel="canonical" href="{{ canonical_url|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -101,9 +98,6 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -185,9 +179,6 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -285,9 +276,6 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search &mdash; {{ site_title }}</title>
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -403,9 +391,6 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -1188,8 +1173,91 @@ fn render_template(
         })
         .map_err(|e| worker::Error::RustError(e.to_string()))?;
 
-    tmpl.render(ctx)
-        .map_err(|e| worker::Error::RustError(e.to_string()))
+    let favicon = ctx
+        .get("site_favicon")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let rendered = tmpl
+        .render(ctx)
+        .map_err(|e| worker::Error::RustError(e.to_string()))?;
+
+    if name == "sitemap" || name == "rss" {
+        return Ok(rendered);
+    }
+
+    Ok(inject_favicon(&rendered, favicon.as_deref()))
+}
+
+pub fn inject_favicon(html: &str, favicon: Option<&str>) -> String {
+    let Some(fav) = favicon.map(|s| s.trim()).filter(|s| !s.is_empty()) else {
+        return html.to_string();
+    };
+
+    let normalized = if fav.starts_with("http://") || fav.starts_with("https://") || fav.starts_with('/') {
+        fav.to_string()
+    } else {
+        format!("/{}", fav)
+    };
+
+    let new_tag = format!("<link rel=\"icon\" href=\"{}\">", normalized);
+
+    // If an existing favicon link exists, replace it
+    if let Some((start, end)) = find_favicon_link(html) {
+        let mut result = String::with_capacity(html.len() + new_tag.len());
+        result.push_str(&html[..start]);
+        result.push_str(&new_tag);
+        result.push_str(&html[end..]);
+        return result;
+    }
+
+    // Otherwise, inject before </head> (case-insensitive)
+    let lower = html.to_ascii_lowercase();
+    if let Some(pos) = lower.find("</head>") {
+        let mut result = String::with_capacity(html.len() + new_tag.len() + 10);
+        result.push_str(&html[..pos]);
+        result.push_str("    ");
+        result.push_str(&new_tag);
+        result.push('\n');
+        result.push_str(&html[pos..]);
+        return result;
+    }
+
+    // Fallback: inject before <body if </head> is absent
+    if let Some(pos) = lower.find("<body") {
+        let mut result = String::with_capacity(html.len() + new_tag.len() + 10);
+        result.push_str(&html[..pos]);
+        result.push_str(&new_tag);
+        result.push('\n');
+        result.push_str(&html[pos..]);
+        return result;
+    }
+
+    // Last resort: prepend
+    format!("{}\n{}", new_tag, html)
+}
+
+fn find_favicon_link(html: &str) -> Option<(usize, usize)> {
+    let lower = html.to_ascii_lowercase();
+    let mut search_from = 0;
+    while let Some(link_pos) = lower[search_from..].find("<link") {
+        let actual_start = search_from + link_pos;
+        if let Some(end_pos) = lower[actual_start..].find('>') {
+            let actual_end = actual_start + end_pos + 1;
+            let tag_content = &lower[actual_start..actual_end];
+            if tag_content.contains("rel=\"icon\"")
+                || tag_content.contains("rel='icon'")
+                || tag_content.contains("rel=\"shortcut icon\"")
+                || tag_content.contains("rel='shortcut icon'")
+            {
+                return Some((actual_start, actual_end));
+            }
+            search_from = actual_end;
+        } else {
+            break;
+        }
+    }
+    None
 }
 
 fn page_title(
@@ -3183,6 +3251,72 @@ mod tests {
 
         assert!(index_html.contains("<title>Blog \u{2014} Zygodactyl Studios</title>"));
         assert!(index_html.contains(r#"<a href="/posts" aria-current="page">Blog</a>"#));
+    }
+
+    #[test]
+    fn test_inject_favicon_scenarios() {
+        // 1. Injects into clean HTML before </head>
+        let html1 = "<!DOCTYPE html><html><head><title>Test</title></head><body>Hello</body></html>";
+        let out1 = inject_favicon(html1, Some("/favicon.ico"));
+        assert!(out1.contains(r#"<link rel="icon" href="/favicon.ico">"#));
+        assert!(out1.contains("</head>"));
+
+        // 2. Normalizes relative path without leading slash
+        let out2 = inject_favicon(html1, Some("media/logo.png"));
+        assert!(out2.contains(r#"<link rel="icon" href="/media/logo.png">"#));
+
+        // 3. Absolute URL preserved
+        let out3 = inject_favicon(html1, Some("https://cdn.example.com/icon.svg"));
+        assert!(out3.contains(r#"<link rel="icon" href="https://cdn.example.com/icon.svg">"#));
+
+        // 4. Replaces existing favicon link
+        let html_with_fav = "<!DOCTYPE html><html><head><link rel=\"icon\" href=\"/old.ico\"></head><body></body></html>";
+        let out4 = inject_favicon(html_with_fav, Some("/new.ico"));
+        assert!(out4.contains(r#"<link rel="icon" href="/new.ico">"#));
+        assert!(!out4.contains("/old.ico"));
+
+        // 5. Fallback when </head> is missing
+        let html_no_head = "<!DOCTYPE html><html><body>Hello</body></html>";
+        let out5 = inject_favicon(html_no_head, Some("/fav.ico"));
+        assert!(out5.contains(r#"<link rel="icon" href="/fav.ico">"#));
+
+        // 6. Untouched if favicon is None or empty
+        assert_eq!(inject_favicon(html1, None), html1);
+        assert_eq!(inject_favicon(html1, Some("   ")), html1);
+    }
+
+    #[test]
+    fn test_favicon_injected_into_custom_db_layout_without_favicon() {
+        // Layout template from DB that does NOT have any favicon markup in its HTML
+        let db_template = LayoutTemplate {
+            id: "page".to_string(),
+            name: "Default Page".to_string(),
+            description: Some("Custom DB layout".to_string()),
+            template_html: "<!DOCTYPE html><html><head><title>{{ page.title }}</title></head><body><h1>{{ page.title }}</h1></body></html>".to_string(),
+            template_css: "".to_string(),
+            is_locked: false,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("site_favicon".to_string(), "/media/custom-fav.png".to_string());
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            Some(&[db_template]),
+        )
+        .unwrap();
+
+        assert!(html.contains(r#"<link rel="icon" href="/media/custom-fav.png">"#));
     }
 }
 

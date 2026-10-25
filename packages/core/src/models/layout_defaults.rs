@@ -8,9 +8,6 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ post.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ post.meta_description }}">
     <link rel="canonical" href="{{ post.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -166,9 +163,6 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ page.title }} &mdash; {{ site_title }}</title>
     <meta name="description" content="{{ page.meta_description }}">
     <link rel="canonical" href="{{ page.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
@@ -268,9 +262,6 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
     <title>{{ doc.title }} &mdash; Docs</title>
     <meta name="description" content="{{ doc.meta_description }}">
     <link rel="canonical" href="{{ doc.canonical|safe }}">
-    {% if site_favicon %}
-    <link rel="icon" href="{{ site_favicon|safe }}">
-    {% endif %}
     {% if og_image %}
     <meta property="og:image" content="{{ og_image|safe }}">
     <meta name="twitter:image" content="{{ og_image|safe }}">
