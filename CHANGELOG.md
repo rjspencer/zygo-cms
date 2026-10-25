@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Public Site Automatic Favicon Injection & Fallback Route
+- **Theme-Agnostic Favicon Injection (`public-worker`)**:
+  - Implemented automatic HTML `<head>` injection via `inject_favicon` in `packages/public-worker/src/views.rs`, guaranteeing the browser tab favicon displays across all themes and custom database layout templates without needing theme-level template tags.
+  - Normalizes relative favicon paths, handles case-insensitive `</head>` / `<body>` boundaries, and replaces existing `<link rel="icon">` tags to prevent duplicate or conflicting declarations.
+  - Removed template-level favicon conditionals from built-in templates (`DEFAULT_INDEX`, `DEFAULT_POST`, `DEFAULT_PAGE`, `DEFAULT_SEARCH`, `DEFAULT_DOC`) and core layout defaults (`DEFAULT_POST_HTML`, `DEFAULT_PAGE_HTML`, `DEFAULT_DOC_HTML`).
+- **Dedicated `/favicon.ico` Route Handler (`public-worker`)**:
+  - Registered `GET /favicon.ico` route in `packages/public-worker/src/lib.rs` and implemented `handlers::public::serve_favicon` in `packages/public-worker/src/handlers/public.rs`.
+  - Performs 302 redirect with 24-hour cache headers to the configured `site_favicon` (e.g. `/media/:key` or full external URL), preventing automated browser requests from triggering 404 page queries. Returns 404 with cache headers if unconfigured.
+- **Unit Test Coverage**:
+  - Added unit tests in `packages/public-worker/src/views.rs` testing clean `<head>` injection, path normalization, replacement of existing favicon links, missing `</head>` fallback, and verified injection into custom database layout templates lacking favicon markup.
+
 ### Public Site Theme Switcher Redesign
 - **Relocated from Header to Footer**:
   - Moved theme switcher injection from site header to footer across all public templates (`DEFAULT_INDEX`, `DEFAULT_POST`, `DEFAULT_PAGE`, `DEFAULT_SEARCH`, and `DEFAULT_DOC`).
