@@ -17,6 +17,9 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .get_async("/style-:hash.css", handlers::public::serve_styles)
         .get_async("/style.css", handlers::public::serve_styles)
 
+        // Favicon handler
+        .get_async("/favicon.ico", handlers::public::serve_favicon)
+
         // Form submission endpoint
         .post_async("/forms/submit", handlers::public::submit_form)
 
