@@ -8,6 +8,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Public Site Theme Switcher Redesign
+- **Relocated from Header to Footer**:
+  - Moved theme switcher injection from site header to footer across all public templates (`DEFAULT_INDEX`, `DEFAULT_POST`, `DEFAULT_PAGE`, `DEFAULT_SEARCH`, and `DEFAULT_DOC`).
+  - Wrapped footer navigation and theme switcher in `.footer-nav-row` with responsive flex alignment (`space-between` on desktop, centered when centered header is active).
+- **Two-Button Segmented Toggle with Radix Icons**:
+  - Replaced text-based 3-button group with a compact 2-button segmented control using Radix UI `SunIcon` and `MoonIcon` inline SVGs.
+  - Implemented 3 states across two buttons: Light mode (Sun pressed), Dark mode (Moon pressed), and System preference (neither pressed).
+  - Clicking an active mode button deselects it and reverts to system preference (`localStorage.removeItem('zygo_theme')`, removing `data-theme`).
+- **Styling & Accessibility**:
+  - Styled with CSS tokens, `color-mix()` hover feedback, `:focus-visible` outline rings (WCAG AA), and `aria-pressed` states.
+  - Synchronized styles across `packages/public-worker/src/style.css` and `public/style.css`.
+  - Updated dual-theme emission test suite in `packages/public-worker/src/views.rs`.
+
 ### Themes Architecture Overhaul & Dual-Mode Theming
 - **Database Schema & Migration (`migrations/0014_themes_table.sql`)**:
   - Created first-class `themes` table (`id`, `name`, `description`, `tokens_json`, `is_locked`, `created_at`, `updated_at`).
