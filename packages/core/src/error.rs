@@ -6,6 +6,7 @@ pub enum AppError {
     Database(worker::Error),
     NotFound,
     Unauthorized(String),
+    Forbidden(String),
     ServerError(String),
     TooManyRequests(String),
     Conflict(String),
@@ -28,6 +29,7 @@ impl AppError {
             }
             AppError::NotFound => (404, "Entry not found".to_string()),
             AppError::Unauthorized(msg) => (401, msg.clone()),
+            AppError::Forbidden(msg) => (403, msg.clone()),
             AppError::ServerError(msg) => {
                 worker::console_log!("Server error: {}", msg);
                 (500, "Internal Server Error".to_string())

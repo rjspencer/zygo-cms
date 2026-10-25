@@ -11,11 +11,13 @@ pub mod layout_template;
 pub mod redirect;
 pub mod form_submission;
 pub mod backup;
+pub mod theme;
 
 pub use entry::*;
 pub use media::*;
 pub use revision::*;
 pub use user::*;
+pub use theme::*;
 
 use worker::wasm_bindgen::JsValue;
 
