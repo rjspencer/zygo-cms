@@ -84,3 +84,31 @@ Every section template defines a JSON array of fields validated by `zygo_core::t
 - **Built-in Seeding**: Seed built-in templates with `is_locked = 1` in migrations.
 - **Theme Preview Entry**: Whenever adding or modifying built-in section templates, append corresponding sample data to `entries.body_json` where `slug = 'theme-preview'` and update `search_text`.
 - General migration rules (explicit columns, nullable `ALTER TABLE`): see `migrations/AGENTS.md`.
+
+## 7. Built-in Theme Presets & Dark Mode Authoring Workflow
+
+When introducing or modifying a built-in theme preset (e.g., `Modern Editorial (Dark)` or `Bento-Brutalism (Dark)`), follow this mandatory 4-point synchronization checklist:
+
+### 7.1 Core Tokens & Rust SSR (`packages/core` & `packages/public-worker`)
+1. **Core Constructor**: Define `ThemeTokens::<preset_snake_case>()` in `packages/core/src/models/theme.rs`.
+2. **Preset Lookup**: Update `ThemeTokens::get_preset(name: &str)` to match both standard name (e.g. `"Modern Editorial (Dark)"`) and common alias (e.g. `"Modern Editorial Dark"`).
+3. **Core Unit Tests**: Assert token defaults and resolution via `theme_active_name` in `packages/core/src/models/theme.rs`.
+4. **Public Worker SSR Verification**: In `packages/public-worker/src/views.rs`, verify edge rendering under the preset (e.g. assert that built-in templates and `views::generate_theme_root_css` render cleanly without CSS breakage).
+
+### 7.2 Admin UI ThemeEditor (`packages/admin-ui`)
+1. **Constants**: Define `<PRESET_NAME>_PRESET` and register in `BUILT_IN_THEMES` in `packages/admin-ui/src/components/ThemeEditor/constants.ts`.
+2. **Re-export**: Re-export the preset from `packages/admin-ui/src/components/ThemeEditor/index.ts`.
+3. **Storybook Stories**: Add both Editorial and Docs preview stories in `packages/admin-ui/src/components/ThemeEditor/ThemeEditor.stories.tsx`.
+4. **UI Tests**: Add tests in `packages/admin-ui/src/components/ThemeEditor/ThemeEditor.test.tsx` verifying Theme Picker selection, live preview token update, and active theme switching via `POST /api/settings`.
+
+### 7.3 Dual MCP Parity Gate
+1. **In-Browser WebMCP**: Update `theme_select_preset` tool description and schema in `packages/admin-ui/src/lib/webmcp/themeAndMediaTools.ts`.
+2. **WebMCP Unit Tests**: Add test assertions in `packages/admin-ui/src/__tests__/WebMCPThemeMedia.test.tsx`.
+3. **CLI MCP Bridge**: Verify compatibility in `packages/zygo-mcp/index.mjs`.
+
+### 7.4 Dark Theme Design Token Principles
+- **Elevated Surfaces**: Dark canvas (`--color-bg`) must have enough separation from card containers (`--color-surface`) to maintain hierarchy (e.g., `#0b0f19` canvas with `#151d2f` cards, or `#141210` obsidian with `#1f1c19` warm charcoal).
+- **Legibility Floors**: Body text (`--color-text`) must achieve WCAG AAA contrast against `--color-bg` and `--color-surface`.
+- **Muted Contrast**: `--color-text-muted` must remain readable for bylines and metadata without washing out against dark surfaces.
+- **Shadow Adaptation**: For editorial dark themes, replace light drop shadows with deeper diffuse glows (`0 4px 14px rgba(0, 0, 0, 0.45)`); for brutalist dark themes, maintain hard, unblurred offsets (`4px 6px 0 #000000`).
+- **Visual Mockup Checkpoints**: When planning dark themes with users, provide rendered visual previews (SVG / Generative UI) of candidate palette combinations (canvas, surface, borders, accents) before committing token choices.

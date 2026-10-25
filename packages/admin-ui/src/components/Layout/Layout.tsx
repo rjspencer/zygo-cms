@@ -75,7 +75,12 @@ export const Layout: React.FC = () => {
             label: 'Docs Template',
             aliases: ['/templates/doc'],
           },
-          { to: '/theme', icon: <BlendingModeIcon width="18" height="18" />, label: 'Theme' },
+          {
+            to: '/theme',
+            icon: <BlendingModeIcon width="18" height="18" />,
+            label: 'Theme',
+            aliases: ['/theme/editor'],
+          },
         ],
       },
       {

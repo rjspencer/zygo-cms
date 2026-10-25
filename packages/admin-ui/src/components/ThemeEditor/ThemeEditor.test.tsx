@@ -227,15 +227,15 @@ describe('ThemeEditor component', () => {
     });
   });
 
-  it('switches between Modern Editorial and Bento-Brutalism in preview without affecting live site, and switches live site on Switch to click', async () => {
+  it('renders simplified header with theme name, active badge, and clone button, without active switch or dropdown', async () => {
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
         theme_active_name: 'Modern Editorial',
+        theme_primary_id: 'modern-editorial',
       }),
     });
 
-    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -245,50 +245,24 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    const activeIndicator = await screen.findByTestId('active-theme-indicator');
-    expect(activeIndicator.textContent).toContain('Active theme: Modern Editorial');
+    // Header displays theme name as heading
+    expect(await screen.findByRole('heading', { name: 'Modern Editorial' })).toBeTruthy();
 
-    const switchToBtn = screen.getByRole('button', { name: /Switch to:/i }) as HTMLButtonElement;
-    expect(switchToBtn.disabled).toBe(true);
-    expect(switchToBtn.textContent).toContain('Switch to: Modern Editorial');
+    // Active badge is shown for active theme
+    expect(screen.getByText('Active Primary')).toBeTruthy();
 
-    // Open Theme Picker dropdown and pick Bento-Brutalism
-    const pickerTrigger = screen.getByRole('combobox', { name: /Theme Picker/i });
-    fireEvent.keyDown(pickerTrigger, { key: ' ' });
-    const bentoOption = await screen.findByRole('option', { name: 'Bento-Brutalism' });
-    fireEvent.click(bentoOption);
+    // No switch to button or active theme indicator text
+    expect(screen.queryByTestId('active-theme-indicator')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Switch to/i })).toBeNull();
 
-    // Verify Bento-Brutalism tokens loaded into preview without calling POST /api/settings
-    await waitFor(() => {
-      expect(screen.getAllByDisplayValue('#007799').length).toBe(2);
-    });
-    expect(apiFetch).not.toHaveBeenCalledWith(
-      '/api/settings',
-      expect.objectContaining({ method: 'POST' })
-    );
+    // No theme picker dropdown
+    expect(screen.queryByRole('combobox', { name: /Theme Picker/i })).toBeNull();
 
-    // Active theme is still Modern Editorial, while Switch to button now targets Bento-Brutalism
-    expect(screen.getByTestId('active-theme-indicator').textContent).toContain(
-      'Active theme: Modern Editorial'
-    );
-    expect(switchToBtn.disabled).toBe(false);
-    expect(switchToBtn.textContent).toContain('Switch to: Bento-Brutalism');
-
-    // Click "Switch to: Bento-Brutalism" to activate it on the live site
-    await user.click(switchToBtn);
-
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/api/settings',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('"theme_active_name":"Bento-Brutalism"'),
-        })
-      );
-    });
+    // Clone theme button is present
+    expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeTruthy();
   });
 
-  it('warns user with an Are you sure popup when switching themes with unsaved changes', async () => {
+  it('supports inline rename for themes via pencil icon and input', async () => {
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({}),
@@ -304,132 +278,77 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await screen.findByText('The Zygo Review');
+    await screen.findByRole('heading', { name: 'Modern Editorial' });
 
-    // Make an unsaved modification
-    const splitOption = screen.getByText('Split Bar');
-    fireEvent.click(splitOption);
+    // Click rename pencil button
+    const renameBtn = screen.getByRole('button', { name: /Rename theme/i });
+    await user.click(renameBtn);
 
-    // Try picking Bento-Brutalism from the Theme Picker dropdown
-    const pickerTrigger = screen.getByRole('combobox', { name: /Theme Picker/i });
-    fireEvent.keyDown(pickerTrigger, { key: ' ' });
-    const bentoOption = await screen.findByRole('option', { name: 'Bento-Brutalism' });
-    fireEvent.click(bentoOption);
+    // Edit input should appear
+    const input = screen.getByRole('textbox', { name: /Theme name/i });
+    expect(input).toBeTruthy();
 
-    // Unsaved changes warning dialog should appear
-    expect(
-      await screen.findByText(/Are you sure you want to switch themes\?/i)
-    ).toBeTruthy();
-
-    // Clicking Cancel keeps our unsaved changes on Modern Editorial
-    const cancelBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    // Cancel editing
+    const cancelBtn = screen.getByRole('button', { name: /Cancel/i });
     await user.click(cancelBtn);
-    expect(screen.getAllByDisplayValue('#991b1b').length).toBe(2);
+    expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeTruthy();
 
-    // Try switching again and confirm Discard Changes & Switch
-    fireEvent.keyDown(pickerTrigger, { key: ' ' });
-    const bentoOptionAgain = await screen.findByRole('option', { name: 'Bento-Brutalism' });
-    fireEvent.click(bentoOptionAgain);
+    // Start editing again and save
+    await user.click(renameBtn);
+    const inputAgain = screen.getByRole('textbox', { name: /Theme name/i });
+    await user.clear(inputAgain);
+    await user.type(inputAgain, 'Modern Editorial V2');
 
-    const discardBtn = await screen.findByRole('button', {
-      name: /Discard Changes & Switch/i,
-    });
-    await user.click(discardBtn);
+    const saveBtn = screen.getByRole('button', { name: /Save theme name/i });
+    await user.click(saveBtn);
 
-    // Now Bento-Brutalism is loaded (#007799 cyan accent)
-    await waitFor(() => {
-      expect(screen.getAllByDisplayValue('#007799').length).toBe(2);
-    });
+    // Header now reflects the updated name
+    expect(await screen.findByRole('heading', { name: 'Modern Editorial V2' })).toBeTruthy();
   });
 
-  it('prefills "<base-theme> Custom" in Save As dialog and lists saved custom theme in dropdown', async () => {
-    (apiFetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({}),
+  it('does not render any active badge when theme is not active', async () => {
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/themes/inactive-theme') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: 'inactive-theme',
+            name: 'Inactive Custom Theme',
+            is_locked: false,
+            tokens: {},
+          }),
+        });
+      }
+      if (url === '/api/settings') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            theme_primary_id: 'modern-editorial',
+            theme_active_name: 'Modern Editorial',
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
+    const router = createMemoryRouter(
+      [{ path: '*', element: <ThemeEditor themeId="inactive-theme" /> }]
+    );
     render(
       <QueryClientProvider client={queryClient}>
         <Theme>
-          <ThemeWithRouter />
+          <RouterProvider router={router} />
         </Theme>
       </QueryClientProvider>
     );
 
-    await screen.findByText('The Zygo Review');
+    await screen.findByRole('heading', { name: 'Inactive Custom Theme' });
 
-    // Switch to Bento-Brutalism first
-    const pickerTrigger = screen.getByRole('combobox', { name: /Theme Picker/i });
-    fireEvent.keyDown(pickerTrigger, { key: ' ' });
-    const bentoOption = await screen.findByRole('option', { name: 'Bento-Brutalism' });
-    fireEvent.click(bentoOption);
-
-    // Click "Save As..." button
-    const saveAsBtn = screen.getByRole('button', { name: /Save As\.\.\./i });
-    await user.click(saveAsBtn);
-
-    const nameInput = (await screen.findByLabelText(/Theme Name/i)) as HTMLInputElement;
-    expect(nameInput.value).toBe('Bento-Brutalism Custom');
-
-    const confirmBtn = screen.getByRole('button', { name: /Save Custom Theme/i });
-    await user.click(confirmBtn);
-
-    // Verify the custom theme now appears as the selected value in the Theme Picker
-    await waitFor(() => {
-      expect(pickerTrigger.textContent).toContain('Bento-Brutalism Custom');
-    });
-  });
-
-  it('selects and switches to Bento-Brutalism (Dark) preset in Theme Picker', async () => {
-    (apiFetch as any).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        theme_active_name: 'Modern Editorial',
-      }),
-    });
-
-    const user = userEvent.setup();
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <ThemeWithRouter />
-        </Theme>
-      </QueryClientProvider>
-    );
-
-    await screen.findByText('The Zygo Review');
-
-    // Open Theme Picker dropdown and pick Bento-Brutalism (Dark)
-    const pickerTrigger = screen.getByRole('combobox', { name: /Theme Picker/i });
-    fireEvent.keyDown(pickerTrigger, { key: ' ' });
-    const bentoDarkOption = await screen.findByRole('option', { name: 'Bento-Brutalism (Dark)' });
-    fireEvent.click(bentoDarkOption);
-
-    // Verify Bento-Brutalism (Dark) tokens loaded into preview
-    await waitFor(() => {
-      expect(screen.getAllByDisplayValue('#38bdf8').length).toBeGreaterThan(0);
-      expect(screen.getAllByDisplayValue('#0b0f19').length).toBeGreaterThan(0);
-      expect(screen.getAllByDisplayValue('#151d2f').length).toBeGreaterThan(0);
-    });
-
-    const switchToBtn = screen.getByRole('button', { name: /Switch to:/i }) as HTMLButtonElement;
-    expect(switchToBtn.textContent).toContain('Switch to: Bento-Brutalism (Dark)');
-
-    // Switch active theme
-    await user.click(switchToBtn);
-
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/api/settings',
-        expect.objectContaining({
-          method: 'POST',
-          body: expect.stringContaining('"theme_active_name":"Bento-Brutalism (Dark)"'),
-        })
-      );
-    });
+    // Inactive theme should not render Active, Active Primary, or Active Dark badges
+    expect(screen.queryByText('Active Primary')).toBeNull();
+    expect(screen.queryByText('Active Dark')).toBeNull();
+    expect(screen.queryByText('Active')).toBeNull();
   });
 
   it('toggles between Editorial / Bento and Docs Layout in the Live Preview', async () => {
@@ -627,13 +546,9 @@ describe('ThemeEditor component', () => {
     const headerPaddingInput = container.querySelector('#header-padding');
     expect(headerPaddingInput).toBeTruthy();
 
-    // 5. Save As Dialog
-    const saveAsBtn = screen.getByRole('button', { name: /Save As\.\.\./i });
-    await user.click(saveAsBtn);
-    const saveAsNameLabel = document.querySelector('label[for="save-as-theme-name"]');
-    expect(saveAsNameLabel).toBeTruthy();
-    const saveAsNameInput = document.querySelector('#save-as-theme-name');
-    expect(saveAsNameInput).toBeTruthy();
+    // 5. Clone Theme Button
+    const cloneThemeBtn = screen.getByRole('button', { name: /Clone Theme/i });
+    expect(cloneThemeBtn).toBeTruthy();
   });
 
   it('allows editing borderRadius and boxShadow tokens', async () => {

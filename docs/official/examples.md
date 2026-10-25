@@ -95,14 +95,14 @@ Site-wide branding, social media metadata, and identity tokens are configured un
 - **Site Tagline:** Optional header tagline rendered adjacent to the site title or logo. When left blank, it is cleanly omitted from SSR HTML.
 - **Footer Text (`footer_text`):** Markdown-compatible copyright or attribution text rendered across the global layout footer.
 
-### 2. Theme Editor (`/theme`)
+### 2. Themes & Dual-Mode Styling (`/theme`)
 
-Styling tokens and typography presets are managed directly in the Admin UI:
+Styling tokens, theme presets, and dual-mode pairing are managed under **Theme** (`/theme`):
 
-- **Color Tokens:** Customize primary brand colors, accent colors, neutral surfaces, text tones, and borders. Built-in presets include Modern Editorial, Bento-Brutalism, and Bento-Brutalism (Dark) with live instant preview.
-- **Typography Presets:** Select from pre-configured font pairings (such as Modern Editorial, Bento Brutalism, Clean Sans, or Monospace) or specify custom Google Fonts URLs.
-- **Layout & Header Settings:** Adjust container max-widths, border radiuses, and header navigation styles (centered, split, or inline).
-- **Persistence:** All theme choices are saved directly to the `settings` table as CSS design tokens. The Public Worker injects these tokens as CSS variables (`:root { --color-primary: ...; }`) into edge-rendered pages with immediate cache invalidation.
+- **Themes List (`/theme`):** Browse built-in presets (`Modern Editorial`, `Bento-Brutalism`, `Bento-Brutalism (Dark)`) and custom themes. View color swatches and active status badges at a glance.
+- **Dual-Mode Pairing:** Assign an active **Primary Theme** and an optional **Dark Mode Variant**. When paired, visitors can toggle between Auto, Light, and Dark mode in the public header, with zero FOUC and strict logo synchronization.
+- **Dedicated Theme Editor (`/theme/editor/:id`):** Customize typography, colors, borders, and header layout with a live split-screen preview. Built-in presets are protected as read-only with a one-click `[Duplicate to Edit]` workflow.
+- **Persistence & Edge Invalidation:** Themes are stored in the D1 `themes` table. Edits immediately recompute `styles_hash` and purge Cloudflare edge caches. See [Themes & Dual-Mode Styling](themes.md) for full details.
 
 ### 3. Customizing Templates in the Admin UI (`/templates`)
 

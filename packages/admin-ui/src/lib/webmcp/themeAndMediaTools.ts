@@ -558,6 +558,364 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
       },
     },
     {
+      name: 'theme_list',
+      description: 'List all themes in the CMS, including built-in presets and custom themes, with active primary and dark role indicators',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+      handler: async (): Promise<WebMCPToolResult> => {
+        const [themesRes, settingsRes] = await Promise.all([
+          apiFetch('/api/themes'),
+          apiFetch('/api/settings'),
+        ]);
+
+        if (!themesRes.ok) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to fetch themes: ${themesRes.statusText || themesRes.status}` }],
+          };
+        }
+
+        const themes = await themesRes.json();
+        let settings: Record<string, string> = {};
+        if (settingsRes.ok) {
+          try {
+            settings = await settingsRes.json();
+          } catch {
+            settings = {};
+          }
+        }
+
+        const themePrimaryId =
+          settings.theme_primary_id ||
+          (Array.isArray(themes) ? themes.find((t: any) => t.name === settings.theme_active_name)?.id : undefined) ||
+          (Array.isArray(themes) && themes.length > 0 ? themes[0].id : 'modern-editorial');
+        const themeDarkId = settings.theme_dark_id?.trim() || null;
+
+        const data = {
+          themes,
+          themePrimaryId,
+          themeDarkId,
+        };
+
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_get',
+      description: 'Get details and tokens for a specific theme by ID',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'The theme ID',
+          },
+        },
+        required: ['id'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const id = String(args.id || '').trim();
+        if (!id) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Theme ID is required.' }],
+          };
+        }
+
+        const res = await apiFetch(`/api/themes/${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to get theme: ${errText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_create',
+      description: 'Create a new custom theme',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: 'Name of the new theme',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description of the theme',
+          },
+          baseThemeId: {
+            type: 'string',
+            description: 'Base theme preset or existing theme ID to copy tokens from',
+          },
+          tokens: {
+            type: 'object',
+            description: 'Custom theme design tokens object',
+          },
+        },
+        required: ['name'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const name = String(args.name || '').trim();
+        if (!name) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Theme name is required.' }],
+          };
+        }
+
+        const payload: Record<string, any> = { name };
+        if (args.description !== undefined) payload.description = args.description;
+        if (args.baseThemeId !== undefined) {
+          payload.baseThemeId = args.baseThemeId;
+          payload.base_theme_id = args.baseThemeId;
+        }
+        if (args.tokens !== undefined) payload.tokens = args.tokens;
+
+        const res = await apiFetch('/api/themes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to create theme: ${errText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_activate',
+      description: 'Set a theme as the active Primary Theme or Dark Mode Variant, or clear the dark variant',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: ['string', 'null'],
+            description: 'Theme ID, or null/empty to clear dark variant',
+          },
+          role: {
+            type: 'string',
+            enum: ['primary', 'dark'],
+            description: 'Role to activate ("primary" or "dark")',
+          },
+        },
+        required: ['role'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const role = String(args.role || '').toLowerCase();
+        if (role !== 'primary' && role !== 'dark') {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Role must be either "primary" or "dark".' }],
+          };
+        }
+
+        const res = await apiFetch('/api/themes/activate', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: args.id ?? null,
+            role,
+          }),
+        });
+
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to activate theme: ${errText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_duplicate',
+      description: 'Duplicate an existing theme (built-in or custom) to create an editable copy',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'ID of theme to duplicate',
+          },
+        },
+        required: ['id'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const id = String(args.id || '').trim();
+        if (!id) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Theme ID is required.' }],
+          };
+        }
+
+        const res = await apiFetch(`/api/themes/${encodeURIComponent(id)}/duplicate`, {
+          method: 'POST',
+        });
+
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to duplicate theme: ${errText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_rename',
+      description: 'Rename a custom theme (built-in locked themes cannot be renamed)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Theme ID to rename',
+          },
+          name: {
+            type: 'string',
+            description: 'New theme name',
+          },
+        },
+        required: ['id', 'name'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const id = String(args.id || '').trim();
+        const name = String(args.name || '').trim();
+        if (!id || !name) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Theme ID and new name are required.' }],
+          };
+        }
+
+        const res = await apiFetch(`/api/themes/${encodeURIComponent(id)}/rename`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to rename theme: ${errText}` }],
+          };
+        }
+
+        const data = await res.json();
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
+      name: 'theme_delete',
+      description: 'Delete a custom theme (built-in locked themes and active themes cannot be deleted)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          id: {
+            type: 'string',
+            description: 'Theme ID to delete',
+          },
+        },
+        required: ['id'],
+      },
+      handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
+        const id = String(args.id || '').trim();
+        if (!id) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Theme ID is required.' }],
+          };
+        }
+
+        const res = await apiFetch(`/api/themes/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
+        });
+
+        if (!res.ok) {
+          let errText = res.statusText || String(res.status);
+          try {
+            const errJson = await res.json();
+            if (errJson?.message) errText = errJson.message;
+          } catch {}
+          return {
+            isError: true,
+            content: [{ type: 'text', text: `Failed to delete theme: ${errText}` }],
+          };
+        }
+
+        let data: any = { success: true };
+        try {
+          data = await res.json();
+        } catch {}
+
+        return {
+          toolResult: data,
+          content: [{ type: 'text', text: JSON.stringify(data, null, 2) }],
+        };
+      },
+    },
+    {
       name: 'get_menu',
       description: 'Get navigation menu items (optionally filtered by slug, e.g. "header" or "footer")',
       inputSchema: {

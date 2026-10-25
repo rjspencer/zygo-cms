@@ -142,6 +142,16 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/layout-templates/:id/restore/:revision_id", handlers::layout_templates::restore_layout_template_revision)
         .post_async("/api/layout-templates/:id/reset", handlers::layout_templates::reset_layout_template)
 
+        // API routes - Themes
+        .get_async("/api/themes", handlers::themes::list_themes)
+        .post_async("/api/themes", handlers::themes::create_theme)
+        .put_async("/api/themes/activate", handlers::themes::activate_theme)
+        .put_async("/api/themes/:id/rename", handlers::themes::rename_theme)
+        .post_async("/api/themes/:id/duplicate", handlers::themes::duplicate_theme)
+        .get_async("/api/themes/:id", handlers::themes::get_theme)
+        .put_async("/api/themes/:id", handlers::themes::update_theme)
+        .delete_async("/api/themes/:id", handlers::themes::delete_theme)
+
         // API routes - Media
         .post_async("/api/media", handlers::api::upload_media)
         .get_async("/api/media", handlers::api::list_media)

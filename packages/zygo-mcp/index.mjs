@@ -379,6 +379,85 @@ export const tools = [
         description: "Reset theme settings back to default styling.",
         inputSchema: { type: "object", properties: {} }
     },
+    {
+        name: "zygo_list_themes",
+        description: "List all themes in the CMS, including built-in presets and custom themes, with active primary and dark role indicators",
+        inputSchema: {
+            type: "object",
+            properties: {}
+        }
+    },
+    {
+        name: "zygo_get_theme",
+        description: "Get details and tokens for a specific theme by ID",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "The theme ID" }
+            },
+            required: ["id"]
+        }
+    },
+    {
+        name: "zygo_create_theme",
+        description: "Create a new custom theme",
+        inputSchema: {
+            type: "object",
+            properties: {
+                name: { type: "string", description: "Name of the theme" },
+                description: { type: "string", description: "Optional description of the theme" },
+                baseThemeId: { type: "string", description: "Base theme preset or existing theme ID" },
+                tokens: { type: "object", description: "Custom theme design tokens" }
+            },
+            required: ["name"]
+        }
+    },
+    {
+        name: "zygo_activate_theme",
+        description: "Set a theme as the active Primary Theme or Dark Mode Variant, or clear the dark variant",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: ["string", "null"], description: "Theme ID, or null/empty to clear dark variant" },
+                role: { type: "string", enum: ["primary", "dark"], description: "Role to assign theme to ('primary' or 'dark')" }
+            },
+            required: ["role"]
+        }
+    },
+    {
+        name: "zygo_duplicate_theme",
+        description: "Duplicate an existing theme (built-in or custom) to create an editable copy",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "ID of theme to duplicate" }
+            },
+            required: ["id"]
+        }
+    },
+    {
+        name: "zygo_rename_theme",
+        description: "Rename a custom theme (built-in locked themes cannot be renamed)",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "Theme ID to rename" },
+                name: { type: "string", description: "New theme name" }
+            },
+            required: ["id", "name"]
+        }
+    },
+    {
+        name: "zygo_delete_theme",
+        description: "Delete a custom theme (built-in locked themes and active themes cannot be deleted)",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: { type: "string", description: "Theme ID to delete" }
+            },
+            required: ["id"]
+        }
+    },
 
     // ==========================================
     // E. Retained Site, Cache, Redirect & Submission Tools
@@ -991,8 +1070,114 @@ export async function handleCallTool(request, customContext = {}) {
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
         }
 
-        // ==========================================
-        // E. Retained Site, Cache, Redirect & Submission Tools
+        if (request.params.name === "zygo_list_themes") {
+            const [themesRes, settingsRes] = await Promise.all([
+                fetch(activeGetApiUrl('/themes'), { headers: activeHeaders }),
+                fetch(activeGetApiUrl('/settings'), { headers: activeHeaders })
+            ]);
+            if (!themesRes.ok) throw new Error(`HTTP ${themesRes.status}: ${await themesRes.text()}`);
+            const themes = await themesRes.json();
+            let settings = {};
+            if (settingsRes.ok) {
+                try {
+                    settings = await settingsRes.json();
+                } catch {
+                    settings = {};
+                }
+            }
+            const themePrimaryId = settings.theme_primary_id ||
+                (Array.isArray(themes) ? themes.find((t) => t.name === settings.theme_active_name)?.id : undefined) ||
+                (Array.isArray(themes) && themes.length > 0 ? themes[0].id : "modern-editorial");
+            const themeDarkId = settings.theme_dark_id?.trim() || null;
+            const data = { themes, themePrimaryId, themeDarkId };
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_get_theme") {
+            const args = request.params.arguments || {};
+            if (!args.id) throw new Error("Theme ID is required");
+            const res = await fetch(activeGetApiUrl(`/themes/${encodeURIComponent(args.id)}`), { headers: activeHeaders });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_create_theme") {
+            const args = request.params.arguments || {};
+            if (!args.name) throw new Error("Theme name is required");
+            const payload = {
+                name: args.name,
+                description: args.description || undefined,
+                baseThemeId: args.baseThemeId || undefined,
+                base_theme_id: args.baseThemeId || undefined,
+                tokens: args.tokens || undefined
+            };
+            const res = await fetch(activeGetApiUrl('/themes'), {
+                method: "POST",
+                headers: activeHeaders,
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_activate_theme") {
+            const args = request.params.arguments || {};
+            if (!args.role) throw new Error("Role is required ('primary' or 'dark')");
+            const res = await fetch(activeGetApiUrl('/themes/activate'), {
+                method: "PUT",
+                headers: activeHeaders,
+                body: JSON.stringify({
+                    id: args.id ?? null,
+                    role: args.role
+                })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_duplicate_theme") {
+            const args = request.params.arguments || {};
+            if (!args.id) throw new Error("Theme ID is required");
+            const res = await fetch(activeGetApiUrl(`/themes/${encodeURIComponent(args.id)}/duplicate`), {
+                method: "POST",
+                headers: activeHeaders
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_rename_theme") {
+            const args = request.params.arguments || {};
+            if (!args.id) throw new Error("Theme ID is required");
+            if (!args.name) throw new Error("Theme name is required");
+            const res = await fetch(activeGetApiUrl(`/themes/${encodeURIComponent(args.id)}/rename`), {
+                method: "PUT",
+                headers: activeHeaders,
+                body: JSON.stringify({ name: args.name })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            const data = await res.json();
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_delete_theme") {
+            const args = request.params.arguments || {};
+            if (!args.id) throw new Error("Theme ID is required");
+            const res = await fetch(activeGetApiUrl(`/themes/${encodeURIComponent(args.id)}`), {
+                method: "DELETE",
+                headers: activeHeaders
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            let data = { success: true };
+            try {
+                data = await res.json();
+            } catch {}
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
         // ==========================================
         if (request.params.name === "zygo_get_settings") {
             const res = await fetch(activeGetApiUrl('/settings'), { headers: activeHeaders });

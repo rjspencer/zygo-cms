@@ -10,3 +10,4 @@ pub mod cloudflare;
 pub mod cache_admin;
 pub mod submissions;
 pub mod backup;
+pub mod themes;

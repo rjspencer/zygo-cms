@@ -15,8 +15,10 @@ import {
 import { useThemeSettingsApi } from './useThemeSettingsApi';
 import { useGoogleFontInjector } from './useGoogleFontInjector';
 import { useThemeDialogs } from './useThemeDialogs';
+import { useThemeById } from './useThemeById';
 
 export function useThemeEditorState({
+  themeId,
   initialTokens,
   initialThemeName = 'Modern Editorial',
   initialPreviewMode = 'editorial',
@@ -24,6 +26,16 @@ export function useThemeEditorState({
 }: ThemeEditorProps = {}) {
   const hasInitializedRef = useRef(false);
   const { settingsData, isLoading, isSaving, saveSettings } = useThemeSettingsApi();
+  const {
+    themeRecord,
+    isLoadingTheme,
+    isSavingTheme,
+    isDuplicatingTheme,
+    themeError,
+    saveTheme,
+    duplicateTheme,
+    renameTheme,
+  } = useThemeById({ themeId, onSaveSuccess });
 
   const basePreset = BUILT_IN_THEMES[initialThemeName] || MODERN_EDITORIAL_PRESET;
 
@@ -64,6 +76,7 @@ export function useThemeEditorState({
   // Sync with fetched settings on initial load
   useEffect(() => {
     if (
+      !themeId &&
       !initialTokens &&
       settingsData &&
       Object.keys(settingsData).length > 0 &&
@@ -86,13 +99,81 @@ export function useThemeEditorState({
       setTokens(loadedTokens);
       setBaselineTokens(loadedTokens);
     }
-  }, [settingsData, initialThemeName, initialTokens]);
+  }, [themeId, settingsData, initialThemeName, initialTokens]);
+
+  // Sync with theme fetched by ID
+  useEffect(() => {
+    if (themeRecord) {
+      setSelectedThemeName(themeRecord.name);
+      setTokens(themeRecord.tokens);
+      setBaselineTokens(themeRecord.tokens);
+    }
+  }, [themeRecord]);
 
   useGoogleFontInjector(tokens.fontUrl);
 
   const isDirty = !areTokensEqual(tokens, baselineTokens);
   const isBuiltInSelected = Boolean(BUILT_IN_THEMES[selectedThemeName]);
+  const isLocked = Boolean(themeRecord?.is_locked);
   const canSwitchToSelected = selectedThemeName !== activeThemeName || isDirty;
+
+  const currentId = themeRecord?.id || themeId;
+  const currentName = themeRecord?.name || selectedThemeName;
+
+  const primaryId =
+    settingsData?.theme_primary_id ||
+    (settingsData?.theme_active_name
+      ? undefined
+      : 'modern-editorial');
+
+  const isPrimary = Boolean(
+    (currentId && primaryId && currentId === primaryId) ||
+    (currentName && settingsData?.theme_active_name && currentName === settingsData.theme_active_name) ||
+    (!settingsData?.theme_primary_id && !settingsData?.theme_active_name && (currentId === 'modern-editorial' || currentName === 'Modern Editorial'))
+  );
+
+  const darkId = settingsData?.theme_dark_id?.trim();
+  const isDark = Boolean(
+    darkId && (
+      (currentId && currentId === darkId) ||
+      (currentName && currentName === darkId)
+    )
+  );
+
+  const isActive = isPrimary || isDark;
+
+  const handleRename = async (newName: string) => {
+    setError(null);
+    if (themeRecord) {
+      const ok = await renameTheme(newName);
+      if (ok) {
+        setSelectedThemeName(newName);
+      }
+      return;
+    }
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      const { updatedCustomList } = createOrUpdateCustomTheme(
+        trimmed,
+        selectedThemeName,
+        customThemes,
+        tokens
+      );
+      const payload: Record<string, string> = {
+        theme_custom_themes: JSON.stringify(updatedCustomList),
+      };
+      if (activeThemeName === selectedThemeName) {
+        payload.theme_active_name = trimmed;
+        setActiveThemeName(trimmed);
+      }
+      await saveSettings(payload);
+      setCustomThemes(updatedCustomList);
+      setSelectedThemeName(trimmed);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to rename theme');
+    }
+  };
 
   const { blocker } = useUnsavedChangesBlocker(isDirty);
 
@@ -116,6 +197,20 @@ export function useThemeEditorState({
 
   const handleSave = async () => {
     setError(null);
+    if (themeRecord) {
+      if (themeRecord.is_locked) {
+        openSaveAsDialog(false);
+        return;
+      }
+      const success = await saveTheme(tokens);
+      if (success) {
+        setBaselineTokens({ ...tokens });
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+      }
+      return;
+    }
+
     if (isBuiltInSelected) {
       openSaveAsDialog(false);
       return;
@@ -270,8 +365,16 @@ export function useThemeEditorState({
   };
 
   return {
-    isLoading: isLoading && !initialTokens && Object.keys(settingsData).length === 0,
-    isSaving,
+    isLoading:
+      isLoadingTheme || (isLoading && !initialTokens && Object.keys(settingsData).length === 0),
+    isSaving: isSaving || isSavingTheme,
+    isLocked,
+    isPrimary,
+    isDark,
+    isActive,
+    isDuplicating: isDuplicatingTheme,
+    handleDuplicateToEdit: duplicateTheme,
+    handleRename,
     activeThemeName,
     selectedThemeName,
     customThemes,
@@ -284,7 +387,7 @@ export function useThemeEditorState({
     saved,
     switchedFeedback,
     copiedCss,
-    error,
+    error: error || themeError,
     pendingThemeSwitch,
     setPendingThemeSwitch,
     saveAsDialogOpen,
