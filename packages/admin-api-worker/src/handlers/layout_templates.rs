@@ -164,7 +164,10 @@ pub async fn reset_layout_template(req: Request, ctx: RouteContext<()>) -> Resul
     }
 }
 
-async fn recompute_and_purge(env: &worker::Env, d1: &worker::D1Database, req: &Request) {
+pub(crate) async fn recompute_and_purge(env: &worker::Env, d1: &worker::D1Database, req: &Request) {
+    let nonce = crate::utils::generate_id();
+    let _ = db::setting::set_setting(d1, "cache_bust_nonce", &nonce).await;
+
     let all_templates = db::layout_template::get_all(d1).await.unwrap_or_default();
     let settings = db::setting::get_settings_map(d1).await.unwrap_or_default();
     let old_hash = settings.get("styles_hash").cloned();

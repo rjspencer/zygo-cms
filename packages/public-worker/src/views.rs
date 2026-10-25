@@ -28,12 +28,15 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
+    {% if theme_fouc_script %}
+    {{ theme_fouc_script|safe }}
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">{% if site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -43,6 +46,9 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if theme_switcher_html %}
+        {{ theme_switcher_html|safe }}
+        {% endif %}
     </header>
     <main id="main-content">
         {% if heading %}
@@ -113,12 +119,15 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
+    {% if theme_fouc_script %}
+    {{ theme_fouc_script|safe }}
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">{% if site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -128,6 +137,9 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if theme_switcher_html %}
+        {{ theme_switcher_html|safe }}
+        {% endif %}
     </header>
     <main id="main-content">
         {% if is_preview %}
@@ -189,12 +201,15 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
+    {% if theme_fouc_script %}
+    {{ theme_fouc_script|safe }}
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">{% if site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -204,6 +219,9 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if theme_switcher_html %}
+        {{ theme_switcher_html|safe }}
+        {% endif %}
     </header>
     <main id="main-content">
         {% if is_preview %}
@@ -278,12 +296,15 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     {% if theme_css %}
     <style>{{ theme_css|safe }}</style>
     {% endif %}
+    {% if theme_fouc_script %}
+    {{ theme_fouc_script|safe }}
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">{% if site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -293,6 +314,9 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if theme_switcher_html %}
+        {{ theme_switcher_html|safe }}
+        {% endif %}
     </header>
     <main id="main-content">
         <h1>Search</h1>
@@ -391,12 +415,15 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     {% if template_css %}
     <style>{{ template_css|safe }}</style>
     {% endif %}
+    {% if theme_fouc_script %}
+    {{ theme_fouc_script|safe }}
+    {% endif %}
 </head>
 <body class="docs-page">
     <a href="#main-content" class="skip-link">Skip to content</a>
     <header class="header-{{ header_layout }}">
         <div class="site-branding">
-            <a href="/" class="site-title">{% if site_logo %}{% if site_logo_dark %}<picture class="site-logo-picture"><source srcset="{{ site_logo_dark|safe }}" media="(prefers-color-scheme: dark)"><img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo"></picture>{% else %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo">{% else %}{{ site_title }}{% endif %}</a>
+            <a href="/" class="site-title">{% if site_logo %}<img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">{% if site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% endif %}{% elif site_logo_dark %}<img src="{{ site_logo_dark|safe }}" alt="{{ site_title }}" class="site-logo site-logo-dark">{% else %}{{ site_title }}{% endif %}</a>
             {% if site_tagline %}
             <div class="site-tagline">{{ site_tagline }}</div>
             {% endif %}
@@ -406,6 +433,9 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
             <a href="{{ item.url|safe }}"{% if current_path and item.url == current_path %} aria-current="page"{% endif %}>{{ item.title }}</a>
             {% endfor %}
         </nav>
+        {% if theme_switcher_html %}
+        {{ theme_switcher_html|safe }}
+        {% endif %}
     </header>
     <div class="docs-layout">
         <aside class="docs-sidebar" aria-label="Documentation Sidebar">
@@ -655,11 +685,42 @@ fn flatten_docs<'a>(docs: &'a [Entry], parent_id: Option<i64>, flattened: &mut V
     }
 }
 
-pub fn generate_theme_root_css(
-    settings: Option<&std::collections::HashMap<String, String>>,
-) -> String {
-    let tokens = ThemeTokens::resolve_from_settings(settings);
+pub const ZERO_FOUC_SCRIPT: &str = r#"<script>(function(){try{var t=localStorage.getItem('zygo_theme');if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();</script>"#;
 
+pub const THEME_SWITCHER_HTML: &str = r##"<div class="theme-switcher" role="group" aria-label="Theme switcher">
+  <button type="button" class="theme-switcher-btn" data-theme-set="auto" aria-label="System theme">Auto</button>
+  <button type="button" class="theme-switcher-btn" data-theme-set="light" aria-label="Light theme">Light</button>
+  <button type="button" class="theme-switcher-btn" data-theme-set="dark" aria-label="Dark theme">Dark</button>
+</div>
+<script>
+(function(){
+  var btns = document.querySelectorAll('.theme-switcher-btn');
+  function updateActive(theme) {
+    btns.forEach(function(b){
+      var active = (theme ? b.getAttribute('data-theme-set') === theme : b.getAttribute('data-theme-set') === 'auto');
+      b.setAttribute('aria-pressed', active ? 'true' : 'false');
+    });
+  }
+  var current = localStorage.getItem('zygo_theme');
+  updateActive(current);
+  btns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var t = btn.getAttribute('data-theme-set');
+      if (t === 'auto') {
+        localStorage.removeItem('zygo_theme');
+        document.documentElement.removeAttribute('data-theme');
+        updateActive(null);
+      } else {
+        localStorage.setItem('zygo_theme', t);
+        document.documentElement.setAttribute('data-theme', t);
+        updateActive(t);
+      }
+    });
+  });
+})();
+</script>"##;
+
+pub fn format_theme_tokens_css(tokens: &ThemeTokens) -> String {
     let header_border = match tokens.header_border_style.as_str() {
         "none" => "none".to_string(),
         "solid" => format!("1px solid {}", tokens.color_border),
@@ -667,7 +728,7 @@ pub fn generate_theme_root_css(
     };
 
     format!(
-        ":root {{\n  --font-headline: {};\n  --font-body: {};\n  --color-bg: {};\n  --color-text: {};\n  --color-text-muted: {};\n  --color-accent: {};\n  --color-surface: {};\n  --color-border: {};\n  --content-max-width: {};\n  --font-size-base: {};\n  --line-height-body: {};\n  --header-layout: {};\n  --header-border-style: {};\n  --header-border: {header_border};\n  --header-title-size: {};\n  --header-nav-transform: {};\n  --header-padding: {};\n  --border-radius: {};\n  --box-shadow: {};\n}}",
+        "  --font-headline: {};\n  --font-body: {};\n  --color-bg: {};\n  --color-text: {};\n  --color-text-muted: {};\n  --color-accent: {};\n  --color-surface: {};\n  --color-border: {};\n  --content-max-width: {};\n  --font-size-base: {};\n  --line-height-body: {};\n  --header-layout: {};\n  --header-border-style: {};\n  --header-border: {header_border};\n  --header-title-size: {};\n  --header-nav-transform: {};\n  --header-padding: {};\n  --border-radius: {};\n  --box-shadow: {};",
         tokens.font_headline,
         tokens.font_body,
         tokens.color_bg,
@@ -687,6 +748,35 @@ pub fn generate_theme_root_css(
         tokens.border_radius,
         tokens.box_shadow,
     )
+}
+
+pub fn generate_theme_root_css(
+    settings: Option<&std::collections::HashMap<String, String>>,
+) -> String {
+    let primary_tokens = ThemeTokens::resolve_from_settings(settings);
+    let dark_tokens = settings.and_then(|s| {
+        let dark_id = s.get("theme_dark_id")?.trim();
+        if dark_id.is_empty() {
+            None
+        } else {
+            ThemeTokens::resolve_theme_tokens(dark_id, Some(s))
+                .or_else(|| ThemeTokens::get_preset(dark_id))
+        }
+    });
+
+    let primary_css = format_theme_tokens_css(&primary_tokens);
+    let mut css = format!(":root, :root[data-theme=\"light\"] {{\n{}\n}}", primary_css);
+
+    if let Some(ref dark) = dark_tokens {
+        let dark_css = format_theme_tokens_css(dark);
+        css.push_str(&format!("\n\n:root[data-theme=\"dark\"] {{\n{}\n}}", dark_css));
+        css.push_str(&format!(
+            "\n\n@media (prefers-color-scheme: dark) {{\n  :root:not([data-theme=\"light\"]) {{\n{}\n  }}\n}}",
+            dark_css
+        ));
+    }
+
+    css
 }
 
 fn resolve_absolute_url(origin: &str, url: &str) -> String {
@@ -846,6 +936,25 @@ pub fn inject_theme_context(
         ctx.insert(
             "site_logo_dark".to_string(),
             serde_json::Value::String(dark_logo.to_string()),
+        );
+    }
+
+    let dark_id_opt = settings
+        .and_then(|s| s.get("theme_dark_id").map(|v| v.trim()))
+        .filter(|v| !v.is_empty());
+
+    if let Some(dark_id) = dark_id_opt {
+        ctx.insert(
+            "theme_dark_id".to_string(),
+            serde_json::Value::String(dark_id.to_string()),
+        );
+        ctx.insert(
+            "theme_fouc_script".to_string(),
+            serde_json::Value::String(ZERO_FOUC_SCRIPT.to_string()),
+        );
+        ctx.insert(
+            "theme_switcher_html".to_string(),
+            serde_json::Value::String(THEME_SWITCHER_HTML.to_string()),
         );
     }
 
@@ -2761,7 +2870,7 @@ mod tests {
         assert!(html.contains(r#"<link rel="icon" href="/favicon.ico">"#));
 
         // Check logo in branding
-        assert!(html.contains(r#"<img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo">"#));
+        assert!(html.contains(r#"<img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo site-logo-light">"#));
 
         // Check default og:image resolved against origin
         assert!(html.contains(r#"<meta property="og:image" content="https://example.com/default-og.png">"#));
@@ -2887,7 +2996,7 @@ mod tests {
             Some(&lts),
         ).unwrap();
 
-        assert!(html.contains(r#"<img src="https://example.com/logo.webp" alt="Steph Wanicki Art" class="site-logo">"#));
+        assert!(html.contains(r#"<img src="https://example.com/logo.webp" alt="Steph Wanicki Art" class="site-logo site-logo-light">"#));
         let expected_footer = format!(r#"<div class="footer-text">© {} Steph Wanicki Art</div>"#, get_current_year());
         assert!(html.contains(&expected_footer));
     }
@@ -2912,7 +3021,74 @@ mod tests {
             None,
         ).unwrap();
 
-        assert!(html.contains(r#"<picture class="site-logo-picture"><source srcset="https://example.com/logo-dark.png" media="(prefers-color-scheme: dark)"><img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo"></picture>"#));
+        assert!(html.contains(r#"<img src="https://example.com/logo.png" alt="My Tech Blog" class="site-logo site-logo-light">"#));
+        assert!(html.contains(r#"<img src="https://example.com/logo-dark.png" alt="My Tech Blog" class="site-logo site-logo-dark">"#));
+    }
+
+    #[test]
+    fn test_single_theme_ssr_emission() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("theme_primary_id".to_string(), "modern-editorial".to_string());
+
+        let css = generate_theme_root_css(Some(&settings));
+        assert!(css.contains(r#":root, :root[data-theme="light"] {"#));
+        assert!(!css.contains(r#":root[data-theme="dark"] {"#));
+        assert!(!css.contains(r#"@media (prefers-color-scheme: dark)"#));
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        // Switcher and FOUC script should be absent when theme_dark_id is not set
+        assert!(!html.contains("theme-switcher"));
+        assert!(!html.contains("zygo_theme"));
+    }
+
+    #[test]
+    fn test_dual_theme_ssr_emission() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("theme_primary_id".to_string(), "bento-brutalism".to_string());
+        settings.insert("theme_dark_id".to_string(), "bento-brutalism-dark".to_string());
+
+        let css = generate_theme_root_css(Some(&settings));
+        // Primary
+        assert!(css.contains(r#":root, :root[data-theme="light"] {"#));
+        assert!(css.contains("--color-bg: #f6f5f0;"));
+        // Dark
+        assert!(css.contains(r#":root[data-theme="dark"] {"#));
+        assert!(css.contains("--color-bg: #0b0f19;"));
+        // Media query
+        assert!(css.contains(r#"@media (prefers-color-scheme: dark) {"#));
+        assert!(css.contains(r#":root:not([data-theme="light"]) {"#));
+
+        let page = dummy_page();
+        let html = render_page(
+            &[],
+            &page,
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        ).unwrap();
+
+        // Switcher and FOUC script must be present
+        assert!(html.contains(r#"<div class="theme-switcher" role="group" aria-label="Theme switcher">"#));
+        assert!(html.contains(r#"data-theme-set="auto""#));
+        assert!(html.contains(r#"data-theme-set="light""#));
+        assert!(html.contains(r#"data-theme-set="dark""#));
+        assert!(html.contains("localStorage.getItem('zygo_theme')"));
     }
 
     #[test]
