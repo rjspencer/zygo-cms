@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, waitForElementToBeRemoved, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ThemeEditor } from './ThemeEditor';
@@ -79,15 +79,25 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(
-        screen.getByDisplayValue('https://fonts.googleapis.com/css2?family=Cinzel&display=swap')
-      ).toBeTruthy();
-      expect(screen.getByDisplayValue("'Cinzel', serif")).toBeTruthy();
-      expect(screen.getAllByDisplayValue('#b91c1c').length).toBe(2);
-      expect(screen.getByDisplayValue('2.5rem')).toBeTruthy();
-      expect(screen.getByDisplayValue('Custom Editorial Journal')).toBeTruthy();
-    });
+    const fontUrlInput = await screen.findByLabelText(/Google Fonts Embed URL/i);
+    expect(fontUrlInput.getAttribute('value')).toBe(
+      'https://fonts.googleapis.com/css2?family=Cinzel&display=swap'
+    );
+    expect(
+      screen.getByLabelText(/Headline Font Family/i).getAttribute('value')
+    ).toBe("'Cinzel', serif");
+    expect(
+      screen.getByLabelText(/Body Font Family/i).getAttribute('value')
+    ).toBe("'Lora', serif");
+    expect(
+      screen.getByLabelText(/Accent hex code/i).getAttribute('value')
+    ).toBe('#b91c1c');
+    expect(
+      screen.getByLabelText(/Masthead Title Size/i).getAttribute('value')
+    ).toBe('2.5rem');
+    expect(
+      screen.getByLabelText(/Editorial Tagline/i).getAttribute('value')
+    ).toBe('Custom Editorial Journal');
   });
 
   it('applies a curated font preset when clicked', async () => {
@@ -96,6 +106,7 @@ describe('ThemeEditor component', () => {
       json: async () => ({}),
     });
 
+    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -107,11 +118,16 @@ describe('ThemeEditor component', () => {
 
     // Look for preset card
     const presetCard = await screen.findByText(/Playfair Display & Source Sans/i);
-    fireEvent.click(presetCard);
+    await user.click(presetCard);
 
-    expect(
-      screen.getByDisplayValue("'Playfair Display', Georgia, serif")
-    ).toBeTruthy();
+    const headlineInput = screen.getByLabelText(/Headline Font Family/i);
+    expect(headlineInput.getAttribute('value')).toBe(
+      "'Playfair Display', Georgia, serif"
+    );
+    const bodyInput = screen.getByLabelText(/Body Font Family/i);
+    expect(bodyInput.getAttribute('value')).toBe(
+      "'Source Sans 3', -apple-system, sans-serif"
+    );
   });
 
   it('allows switching header layout and updates preview dynamically', async () => {
@@ -120,6 +136,7 @@ describe('ThemeEditor component', () => {
       json: async () => ({}),
     });
 
+    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -130,21 +147,26 @@ describe('ThemeEditor component', () => {
     );
 
     // Initially centered header layout is active by default in Modern Editorial
-    expect(await screen.findByTestId('preview-header-centered')).toBeTruthy();
+    const centeredPreview = await screen.findByTestId('preview-header-centered');
+    expect(centeredPreview.getAttribute('data-testid')).toBe('preview-header-centered');
 
     // Click Split Bar layout option
-    const splitOption = screen.getByText('Split Bar');
-    fireEvent.click(splitOption);
+    const splitOption = screen.getByRole('radio', { name: /Split Bar/i });
+    await user.click(splitOption);
 
     // The live preview should switch to the split header
-    expect(screen.getByTestId('preview-header-split')).toBeTruthy();
+    const splitPreview = screen.getByTestId('preview-header-split');
+    expect(splitPreview.getAttribute('data-testid')).toBe('preview-header-split');
+    expect(screen.queryByTestId('preview-header-centered')).toBeNull();
 
     // Click Stacked Minimal layout option
-    const stackedOption = screen.getByText('Stacked Minimal');
-    fireEvent.click(stackedOption);
+    const stackedOption = screen.getByRole('radio', { name: /Stacked Minimal/i });
+    await user.click(stackedOption);
 
     // The live preview should switch to stacked header
-    expect(screen.getByTestId('preview-header-stacked')).toBeTruthy();
+    const stackedPreview = screen.getByTestId('preview-header-stacked');
+    expect(stackedPreview.getAttribute('data-testid')).toBe('preview-header-stacked');
+    expect(screen.queryByTestId('preview-header-split')).toBeNull();
   });
 
   it('allows customizing header border style and navigation lettering', async () => {
@@ -153,6 +175,7 @@ describe('ThemeEditor component', () => {
       json: async () => ({}),
     });
 
+    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -163,15 +186,17 @@ describe('ThemeEditor component', () => {
     );
 
     // Click "Single Solid" border option
-    const solidBorder = await screen.findByText('Single Solid');
-    fireEvent.click(solidBorder);
+    const solidBorder = await screen.findByRole('radio', { name: /Single Solid/i });
+    await user.click(solidBorder);
+    expect(solidBorder.getAttribute('aria-checked')).toBe('true');
 
     // Toggle navigation lettering to Normal Case
     const normalCaseBtn = screen.getByRole('button', { name: 'Normal Case' });
-    fireEvent.click(normalCaseBtn);
+    await user.click(normalCaseBtn);
+    expect(normalCaseBtn.getAttribute('aria-pressed')).toBe('true');
 
-    const saveButton = screen.getByRole('button', { name: /^Save$/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
+    const saveButton = screen.getByRole('button', { name: /^Save$/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
   });
 
   it('saves updated theme tokens to a custom theme or switches active live theme via /api/settings', async () => {
@@ -194,24 +219,23 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getAllByDisplayValue('#991b1b').length).toBe(2);
-    });
+    const accentInput = await screen.findByLabelText(/Accent hex code/i);
+    expect(accentInput.getAttribute('value')).toBe('#991b1b');
 
-    const saveButton = screen.getByRole('button', { name: /^Save$/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(true);
+    const saveButton = screen.getByRole('button', { name: /^Save$/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(true);
 
     // Switch to Split layout
-    const splitOption = screen.getByText('Split Bar');
-    fireEvent.click(splitOption);
+    const splitOption = screen.getByRole('radio', { name: /Split Bar/i });
+    await user.click(splitOption);
 
-    expect(saveButton.disabled).toBe(false);
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
 
     // Clicking Save on a modified built-in theme opens the Save As dialog prefilled with "Modern Editorial Custom"
     await user.click(saveButton);
 
-    const nameInput = await screen.findByLabelText(/Theme Name/i) as HTMLInputElement;
-    expect(nameInput.value).toBe('Modern Editorial Custom');
+    const nameInput = await screen.findByLabelText(/Theme Name/i);
+    expect(nameInput.getAttribute('value')).toBe('Modern Editorial Custom');
 
     const confirmSaveBtn = screen.getByRole('button', { name: /Save Custom Theme/i });
     await user.click(confirmSaveBtn);
@@ -225,6 +249,12 @@ describe('ThemeEditor component', () => {
         })
       );
     });
+
+    const dialog = screen.queryByRole('dialog');
+    if (dialog) {
+      await waitForElementToBeRemoved(dialog);
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('renders simplified header with theme name, active badge, and clone button, without active switch or dropdown', async () => {
@@ -246,10 +276,12 @@ describe('ThemeEditor component', () => {
     );
 
     // Header displays theme name as heading
-    expect(await screen.findByRole('heading', { name: 'Modern Editorial' })).toBeTruthy();
+    const heading = await screen.findByRole('heading', { name: 'Modern Editorial' });
+    expect(heading.textContent).toBe('Modern Editorial');
 
     // Active badge is shown for active theme
-    expect(screen.getByText('Active Primary')).toBeTruthy();
+    const activeBadge = screen.getByText('Active Primary');
+    expect(activeBadge.textContent).toBe('Active Primary');
 
     // No switch to button or active theme indicator text
     expect(screen.queryByTestId('active-theme-indicator')).toBeNull();
@@ -259,7 +291,8 @@ describe('ThemeEditor component', () => {
     expect(screen.queryByRole('combobox', { name: /Theme Picker/i })).toBeNull();
 
     // Clone theme button is present
-    expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeTruthy();
+    const cloneBtn = screen.getByRole('button', { name: /Clone Theme/i });
+    expect(cloneBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('supports inline rename for themes via pencil icon and input', async () => {
@@ -286,12 +319,14 @@ describe('ThemeEditor component', () => {
 
     // Edit input should appear
     const input = screen.getByRole('textbox', { name: /Theme name/i });
-    expect(input).toBeTruthy();
+    expect(input.getAttribute('value')).toBe('Modern Editorial');
 
     // Cancel editing
     const cancelBtn = screen.getByRole('button', { name: /Cancel/i });
     await user.click(cancelBtn);
-    expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Modern Editorial' }).textContent).toBe(
+      'Modern Editorial'
+    );
 
     // Start editing again and save
     await user.click(renameBtn);
@@ -303,7 +338,9 @@ describe('ThemeEditor component', () => {
     await user.click(saveBtn);
 
     // Header now reflects the updated name
-    expect(await screen.findByRole('heading', { name: 'Modern Editorial V2' })).toBeTruthy();
+    const updatedHeading = await screen.findByRole('heading', { name: 'Modern Editorial V2' });
+    expect(updatedHeading.textContent).toBe('Modern Editorial V2');
+    expect(screen.queryByRole('textbox', { name: /Theme name/i })).toBeNull();
   });
 
   it('does not render any active badge when theme is not active', async () => {
@@ -343,12 +380,14 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await screen.findByRole('heading', { name: 'Inactive Custom Theme' });
+    const heading = await screen.findByRole('heading', { name: 'Inactive Custom Theme' });
+    expect(heading.textContent).toBe('Inactive Custom Theme');
+    const headerRow = heading.parentElement?.parentElement as HTMLElement;
 
-    // Inactive theme should not render Active, Active Primary, or Active Dark badges
-    expect(screen.queryByText('Active Primary')).toBeNull();
-    expect(screen.queryByText('Active Dark')).toBeNull();
-    expect(screen.queryByText('Active')).toBeNull();
+    // Inactive theme should not render Active, Active Primary, or Active Dark badges in the header
+    expect(within(headerRow).queryByText('Active Primary')).toBeNull();
+    expect(within(headerRow).queryByText('Active Dark')).toBeNull();
+    expect(within(headerRow).queryByText('Active')).toBeNull();
   });
 
   it('toggles between Editorial / Bento and Docs Layout in the Live Preview', async () => {
@@ -367,13 +406,18 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByTestId('editorial-preview-container')).toBeTruthy();
+    const editorialContainer = await screen.findByTestId('editorial-preview-container');
+    expect(editorialContainer.tagName.toLowerCase()).toBe('div');
 
     const docsModeBtn = screen.getByRole('button', { name: /Docs Layout/i });
     await user.click(docsModeBtn);
 
-    expect(await screen.findByTestId('preview-mode-docs')).toBeTruthy();
-    expect(screen.getByText('Edge Caching & Invalidation')).toBeTruthy();
+    const docsPreview = await screen.findByTestId('preview-mode-docs');
+    expect(docsPreview.tagName.toLowerCase()).toBe('div');
+    expect(screen.getByRole('heading', { name: 'Edge Caching & Invalidation' }).textContent).toBe(
+      'Edge Caching & Invalidation'
+    );
+    expect(screen.queryByTestId('preview-mode-editorial')).toBeNull();
   });
 
   it('renders Google Fonts link and instructions', async () => {
@@ -391,10 +435,14 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText('Browse Google Fonts')).toBeTruthy();
+    const browseHeading = await screen.findByText('Browse Google Fonts');
+    expect(browseHeading.textContent).toBe('Browse Google Fonts');
     const googleLink = screen.getByRole('link', { name: /Open Google Fonts/i });
     expect(googleLink.getAttribute('href')).toBe('https://fonts.google.com');
-    expect(screen.getByText(/How to copy fonts back to Zygo:/i)).toBeTruthy();
+    expect(googleLink.getAttribute('target')).toBe('_blank');
+    expect(screen.getByText(/How to copy fonts back to Zygo:/i).textContent).toContain(
+      'How to copy fonts back to Zygo:'
+    );
   });
 
   it('renders the Live Editorial Preview with live styled elements', async () => {
@@ -412,11 +460,14 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    expect(await screen.findByText('The Zygo Review')).toBeTruthy();
-    expect(
-      screen.getByText('The Architecture of the Modern Digital Essay')
-    ).toBeTruthy();
-    expect(screen.getByTestId('editorial-preview-container')).toBeTruthy();
+    const siteTitle = await screen.findByText('The Zygo Review');
+    expect(siteTitle.textContent).toBe('The Zygo Review');
+    const articleTitle = screen.getByRole('heading', {
+      name: 'The Architecture of the Modern Digital Essay',
+    });
+    expect(articleTitle.textContent).toBe('The Architecture of the Modern Digital Essay');
+    const previewContainer = screen.getByTestId('editorial-preview-container');
+    expect(previewContainer.tagName.toLowerCase()).toBe('div');
   });
 
   it('programmatically associates labels with inputs and configures accessible radiogroups and button groups', async () => {
@@ -427,7 +478,7 @@ describe('ThemeEditor component', () => {
 
     const user = userEvent.setup();
     const queryClient = createTestQueryClient();
-    const { container } = render(
+    render(
       <QueryClientProvider client={queryClient}>
         <Theme>
           <ThemeWithRouter />
@@ -438,94 +489,66 @@ describe('ThemeEditor component', () => {
     await screen.findByText('The Zygo Review');
 
     // 1. Color Tokens Panel
-    const colorKeys = [
-      'colorBg',
-      'colorText',
-      'colorAccent',
-      'colorTextMuted',
-      'colorSurface',
-      'colorBorder',
+    const colorFields = [
+      { name: /^Background hex code$/i, id: 'color-input-colorBg' },
+      { name: /^Text hex code$/i, id: 'color-input-colorText' },
+      { name: /^Accent hex code$/i, id: 'color-input-colorAccent' },
+      { name: /^Muted Text hex code$/i, id: 'color-input-colorTextMuted' },
+      { name: /^Surface \/ Card hex code$/i, id: 'color-input-colorSurface' },
+      { name: /^Border hex code$/i, id: 'color-input-colorBorder' },
     ];
-    for (const key of colorKeys) {
-      const label = container.querySelector(`label[for="color-input-${key}"]`);
-      expect(label).toBeTruthy();
-      const input = container.querySelector(`#color-input-${key}`);
-      expect(input).toBeTruthy();
-      expect(input?.getAttribute('aria-label')).toMatch(/hex code/);
+    for (const field of colorFields) {
+      const input = screen.getByLabelText(field.name);
+      expect(input.getAttribute('id')).toBe(field.id);
+      expect(input.getAttribute('aria-label')).toMatch(/hex code/);
     }
 
     // 2. Typography Panel
-    const fontUrlLabel = container.querySelector('label[for="typography-font-url"]');
-    expect(fontUrlLabel).toBeTruthy();
-    const fontUrlInput = container.querySelector('#typography-font-url');
-    expect(fontUrlInput).toBeTruthy();
-    expect(fontUrlInput?.getAttribute('aria-describedby')).toBe('typography-font-url-desc');
-    const fontUrlDesc = container.querySelector('#typography-font-url-desc');
-    expect(fontUrlDesc).toBeTruthy();
+    const fontUrlInput = screen.getByLabelText(/Google Fonts Embed URL/i);
+    expect(fontUrlInput.getAttribute('id')).toBe('typography-font-url');
+    expect(fontUrlInput.getAttribute('aria-describedby')).toBe('typography-font-url-desc');
+    expect(screen.getByText(/Accepts either the direct URL/i).getAttribute('id')).toBe(
+      'typography-font-url-desc'
+    );
 
-    const headlineFontLabel = container.querySelector('label[for="typography-headline-font"]');
-    expect(headlineFontLabel).toBeTruthy();
-    const headlineFontInput = container.querySelector('#typography-headline-font');
-    expect(headlineFontInput).toBeTruthy();
+    const headlineFontInput = screen.getByLabelText(/Headline Font Family/i);
+    expect(headlineFontInput.getAttribute('id')).toBe('typography-headline-font');
 
-    const bodyFontLabel = container.querySelector('label[for="typography-body-font"]');
-    expect(bodyFontLabel).toBeTruthy();
-    const bodyFontInput = container.querySelector('#typography-body-font');
-    expect(bodyFontInput).toBeTruthy();
+    const bodyFontInput = screen.getByLabelText(/Body Font Family/i);
+    expect(bodyFontInput.getAttribute('id')).toBe('typography-body-font');
 
     // 3. Layout Dimensions Panel
-    const maxWidthLabel = container.querySelector('label[for="dimension-max-width"]');
-    expect(maxWidthLabel).toBeTruthy();
-    const maxWidthInput = container.querySelector('#dimension-max-width');
-    expect(maxWidthInput).toBeTruthy();
+    const maxWidthInput = screen.getByLabelText(/Max Width/i);
+    expect(maxWidthInput.getAttribute('id')).toBe('dimension-max-width');
 
-    const fontSizeLabel = container.querySelector('label[for="dimension-font-size-base"]');
-    expect(fontSizeLabel).toBeTruthy();
-    const fontSizeInput = container.querySelector('#dimension-font-size-base');
-    expect(fontSizeInput).toBeTruthy();
+    const fontSizeInput = screen.getByLabelText(/Base Font Size/i);
+    expect(fontSizeInput.getAttribute('id')).toBe('dimension-font-size-base');
 
-    const lineHeightLabel = container.querySelector('label[for="dimension-line-height-body"]');
-    expect(lineHeightLabel).toBeTruthy();
-    const lineHeightInput = container.querySelector('#dimension-line-height-body');
-    expect(lineHeightInput).toBeTruthy();
+    const lineHeightInput = screen.getByLabelText(/Line Height/i);
+    expect(lineHeightInput.getAttribute('id')).toBe('dimension-line-height-body');
 
-    const borderRadiusLabel = container.querySelector('label[for="dimension-border-radius"]');
-    expect(borderRadiusLabel).toBeTruthy();
-    const borderRadiusInput = container.querySelector('#dimension-border-radius');
-    expect(borderRadiusInput).toBeTruthy();
+    const borderRadiusInput = screen.getByLabelText(/Border Radius/i);
+    expect(borderRadiusInput.getAttribute('id')).toBe('dimension-border-radius');
 
-    const boxShadowLabel = container.querySelector('label[for="dimension-box-shadow"]');
-    expect(boxShadowLabel).toBeTruthy();
-    const boxShadowInput = container.querySelector('#dimension-box-shadow');
-    expect(boxShadowInput).toBeTruthy();
+    const boxShadowInput = screen.getByLabelText(/Box Shadow/i);
+    expect(boxShadowInput.getAttribute('id')).toBe('dimension-box-shadow');
 
     // 4. Header Styling Panel
-    const layoutLabel = container.querySelector('#header-layout-label');
-    expect(layoutLabel).toBeTruthy();
     const layoutGroup = screen.getByRole('radiogroup', { name: 'Header Layout' });
-    expect(layoutGroup).toBeTruthy();
     expect(layoutGroup.getAttribute('aria-labelledby')).toBe('header-layout-label');
-    const layoutRadios = layoutGroup.querySelectorAll('[role="radio"]');
+    const layoutRadios = screen.getAllByRole('radio', { name: /(Centered|Split|Stacked)/i });
     expect(layoutRadios.length).toBe(3);
     expect(layoutRadios[0].getAttribute('aria-checked')).toBe('true');
 
-    const borderStyleLabel = container.querySelector('#header-border-style-label');
-    expect(borderStyleLabel).toBeTruthy();
     const borderStyleGroup = screen.getByRole('radiogroup', { name: 'Header Border Style' });
-    expect(borderStyleGroup).toBeTruthy();
     expect(borderStyleGroup.getAttribute('aria-labelledby')).toBe('header-border-style-label');
-    const borderRadios = borderStyleGroup.querySelectorAll('[role="radio"]');
+    const borderRadios = screen.getAllByRole('radio', { name: /(Double|Single|None)/i });
     expect(borderRadios.length).toBe(3);
 
-    const titleSizeLabel = container.querySelector('label[for="header-title-size"]');
-    expect(titleSizeLabel).toBeTruthy();
-    const titleSizeInput = container.querySelector('#header-title-size');
-    expect(titleSizeInput).toBeTruthy();
+    const titleSizeInput = screen.getByLabelText(/Masthead Title Size/i);
+    expect(titleSizeInput.getAttribute('id')).toBe('header-title-size');
 
-    const navTransformLabel = container.querySelector('#header-nav-transform-label');
-    expect(navTransformLabel).toBeTruthy();
     const navTransformGroup = screen.getByRole('group', { name: /Navigation Lettering/i });
-    expect(navTransformGroup).toBeTruthy();
     expect(navTransformGroup.getAttribute('aria-labelledby')).toBe('header-nav-transform-label');
     const uppercaseBtn = screen.getByRole('button', { name: 'UPPERCASE' });
     const normalCaseBtn = screen.getByRole('button', { name: 'Normal Case' });
@@ -536,19 +559,15 @@ describe('ThemeEditor component', () => {
     expect(uppercaseBtn.getAttribute('aria-pressed')).toBe('false');
     expect(normalCaseBtn.getAttribute('aria-pressed')).toBe('true');
 
-    const taglineLabel = container.querySelector('label[for="header-tagline"]');
-    expect(taglineLabel).toBeTruthy();
-    const taglineInput = container.querySelector('#header-tagline');
-    expect(taglineInput).toBeTruthy();
+    const taglineInput = screen.getByLabelText(/Editorial Tagline/i);
+    expect(taglineInput.getAttribute('id')).toBe('header-tagline');
 
-    const headerPaddingLabel = container.querySelector('label[for="header-padding"]');
-    expect(headerPaddingLabel).toBeTruthy();
-    const headerPaddingInput = container.querySelector('#header-padding');
-    expect(headerPaddingInput).toBeTruthy();
+    const headerPaddingInput = screen.getByLabelText(/Header Padding/i);
+    expect(headerPaddingInput.getAttribute('id')).toBe('header-padding');
 
     // 5. Clone Theme Button
     const cloneThemeBtn = screen.getByRole('button', { name: /Clone Theme/i });
-    expect(cloneThemeBtn).toBeTruthy();
+    expect(cloneThemeBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('allows editing borderRadius and boxShadow tokens', async () => {
@@ -557,8 +576,9 @@ describe('ThemeEditor component', () => {
       json: async () => ({}),
     });
 
+    const user = userEvent.setup();
     const queryClient = createTestQueryClient();
-    const { container } = render(
+    render(
       <QueryClientProvider client={queryClient}>
         <Theme>
           <ThemeWithRouter />
@@ -566,22 +586,20 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(container.querySelector('#dimension-border-radius')).toBeTruthy();
-      expect(container.querySelector('#dimension-box-shadow')).toBeTruthy();
-    });
+    const borderRadiusInput = await screen.findByLabelText(/Border Radius/i);
+    const boxShadowInput = screen.getByLabelText(/Box Shadow/i);
 
-    const borderRadiusInput = container.querySelector('#dimension-border-radius') as HTMLInputElement;
-    const boxShadowInput = container.querySelector('#dimension-box-shadow') as HTMLInputElement;
+    expect(borderRadiusInput.getAttribute('value')).toBe('8px');
+    expect(boxShadowInput.getAttribute('value')).toBe('0 4px 6px rgba(0, 0, 0, 0.1)');
 
-    expect(borderRadiusInput.value).toBe('8px');
-    expect(boxShadowInput.value).toBe('0 4px 6px rgba(0, 0, 0, 0.1)');
+    await user.clear(borderRadiusInput);
+    await user.type(borderRadiusInput, '16px');
 
-    fireEvent.change(borderRadiusInput, { target: { value: '16px' } });
-    fireEvent.change(boxShadowInput, { target: { value: '0 8px 16px rgba(0,0,0,0.2)' } });
+    await user.clear(boxShadowInput);
+    await user.type(boxShadowInput, '0 8px 16px rgba(0,0,0,0.2)');
 
-    expect(borderRadiusInput.value).toBe('16px');
-    expect(boxShadowInput.value).toBe('0 8px 16px rgba(0,0,0,0.2)');
+    expect(borderRadiusInput.getAttribute('value')).toBe('16px');
+    expect(boxShadowInput.getAttribute('value')).toBe('0 8px 16px rgba(0,0,0,0.2)');
   });
 
   it('renders site logo and footer copyright in live preview when configured in settings', async () => {
@@ -604,15 +622,12 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      const logoImg = screen.getByTestId('preview-site-logo') as HTMLImageElement;
-      expect(logoImg).toBeTruthy();
-      expect(logoImg.src).toBe('https://example.com/logo.png');
-      expect(logoImg.alt).toBe('Steph Wanicki Art');
+    const logoImg = (await screen.findByTestId('preview-site-logo')) as HTMLImageElement;
+    expect(logoImg.getAttribute('src')).toBe('https://example.com/logo.png');
+    expect(logoImg.getAttribute('alt')).toBe('Steph Wanicki Art');
 
-      const footerCopyright = screen.getByTestId('preview-footer-copyright');
-      expect(footerCopyright.textContent).toBe(`© ${currentYear} Steph Wanicki Art. All rights reserved.`);
-    });
+    const footerCopyright = screen.getByTestId('preview-footer-copyright');
+    expect(footerCopyright.textContent).toBe(`© ${currentYear} Steph Wanicki Art. All rights reserved.`);
   });
 
   it('renders dark mode site logo with picture element in live preview when configured in settings', async () => {
@@ -634,16 +649,14 @@ describe('ThemeEditor component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      const logoImg = screen.getByTestId('preview-site-logo') as HTMLImageElement;
-      expect(logoImg).toBeTruthy();
-      expect(logoImg.src).toBe('https://example.com/logo.png');
-      const picture = logoImg.closest('picture');
-      expect(picture).toBeTruthy();
-      const source = picture?.querySelector('source');
-      expect(source?.srcset).toBe('https://example.com/logo-dark.png');
-      expect(source?.media).toBe('(prefers-color-scheme: dark)');
-    });
+    const logoImg = (await screen.findByTestId('preview-site-logo')) as HTMLImageElement;
+    expect(logoImg.getAttribute('src')).toBe('https://example.com/logo.png');
+
+    const picture = logoImg.closest('picture');
+    expect(picture?.tagName.toLowerCase()).toBe('picture');
+
+    const source = picture?.querySelector('source');
+    expect(source?.getAttribute('srcset')).toBe('https://example.com/logo-dark.png');
+    expect(source?.getAttribute('media')).toBe('(prefers-color-scheme: dark)');
   });
 });
-

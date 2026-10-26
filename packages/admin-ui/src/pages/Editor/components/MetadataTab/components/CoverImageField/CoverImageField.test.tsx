@@ -1,4 +1,5 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MediaPickerContext } from '../../../../context/MediaPickerContext';
 import { renderWithForm } from '../../../../testUtils/renderWithForm';
@@ -16,9 +17,13 @@ describe('CoverImageField', () => {
       { coverImage: '' }
     );
 
-    expect(screen.getByText('Cover Image URL')).toBeDefined();
-    expect(screen.getByRole('group', { name: 'Cover Image URL' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Select Image' })).toBeDefined();
+    const group = screen.getByRole('group', { name: 'Cover Image URL' });
+    expect(group.getAttribute('aria-labelledby')).toBe('editor-cover-image-label');
+
+    const selectBtn = screen.getByRole('button', { name: 'Select Image' });
+    expect(selectBtn.getAttribute('type')).toBe('button');
+    expect(selectBtn.hasAttribute('disabled')).toBe(false);
+
     expect(screen.queryByAltText('Cover Thumbnail')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Remove' })).toBeNull();
   });
@@ -31,12 +36,16 @@ describe('CoverImageField', () => {
       { coverImage: 'https://example.com/cover.jpg' }
     );
 
-    expect(screen.getByRole('button', { name: 'Select Image' })).toBeDefined();
+    const selectBtn = screen.getByRole('button', { name: 'Select Image' });
+    expect(selectBtn.hasAttribute('disabled')).toBe(false);
+
     const img = screen.getByAltText('Cover Thumbnail') as HTMLImageElement;
-    expect(img).toBeDefined();
-    expect(img.src).toBe('https://example.com/cover.jpg');
-    expect(screen.getByText('https://example.com/cover.jpg')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeDefined();
+    expect(img.getAttribute('src')).toBe('https://example.com/cover.jpg');
+    expect(screen.getByText('https://example.com/cover.jpg').textContent).toBe('https://example.com/cover.jpg');
+
+    const removeBtn = screen.getByRole('button', { name: 'Remove' });
+    expect(removeBtn.getAttribute('type')).toBe('button');
+    expect(removeBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('resolves relative /media/ cover image with getPublicSiteUrl', () => {
@@ -51,12 +60,13 @@ describe('CoverImageField', () => {
     );
 
     const img = screen.getByAltText('Cover Thumbnail') as HTMLImageElement;
-    expect(img.src).toBe('https://zygodactylstudios.com/media/banner.webp');
+    expect(img.getAttribute('src')).toBe('https://zygodactylstudios.com/media/banner.webp');
 
     import.meta.env.VITE_PUBLIC_SITE_URL = originalEnv || '';
   });
 
-  it('calls openMediaPicker when clicking Select Image and updates image on callback', () => {
+  it('calls openMediaPicker when clicking Select Image and updates image on callback', async () => {
+    const user = userEvent.setup();
     let capturedCallback: MediaPickerCallback | null = null;
     const mockOpenMediaPicker = vi.fn((cb: MediaPickerCallback) => {
       capturedCallback = cb;
@@ -70,7 +80,7 @@ describe('CoverImageField', () => {
     );
 
     const selectBtn = screen.getByRole('button', { name: 'Select Image' });
-    fireEvent.click(selectBtn);
+    await user.click(selectBtn);
 
     expect(mockOpenMediaPicker).toHaveBeenCalledTimes(1);
     expect(capturedCallback).not.toBeNull();
@@ -80,12 +90,17 @@ describe('CoverImageField', () => {
       capturedCallback!('https://example.com/new-cover.png');
     });
 
-    expect(screen.getByAltText('Cover Thumbnail')).toBeDefined();
-    expect(screen.getByText('https://example.com/new-cover.png')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeDefined();
+    const img = screen.getByAltText('Cover Thumbnail') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe('https://example.com/new-cover.png');
+    expect(screen.getByText('https://example.com/new-cover.png').textContent).toBe('https://example.com/new-cover.png');
+
+    const removeBtn = screen.getByRole('button', { name: 'Remove' });
+    expect(removeBtn.getAttribute('type')).toBe('button');
+    expect(removeBtn.hasAttribute('disabled')).toBe(false);
   });
 
-  it('clears cover image when clicking Remove', () => {
+  it('clears cover image when clicking Remove', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <MediaPickerContext.Provider value={vi.fn()}>
         <CoverImageField />
@@ -93,10 +108,10 @@ describe('CoverImageField', () => {
       { coverImage: 'https://example.com/cover.jpg' }
     );
 
-    expect(screen.getByText('https://example.com/cover.jpg')).toBeDefined();
+    expect(screen.getByText('https://example.com/cover.jpg').textContent).toBe('https://example.com/cover.jpg');
     const removeBtn = screen.getByRole('button', { name: 'Remove' });
 
-    fireEvent.click(removeBtn);
+    await user.click(removeBtn);
 
     expect(screen.queryByText('https://example.com/cover.jpg')).toBeNull();
     expect(screen.queryByAltText('Cover Thumbnail')).toBeNull();

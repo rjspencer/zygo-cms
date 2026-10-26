@@ -19,7 +19,6 @@ describe('MediaThumbnail Component', () => {
     );
 
     const img = screen.getByAltText('Test Photo') as HTMLImageElement;
-    expect(img).toBeDefined();
     expect(img.getAttribute('src')).toBe(getPublicSiteUrl('/media/test-photo.jpg'));
     expect(img.getAttribute('loading')).toBe('lazy');
     expect(img.style.objectFit).toBe('cover');
@@ -37,7 +36,6 @@ describe('MediaThumbnail Component', () => {
     );
 
     const img = screen.getByAltText('Untitled Image') as HTMLImageElement;
-    expect(img).toBeDefined();
     expect(img.getAttribute('src')).toBe(getPublicSiteUrl('/media/untitled.png'));
   });
 
@@ -117,7 +115,7 @@ describe('MediaThumbnail Component', () => {
     );
 
     const img = screen.getByAltText('Broken Image');
-    expect(img).toBeDefined();
+    expect(img.getAttribute('src')).toBe(getPublicSiteUrl('/media/broken-image.jpg'));
 
     // Trigger onError
     fireEvent.error(img);
@@ -137,7 +135,9 @@ describe('MediaThumbnail Component', () => {
       </Theme>
     );
 
-    expect(screen.getByAltText('New Image')).toBeDefined();
+    expect(screen.getByAltText('New Image').getAttribute('src')).toBe(
+      getPublicSiteUrl('/media/new-image.jpg')
+    );
   });
 
   it('renders video element with poster fragment and play badge for video types', () => {
@@ -153,10 +153,10 @@ describe('MediaThumbnail Component', () => {
     );
 
     const video = container.querySelector('video') as HTMLVideoElement;
-    expect(video).toBeDefined();
+    expect(video).not.toBeNull();
     expect(video.getAttribute('src')).toBe(getPublicSiteUrl('/media/background.mp4#t=0.1'));
     expect(video.getAttribute('preload')).toBe('metadata');
-    expect(screen.getByTestId('media-video-badge')).toBeDefined();
+    expect(screen.getByTestId('media-video-badge').querySelector('svg')).not.toBeNull();
   });
 
   it('renders fallback video icon when video fails to load (onError)', () => {
@@ -175,7 +175,7 @@ describe('MediaThumbnail Component', () => {
     fireEvent.error(video!);
 
     expect(container.querySelector('video')).toBeNull();
-    expect(screen.getByTestId('video-fallback-icon')).toBeDefined();
+    expect(screen.getByTestId('video-fallback-icon').tagName.toLowerCase()).toBe('svg');
   });
 
   it('appends ?size=thumb when size="thumb" is provided for image types', () => {

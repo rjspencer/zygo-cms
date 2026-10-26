@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi } from 'vitest';
 import { Theme } from '@radix-ui/themes';
@@ -7,6 +7,7 @@ import { UnsavedChangesDialog } from './UnsavedChangesDialog';
 
 describe('UnsavedChangesDialog component', () => {
   it('renders dialog when blocked, handles Stay and Leave without saving', async () => {
+    const user = userEvent.setup();
     const proceed = vi.fn();
     const reset = vi.fn();
     const blockedBlocker: Blocker = {
@@ -22,16 +23,22 @@ describe('UnsavedChangesDialog component', () => {
       </Theme>
     );
 
-    expect(screen.getByText('Unsaved changes')).toBeDefined();
-    expect(screen.getByText(/You have unsaved changes/i)).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Unsaved changes' }).textContent).toBe(
+      'Unsaved changes'
+    );
+    expect(screen.getByText(/You have unsaved changes/i).textContent).toContain(
+      'You have unsaved changes'
+    );
 
     const stayButton = screen.getByRole('button', { name: 'Stay' });
-    await userEvent.click(stayButton);
-    expect(reset).toHaveBeenCalled();
+    expect(stayButton.hasAttribute('disabled')).toBe(false);
+    await user.click(stayButton);
+    expect(reset).toHaveBeenCalledTimes(1);
 
     const leaveButton = screen.getByRole('button', { name: 'Leave without saving' });
-    await userEvent.click(leaveButton);
-    expect(proceed).toHaveBeenCalled();
+    expect(leaveButton.hasAttribute('disabled')).toBe(false);
+    await user.click(leaveButton);
+    expect(proceed).toHaveBeenCalledTimes(1);
 
     // When unblocked, content should not be present
     const unblockedBlocker: Blocker = {
@@ -47,6 +54,11 @@ describe('UnsavedChangesDialog component', () => {
       </Theme>
     );
 
+    // Radix Teardown (Pattern 14)
+    if (screen.queryByRole('dialog') ?? screen.queryByRole('alertdialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog') ?? screen.queryByRole('alertdialog'));
+    }
+    expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(screen.queryByText('Unsaved changes')).toBeNull();
   });
 });

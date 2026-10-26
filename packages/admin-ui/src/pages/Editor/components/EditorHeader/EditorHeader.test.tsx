@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { Theme } from '@radix-ui/themes';
 import { FormProvider, useForm } from 'react-hook-form';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render as rtlRender, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { Theme } from '@radix-ui/themes';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createTestQueryClient } from '../../../../test/test-utils';
 import type { EntryFormValues, EntryStatus, EntryType } from '../../types';
 import { EMPTY_FORM_VALUES } from '../../utils/entryForm';
 import { EditorHeader } from './EditorHeader';
@@ -26,10 +28,8 @@ const renderEditorHeader = ({
   onSaveDraft?: () => void;
   onPublish?: () => void;
   onSaveWithStatus?: (status: EntryStatus) => void;
-}) => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+} = {}) => {
+  const queryClient = createTestQueryClient();
   queryClient.setQueryData(['me'], { role });
 
   const Harness: React.FC = () => {
@@ -57,7 +57,7 @@ const renderEditorHeader = ({
     );
   };
 
-  return render(<Harness />);
+  return rtlRender(<Harness />);
 };
 
 describe('EditorHeader', () => {
@@ -65,29 +65,35 @@ describe('EditorHeader', () => {
     it('renders "Save Draft" and "Submit for Review" buttons for author', () => {
       renderEditorHeader({ role: 'author', status: 'draft' });
 
-      expect(screen.getByRole('button', { name: 'Save Draft' })).toBeDefined();
-      expect(screen.getByTestId('editor-submit-review-btn')).toBeDefined();
-      expect(screen.queryByTestId('editor-publish-btn')).toBeNull();
-      expect(screen.queryByTestId('editor-mark-ready-btn')).toBeNull();
-      expect(screen.queryByTestId('editor-archive-btn')).toBeNull();
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      expect(saveDraftBtn.hasAttribute('disabled')).toBe(false);
+
+      const submitBtn = screen.getByRole('button', { name: /submit for review/i });
+      expect(submitBtn.hasAttribute('disabled')).toBe(false);
+
+      expect(screen.queryByRole('button', { name: /^publish$/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /mark ready/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /archive/i })).toBeNull();
     });
 
-    it('clicking "Save Draft" triggers onSaveDraft with draft status', () => {
+    it('clicking "Save Draft" triggers onSaveDraft with draft status', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'author', status: 'draft', onSaveWithStatus });
 
-      const saveDraftBtn = screen.getByRole('button', { name: 'Save Draft' });
-      fireEvent.click(saveDraftBtn);
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      await user.click(saveDraftBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('draft');
     });
 
-    it('clicking "Submit for Review" triggers save with in_review status', () => {
+    it('clicking "Submit for Review" triggers save with in_review status', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'author', status: 'in_review', onSaveWithStatus });
 
-      const submitBtn = screen.getByTestId('editor-submit-review-btn');
-      fireEvent.click(submitBtn);
+      const submitBtn = screen.getByRole('button', { name: /submit for review/i });
+      await user.click(submitBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('in_review');
     });
@@ -97,51 +103,62 @@ describe('EditorHeader', () => {
     it('renders all workflow status buttons for administrators and editors', () => {
       renderEditorHeader({ role: 'admin', status: 'draft' });
 
-      expect(screen.getByRole('button', { name: 'Save Draft' })).toBeDefined();
-      expect(screen.getByTestId('editor-submit-review-btn')).toBeDefined();
-      expect(screen.getByTestId('editor-submit-review-btn').textContent).toContain('In Review');
-      expect(screen.getByTestId('editor-mark-ready-btn')).toBeDefined();
-      expect(screen.getByTestId('editor-mark-ready-btn').textContent).toContain('Mark Ready');
-      expect(screen.getByTestId('editor-publish-btn')).toBeDefined();
-      expect(screen.getByTestId('editor-archive-btn')).toBeDefined();
+      const saveDraftBtn = screen.getByRole('button', { name: /save draft/i });
+      expect(saveDraftBtn.hasAttribute('disabled')).toBe(false);
+
+      const inReviewBtn = screen.getByRole('button', { name: /in review/i });
+      expect(inReviewBtn.hasAttribute('disabled')).toBe(false);
+
+      const markReadyBtn = screen.getByRole('button', { name: /mark ready/i });
+      expect(markReadyBtn.hasAttribute('disabled')).toBe(false);
+
+      const publishBtn = screen.getByRole('button', { name: /^publish$/i });
+      expect(publishBtn.hasAttribute('disabled')).toBe(false);
+
+      const archiveBtn = screen.getByRole('button', { name: /archive/i });
+      expect(archiveBtn.hasAttribute('disabled')).toBe(false);
     });
 
-    it('clicking "In Review" sets status to in_review and saves', () => {
+    it('clicking "In Review" sets status to in_review and saves', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'admin', status: 'draft', onSaveWithStatus });
 
-      const inReviewBtn = screen.getByTestId('editor-submit-review-btn');
-      fireEvent.click(inReviewBtn);
+      const inReviewBtn = screen.getByRole('button', { name: /in review/i });
+      await user.click(inReviewBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('in_review');
     });
 
-    it('clicking "Ready for Publish" sets status to ready_for_publish and saves', () => {
+    it('clicking "Ready for Publish" sets status to ready_for_publish and saves', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'admin', status: 'in_review', onSaveWithStatus });
 
-      const markReadyBtn = screen.getByTestId('editor-mark-ready-btn');
-      fireEvent.click(markReadyBtn);
+      const markReadyBtn = screen.getByRole('button', { name: /mark ready/i });
+      await user.click(markReadyBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('ready_for_publish');
     });
 
-    it('clicking "Publish" invokes publish with published status', () => {
+    it('clicking "Publish" invokes publish with published status', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'editor', status: 'draft', onSaveWithStatus });
 
-      const publishBtn = screen.getByTestId('editor-publish-btn');
-      fireEvent.click(publishBtn);
+      const publishBtn = screen.getByRole('button', { name: /^publish$/i });
+      await user.click(publishBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('published');
     });
 
-    it('clicking "Archive" invokes save with archived status', () => {
+    it('clicking "Archive" invokes save with archived status', async () => {
+      const user = userEvent.setup();
       const onSaveWithStatus = vi.fn();
       renderEditorHeader({ role: 'editor', status: 'published', onSaveWithStatus });
 
-      const archiveBtn = screen.getByTestId('editor-archive-btn');
-      fireEvent.click(archiveBtn);
+      const archiveBtn = screen.getByRole('button', { name: /archive/i });
+      await user.click(archiveBtn);
 
       expect(onSaveWithStatus).toHaveBeenCalledWith('archived');
     });
@@ -149,8 +166,8 @@ describe('EditorHeader', () => {
     it('disables "Archive" button when entry is already archived', () => {
       renderEditorHeader({ role: 'editor', status: 'archived' });
 
-      const archiveBtn = screen.getByTestId('editor-archive-btn') as HTMLButtonElement;
-      expect(archiveBtn.disabled).toBe(true);
+      const archiveBtn = screen.getByRole('button', { name: /archive/i });
+      expect(archiveBtn.hasAttribute('disabled')).toBe(true);
     });
   });
 });

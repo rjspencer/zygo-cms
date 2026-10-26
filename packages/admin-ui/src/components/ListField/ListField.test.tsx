@@ -1,5 +1,7 @@
+import '../../test/setup';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Theme } from '@radix-ui/themes';
 import { ListField } from './ListField';
 import { SectionTemplateField } from '../../types/sectionTemplate';
@@ -29,13 +31,14 @@ describe('ListField Component', () => {
       </Theme>
     );
 
-    expect(screen.getByText('Item #1')).toBeDefined();
-    expect(screen.getByText('Item #2')).toBeDefined();
-    expect(screen.getByRole('button', { name: /\+ add item/i })).toBeDefined();
+    expect(screen.getByText('Item #1').textContent).toBe('Item #1');
+    expect(screen.getByText('Item #2').textContent).toBe('Item #2');
+    const addBtn = screen.getByRole('button', { name: /\+ add item/i });
+    expect(addBtn.hasAttribute('disabled')).toBe(false);
 
     // Verify subfields rendered
-    expect(screen.getByDisplayValue('Feature 1')).toBeDefined();
-    expect(screen.getByDisplayValue('Feature 2')).toBeDefined();
+    expect((screen.getByDisplayValue('Feature 1') as HTMLInputElement).value).toBe('Feature 1');
+    expect((screen.getByDisplayValue('Feature 2') as HTMLInputElement).value).toBe('Feature 2');
   });
 
   it('disables Up button on first item and Down button on last item', () => {
@@ -61,7 +64,8 @@ describe('ListField Component', () => {
     expect(downButtons[1].hasAttribute('disabled')).toBe(true);
   });
 
-  it('calls onChange when "+ Add item" is clicked', () => {
+  it('calls onChange when "+ Add item" is clicked', async () => {
+    const user = userEvent.setup();
     const items = [{ title: 'First' }];
     const onChange = vi.fn();
 
@@ -72,13 +76,14 @@ describe('ListField Component', () => {
     );
 
     const addButton = screen.getByRole('button', { name: /\+ add item/i });
-    fireEvent.click(addButton);
+    await user.click(addButton);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith([{ title: 'First' }, {}]);
   });
 
-  it('calls onChange to move item down', () => {
+  it('calls onChange to move item down', async () => {
+    const user = userEvent.setup();
     const items = [{ title: 'Item A' }, { title: 'Item B' }];
     const onChange = vi.fn();
 
@@ -89,13 +94,14 @@ describe('ListField Component', () => {
     );
 
     const downButtons = screen.getAllByRole('button', { name: /down/i });
-    fireEvent.click(downButtons[0]);
+    await user.click(downButtons[0]);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith([{ title: 'Item B' }, { title: 'Item A' }]);
   });
 
-  it('calls onChange to move item up', () => {
+  it('calls onChange to move item up', async () => {
+    const user = userEvent.setup();
     const items = [{ title: 'Item A' }, { title: 'Item B' }];
     const onChange = vi.fn();
 
@@ -106,13 +112,14 @@ describe('ListField Component', () => {
     );
 
     const upButtons = screen.getAllByRole('button', { name: /up/i });
-    fireEvent.click(upButtons[1]);
+    await user.click(upButtons[1]);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith([{ title: 'Item B' }, { title: 'Item A' }]);
   });
 
-  it('calls onChange to remove an item', () => {
+  it('calls onChange to remove an item', async () => {
+    const user = userEvent.setup();
     const items = [{ title: 'Item 1' }, { title: 'Item 2' }];
     const onChange = vi.fn();
 
@@ -123,7 +130,7 @@ describe('ListField Component', () => {
     );
 
     const removeButtons = screen.getAllByRole('button', { name: /remove/i });
-    fireEvent.click(removeButtons[0]);
+    await user.click(removeButtons[0]);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith([{ title: 'Item 2' }]);
