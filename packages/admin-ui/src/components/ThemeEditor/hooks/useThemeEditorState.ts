@@ -73,6 +73,30 @@ export function useThemeEditorState({
   const [copiedCss, setCopiedCss] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setSaved(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  useEffect(() => {
+    if (!switchedFeedback) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setSwitchedFeedback(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [switchedFeedback]);
+
+  useEffect(() => {
+    if (!copiedCss) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setCopiedCss(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [copiedCss]);
+
   // Sync with fetched settings on initial load
   useEffect(() => {
     if (
@@ -206,7 +230,6 @@ export function useThemeEditorState({
       if (success) {
         setBaselineTokens({ ...tokens });
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
       }
       return;
     }
@@ -239,7 +262,6 @@ export function useThemeEditorState({
       setCustomThemes(updatedCustomList);
       setBaselineTokens({ ...tokens });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
       onSaveSuccess?.();
     } catch (err: any) {
       setError(err?.message || 'Failed to save theme settings');
@@ -284,12 +306,10 @@ export function useThemeEditorState({
       if (switchAfterSaveAs) {
         setActiveThemeName(targetName);
         setSwitchedFeedback(true);
-        setTimeout(() => setSwitchedFeedback(false), 2000);
       }
       setSaveAsDialogOpen(false);
       setSwitchAfterSaveAs(false);
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
       onSaveSuccess?.();
     } catch (err: any) {
       setError(err?.message || 'Failed to save custom theme');
@@ -325,7 +345,6 @@ export function useThemeEditorState({
       setActiveThemeName(selectedThemeName);
       setBaselineTokens({ ...tokens });
       setSwitchedFeedback(true);
-      setTimeout(() => setSwitchedFeedback(false), 2000);
       onSaveSuccess?.();
     } catch (err: any) {
       setError(err?.message || 'Failed to switch active theme');
@@ -361,7 +380,6 @@ export function useThemeEditorState({
   const handleCopyCss = () => {
     navigator.clipboard.writeText(generatedCss);
     setCopiedCss(true);
-    setTimeout(() => setCopiedCss(false), 2000);
   };
 
   return {

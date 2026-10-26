@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Flex,
@@ -81,11 +81,18 @@ export const Redirects: React.FC = () => {
   const updateMutation = useUpdateRedirect();
   const deleteMutation = useDeleteRedirect();
 
+  useEffect(() => {
+    if (!copiedPath) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setCopiedPath(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [copiedPath]);
+
   const handleCopy = async (path: string) => {
     try {
       await navigator.clipboard.writeText(path);
       setCopiedPath(path);
-      setTimeout(() => setCopiedPath(null), 2000);
     } catch (err) {
       console.error('Failed to copy redirect path', err);
     }

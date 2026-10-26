@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Box } from '@radix-ui/themes';
 import { MediaHeader, MediaAlerts, MediaSearchBar, MediaGrid } from './components';
 import { useMediaData, useMediaFilters, useMediaUpload } from './hooks';
@@ -38,10 +38,17 @@ export const Media: React.FC = () => {
     [items, search]
   );
 
+  useEffect(() => {
+    if (!copiedId) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setCopiedId(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [copiedId]);
+
   const handleCopy = useCallback((id: string, url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
   const handleDelete = useCallback(

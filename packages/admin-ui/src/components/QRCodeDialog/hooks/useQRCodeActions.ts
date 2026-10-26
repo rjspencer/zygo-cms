@@ -1,8 +1,16 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export const useQRCodeActions = () => {
   const svgRef = useRef<SVGSVGElement>(null);
   const [isCopied, setIsCopied] = useState(false);
+
+  useEffect(() => {
+    if (!isCopied) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setIsCopied(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [isCopied]);
 
   const handleCopy = async () => {
     if (!svgRef.current) return;
@@ -33,7 +41,6 @@ export const useQRCodeActions = () => {
               new ClipboardItem({ 'image/png': blob })
             ]);
             setIsCopied(true);
-            setTimeout(() => setIsCopied(false), 2000);
           }
         }, 'image/png');
       };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, Box, Flex, TextArea, Button } from '@radix-ui/themes';
 import { CheckIcon, ClipboardCopyIcon } from '@radix-ui/react-icons';
 import type { InvitedUserForEmail } from '../../types';
@@ -17,12 +17,19 @@ export const UserInvitedDialog: React.FC<UserInvitedDialogProps> = ({
 
   const emailTemplate = invitedUser ? generateInviteEmailTemplate(invitedUser) : '';
 
+  useEffect(() => {
+    if (!copiedEmail) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setCopiedEmail(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [copiedEmail]);
+
   const handleCopyEmailTemplate = async () => {
     try {
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(emailTemplate);
         setCopiedEmail(true);
-        setTimeout(() => setCopiedEmail(false), 2000);
       }
     } catch {
       // Fallback

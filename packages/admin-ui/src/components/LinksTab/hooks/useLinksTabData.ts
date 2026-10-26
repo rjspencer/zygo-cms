@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiFetch } from '../../../utils/api';
 import type { TrackableLink } from '../types';
@@ -70,11 +70,18 @@ export const useLinksTabData = ({ entryId, baseCanonicalUrl }: UseLinksTabDataPa
     }
   };
 
+  useEffect(() => {
+    if (!copiedLink) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setCopiedLink(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [copiedLink]);
+
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopiedLink(text);
-      setTimeout(() => setCopiedLink(null), 2000);
     } catch (err) {
       console.error('Failed to copy', err);
     }
