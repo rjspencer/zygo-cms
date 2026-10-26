@@ -42,12 +42,21 @@ export function useSubmissions(params: SubmissionsQueryParams = {}) {
           total_pages: Math.max(1, Math.ceil(data.length / per_page)),
         };
       }
+      const rawList = Array.isArray(data.submissions)
+        ? data.submissions
+        : Array.isArray(data.items)
+        ? data.items
+        : [];
+      const totalCount = Number(data.total ?? rawList.length);
+      const resolvedPerPage = Number(data.per_page ?? per_page);
       return {
-        submissions: (data.submissions || []) as FormSubmission[],
-        total: Number(data.total ?? (data.submissions || []).length),
+        submissions: rawList as FormSubmission[],
+        total: totalCount,
         page: Number(data.page ?? page),
-        per_page: Number(data.per_page ?? per_page),
-        total_pages: Number(data.total_pages ?? Math.max(1, Math.ceil((data.total ?? 0) / (data.per_page ?? per_page)))),
+        per_page: resolvedPerPage,
+        total_pages: Number(
+          data.total_pages ?? Math.max(1, Math.ceil(totalCount / resolvedPerPage))
+        ),
       };
     },
   });

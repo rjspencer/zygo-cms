@@ -37,19 +37,35 @@ export function useLayoutData() {
     queryFn: async () => {
       try {
         const res = await apiFetch('/api/submissions/stats');
-        if (!res.ok) return { unread_count: 0 };
-        return res.json();
+        if (!res.ok) {
+          return {
+            total_count: 0,
+            unread_count: 0,
+            read_count: 0,
+            archived_count: 0,
+          };
+        }
+        const data = await res.json();
+        return {
+          total_count: Number(data.total_count ?? data.total ?? 0),
+          unread_count: Number(data.unread_count ?? data.unread ?? 0),
+          read_count: Number(data.read_count ?? data.read ?? 0),
+          archived_count: Number(data.archived_count ?? data.archived ?? 0),
+        };
       } catch {
-        return { unread_count: 0 };
+        return {
+          total_count: 0,
+          unread_count: 0,
+          read_count: 0,
+          archived_count: 0,
+        };
       }
     },
     retry: false,
     refetchInterval: 30000,
   });
 
-  const unreadSubmissionsCount = Number(
-    submissionsStats?.unread_count ?? submissionsStats?.unread ?? 0
-  );
+  const unreadSubmissionsCount = Number(submissionsStats?.unread_count ?? 0);
 
   const logoutUrl = dashData?.auth_url || '/cdn-cgi/access/logout';
   let userEmail = 'Admin User';

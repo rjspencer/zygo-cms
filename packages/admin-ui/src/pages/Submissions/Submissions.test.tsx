@@ -244,4 +244,43 @@ describe('Submissions Page', () => {
       );
     });
   });
+
+  it('populates table when API returns items property from admin-api-worker', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/submissions/stats')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                total_count: 2,
+                unread_count: 2,
+              }),
+          });
+        }
+        if (url.includes('/api/submissions')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                items: mockSubmissions,
+                total: 2,
+                page: 1,
+                per_page: 20,
+              }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      })
+    );
+
+    renderComponent();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('submissions-table')).toBeDefined();
+      expect(screen.getByTestId('submission-row-1')).toBeDefined();
+      expect(screen.getByTestId('submission-row-2')).toBeDefined();
+    });
+  });
 });
