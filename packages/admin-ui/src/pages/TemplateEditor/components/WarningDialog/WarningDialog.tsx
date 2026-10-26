@@ -22,13 +22,13 @@ export const WarningDialog: React.FC<WarningDialogProps> = ({
           <Callout.Icon>
             <ExclamationTriangleIcon />
           </Callout.Icon>
-          <Callout.Text>
+          <div className="rt-CalloutText">
             <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
               {warnings.map((warning, idx) => (
                 <li key={idx}>{warning}</li>
               ))}
             </ul>
-          </Callout.Text>
+          </div>
         </Callout.Root>
 
         <Flex gap="3" justify="end">

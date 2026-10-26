@@ -4,6 +4,7 @@ import { Theme } from '@radix-ui/themes';
 import { FormProvider, useForm } from 'react-hook-form';
 import type { EntryFormValues } from '../types';
 import { EMPTY_FORM_VALUES } from '../utils/entryForm';
+import '../../../test/setup';
 
 interface FormHarnessProps {
   defaultValues: EntryFormValues;

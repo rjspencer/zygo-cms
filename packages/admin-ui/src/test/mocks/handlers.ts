@@ -152,6 +152,36 @@ export const mockMenus = {
   }
 };
 
+export const mockThemes = [
+  {
+    id: 'modern-editorial',
+    name: 'Modern Editorial',
+    description: 'Modern editorial typography with warm tones',
+    is_locked: true,
+    tokens: {
+      colorBg: '#faf8f5',
+      colorSurface: '#ffffff',
+      colorText: '#1c1917',
+      colorAccent: '#991b1b',
+    },
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+  },
+];
+
+export const mockRedirects = [
+  {
+    id: 1,
+    source_path: '/old-about.html',
+    target_url: '/about',
+    status_code: 301,
+    notes: 'Legacy SEO migration',
+    hit_count: 1420,
+    created_at: '2026-01-15 10:00:00',
+    updated_at: '2026-01-15 10:00:00',
+  },
+];
+
 export const handlers = [
   // Health check for edge status
   http.get('*/', () => {
@@ -260,5 +290,35 @@ export const handlers = [
   }),
   http.post('*/api/settings', () => {
     return HttpResponse.json({ success: true });
+  }),
+
+  // Submissions stats
+  http.get('*/api/submissions/stats', () => {
+    return HttpResponse.json({
+      total_count: 0,
+      unread_count: 0,
+      read_count: 0,
+      archived_count: 0,
+    });
+  }),
+
+  // Submissions list
+  http.get('*/api/submissions', () => {
+    return HttpResponse.json({
+      items: [],
+      total: 0,
+      page: 1,
+      per_page: 20,
+    });
+  }),
+
+  // Themes
+  http.get('*/api/themes', () => {
+    return HttpResponse.json(mockThemes);
+  }),
+
+  // Redirects
+  http.get('*/api/redirects', () => {
+    return HttpResponse.json(mockRedirects);
   }),
 ];

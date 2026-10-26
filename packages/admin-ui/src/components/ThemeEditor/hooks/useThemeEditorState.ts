@@ -129,10 +129,14 @@ export function useThemeEditorState({
   useEffect(() => {
     if (themeRecord) {
       setSelectedThemeName(themeRecord.name);
-      setTokens(themeRecord.tokens);
-      setBaselineTokens(themeRecord.tokens);
+      const mergedTokens: ThemeTokens = {
+        ...basePreset,
+        ...(themeRecord.tokens || {}),
+      };
+      setTokens(mergedTokens);
+      setBaselineTokens(mergedTokens);
     }
-  }, [themeRecord]);
+  }, [themeRecord, basePreset]);
 
   useGoogleFontInjector(tokens.fontUrl);
 

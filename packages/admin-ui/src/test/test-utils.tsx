@@ -1,5 +1,6 @@
 import React, { ReactElement } from 'react';
 import { render, RenderOptions, renderHook, RenderHookOptions } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider, MemoryRouterProps } from 'react-router-dom';
 import { Theme } from '@radix-ui/themes';
@@ -153,4 +154,5 @@ export function renderHookWithProviders<TResult, TProps>(
 }
 
 export * from '@testing-library/react';
+export { userEvent };
 export { renderWithProviders as render };
