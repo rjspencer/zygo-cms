@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Cloudflare Dual Analytics Rework (RUM + Edge HTTP)
+- **Database Migration & Settings Parity**:
+  - Added migration `migrations/0017_analytics_site_tag.sql` initializing the `analytics_site_tag` key in D1 `settings`.
+  - Added `analytics_site_tag` configuration field in Admin UI (`AnalyticsSettingsCard.tsx`), with end-to-end parity in WebMCP (`get_settings`, `update_settings`) and CLI MCP (`zygo_get_settings`, `zygo_update_settings`).
+- **Public SSR RUM Beacon Injection & Preview Suppression**:
+  - Implemented conditional Cloudflare Web Analytics beacon injection (`beacon.min.js`) across all embedded fallback templates and D1 layout templates when `analytics_enabled == "true"` and `analytics_site_tag` is configured.
+  - Implemented preview beacon suppression across `public-worker` and `template-wasm`, ensuring draft previews and Theme Editor frames do not emit tracking beacons or skew production analytics.
+- **Admin API Worker Dual Analytics Telemetry (`packages/admin-api-worker/`)**:
+  - Reworked `GET /api/analytics` in `packages/admin-api-worker/src/handlers/api.rs` with a rolling 7-day ISO-8601 time window (`format_iso8601_utc`).
+  - Executed dual GraphQL queries against Cloudflare: `httpRequestsAdaptiveGroups` (under `zones`, keyed by `CF_ZONE_ID`) for edge request metrics and `rumPageloadEventsAdaptiveGroups` (under `accounts`, keyed by `CF_ACCOUNT_ID`) for real user monitoring.
+  - Added comprehensive credential detection (`CF_API_TOKEN`, `CF_ZONE_ID`, `CF_ACCOUNT_ID`), HTTP 502 GraphQL upstream error propagation with detailed diagnostics, and fallback handling when credentials are missing or unconfigured.
+- **Admin UI Analytics Dashboard Overhaul (`packages/admin-ui/`)**:
+  - Redesigned the `/analytics` dashboard with tabbed `Visitor Traffic (RUM)` and `Edge Infrastructure` views, top paths table, top country distributions, and traffic summaries.
+  - Added `AnalyticsMissingCredentialsCard` guiding operators when worker credentials are missing, and an inline amber setup prompt banner when RUM site tag is unconfigured.
+  - Created Storybook component stories (`AnalyticsMetricsGrid.stories.tsx`) and unit tests for credential detection, tab switching, and error states.
+
 ### Color Mode Switcher Relocation to Footer Across All Template Types
 - **Core Layout Defaults (`packages/core/src/models/layout_defaults.rs`)**:
   - Removed `theme_switcher_html` from `<header>` in `DEFAULT_POST_HTML`, `DEFAULT_PAGE_HTML`, and `DEFAULT_DOC_HTML`.
