@@ -23,6 +23,17 @@ describe('Zygo MCP CLI Bridge - Navigation, Media, and Theme Tools', () => {
       expect(toolNames).toContain('zygo_get_theme_settings');
       expect(toolNames).toContain('zygo_update_theme_settings');
       expect(toolNames).toContain('zygo_reset_theme_to_defaults');
+      expect(toolNames).toContain('zygo_get_settings');
+      expect(toolNames).toContain('zygo_update_settings');
+
+      const getSettings = tools.find((t) => t.name === 'zygo_get_settings');
+      expect(getSettings.inputSchema.type).toBe('object');
+
+      const updateSettings = tools.find((t) => t.name === 'zygo_update_settings');
+      expect(updateSettings.inputSchema.type).toBe('object');
+      expect(updateSettings.inputSchema.required).toContain('settings');
+      expect(updateSettings.inputSchema.properties.settings.properties).toHaveProperty('analytics_enabled');
+      expect(updateSettings.inputSchema.properties.settings.properties).toHaveProperty('analytics_site_tag');
 
       const getMenu = tools.find((t) => t.name === 'zygo_get_menu');
       expect(getMenu.inputSchema.type).toBe('object');
@@ -424,6 +435,72 @@ describe('Zygo MCP CLI Bridge - Navigation, Media, and Theme Tools', () => {
 
         expect(res.isError).toBe(true);
         expect(res.content[0].text).toContain('500');
+      });
+    });
+  });
+
+  describe('Site Settings execution (zygo_get_settings & zygo_update_settings)', () => {
+    describe('zygo_get_settings', () => {
+      it('fetches settings including analytics_enabled and analytics_site_tag', async () => {
+        const mockSettings = {
+          site_title: 'My Site',
+          analytics_enabled: 'true',
+          analytics_site_tag: 'cf-tag-rum-987'
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockSettings
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_get_settings',
+            arguments: {}
+          }
+        });
+
+        expect(res.isError).toBeFalsy();
+        expect(res.toolResult).toEqual(mockSettings);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/settings'),
+          expect.anything()
+        );
+      });
+    });
+
+    describe('zygo_update_settings', () => {
+      it('updates settings including analytics_enabled and analytics_site_tag via POST /api/settings', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ success: true })
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_settings',
+            arguments: {
+              settings: {
+                analytics_enabled: 'true',
+                analytics_site_tag: 'cf-tag-updated-000'
+              }
+            }
+          }
+        });
+
+        expect(res.isError).toBeFalsy();
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/settings'),
+          expect.objectContaining({
+            method: 'POST',
+            body: JSON.stringify({
+              settings: {
+                analytics_enabled: 'true',
+                analytics_site_tag: 'cf-tag-updated-000'
+              }
+            })
+          })
+        );
       });
     });
   });

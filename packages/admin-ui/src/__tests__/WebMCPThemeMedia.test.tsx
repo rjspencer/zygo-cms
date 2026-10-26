@@ -111,6 +111,47 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
     });
 
+    it('get_settings and update_settings handle analytics_enabled and analytics_site_tag properly', async () => {
+      server.use(
+        http.get('*/api/settings', () => {
+          return HttpResponse.json({
+            site_title: 'Analytics Site',
+            analytics_enabled: 'true',
+            analytics_site_tag: 'cf-tag-test-123',
+          });
+        })
+      );
+
+      const getResult = await registry.callTool('get_settings');
+      expect(getResult.isError).toBeFalsy();
+      expect(getResult.toolResult).toMatchObject({
+        site_title: 'Analytics Site',
+        analytics_enabled: 'true',
+        analytics_site_tag: 'cf-tag-test-123',
+      });
+
+      let receivedPayload: any = null;
+      vi.spyOn(apiModule, 'apiFetch').mockImplementation(async (_path, options) => {
+        receivedPayload = JSON.parse(String(options?.body || '{}'));
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      });
+
+      const updateResult = await registry.callTool('update_settings', {
+        settings: {
+          analytics_enabled: 'false',
+          analytics_site_tag: 'cf-tag-updated-456',
+        },
+      });
+
+      expect(updateResult.isError).toBeFalsy();
+      expect(receivedPayload).toEqual({
+        settings: {
+          analytics_enabled: 'false',
+          analytics_site_tag: 'cf-tag-updated-456',
+        },
+      });
+    });
+
     it('update_theme_settings previews changes in dry_run mode without calling API', async () => {
       let apiCalled = false;
       server.use(
