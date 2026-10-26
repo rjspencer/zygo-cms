@@ -8,6 +8,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Completed Improvements & Milestones
 
+### Public Form Submission UX & Admin Submissions Inbox Fix
+- **Admin API & Core Submission Stats/List Alignment (`packages/core` & `packages/admin-api-worker`)**:
+  - Expanded `SubmissionStats` in `packages/core/src/models/form_submission.rs` and `db::form_submission::get_stats` in `packages/core/src/db/form_submission.rs` to return `read_count` and `archived_count` alongside `unread_count` and `total_count`.
+  - Updated `GET /api/submissions` in `packages/admin-api-worker/src/handlers/submissions.rs` to include both `items` and `submissions` arrays along with `total_pages`.
+- **Admin UI Submissions Inbox Fix (`packages/admin-ui`)**:
+  - Updated `useSubmissions` in `packages/admin-ui/src/pages/Submissions/hooks/useSubmissions.ts` to read `data.submissions` or `data.items`, resolving the empty table state when `GET /api/submissions` returns `items`.
+  - Normalized the `['submissions-stats']` React Query cache payload in `useLayoutData.ts` so `Layout` and `Submissions` share consistent count fields.
+  - Added graceful fallback rendering in `SubmissionsTable.tsx` and `SubmissionDetailDialog.tsx` for submissions without a subject or message body (e.g., newsletter leads).
+- **Public Site In-Page Form Submission UX (`packages/public-worker`, `public/style.css`, `migrations/`)**:
+  - Added `FORM_SUBMIT_SCRIPT` and `inject_form_submit_script` in `packages/public-worker/src/views.rs` to intercept `<form action="/forms/submit" method="POST">` submissions via `fetch`, replacing form fields in-page with a styled `role="status"` confirmation message on success or rendering an in-page `role="alert"` error message on failure.
+  - Added migration `migrations/0018_form_submission_ux.sql` and synchronized `color-mix()` status/error styles across `packages/public-worker/src/style.css` and `public/style.css`.
+
 ### Cloudflare Dual Analytics Rework (RUM + Edge HTTP)
 - **Database Migration & Settings Parity**:
   - Added migration `migrations/0017_analytics_site_tag.sql` initializing the `analytics_site_tag` key in D1 `settings`.

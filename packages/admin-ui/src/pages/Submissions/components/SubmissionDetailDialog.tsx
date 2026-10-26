@@ -109,7 +109,7 @@ export const SubmissionDetailDialog: React.FC<SubmissionDetailDialogProps> = ({
                 lineHeight: '1.6',
               }}
             >
-              {submission.message}
+              {submission.message || '(No message content)'}
             </Box>
           </Box>
 

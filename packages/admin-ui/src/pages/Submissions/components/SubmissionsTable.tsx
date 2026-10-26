@@ -107,7 +107,7 @@ export const SubmissionsTable: React.FC<SubmissionsTableProps> = ({
                         maxWidth: '320px',
                       }}
                     >
-                      {item.subject || item.message.slice(0, 60)}
+                      {(item.subject || item.message || '').slice(0, 60) || '—'}
                     </Text>
                   </Flex>
                 </Flex>

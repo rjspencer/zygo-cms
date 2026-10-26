@@ -1218,7 +1218,160 @@ fn render_template(
         return Ok(rendered);
     }
 
-    Ok(inject_favicon(&rendered, favicon.as_deref()))
+    let with_favicon = inject_favicon(&rendered, favicon.as_deref());
+    Ok(inject_form_submit_script(&with_favicon))
+}
+
+pub const FORM_SUBMIT_SCRIPT: &str = r##"<script data-zygo-forms-script="true">
+(function(){
+  if (window.__zygoFormsInit) return;
+  window.__zygoFormsInit = true;
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (!form || form.tagName !== 'FORM') return;
+    var action = form.getAttribute('action') || '';
+    if (action.indexOf('/forms/submit') === -1) return;
+    e.preventDefault();
+    if (form.getAttribute('data-submitting') === 'true') return;
+    form.setAttribute('data-submitting', 'true');
+
+    var btn = form.querySelector('button[type="submit"], input[type="submit"]');
+    var origText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.setAttribute('aria-busy', 'true');
+      if (btn.tagName === 'BUTTON') btn.textContent = 'Sending...';
+    }
+
+    var errEl = form.querySelector('.zygo-form-error, .contact-form-error, .newsletter-error');
+    if (errEl) {
+      errEl.style.display = 'none';
+      errEl.textContent = '';
+    }
+
+    var formData = new FormData(form);
+    var params = new URLSearchParams();
+    formData.forEach(function(val, key) {
+      params.append(key, String(val));
+    });
+    if (!params.get('page_path') && window.location && window.location.pathname) {
+      params.set('page_path', window.location.pathname);
+    }
+
+    fetch(action, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+      },
+      body: params.toString()
+    })
+    .then(function(res) {
+      return res.json().catch(function() { return {}; }).then(function(data) {
+        return { ok: res.ok, status: res.status, data: data };
+      });
+    })
+    .then(function(result) {
+      form.removeAttribute('data-submitting');
+      if (!result.ok || (result.data && result.data.error)) {
+        if (btn) {
+          btn.disabled = false;
+          btn.removeAttribute('aria-busy');
+          if (btn.tagName === 'BUTTON') btn.textContent = origText;
+        }
+        var msg = (result.data && (result.data.error || result.data.message)) || 'Something went wrong. Please try again.';
+        if (!errEl) {
+          errEl = document.createElement('div');
+          errEl.className = 'zygo-form-error';
+          errEl.setAttribute('role', 'alert');
+          errEl.setAttribute('aria-live', 'assertive');
+          var actionsEl = form.querySelector('.contact-form-actions');
+          if (actionsEl && actionsEl.parentNode === form) {
+            form.insertBefore(errEl, actionsEl);
+          } else {
+            form.appendChild(errEl);
+          }
+        }
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        return;
+      }
+
+      var toHide = form.querySelectorAll('.contact-form-group, .contact-form-actions, .newsletter-input-group, .zygo-form-error, .contact-form-error, .newsletter-error');
+      toHide.forEach(function(el) {
+        el.style.display = 'none';
+      });
+
+      var statusEl = form.querySelector('.contact-form-status, .newsletter-status, [role="status"]');
+      if (!statusEl) {
+        statusEl = document.createElement('div');
+        statusEl.className = 'zygo-form-status contact-form-status';
+        statusEl.setAttribute('role', 'status');
+        statusEl.setAttribute('aria-live', 'polite');
+        var icon = document.createElement('div');
+        icon.className = 'zygo-form-status-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = '\u2713';
+        var p = document.createElement('p');
+        p.textContent = (result.data && result.data.message) || 'Thank you for your submission.';
+        statusEl.appendChild(icon);
+        statusEl.appendChild(p);
+        form.appendChild(statusEl);
+      } else {
+        if (!statusEl.querySelector('.zygo-form-status-icon')) {
+          var iconEl = document.createElement('div');
+          iconEl.className = 'zygo-form-status-icon';
+          iconEl.setAttribute('aria-hidden', 'true');
+          iconEl.textContent = '\u2713';
+          statusEl.insertBefore(iconEl, statusEl.firstChild);
+        }
+        var textP = statusEl.querySelector('p') || statusEl;
+        if (!textP.textContent || !textP.textContent.trim()) {
+          textP.textContent = (result.data && result.data.message) || 'Thank you for your submission.';
+        }
+        statusEl.classList.add('zygo-form-status');
+      }
+      statusEl.style.display = 'block';
+      form.reset();
+    })
+    .catch(function() {
+      form.removeAttribute('data-submitting');
+      if (btn) {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        if (btn.tagName === 'BUTTON') btn.textContent = origText;
+      }
+      if (!errEl) {
+        errEl = document.createElement('div');
+        errEl.className = 'zygo-form-error';
+        errEl.setAttribute('role', 'alert');
+        errEl.setAttribute('aria-live', 'assertive');
+        form.appendChild(errEl);
+      }
+      errEl.textContent = 'Network error. Please check your connection and try again.';
+      errEl.style.display = 'block';
+    });
+  });
+})();
+</script>"##;
+
+pub fn inject_form_submit_script(html: &str) -> String {
+    if !html.contains("/forms/submit") || html.contains("data-zygo-forms-script") {
+        return html.to_string();
+    }
+
+    let lower = html.to_ascii_lowercase();
+    if let Some(pos) = lower.rfind("</body>") {
+        let mut result = String::with_capacity(html.len() + FORM_SUBMIT_SCRIPT.len() + 10);
+        result.push_str(&html[..pos]);
+        result.push_str("    ");
+        result.push_str(FORM_SUBMIT_SCRIPT);
+        result.push('\n');
+        result.push_str(&html[pos..]);
+        return result;
+    }
+
+    format!("{}\n{}", html, FORM_SUBMIT_SCRIPT)
 }
 
 pub fn inject_favicon(html: &str, favicon: Option<&str>) -> String {
@@ -2952,6 +3105,7 @@ mod tests {
         assert!(!html_min.contains(r#"id="contact-phone""#));
         assert!(!html_min.contains(r#"id="contact-subject""#));
         assert!(html_min.contains(r#"id="contact-sender-email""#));
+        assert!(html_min.contains(r#"data-zygo-forms-script="true""#));
     }
 
     #[test]

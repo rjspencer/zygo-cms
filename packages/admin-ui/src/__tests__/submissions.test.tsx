@@ -174,11 +174,10 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
 
         return new Response(
           JSON.stringify({
-            submissions: filtered,
+            items: filtered,
             total: filtered.length,
             page: 1,
             per_page: 20,
-            total_pages: 1,
           }),
           { status: 200 }
         );

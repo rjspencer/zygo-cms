@@ -111,7 +111,6 @@ export function useLayoutTemplateEditorState(
       queryClient.setQueryData(['layout-templates', templateId], updated);
       queryClient.invalidateQueries({ queryKey: ['layout-template-revisions', templateId] });
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (err: unknown) => {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -139,7 +138,6 @@ export function useLayoutTemplateEditorState(
       setCss(resetTemplate.template_css || '');
       setIsResetDialogOpen(false);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (err: unknown) => {
       setSaveError(err instanceof Error ? err.message : String(err));
@@ -167,12 +165,19 @@ export function useLayoutTemplateEditorState(
       setCss(restoredTemplate.template_css || '');
       setIsRevisionsDialogOpen(false);
       setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
     },
     onError: (err: unknown) => {
       setSaveError(err instanceof Error ? err.message : String(err));
     },
   });
+
+  useEffect(() => {
+    if (!saveSuccess) return;
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') setSaveSuccess(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [saveSuccess]);
 
   const handleSave = useCallback(async () => {
     await saveMutation.mutateAsync();
