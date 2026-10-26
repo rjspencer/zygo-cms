@@ -917,33 +917,103 @@ pub async fn update_setting(mut req: Request, ctx: RouteContext<()>) -> Result<R
     Response::from_json(&json!({ "success": true }))
 }
 
-pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
-    let _user = auth_required!(&req, ctx);
-    let db = ctx.env.d1("DB")?;
-    
-    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled").await?
-        .map(|s| s.value == "true")
-        .unwrap_or(false);
+pub fn format_iso8601_utc(millis: u64) -> String {
+    let secs = millis / 1000;
+    let days = (secs / 86400) as i64;
+    let day_secs = secs % 86400;
+    let hours = day_secs / 3600;
+    let minutes = (day_secs % 3600) / 60;
+    let seconds = day_secs % 60;
 
-    if !analytics_enabled {
-        return Response::error("Analytics disabled", 403);
+    let z = days + 719468;
+    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let mut y = (yoe as i64) + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    if m <= 2 {
+        y += 1;
     }
 
-    let api_token = match ctx.env.secret("CF_API_TOKEN").or_else(|_| ctx.env.var("CF_API_TOKEN")) {
-        Ok(s) => s.to_string(),
-        Err(_) => return Response::error("Missing CF_API_TOKEN", 500),
-    };
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", y, m, d, hours, minutes, seconds)
+}
 
-    let zone_id = match ctx.env.secret("CF_ZONE_ID").or_else(|_| ctx.env.var("CF_ZONE_ID")) {
-        Ok(s) => s.to_string(),
-        Err(_) => return Response::error("Missing CF_ZONE_ID", 500),
-    };
+pub fn build_edge_graphql_query(zone_id: &str, start_time: &str, end_time: &str) -> serde_json::Value {
+    let query = r#"query($zoneId: string!, $startTime: Time!, $endTime: Time!) {
+  viewer {
+    zones(filter: { zoneTag: $zoneId }) {
+      httpRequestsAdaptiveGroups(
+        limit: 10,
+        filter: { datetime_geq: $startTime, datetime_lt: $endTime },
+        orderBy: [count_DESC]
+      ) {
+        count
+        sum { edgeResponseBytes }
+        dimensions { clientRequestPath clientCountryName }
+      }
+    }
+  }
+}"#;
+    serde_json::json!({
+        "query": query,
+        "variables": {
+            "zoneId": zone_id,
+            "startTime": start_time,
+            "endTime": end_time
+        }
+    })
+}
 
-    let gql_query = format!(
-        r#"{{ "query": "query {{ viewer {{ zones(filter: {{ zoneTag: \"{}\" }}) {{ rumPageloadEventsAdaptiveGroups(limit: 10, orderBy: [count_DESC]) {{ count dimensions {{ requestPath clientCountryName }} }} }} }} }}" }}"#,
-        zone_id
-    );
+pub fn build_rum_graphql_query(account_id: &str, site_tag: &str, start_time: &str, end_time: &str) -> serde_json::Value {
+    let query = r#"query($accountId: string!, $siteTag: string!, $startTime: Time!, $endTime: Time!) {
+  viewer {
+    accounts(filter: { accountTag: $accountId }) {
+      rumPageloadEventsAdaptiveGroups(
+        limit: 10,
+        filter: { siteTag: $siteTag, datetime_geq: $startTime, datetime_lt: $endTime, bot: 0 },
+        orderBy: [count_DESC]
+      ) {
+        count
+        dimensions { requestPath countryName }
+      }
+    }
+  }
+}"#;
+    serde_json::json!({
+        "query": query,
+        "variables": {
+            "accountId": account_id,
+            "siteTag": site_tag,
+            "startTime": start_time,
+            "endTime": end_time
+        }
+    })
+}
 
+pub fn extract_graphql_errors(parsed: &serde_json::Value) -> Option<String> {
+    if let Some(errors) = parsed.get("errors").and_then(|e| e.as_array()) {
+        if !errors.is_empty() {
+            let messages: Vec<String> = errors
+                .iter()
+                .filter_map(|err| {
+                    err.get("message")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string())
+                        .or_else(|| Some(err.to_string()))
+                })
+                .collect();
+            if !messages.is_empty() {
+                return Some(messages.join("; "));
+            }
+        }
+    }
+    None
+}
+
+async fn execute_cf_graphql(api_token: &str, query: &serde_json::Value) -> Result<serde_json::Value> {
     let headers = Headers::new();
     headers.set("Authorization", &format!("Bearer {}", api_token))?;
     headers.set("Content-Type", "application/json")?;
@@ -951,16 +1021,132 @@ pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Respon
     let mut request_init = RequestInit::new();
     request_init.with_method(Method::Post);
     request_init.with_headers(headers);
-    request_init.with_body(Some(wasm_bindgen::JsValue::from_str(&gql_query)));
+    let body_str = serde_json::to_string(query).unwrap_or_default();
+    request_init.with_body(Some(wasm_bindgen::JsValue::from_str(&body_str)));
 
     let cf_req = Request::new_with_init("https://api.cloudflare.com/client/v4/graphql", &request_init)?;
     let mut response = Fetch::Request(cf_req).send().await?;
-    
     let text = response.text().await?;
-    Response::ok(text).map(|mut r| {
-        r.headers_mut().set("Content-Type", "application/json").unwrap();
-        r
-    })
+    let val: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| worker::Error::RustError(format!("Failed to parse Cloudflare GraphQL response: {}", e)))?;
+    Ok(val)
+}
+
+pub async fn get_analytics(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
+    let db = ctx.env.d1("DB")?;
+
+    let analytics_enabled = db::setting::get_setting(&db, "analytics_enabled")
+        .await?
+        .map(|s| s.value.trim() == "true")
+        .unwrap_or(false);
+
+    if !analytics_enabled {
+        return Response::error("Analytics disabled", 403);
+    }
+
+    let analytics_site_tag = db::setting::get_setting(&db, "analytics_site_tag")
+        .await?
+        .map(|s| s.value.trim().to_string())
+        .unwrap_or_default();
+
+    let get_env_opt = |k: &str| -> Option<String> {
+        ctx.env
+            .secret(k)
+            .or_else(|_| ctx.env.var(k))
+            .ok()
+            .map(|v| v.to_string())
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    };
+
+    let api_token = get_env_opt("CF_API_TOKEN");
+    let zone_id = get_env_opt("CF_ZONE_ID");
+    let account_id = get_env_opt("CF_ACCOUNT_ID");
+
+    if api_token.is_none() || (zone_id.is_none() && account_id.is_none()) {
+        return Response::from_json(&json!({
+            "configured": false,
+            "missing_credentials": true,
+            "rum_configured": false,
+            "edge_configured": false,
+            "message": "Cloudflare API credentials (CF_API_TOKEN and CF_ZONE_ID / CF_ACCOUNT_ID) are not configured in worker secrets."
+        }));
+    }
+
+    let api_token = api_token.unwrap();
+
+    #[cfg(target_arch = "wasm32")]
+    let now_ms = worker::Date::now().as_millis();
+    #[cfg(not(target_arch = "wasm32"))]
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0);
+
+    let start_ms = now_ms.saturating_sub(7 * 86_400_000);
+    let start_time = format_iso8601_utc(start_ms);
+    let end_time = format_iso8601_utc(now_ms);
+
+    let mut edge_groups = Vec::new();
+    if let Some(ref zid) = zone_id {
+        let edge_query = build_edge_graphql_query(zid, &start_time, &end_time);
+        let edge_res = execute_cf_graphql(&api_token, &edge_query).await?;
+        if let Some(err_msg) = extract_graphql_errors(&edge_res) {
+            return Ok(Response::from_json(&json!({
+                "error": format!("Cloudflare GraphQL error: {}", err_msg)
+            }))?.with_status(502));
+        }
+        if let Some(groups) = edge_res
+            .pointer("/data/viewer/zones/0/httpRequestsAdaptiveGroups")
+            .and_then(|v| v.as_array())
+        {
+            edge_groups = groups.clone();
+        }
+    }
+
+    let mut rum_groups = Vec::new();
+    if let Some(ref aid) = account_id {
+        if !analytics_site_tag.is_empty() {
+            let rum_query = build_rum_graphql_query(aid, &analytics_site_tag, &start_time, &end_time);
+            let rum_res = execute_cf_graphql(&api_token, &rum_query).await?;
+            if let Some(err_msg) = extract_graphql_errors(&rum_res) {
+                return Ok(Response::from_json(&json!({
+                    "error": format!("Cloudflare GraphQL error: {}", err_msg)
+                }))?.with_status(502));
+            }
+            if let Some(groups) = rum_res
+                .pointer("/data/viewer/accounts/0/rumPageloadEventsAdaptiveGroups")
+                .and_then(|v| v.as_array())
+            {
+                rum_groups = groups.clone();
+            }
+        }
+    }
+
+    let rum_configured = account_id.is_some() && !analytics_site_tag.is_empty();
+    let edge_configured = zone_id.is_some();
+    let site_tag_configured = !analytics_site_tag.is_empty();
+
+    Response::from_json(&json!({
+        "configured": true,
+        "missing_credentials": false,
+        "rum_configured": rum_configured,
+        "edge_configured": edge_configured,
+        "site_tag_configured": site_tag_configured,
+        "rum": {
+            "groups": rum_groups
+        },
+        "edge": {
+            "groups": edge_groups
+        },
+        "data": {
+            "viewer": {
+                "accounts": [{ "rumPageloadEventsAdaptiveGroups": rum_groups }],
+                "zones": [{ "httpRequestsAdaptiveGroups": edge_groups }]
+            }
+        }
+    }))
 }
 
 pub async fn get_me(req: Request, ctx: RouteContext<()>) -> Result<Response> {
@@ -1164,5 +1350,76 @@ mod tests {
         // Admin and Editor can bulk publish
         assert!(validate_author_bulk_action("admin", models::BulkActionType::Publish).is_ok());
         assert!(validate_author_bulk_action("editor", models::BulkActionType::Publish).is_ok());
+    }
+
+    #[test]
+    fn test_format_iso8601_utc() {
+        assert_eq!(format_iso8601_utc(0), "1970-01-01T00:00:00Z");
+        assert_eq!(format_iso8601_utc(1700000000_000), "2023-11-14T22:13:20Z");
+        // Leap year 2024: 2024-02-29 13:00:00 UTC (1709211600 seconds)
+        assert_eq!(format_iso8601_utc(1709211600_000), "2024-02-29T13:00:00Z");
+        // End of year 2024: 2024-12-31 23:59:59 UTC (1735689599 seconds)
+        assert_eq!(format_iso8601_utc(1735689599_000), "2024-12-31T23:59:59Z");
+    }
+
+    #[test]
+    fn test_build_edge_graphql_query() {
+        let payload = build_edge_graphql_query("zone-xyz-123", "2026-10-18T00:00:00Z", "2026-10-25T00:00:00Z");
+        let query_str = payload.get("query").and_then(|q| q.as_str()).expect("query string");
+        let vars = payload.get("variables").expect("variables object");
+
+        assert_eq!(vars.get("zoneId").and_then(|v| v.as_str()), Some("zone-xyz-123"));
+        assert_eq!(vars.get("startTime").and_then(|v| v.as_str()), Some("2026-10-18T00:00:00Z"));
+        assert_eq!(vars.get("endTime").and_then(|v| v.as_str()), Some("2026-10-25T00:00:00Z"));
+
+        assert!(query_str.contains("datetime_geq: $startTime"));
+        assert!(query_str.contains("datetime_lt: $endTime"));
+        assert!(query_str.contains("httpRequestsAdaptiveGroups"));
+        assert!(query_str.contains("edgeResponseBytes"));
+        assert!(query_str.contains("clientRequestPath"));
+        assert!(query_str.contains("clientCountryName"));
+    }
+
+    #[test]
+    fn test_build_rum_graphql_query() {
+        let payload = build_rum_graphql_query("account-abc-456", "site-tag-789", "2026-10-18T00:00:00Z", "2026-10-25T00:00:00Z");
+        let query_str = payload.get("query").and_then(|q| q.as_str()).expect("query string");
+        let vars = payload.get("variables").expect("variables object");
+
+        assert_eq!(vars.get("accountId").and_then(|v| v.as_str()), Some("account-abc-456"));
+        assert_eq!(vars.get("siteTag").and_then(|v| v.as_str()), Some("site-tag-789"));
+        assert_eq!(vars.get("startTime").and_then(|v| v.as_str()), Some("2026-10-18T00:00:00Z"));
+        assert_eq!(vars.get("endTime").and_then(|v| v.as_str()), Some("2026-10-25T00:00:00Z"));
+
+        assert!(query_str.contains("accounts(filter: { accountTag: $accountId })"));
+        assert!(query_str.contains("rumPageloadEventsAdaptiveGroups"));
+        assert!(query_str.contains("siteTag: $siteTag"));
+        assert!(query_str.contains("countryName"));
+        assert!(query_str.contains("requestPath"));
+        assert!(query_str.contains("bot: 0"));
+    }
+
+    #[test]
+    fn test_extract_graphql_errors() {
+        let err_json = serde_json::json!({
+            "errors": [
+                { "message": "Invalid zone tag" },
+                { "message": "Rate limit exceeded" }
+            ]
+        });
+        assert_eq!(
+            extract_graphql_errors(&err_json),
+            Some("Invalid zone tag; Rate limit exceeded".to_string())
+        );
+
+        let empty_err_json = serde_json::json!({
+            "errors": []
+        });
+        assert_eq!(extract_graphql_errors(&empty_err_json), None);
+
+        let no_err_json = serde_json::json!({
+            "data": { "viewer": {} }
+        });
+        assert_eq!(extract_graphql_errors(&no_err_json), None);
     }
 }
