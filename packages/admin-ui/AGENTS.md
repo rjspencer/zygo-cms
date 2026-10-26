@@ -1,6 +1,6 @@
 # Admin UI Frontend Guidelines
 
-Skills: `react-code`, `refactor-react-component-into-module`, `webmcp-parity-audit`, `ui-qa-handoff`.
+Skills: `react-code`, `refactor-react-component-into-module`, `react-testing-library`, `webmcp-parity-audit`, `ui-qa-handoff`.
 
 ## 1. UI Component Development & Storybook (1+2+4 Protocol)
 - **Component Isolation**: When adding or updating visual components, create a corresponding Storybook file (`.stories.tsx`) in the same directory or alongside existing stories.

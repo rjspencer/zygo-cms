@@ -33,7 +33,7 @@ Any feature or API added or changed in `admin-ui` or `admin-api-worker` must be 
 | Need | Go to |
 | :--- | :--- |
 | Commit, branch, PR workflow | skill `commit` |
-| Writing/refactoring React in admin-ui | skills `react-code`, `refactor-react-component-into-module` |
+| Writing/refactoring React in admin-ui | skills `react-code`, `refactor-react-component-into-module`, `react-testing-library` |
 | Visual UI change QA, subagent waves | skill `ui-qa-handoff` |
 | WebMCP tools / editor parity | skill `webmcp-parity-audit` |
 | Public site CSS, tokens, section templates | skill `zygo-theming` |
