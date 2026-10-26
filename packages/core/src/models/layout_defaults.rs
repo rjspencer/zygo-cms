@@ -28,6 +28,9 @@ pub const DEFAULT_POST_HTML: &str = r##"<!DOCTYPE html>
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
     {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
@@ -185,6 +188,9 @@ pub const DEFAULT_PAGE_HTML: &str = r##"<!DOCTYPE html>
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
     {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
@@ -285,6 +291,9 @@ pub const DEFAULT_DOC_HTML: &str = r##"<!DOCTYPE html>
     {% endif %}
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
+    {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
     {% endif %}
 </head>
 <body class="docs-page">
