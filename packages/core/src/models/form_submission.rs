@@ -187,6 +187,8 @@ impl UpdateFormSubmissionStatus {
 #[serde(default)]
 pub struct SubmissionStats {
     pub unread_count: i64,
+    pub read_count: i64,
+    pub archived_count: i64,
     pub total_count: i64,
 }
 
@@ -360,11 +362,15 @@ mod tests {
     fn test_submission_stats_defaults() {
         let stats = SubmissionStats::default();
         assert_eq!(stats.unread_count, 0);
+        assert_eq!(stats.read_count, 0);
+        assert_eq!(stats.archived_count, 0);
         assert_eq!(stats.total_count, 0);
 
-        let json = r#"{"unread_count": 5, "total_count": 12}"#;
+        let json = r#"{"unread_count": 5, "read_count": 4, "archived_count": 3, "total_count": 12}"#;
         let s: SubmissionStats = serde_json::from_str(json).expect("should deserialize");
         assert_eq!(s.unread_count, 5);
+        assert_eq!(s.read_count, 4);
+        assert_eq!(s.archived_count, 3);
         assert_eq!(s.total_count, 12);
     }
 
@@ -415,14 +421,14 @@ mod tests {
           <label for="contact-message" class="contact-form-label">Message <span class="required-mark">*</span></label>
           <textarea id="contact-message" name="message" class="contact-form-textarea" rows="5" required placeholder="Write your message here..."></textarea>
         </div>
+        <div class="contact-form-error zygo-form-error" style="display: none;" role="alert" aria-live="assertive"></div>
         <div class="contact-form-actions">
           <button type="submit" class="contact-form-btn">{{ submit_label }}</button>
         </div>
-        {% if success_message %}
-        <div class="contact-form-status" style="display: none;" role="status">
-          <p>{{ success_message }}</p>
+        <div class="contact-form-status zygo-form-status" style="display: none;" role="status" aria-live="polite">
+          <div class="zygo-form-status-icon" aria-hidden="true">&#10003;</div>
+          <p>{% if success_message %}{{ success_message }}{% else %}Thank you for your submission.{% endif %}</p>
         </div>
-        {% endif %}
       </form>
     </div>
   </div>
@@ -458,11 +464,11 @@ mod tests {
         <input type="email" id="newsletter-email" name="sender_email" class="newsletter-input" required placeholder="Enter your email address">
         <button type="submit" class="newsletter-btn">{{ submit_label }}</button>
       </div>
-      {% if success_message %}
-      <div class="newsletter-status" style="display: none;" role="status">
-        <p>{{ success_message }}</p>
+      <div class="newsletter-error zygo-form-error" style="display: none;" role="alert" aria-live="assertive"></div>
+      <div class="newsletter-status zygo-form-status" style="display: none;" role="status" aria-live="polite">
+        <div class="zygo-form-status-icon" aria-hidden="true">&#10003;</div>
+        <p>{% if success_message %}{{ success_message }}{% else %}Thank you for subscribing!{% endif %}</p>
       </div>
-      {% endif %}
     </form>
   </div>
 </section>"#;

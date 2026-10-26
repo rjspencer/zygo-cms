@@ -146,7 +146,9 @@ pub async fn delete(db: &D1Database, id: i64) -> Result<bool> {
 pub async fn get_stats(db: &D1Database) -> Result<SubmissionStats> {
     let query = "SELECT \
         COUNT(id) as total_count, \
-        COALESCE(SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END), 0) as unread_count \
+        COALESCE(SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END), 0) as unread_count, \
+        COALESCE(SUM(CASE WHEN status = 'read' THEN 1 ELSE 0 END), 0) as read_count, \
+        COALESCE(SUM(CASE WHEN status = 'archived' THEN 1 ELSE 0 END), 0) as archived_count \
         FROM form_submissions";
     let statement = db.prepare(query);
     let stats = statement

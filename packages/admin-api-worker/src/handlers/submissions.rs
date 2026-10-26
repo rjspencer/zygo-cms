@@ -74,11 +74,15 @@ pub async fn list_submissions(req: Request, ctx: RouteContext<()>) -> Result<Res
     )
     .await?;
 
+    let total_pages = ((total + per_page - 1) / per_page).max(1);
+
     Response::from_json(&serde_json::json!({
         "items": items,
+        "submissions": items,
         "total": total,
         "page": page,
-        "per_page": per_page
+        "per_page": per_page,
+        "total_pages": total_pages
     }))
 }
 
@@ -94,6 +98,8 @@ pub async fn get_submission_stats(req: Request, ctx: RouteContext<()>) -> Result
 
     Response::from_json(&serde_json::json!({
         "unread_count": stats.unread_count,
+        "read_count": stats.read_count,
+        "archived_count": stats.archived_count,
         "total_count": stats.total_count
     }))
 }
