@@ -28,6 +28,9 @@ const DEFAULT_INDEX: &str = r##"<!DOCTYPE html>
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
     {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
@@ -118,6 +121,9 @@ const DEFAULT_POST: &str = r##"<!DOCTYPE html>
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
     {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
+    {% endif %}
 </head>
 <body>
     <a href="#main-content" class="skip-link">Skip to content</a>
@@ -198,6 +204,9 @@ const DEFAULT_PAGE: &str = r##"<!DOCTYPE html>
     {% endif %}
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
+    {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
     {% endif %}
 </head>
 <body>
@@ -292,6 +301,9 @@ const DEFAULT_SEARCH: &str = r##"<!DOCTYPE html>
     {% endif %}
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
+    {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
     {% endif %}
 </head>
 <body>
@@ -410,6 +422,9 @@ const DEFAULT_DOC: &str = r##"<!DOCTYPE html>
     {% endif %}
     {% if theme_fouc_script %}
     {{ theme_fouc_script|safe }}
+    {% endif %}
+    {% if analytics_site_tag %}
+    <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "{{ analytics_site_tag }}"}'></script>
     {% endif %}
 </head>
 <body class="docs-page">
@@ -1003,6 +1018,23 @@ pub fn inject_theme_context(
                 raw_img.to_string()
             };
             ctx.insert("og_image".to_string(), serde_json::Value::String(resolved));
+        }
+    }
+
+    let is_preview = ctx.get("is_preview").and_then(|v| v.as_bool()).unwrap_or(false);
+    let analytics_enabled = settings
+        .and_then(|s| s.get("analytics_enabled").map(|v| v.as_str()))
+        .map(|v| v == "true")
+        .unwrap_or(false);
+
+    if analytics_enabled && !is_preview {
+        if let Some(tag) = settings.and_then(|s| s.get("analytics_site_tag").map(|v| v.trim())) {
+            if !tag.is_empty() {
+                ctx.insert(
+                    "analytics_site_tag".to_string(),
+                    serde_json::Value::String(tag.to_string()),
+                );
+            }
         }
     }
 }
@@ -3507,6 +3539,196 @@ mod tests {
         .unwrap();
 
         assert!(html.contains(r#"<link rel="icon" href="/media/custom-fav.png">"#));
+    }
+
+    #[test]
+    fn test_analytics_beacon_injected_when_enabled() {
+        let mut settings = std::collections::HashMap::new();
+        settings.insert("analytics_enabled".to_string(), "true".to_string());
+        settings.insert(
+            "analytics_site_tag".to_string(),
+            "cf-test-token-123".to_string(),
+        );
+
+        let expected_snippet = r#"<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "cf-test-token-123"}'></script>"#;
+
+        // 1. render_index
+        let index_html = render_index(
+            &[],
+            &[dummy_post()],
+            "https://example.com",
+            None,
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert!(
+            index_html.contains(expected_snippet),
+            "render_index should contain beacon script"
+        );
+
+        // 2. render_post
+        let post_html = render_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert!(
+            post_html.contains(expected_snippet),
+            "render_post should contain beacon script"
+        );
+
+        // 3. render_page
+        let page_html = render_page(
+            &[],
+            &dummy_page(),
+            "https://example.com",
+            &[],
+            &[],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert!(
+            page_html.contains(expected_snippet),
+            "render_page should contain beacon script"
+        );
+
+        // 4. render_doc
+        let doc = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_nav = dummy_doc(1, "Guide", "guide", "<p>Doc body</p>");
+        let doc_html = render_doc(
+            &[],
+            &doc,
+            &[doc_nav],
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert!(
+            doc_html.contains(expected_snippet),
+            "render_doc should contain beacon script"
+        );
+
+        // 5. render_search_html
+        let search_html = render_search_html(
+            &[],
+            "test query",
+            &[dummy_post()],
+            &[],
+            &[],
+            Some(&settings),
+            None,
+        )
+        .unwrap();
+        assert!(
+            search_html.contains(expected_snippet),
+            "render_search_html should contain beacon script"
+        );
+    }
+
+    #[test]
+    fn test_analytics_beacon_omitted_when_disabled_or_empty_or_preview() {
+        let rev = EntryRevision {
+            id: 1,
+            entry_id: 1,
+            title: "Draft Post".to_string(),
+            description: None,
+            cover_image: None,
+            category: None,
+            tags: None,
+            body_html: "<p>Draft body</p>".to_string(),
+            body_json: "{}".to_string(),
+            custom_fields_json: None,
+            created_at: "2026-10-25 12:00:00".to_string(),
+            preview_token: "token-123".to_string(),
+        };
+
+        // Case 1: analytics_enabled = "false"
+        let mut settings_disabled = std::collections::HashMap::new();
+        settings_disabled.insert("analytics_enabled".to_string(), "false".to_string());
+        settings_disabled.insert(
+            "analytics_site_tag".to_string(),
+            "cf-test-token-123".to_string(),
+        );
+
+        let html1 = render_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings_disabled),
+            None,
+        )
+        .unwrap();
+        assert!(!html1.contains("beacon.min.js"));
+
+        // Case 2: analytics_site_tag = ""
+        let mut settings_empty_tag = std::collections::HashMap::new();
+        settings_empty_tag.insert("analytics_enabled".to_string(), "true".to_string());
+        settings_empty_tag.insert("analytics_site_tag".to_string(), "".to_string());
+
+        let html2 = render_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &[],
+            &[],
+            Some(&settings_empty_tag),
+            None,
+        )
+        .unwrap();
+        assert!(!html2.contains("beacon.min.js"));
+
+        // Case 3: render_preview_post
+        let mut settings_enabled = std::collections::HashMap::new();
+        settings_enabled.insert("analytics_enabled".to_string(), "true".to_string());
+        settings_enabled.insert(
+            "analytics_site_tag".to_string(),
+            "cf-test-token-123".to_string(),
+        );
+
+        let preview_post_html = render_preview_post(
+            &[],
+            &dummy_post(),
+            "https://example.com",
+            &rev,
+            &[],
+            &[],
+            Some(&settings_enabled),
+            None,
+        )
+        .unwrap();
+        assert!(!preview_post_html.contains("beacon.min.js"));
+
+        // Case 4: render_preview_page
+        let preview_page_html = render_preview_page(
+            &[],
+            &dummy_page(),
+            "https://example.com",
+            &[],
+            &[],
+            &rev,
+            &[],
+            &[],
+            Some(&settings_enabled),
+            None,
+        )
+        .unwrap();
+        assert!(!preview_page_html.contains("beacon.min.js"));
     }
 }
 

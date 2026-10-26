@@ -464,18 +464,30 @@ export const tools = [
     // ==========================================
     {
         name: "zygo_get_settings",
-        description: "Get all site settings including branding (site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics.",
+        description: "Get all site settings including branding (site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text), canonical_origin, docs, and analytics (analytics_enabled, analytics_site_tag).",
         inputSchema: { type: "object", properties: {} }
     },
     {
         name: "zygo_update_settings",
-        description: "Update site settings in the backend (e.g. site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text, canonical_origin, docs_path).",
+        description: "Update site settings in the backend (e.g. site_title, site_logo, site_logo_dark, site_favicon, default_og_image, footer_text, canonical_origin, docs_path, analytics_enabled, analytics_site_tag).",
         inputSchema: {
             type: "object",
             properties: {
                 settings: {
                     type: "object",
-                    description: "Key-value map of settings to update (e.g. { site_logo: 'https://...', site_logo_dark: 'https://...', footer_text: '© 2026' })"
+                    description: "Key-value map of settings to update (e.g. { site_logo: 'https://...', analytics_enabled: 'true', analytics_site_tag: 'cfa123' })",
+                    properties: {
+                        site_title: { type: "string", description: "Site title" },
+                        site_logo: { type: "string", description: "Public URL to site logo" },
+                        site_logo_dark: { type: "string", description: "Public URL to dark mode site logo" },
+                        site_favicon: { type: "string", description: "Public URL to site favicon" },
+                        default_og_image: { type: "string", description: "Public URL to default Open Graph image" },
+                        footer_text: { type: "string", description: "Footer markdown or plain text" },
+                        canonical_origin: { type: "string", description: "Primary public domain / origin" },
+                        docs_path: { type: "string", description: "Documentation root URL path" },
+                        analytics_enabled: { type: "string", description: 'Enable or disable analytics tracking ("true" or "false")' },
+                        analytics_site_tag: { type: "string", description: "Cloudflare Web Analytics Site Tag / token for RUM tracking" }
+                    }
                 }
             },
             required: ["settings"]

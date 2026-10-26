@@ -11,6 +11,7 @@ const defaultValues: SettingsFormValues = {
   canonicalOrigin: 'https://example.com',
   description: 'Test',
   analyticsEnabled: false,
+  analyticsSiteTag: '',
   docsModeEnabled: false,
   docsPath: '/docs',
   siteLogo: '',

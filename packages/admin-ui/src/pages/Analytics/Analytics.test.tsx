@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Analytics } from './Analytics';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
+import { MemoryRouter } from 'react-router-dom';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
@@ -22,11 +24,13 @@ const createTestQueryClient = () =>
 const renderAnalytics = () => {
   const queryClient = createTestQueryClient();
   return render(
-    <QueryClientProvider client={queryClient}>
-      <Theme>
-        <Analytics />
-      </Theme>
-    </QueryClientProvider>
+    <MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <Analytics />
+        </Theme>
+      </QueryClientProvider>
+    </MemoryRouter>
   );
 };
 
@@ -68,8 +72,8 @@ describe('Analytics Page', () => {
     });
 
     expect(screen.getByText('151.7k')).toBeDefined();
-    expect(screen.getByText('/')).toBeDefined();
-    expect(screen.getByText('US')).toBeDefined();
+    expect(screen.getAllByText('/')[0]).toBeDefined();
+    expect(screen.getAllByText('US')[0]).toBeDefined();
     expect(screen.getByText('Real-time Edge')).toBeDefined();
   });
 
@@ -86,6 +90,40 @@ describe('Analytics Page', () => {
     });
   });
 
+  it('renders error state with details when API returns 502 with error message', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: false,
+      status: 502,
+      json: async () => ({
+        error: 'Cloudflare GraphQL query timed out',
+      }),
+    });
+
+    renderAnalytics();
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load analytics data.')).toBeDefined();
+      expect(screen.getByText('Cloudflare GraphQL query timed out')).toBeDefined();
+    });
+  });
+
+  it('renders error state when GraphQL response contains errors array', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        errors: [{ message: 'Field "unknownField" does not exist' }],
+      }),
+    });
+
+    renderAnalytics();
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to load analytics data.')).toBeDefined();
+      expect(screen.getByText('Field "unknownField" does not exist')).toBeDefined();
+    });
+  });
+
   it('renders setup message with Cloudflare dashboard link when analytics returns 403', async () => {
     (apiFetch as any).mockResolvedValueOnce({
       ok: false,
@@ -99,5 +137,109 @@ describe('Analytics Page', () => {
     });
     expect(screen.getByText('Cloudflare Dashboard')).toBeDefined();
     expect(screen.getByText('Disabled')).toBeDefined();
+  });
+
+  it('renders configuration guide when missing credentials', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        missing_credentials: true,
+      }),
+    });
+
+    renderAnalytics();
+
+    await waitFor(() => {
+      expect(screen.getByText('Cloudflare Analytics Not Configured')).toBeDefined();
+    });
+    expect(screen.getByText(/CF_API_TOKEN/)).toBeDefined();
+    expect(screen.getByText('Configure in Site Settings')).toBeDefined();
+  });
+
+  it('renders dual analytics data with RUM metrics and Edge metrics tab switching', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rum_configured: true,
+        edge_configured: true,
+        rum: {
+          groups: [
+            {
+              count: 12000,
+              dimensions: { requestPath: '/blog/first-post', countryName: 'United States' },
+            },
+          ],
+        },
+        edge: {
+          groups: [
+            {
+              count: 50000,
+              sum: { edgeResponseBytes: 10485760 },
+              dimensions: { clientRequestPath: '/api/v1', clientCountryName: 'Germany' },
+            },
+          ],
+        },
+      }),
+    });
+
+    renderAnalytics();
+
+    await waitFor(() => {
+      expect(screen.getByText('Total Page Views')).toBeDefined();
+    });
+
+    expect(screen.getAllByText('12.0k')[0]).toBeDefined();
+    expect(screen.getAllByText('/blog/first-post')[0]).toBeDefined();
+    expect(screen.getAllByText('United States')[0]).toBeDefined();
+
+    // Switch to Edge Infrastructure tab
+    const edgeTab = screen.getByRole('tab', { name: /edge infrastructure/i });
+    await userEvent.click(edgeTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Total Edge Requests')).toBeDefined();
+    });
+    expect(screen.getAllByText('50.0k')[0]).toBeDefined();
+    expect(screen.getAllByText('10.0 MB')[0]).toBeDefined();
+    expect(screen.getAllByText('/api/v1')[0]).toBeDefined();
+    expect(screen.getAllByText('Germany')[0]).toBeDefined();
+  });
+
+  it('renders RUM unconfigured prompt banner and displays edge metrics when rum_configured is false', async () => {
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        rum_configured: false,
+        edge_configured: true,
+        rum: { groups: [] },
+        edge: {
+          groups: [
+            {
+              count: 25000,
+              sum: { edgeResponseBytes: 5242880 },
+              dimensions: { clientRequestPath: '/home', clientCountryName: 'Canada' },
+            },
+          ],
+        },
+      }),
+    });
+
+    renderAnalytics();
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Cloudflare Web Analytics Site Tag is not configured/i)
+      ).toBeDefined();
+    });
+
+    // In default rendered view, Edge metrics are shown
+    expect(screen.getByText('Total Edge Requests')).toBeDefined();
+    expect(screen.getAllByText('25.0k')[0]).toBeDefined();
+    expect(screen.getAllByText('5.0 MB')[0]).toBeDefined();
+    expect(screen.getAllByText('/home')[0]).toBeDefined();
+    expect(screen.getAllByText('Canada')[0]).toBeDefined();
   });
 });

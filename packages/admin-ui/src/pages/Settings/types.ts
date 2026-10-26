@@ -5,6 +5,7 @@ export interface SettingsFormValues {
   canonicalOrigin: string;
   description: string;
   analyticsEnabled: boolean;
+  analyticsSiteTag: string;
   docsModeEnabled: boolean;
   docsPath: string;
   siteLogo: string;
@@ -23,6 +24,7 @@ export interface SettingsApiResponse {
   canonical_origin?: string;
   description?: string;
   analytics_enabled?: string;
+  analytics_site_tag?: string;
   docs_mode_enabled?: string;
   docs_path?: string;
   site_logo?: string;

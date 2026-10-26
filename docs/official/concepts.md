@@ -261,11 +261,12 @@ All uploaded assets are managed through the Media Library (`/media`) backed by C
 - **Edge Variant Resolution:** Public and Admin Worker media endpoints resolve `?size=thumb` and `?size=md` with automatic fallback to the master image if a tier is omitted.
 - **TipTap & MiniJinja Integration:** The rich-text editor automatically inserts `?size=md` with explicit sizing attributes (`width="1024" style="max-width: 100%"`). In MiniJinja templates, the `{{ image|media_srcset|safe }}` filter automatically expands media URLs into full responsive `srcset` markup.
 
-## Site Branding & Strict Dual-Mode Logo Synchronization
+## Site Branding & Settings Key-Value Store
 
-Global site presentation and identity are managed via the `settings` key-value store and the `themes` table (see [Themes & Dual-Mode Styling](themes.md)):
+Global site presentation, branding, and operational flags are managed via the key-value `settings` table and the `themes` table (see [Themes & Dual-Mode Styling](themes.md)):
 
 - **Branding Assets:** Configure `site_logo`, `site_logo_dark`, `site_favicon`, `default_og_image`, `footer_text`, and optional `site_tagline`.
+- **Analytics Flags:** `analytics_enabled` (`"true"` / `"false"`) toggles visitor tracking, while `analytics_site_tag` holds the Cloudflare Web Analytics token injected into public layout templates.
 - **Strict Theme-Synchronized Logo Display:** When both light and dark logos are configured, the public SSR worker renders dual logo markup:
   ```html
   <img src="{{ site_logo|safe }}" alt="{{ site_title }}" class="site-logo site-logo-light">
@@ -313,6 +314,16 @@ Zygo CMS includes native integration with Cloudflare Bot Management AI crawl con
   - `Allow AI Search`: Permits citation and search-indexing bots (e.g., Perplexity, OpenAI SearchBot) while disallowing bulk training crawlers.
   - `Allow All`: Unrestricted crawling for all documented AI bots.
 - **Granular Rules:** Fine-tune specific protections across `ai_bots_protection`, `ai_search`, `ai_training`, and `ai_user` rules directly from the CMS without having to log into the Cloudflare dashboard.
+
+## Cloudflare Dual Analytics (RUM + Edge HTTP)
+
+Zygo CMS features a privacy-first, zero-cookie analytics architecture combining client-side Real User Monitoring (RUM) with Cloudflare edge network telemetry:
+
+- **Privacy-First RUM Beacon Injection:** When `analytics_enabled` is set to `"true"` and `analytics_site_tag` is configured in `settings`, the Public SSR Worker automatically injects Cloudflare's lightweight `beacon.min.js` script tag across all rendered pages before `</body>`.
+- **Live Preview Beacon Suppression:** RUM tracking beacons are strictly suppressed during administrative live previews in `public-worker` and `template-wasm` (e.g., within Admin UI content and theme editor split panes), preventing editing activity from skewing production metrics.
+- **Dual Telemetry Dashboard (`/analytics`):**
+  - **Visitor Traffic (RUM):** Queries Cloudflare Web Analytics via GraphQL `rumPageloadEventsAdaptiveGroups` (scoped to `CF_ACCOUNT_ID`) to surface real human pageviews, top visited paths, unique URLs, and country distribution without setting cookies or tracking personal data.
+  - **Edge Infrastructure:** Queries Cloudflare Zone telemetry via GraphQL `httpRequestsAdaptiveGroups` (scoped to `CF_ZONE_ID`) to track raw edge requests, bandwidth usage, bot traffic, and caching efficiency.
 
 ## AI Agent Parity (WebMCP & `zygo-mcp`)
 

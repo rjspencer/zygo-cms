@@ -19,9 +19,10 @@ Before provisioning resources or deploying, you need to authenticate your local 
      - `Zone:Zone:Read`
      - `Zone:Cache Purge:Edit`
 
-Zygo's global caching architecture requires the Zone ID and API Token to broadcast instant cache invalidation signals to all 300+ data centers whenever you publish or update an article. Add these keys to your `.dev.vars` (for local testing) and your Cloudflare Worker secrets (for production):
-- `CF_ZONE_ID`
-- `CF_API_TOKEN`
+Zygo's global caching architecture and dual analytics dashboard require the Zone ID, Account ID, and API Token to broadcast instant cache invalidation signals and query edge/RUM metrics. Add these keys to your `.dev.vars` (for local testing) and your Cloudflare Worker secrets (for production):
+- `CF_ZONE_ID`: Cloudflare Zone ID for your domain (powers Edge HTTP request analytics and edge cache purging).
+- `CF_ACCOUNT_ID`: Cloudflare Account ID (powers Cloudflare Web Analytics / RUM pageload telemetry via the Cloudflare GraphQL API).
+- `CF_API_TOKEN`: Cloudflare API Token with read access for Analytics (`Analytics:Read`) and edit access for cache purging (`Zone:Cache Purge:Edit`).
 
 ## 2. Production Provisioning
 

@@ -167,6 +167,7 @@ describe('Settings component', () => {
             canonical_origin: 'https://test.example.com',
             description: 'Test Description',
             analytics_enabled: 'false',
+            analytics_site_tag: '',
             docs_mode_enabled: 'false',
             docs_path: '/docs',
             site_logo: '',
@@ -309,6 +310,15 @@ describe('Settings component', () => {
     const analyticsDesc = document.getElementById('settings-analytics-description');
     expect(analyticsDesc).toBeDefined();
     expect(analyticsDesc?.textContent).toContain('Enable pageview tracking');
+
+    // Cloudflare Web Analytics Site Tag / Token
+    const analyticsSiteTagInput = screen.getByLabelText('Cloudflare Web Analytics Site Tag / Token');
+    expect(analyticsSiteTagInput).toBeDefined();
+    expect(analyticsSiteTagInput.getAttribute('id')).toBe('settings-analytics-site-tag');
+    expect(analyticsSiteTagInput.getAttribute('aria-describedby')).toBe('settings-analytics-site-tag-desc');
+    const analyticsSiteTagDesc = document.getElementById('settings-analytics-site-tag-desc');
+    expect(analyticsSiteTagDesc).toBeDefined();
+    expect(analyticsSiteTagDesc?.textContent).toContain('Obtained from the Cloudflare Dashboard');
 
     // Docs Mode Switch
     const docsSwitch = screen.getByLabelText('Enable Docs Mode');
@@ -592,6 +602,63 @@ describe('Settings component', () => {
           }),
         })
       );
+    });
+  });
+
+  it('saves analytics_site_tag correctly when changed and saved', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        site_title: 'Test Title',
+        canonical_origin: 'https://test.example.com',
+        description: 'Test Description',
+        analytics_enabled: 'true',
+        analytics_site_tag: 'initial-tag-123',
+      }),
+    });
+
+    const queryClient = createTestQueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <SettingsWithRouter />
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('initial-tag-123')).toBeTruthy();
+    });
+
+    const siteTagInput = screen.getByLabelText('Cloudflare Web Analytics Site Tag / Token');
+    await userEvent.clear(siteTagInput);
+    await userEvent.type(siteTagInput, 'updated-tag-456');
+
+    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    await userEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            site_title: 'Test Title',
+            canonical_origin: 'https://test.example.com',
+            description: 'Test Description',
+            analytics_enabled: 'true',
+            analytics_site_tag: 'updated-tag-456',
+            docs_mode_enabled: 'false',
+            docs_path: '/docs',
+            site_logo: '',
+            site_logo_dark: '',
+            site_favicon: '',
+            default_og_image: '',
+            footer_text: '',
+          },
+        }),
+      });
     });
   });
 });
