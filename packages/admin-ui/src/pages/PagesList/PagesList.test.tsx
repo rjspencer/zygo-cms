@@ -1,4 +1,5 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import '../../test/setup';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PagesList } from './PagesList';
@@ -111,21 +112,24 @@ describe('PagesList component', () => {
 
     renderPagesList();
 
-    expect(screen.getByRole('heading', { name: 'Pages' })).toBeDefined();
-    expect(screen.getByText('Manage static and landing pages for your site')).toBeDefined();
-    expect(screen.getByPlaceholderText('Search pages by title or slug...')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Pages' }).textContent).toBe('Pages');
+    expect(screen.getByText('Manage static and landing pages for your site').textContent).toBe(
+      'Manage static and landing pages for your site'
+    );
+    expect(
+      screen.getByRole('textbox', { name: /search pages by title or slug/i }).getAttribute('value')
+    ).toBe('');
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-      expect(screen.getByText('/about')).toBeDefined();
-      expect(screen.getByText('Contact')).toBeDefined();
-      expect(screen.getByText('/contact')).toBeDefined();
-      // Should filter out non-page types
-      expect(screen.queryByText('Ignore Me Post')).toBeNull();
-    });
+    await screen.findByText('About Us');
+    expect(screen.getByText('/about').textContent).toBe('/about');
+    expect(screen.getByText('Contact').textContent).toBe('Contact');
+    expect(screen.getByText('/contact').textContent).toBe('/contact');
+    // Should filter out non-page types
+    expect(screen.queryByText('Ignore Me Post')).toBeNull();
   });
 
   it('filters pages based on search input', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockPagesData,
@@ -133,17 +137,17 @@ describe('PagesList component', () => {
 
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
-    const searchInput = screen.getByPlaceholderText('Search pages by title or slug...');
-    fireEvent.change(searchInput, { target: { value: 'contact' } });
+    const searchInput = screen.getByRole('textbox', { name: /search pages by title or slug/i });
+    await user.click(searchInput);
+    await user.paste('contact');
+    expect((searchInput as HTMLInputElement).value).toBe('contact');
 
     await waitFor(() => {
       expect(screen.queryByText('About Us')).toBeNull();
-      expect(screen.getByText('Contact')).toBeDefined();
     });
+    expect(screen.getByText('Contact').textContent).toBe('Contact');
   });
 
   it('initializes search input from URL search param', async () => {
@@ -154,10 +158,11 @@ describe('PagesList component', () => {
 
     renderPagesList(['/pages?q=About']);
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-      expect(screen.queryByText('Contact')).toBeNull();
-    });
+    await screen.findByText('About Us');
+    expect(
+      screen.getByRole('textbox', { name: /search pages by title or slug/i }).getAttribute('value')
+    ).toBe('About');
+    expect(screen.queryByText('Contact')).toBeNull();
   });
 
   it('navigates to create new page on button click', async () => {
@@ -184,11 +189,9 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     const { router } = renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
-    const editButtons = screen.getAllByTitle('Edit Page');
+    const editButtons = screen.getAllByRole('button', { name: 'Edit Page' });
     await user.click(editButtons[0]);
 
     expect(router.state.location.pathname).toBe('/pages/editor/1');
@@ -204,11 +207,9 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
-    const viewButtons = screen.getAllByTitle('View Public Page');
+    const viewButtons = screen.getAllByRole('button', { name: 'View Public Page' });
     await user.click(viewButtons[0]);
 
     expect(windowOpenSpy).toHaveBeenCalledWith('https://example.com/about', '_blank');
@@ -224,21 +225,25 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
-    const deleteButtons = screen.getAllByTitle('Delete Page');
-    await user.click(deleteButtons[0]);
+    const deleteButton = screen.getByRole('button', { name: 'Delete About Us' });
+    await user.click(deleteButton);
 
     // Check dialog appears
-    expect(screen.getByRole('heading', { name: 'Delete Page' })).toBeDefined();
-    expect(screen.getByText(/Are you sure you want to delete “About Us”?/i)).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Delete Page' }).textContent).toBe('Delete Page');
+    expect(
+      screen.getByText(/Are you sure you want to delete “About Us”?/i).textContent
+    ).toContain('Are you sure you want to delete “About Us”?');
 
-    // Mock delete API response
+    // Mock delete API response and subsequent query refetch
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       text: async () => 'OK',
+    });
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPagesData.filter((p) => p.id !== 1),
     });
 
     const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
@@ -246,6 +251,13 @@ describe('PagesList component', () => {
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/entries/1', { method: 'DELETE' });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('About Us')).toBeNull();
     });
   });
 
@@ -258,20 +270,18 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
-    const deleteButtons = screen.getAllByTitle('Delete Page');
-    await user.click(deleteButtons[0]);
+    const deleteButton = screen.getByRole('button', { name: 'Delete About Us' });
+    await user.click(deleteButton);
 
-    expect(screen.getByRole('heading', { name: 'Delete Page' })).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Delete Page' }).textContent).toBe('Delete Page');
 
     const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
     await user.click(cancelBtn);
 
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'Delete Page' })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 
@@ -291,13 +301,11 @@ describe('PagesList component', () => {
 
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Home')).toBeDefined();
-    });
+    await screen.findByText('Home');
 
-    const homeDeleteBtn = screen.getByTitle('The Home page cannot be deleted') as HTMLButtonElement;
-    expect(homeDeleteBtn).toBeDefined();
-    expect(homeDeleteBtn.disabled).toBe(true);
+    const homeDeleteBtn = screen.getByRole('button', { name: 'Delete Home' });
+    expect(homeDeleteBtn.getAttribute('title')).toBe('The Home page cannot be deleted');
+    expect(homeDeleteBtn.hasAttribute('disabled')).toBe(true);
   });
 
   it('selects multiple pages and executes bulk publish operation', async () => {
@@ -309,31 +317,33 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
     // Bulk bar not visible initially
-    expect(screen.queryByTestId('bulk-action-bar')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Bulk actions toolbar' })).toBeNull();
 
     // Select first page
-    const pageCheckbox = screen.getByTestId('select-page-1');
+    const pageCheckbox = screen.getByRole('checkbox', { name: 'Select page About Us' });
     await user.click(pageCheckbox);
 
     // Bulk action bar appears
-    expect(screen.getByTestId('bulk-action-bar')).toBeDefined();
-    expect(screen.getByText('1 item selected')).toBeDefined();
+    expect(screen.getByRole('region', { name: 'Bulk actions toolbar' })).toBeTruthy();
+    expect(screen.getByText('1 item selected').textContent).toBe('1 item selected');
 
     // Select all pages using header checkbox
     const selectAllCheckbox = screen.getByRole('checkbox', { name: /select all pages/i });
     await user.click(selectAllCheckbox);
 
-    expect(screen.getByText('2 items selected')).toBeDefined();
+    expect(screen.getByText('2 items selected').textContent).toBe('2 items selected');
 
-    // Mock bulk API response
+    // Mock bulk API response and subsequent query refetch
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, affected: 2, skipped: 0, errors: [] }),
+    });
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPagesData.map((p) => ({ ...p, status: 'published' })),
     });
 
     const publishBtn = screen.getByRole('button', { name: /bulk publish/i });
@@ -348,6 +358,10 @@ describe('PagesList component', () => {
         })
       );
     });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Bulk actions toolbar' })).toBeNull();
+    });
   });
 
   it('executes bulk trash operation on selected pages', async () => {
@@ -359,12 +373,10 @@ describe('PagesList component', () => {
     const user = userEvent.setup();
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-    });
+    await screen.findByText('About Us');
 
     // Select second page
-    const pageCheckbox = screen.getByTestId('select-page-2');
+    const pageCheckbox = screen.getByRole('checkbox', { name: 'Select page Contact' });
     await user.click(pageCheckbox);
 
     // Click Move to Trash in Bulk bar
@@ -372,12 +384,21 @@ describe('PagesList component', () => {
     await user.click(trashBtn);
 
     // Confirm dialog appears
-    expect(screen.getByText(/Are you sure you want to move 1 entry to the trash/i)).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Move Entries to Trash' }).textContent).toBe(
+      'Move Entries to Trash'
+    );
+    expect(
+      screen.getByText(/Are you sure you want to move 1 entry to the trash/i).textContent
+    ).toContain('Are you sure you want to move 1 entry to the trash?');
 
-    // Mock bulk trash response
+    // Mock bulk trash response and subsequent query refetch
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ success: true, affected: 1, skipped: 0, errors: [] }),
+    });
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPagesData.filter((p) => p.id !== 2),
     });
 
     const confirmTrashBtn = screen.getByRole('button', { name: /confirm move to trash/i });
@@ -392,6 +413,13 @@ describe('PagesList component', () => {
         })
       );
     });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Contact')).toBeNull();
+    });
   });
 
   it('filters pages based on status tab click', async () => {
@@ -403,19 +431,17 @@ describe('PagesList component', () => {
 
     renderPagesList();
 
-    await waitFor(() => {
-      expect(screen.getByText('About Us')).toBeDefined();
-      expect(screen.getByText('In Review Page')).toBeDefined();
-    });
+    await screen.findByText('About Us');
+    expect(screen.getByText('In Review Page').textContent).toBe('In Review Page');
 
-    const inReviewTab = screen.getByTestId('status-tab-in_review');
+    const inReviewTab = screen.getByRole('tab', { name: /in review/i });
     await user.click(inReviewTab);
 
     await waitFor(() => {
-      expect(screen.getByText('In Review Page')).toBeDefined();
       expect(screen.queryByText('About Us')).toBeNull();
       expect(screen.queryByText('Contact')).toBeNull();
     });
+    expect(screen.getByText('In Review Page').textContent).toBe('In Review Page');
   });
 
   it('filters pages based on URL status param', async () => {
@@ -426,11 +452,9 @@ describe('PagesList component', () => {
 
     renderPagesList(['/pages?status=ready_for_publish']);
 
-    await waitFor(() => {
-      expect(screen.getByText('Ready Page')).toBeDefined();
-      expect(screen.queryByText('About Us')).toBeNull();
-      expect(screen.queryByText('In Review Page')).toBeNull();
-    });
+    await screen.findByText('Ready Page');
+    expect(screen.queryByText('About Us')).toBeNull();
+    expect(screen.queryByText('In Review Page')).toBeNull();
   });
 
   it('renders correct badge colors for workflow statuses', async () => {
@@ -441,15 +465,14 @@ describe('PagesList component', () => {
 
     renderPagesList();
 
-    await waitFor(() => {
-      const inReviewBadge = screen.getByText('in review');
-      expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
+    await screen.findByText('in review');
+    const inReviewBadge = screen.getByText('in review');
+    expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
 
-      const readyBadge = screen.getByText('ready for publish');
-      expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
+    const readyBadge = screen.getByText('ready for publish');
+    expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
 
-      const archivedBadge = screen.getByText('archived');
-      expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
-    });
+    const archivedBadge = screen.getByText('archived');
+    expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
   });
 });

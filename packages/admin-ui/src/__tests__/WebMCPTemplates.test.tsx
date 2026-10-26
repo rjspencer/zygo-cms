@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { WebMCPRegistry } from '../lib/webmcp/registry';
 import { WebMCPProvider } from '../providers/WebMCPProvider';
@@ -555,15 +555,15 @@ describe('WebMCP Section Templates (Phase 3)', () => {
         </WebMCPProvider>
       );
 
-      expect(registry.getTool('template_get_active')).toBeDefined();
-      expect(registry.getTool('template_update_markup')).toBeDefined();
-      expect(registry.getTool('template_update_styles')).toBeDefined();
-      expect(registry.getTool('template_update_schema')).toBeDefined();
-      expect(registry.getTool('template_validate_syntax')).toBeDefined();
-      expect(registry.getTool('template_render_preview')).toBeDefined();
-      expect(registry.getTool('template_set_metadata')).toBeDefined();
-      expect(registry.getTool('template_save')).toBeDefined();
-      expect(registry.getTool('template_discard_draft')).toBeDefined();
+      expect(registry.getTool('template_get_active')?.name).toBe('template_get_active');
+      expect(registry.getTool('template_update_markup')?.name).toBe('template_update_markup');
+      expect(registry.getTool('template_update_styles')?.name).toBe('template_update_styles');
+      expect(registry.getTool('template_update_schema')?.name).toBe('template_update_schema');
+      expect(registry.getTool('template_validate_syntax')?.name).toBe('template_validate_syntax');
+      expect(registry.getTool('template_render_preview')?.name).toBe('template_render_preview');
+      expect(registry.getTool('template_set_metadata')?.name).toBe('template_set_metadata');
+      expect(registry.getTool('template_save')?.name).toBe('template_save');
+      expect(registry.getTool('template_discard_draft')?.name).toBe('template_discard_draft');
 
       unmount();
 
@@ -610,8 +610,11 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       );
 
       const newHtml = '<header><h2>{{ title }}</h2></header>';
-      const result = await registry.callTool('template_update_markup', {
-        template_html: newHtml,
+      let result: any;
+      await act(async () => {
+        result = await registry.callTool('template_update_markup', {
+          template_html: newHtml,
+        });
       });
 
       expect(result.isError).toBeFalsy();
@@ -631,8 +634,11 @@ describe('WebMCP Section Templates (Phase 3)', () => {
       );
 
       const newCss = '.hero { padding: 4rem; background: blue; }';
-      const result = await registry.callTool('template_update_styles', {
-        template_css: newCss,
+      let result: any;
+      await act(async () => {
+        result = await registry.callTool('template_update_styles', {
+          template_css: newCss,
+        });
       });
 
       expect(result.isError).toBeFalsy();
@@ -657,8 +663,11 @@ describe('WebMCP Section Templates (Phase 3)', () => {
         { name: 'cta_url', type: 'url', label: 'CTA URL' },
       ]);
 
-      const result = await registry.callTool('template_update_schema', {
-        schema_json: validNewSchema,
+      let result: any;
+      await act(async () => {
+        result = await registry.callTool('template_update_schema', {
+          schema_json: validNewSchema,
+        });
       });
 
       expect(result.isError).toBeFalsy();
@@ -667,6 +676,8 @@ describe('WebMCP Section Templates (Phase 3)', () => {
         { name: 'headline', type: 'text', label: 'Headline' },
         { name: 'cta_url', type: 'url', label: 'CTA URL' },
       ]);
+      expect(screen.getByTestId('active-schema').textContent).toBe(validNewSchema);
+      expect(screen.getByTestId('fields-count').textContent).toBe('2');
     });
 
     it('template_update_schema rejects invalid JSON or invalid schema types', async () => {
@@ -756,11 +767,14 @@ describe('WebMCP Section Templates (Phase 3)', () => {
         </WebMCPProvider>
       );
 
-      const result = await registry.callTool('template_set_metadata', {
-        id: 'new-slug',
-        name: 'New Template Name',
-        description: 'New Description',
-        is_locked: true,
+      let result: any;
+      await act(async () => {
+        result = await registry.callTool('template_set_metadata', {
+          id: 'new-slug',
+          name: 'New Template Name',
+          description: 'New Description',
+          is_locked: true,
+        });
       });
 
       expect(result.isError).toBeFalsy();

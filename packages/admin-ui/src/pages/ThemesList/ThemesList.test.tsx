@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemesList } from './ThemesList';
 import { Theme } from '@radix-ui/themes';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -63,7 +64,10 @@ const mockSettings = {
 
 const renderWithRouter = () => {
   const router = createMemoryRouter(
-    [{ path: '/theme', element: <ThemesList /> }],
+    [
+      { path: '/theme', element: <ThemesList /> },
+      { path: '/theme/editor/:id', element: <div>Theme Editor</div> },
+    ],
     { initialEntries: ['/theme'] }
   );
   return render(
@@ -140,31 +144,30 @@ describe('ThemesList Page', () => {
   it('renders themes page header, active pair cards, and themes table', async () => {
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Themes' })).toBeDefined();
-    });
+    const heading = await screen.findByRole('heading', { name: 'Themes' });
+    expect(heading.tagName).toMatch(/^H[1-6]$/);
 
-    expect(screen.getByText('Primary Theme (Default / Light)')).toBeDefined();
-    expect(screen.getByText('Dark Mode Variant')).toBeDefined();
+    expect(screen.getByText('Primary Theme (Default / Light)').textContent).toBe('Primary Theme (Default / Light)');
+    expect(screen.getByText('Dark Mode Variant').textContent).toBe('Dark Mode Variant');
 
     // Table rows and cards
     expect(screen.getAllByText('Modern Editorial').length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText('Bento-Brutalism (Dark)').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Custom Summer')).toBeDefined();
+    expect(screen.getByText('Custom Summer').textContent).toBe('Custom Summer');
 
     // Status badges
-    expect(screen.getByText('Active Primary')).toBeDefined();
-    expect(screen.getByText('Active Dark')).toBeDefined();
+    expect(screen.getByText('Active Primary').textContent).toBe('Active Primary');
+    expect(screen.getByText('Active Dark').textContent).toBe('Active Dark');
   });
 
   it('allows removing dark mode variant', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Remove dark mode variant')).toBeDefined();
-    });
+    const removeBtn = await screen.findByRole('button', { name: 'Remove dark mode variant' });
+    expect(removeBtn.hasAttribute('disabled')).toBe(false);
 
-    fireEvent.click(screen.getByLabelText('Remove dark mode variant'));
+    await user.click(removeBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes/activate', expect.objectContaining({
@@ -175,50 +178,51 @@ describe('ThemesList Page', () => {
   });
 
   it('opens Create Theme dialog and submits new theme', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Create Theme/i })).toBeDefined();
-    });
+    const createBtn = await screen.findByRole('button', { name: /Create Theme/i });
+    expect(createBtn.hasAttribute('disabled')).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: /Create Theme/i }));
+    await user.click(createBtn);
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Create New Theme' })).toBeDefined();
-    });
+    const dialogHeading = await screen.findByRole('heading', { name: 'Create New Theme' });
+    expect(dialogHeading.tagName).toMatch(/^H[1-6]$/);
 
     const nameInput = screen.getByPlaceholderText('e.g. Minimalist Midnight');
-    fireEvent.change(nameInput, { target: { value: 'Minimalist Midnight' } });
+    await user.type(nameInput, 'Minimalist Midnight');
+    expect(nameInput.getAttribute('value')).toBe('Minimalist Midnight');
 
     const submitBtn = screen.getByRole('button', { name: 'Create Theme' });
-    fireEvent.click(submitBtn);
+    await user.click(submitBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes', expect.objectContaining({
         method: 'POST',
       }));
     });
+
+    const redirectedHeading = await screen.findByText('Theme Editor');
+    expect(redirectedHeading.textContent).toBe('Theme Editor');
   });
 
   it('opens Activate Theme dialog and activates a theme as dark mode variant', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Activate Custom Summer')).toBeDefined();
-    });
+    const activateBtn = await screen.findByRole('button', { name: 'Activate Custom Summer' });
+    await user.click(activateBtn);
 
-    fireEvent.click(screen.getByLabelText('Activate Custom Summer'));
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Activate Theme: Custom Summer' })).toBeDefined();
-    });
+    const dialogHeading = await screen.findByRole('heading', { name: 'Activate Theme: Custom Summer' });
+    expect(dialogHeading.tagName).toMatch(/^H[1-6]$/);
 
     // Select dark mode variant radio
     const darkRadio = screen.getByRole('radio', { name: 'Set as Dark Mode Variant' });
-    fireEvent.click(darkRadio);
+    await user.click(darkRadio);
+    expect(darkRadio.getAttribute('data-state')).toBe('checked');
 
-    const activateBtn = screen.getByRole('button', { name: 'Activate Theme' });
-    fireEvent.click(activateBtn);
+    const submitBtn = screen.getByRole('button', { name: 'Activate Theme' });
+    await user.click(submitBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes/activate', expect.objectContaining({
@@ -226,26 +230,30 @@ describe('ThemesList Page', () => {
         body: JSON.stringify({ id: 'custom-summer', role: 'dark' }),
       }));
     });
+
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('opens Rename Theme dialog and renames a custom theme', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Rename Custom Summer')).toBeDefined();
-    });
+    const renameBtn = await screen.findByRole('button', { name: 'Rename Custom Summer' });
+    await user.click(renameBtn);
 
-    fireEvent.click(screen.getByLabelText('Rename Custom Summer'));
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Rename Theme' })).toBeDefined();
-    });
+    const dialogHeading = await screen.findByRole('heading', { name: 'Rename Theme' });
+    expect(dialogHeading.tagName).toMatch(/^H[1-6]$/);
 
     const input = screen.getByDisplayValue('Custom Summer');
-    fireEvent.change(input, { target: { value: 'Golden Summer' } });
+    await user.clear(input);
+    await user.type(input, 'Golden Summer');
+    expect(input.getAttribute('value')).toBe('Golden Summer');
 
     const saveBtn = screen.getByRole('button', { name: 'Rename' });
-    fireEvent.click(saveBtn);
+    await user.click(saveBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes/custom-summer/rename', expect.objectContaining({
@@ -253,44 +261,75 @@ describe('ThemesList Page', () => {
         body: JSON.stringify({ name: 'Golden Summer' }),
       }));
     });
+
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('duplicates a theme when Duplicate button is clicked', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Duplicate Custom Summer')).toBeDefined();
-    });
+    const duplicateBtn = await screen.findByRole('button', { name: 'Duplicate Custom Summer' });
+    expect(duplicateBtn.hasAttribute('disabled')).toBe(false);
 
-    fireEvent.click(screen.getByLabelText('Duplicate Custom Summer'));
+    await user.click(duplicateBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes/custom-summer/duplicate', expect.objectContaining({
         method: 'POST',
       }));
     });
+
+    const redirectedHeading = await screen.findByText('Theme Editor');
+    expect(redirectedHeading.textContent).toBe('Theme Editor');
   });
 
   it('opens Delete Theme dialog and confirms deletion for inactive custom theme', async () => {
+    const user = userEvent.setup();
     renderWithRouter();
 
-    await waitFor(() => {
-      expect(screen.getByLabelText('Delete Custom Summer')).toBeDefined();
-    });
+    const deleteBtn = await screen.findByRole('button', { name: 'Delete Custom Summer' });
+    await user.click(deleteBtn);
 
-    fireEvent.click(screen.getByLabelText('Delete Custom Summer'));
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Delete Theme/i })).toBeDefined();
-    });
+    const dialogHeading = await screen.findByRole('heading', { name: /Delete Theme/i });
+    expect(dialogHeading.tagName).toMatch(/^H[1-6]$/);
 
     const confirmBtn = screen.getByRole('button', { name: 'Delete Theme' });
-    fireEvent.click(confirmBtn);
+    await user.click(confirmBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/themes/custom-summer', expect.objectContaining({
         method: 'DELETE',
       }));
     });
+
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('displays error callout when themes fail to load', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/themes') {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          statusText: 'Internal Server Error',
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderWithRouter();
+
+    const errorCallout = await screen.findByText('Failed to fetch themes: Internal Server Error');
+    expect(errorCallout.textContent).toBe('Failed to fetch themes: Internal Server Error');
+
+    errorSpy.mockRestore();
   });
 });

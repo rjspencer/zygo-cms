@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, render } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Dashboard } from './Dashboard';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
+import { createTestQueryClient } from '../../test/test-utils';
 
 vi.mock('../../utils/api', () => ({
   apiFetch: vi.fn(),
@@ -11,15 +13,6 @@ vi.mock('../../utils/api', () => ({
 }));
 
 import { apiFetch } from '../../utils/api';
-
-const createTestQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
 
 const mockEntries = [
   {
@@ -61,13 +54,16 @@ const renderDashboard = () => {
     { initialEntries: ['/'] }
   );
 
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <Theme>
-        <RouterProvider router={router} />
-      </Theme>
-    </QueryClientProvider>
-  );
+  return {
+    queryClient,
+    ...render(
+      <QueryClientProvider client={queryClient}>
+        <Theme>
+          <RouterProvider router={router} />
+        </Theme>
+      </QueryClientProvider>
+    ),
+  };
 };
 
 describe('Dashboard Component Integration Tests', () => {
@@ -92,34 +88,42 @@ describe('Dashboard Component Integration Tests', () => {
 
     renderDashboard();
 
-    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeDefined();
-    expect(screen.getByText('Total Posts')).toBeDefined();
-    expect(screen.getByText('Total Pages')).toBeDefined();
-    expect(screen.getByText('Total Docs')).toBeDefined();
-    expect(screen.getByText('Media Files')).toBeDefined();
-    expect(screen.getByText('Edge Status')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Dashboard' }).textContent).toBe('Dashboard');
+    expect(screen.getByText('Total Posts').textContent).toBe('Total Posts');
+    expect(screen.getByText('Total Pages').textContent).toBe('Total Pages');
+    expect(screen.getByText('Total Docs').textContent).toBe('Total Docs');
+    expect(screen.getByText('Media Files').textContent).toBe('Media Files');
+    expect(screen.getByText('Edge Status').textContent).toBe('Edge Status');
 
-    await waitFor(() => {
-      expect(screen.getByText('Hello World Post')).toBeDefined();
-      expect(screen.getByText('About Page')).toBeDefined();
-    });
+    const helloWorldEntry = await screen.findByText('Hello World Post');
+    expect(helloWorldEntry.textContent).toBe('Hello World Post');
+    expect(screen.getByText('About Page').textContent).toBe('About Page');
 
-    expect(screen.getByText('10')).toBeDefined();
-    expect(screen.getByText('5')).toBeDefined();
-    expect(screen.getByText('2')).toBeDefined();
-    expect(screen.getByText('3')).toBeDefined();
+    const postCount = await screen.findByText('10');
+    expect(postCount.textContent).toBe('10');
+    expect(screen.getByText('5').textContent).toBe('5');
+    expect(screen.getByText('2').textContent).toBe('2');
+    expect(screen.getByText('3').textContent).toBe('3');
+
+    const edgeStatus = await screen.findByText('Operational');
+    expect(edgeStatus.textContent).toBe('Operational');
   });
 
   it('handles API errors gracefully without crashing', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (apiFetch as any).mockRejectedValue(new Error('Network error'));
 
     renderDashboard();
 
-    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeDefined();
-    expect(screen.getByText('Total Posts')).toBeDefined();
+    expect(screen.getByRole('heading', { name: 'Dashboard' }).textContent).toBe('Dashboard');
+    expect(screen.getByText('Total Posts').textContent).toBe('Total Posts');
+    expect(await screen.findByText('No recent entries found.')).not.toBeNull();
+
+    consoleSpy.mockRestore();
   });
 
   it('renders action buttons for New Post and View All', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/entries') return Promise.resolve({ ok: true, json: async () => [] });
       if (url === '/api/admin/dashboard') return Promise.resolve({ ok: true, json: async () => ({}) });
@@ -128,13 +132,16 @@ describe('Dashboard Component Integration Tests', () => {
 
     renderDashboard();
 
-    const newPostBtn = screen.getByRole('button', { name: /New Post/i });
-    expect(newPostBtn).toBeDefined();
-    fireEvent.click(newPostBtn);
+    const viewAllBtn = screen.getByRole('button', { name: /View All/i });
+    expect(viewAllBtn.hasAttribute('disabled')).toBe(false);
 
-    await waitFor(() => {
-      expect(screen.getByText('New Post View')).toBeDefined();
-    });
+    const newPostBtn = screen.getByRole('button', { name: /New Post/i });
+    expect(newPostBtn.hasAttribute('disabled')).toBe(false);
+
+    await user.click(newPostBtn);
+
+    const newPostView = await screen.findByText('New Post View');
+    expect(newPostView.textContent).toBe('New Post View');
   });
 
   it('displays Degraded edge status when public site health check returns non-200', async () => {
@@ -151,8 +158,7 @@ describe('Dashboard Component Integration Tests', () => {
 
     renderDashboard();
 
-    await waitFor(() => {
-      expect(screen.getByText('Degraded')).toBeDefined();
-    });
+    const degradedBadge = await screen.findByText('Degraded');
+    expect(degradedBadge.textContent).toBe('Degraded');
   });
 });

@@ -1,5 +1,6 @@
+import '../../test/setup';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DocsList } from './DocsList';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -127,19 +128,24 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    expect(screen.getByRole('heading', { name: 'Docs' })).toBeDefined();
-    expect(screen.getByTestId('edit-docs-template-btn')).toBeDefined();
-    expect(screen.getByRole('button', { name: /Create Doc/i })).toBeDefined();
-    expect(screen.getByPlaceholderText('Search docs by title or slug...')).toBeDefined();
+    screen.getByRole('heading', { name: 'Docs' });
+    const editTemplateBtn = screen.getByRole('button', { name: /edit template & styles/i });
+    expect(editTemplateBtn.hasAttribute('disabled')).toBe(false);
 
-    await waitFor(() => {
-      expect(screen.getByText('Guide Overview')).toBeDefined();
-      expect(screen.getByText('Sub Chapter One')).toBeDefined();
-      expect(screen.getByText('Standalone Doc')).toBeDefined();
-    });
+    const createBtn = screen.getByRole('button', { name: /create doc/i });
+    expect(createBtn.hasAttribute('disabled')).toBe(false);
+
+    const searchInput = screen.getByRole('textbox', { name: /search docs by title or slug/i });
+    expect(searchInput.getAttribute('placeholder')).toBe('Search docs by title or slug...');
+
+    const guideDoc = await screen.findByText('Guide Overview');
+    expect(guideDoc.textContent).toBe('Guide Overview');
+    expect(screen.getByText('Sub Chapter One').textContent).toBe('Sub Chapter One');
+    expect(screen.getByText('Standalone Doc').textContent).toBe('Standalone Doc');
   });
 
   it('filters docs based on search input', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockDocsResponse,
@@ -147,16 +153,17 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Guide Overview')).toBeDefined();
-    });
+    await screen.findByText('Guide Overview');
 
-    const searchInput = screen.getByPlaceholderText('Search docs by title or slug...');
-    fireEvent.change(searchInput, { target: { value: 'standalone' } });
+    const searchInput = screen.getByRole('textbox', {
+      name: /search docs by title or slug/i,
+    }) as HTMLInputElement;
+    await user.click(searchInput);
+    await user.paste('standalone');
 
-    await waitFor(() => {
-      expect(screen.getByText('Standalone Doc')).toBeDefined();
-    });
+    expect(searchInput.value).toBe('standalone');
+    expect(screen.getByText('Standalone Doc').textContent).toBe('Standalone Doc');
+    expect(screen.queryByText('Sub Chapter One')).toBeNull();
   });
 
   it('initializes search input from URL search param', async () => {
@@ -167,15 +174,18 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList(['/docs?q=standalone']);
 
-    const searchInput = screen.getByPlaceholderText('Search docs by title or slug...') as HTMLInputElement;
+    const searchInput = screen.getByRole('textbox', {
+      name: /search docs by title or slug/i,
+    }) as HTMLInputElement;
     expect(searchInput.value).toBe('standalone');
 
-    await waitFor(() => {
-      expect(screen.getByText('Standalone Doc')).toBeDefined();
-    });
+    const standaloneDoc = await screen.findByText('Standalone Doc');
+    expect(standaloneDoc.textContent).toBe('Standalone Doc');
+    expect(screen.queryByText('Sub Chapter One')).toBeNull();
   });
 
   it('navigates to create doc view on button click', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ entries: [] }),
@@ -183,15 +193,15 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    const createBtn = screen.getByRole('button', { name: /Create Doc/i });
-    fireEvent.click(createBtn);
+    const createBtn = screen.getByRole('button', { name: /create doc/i });
+    await user.click(createBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText('New Doc View')).toBeDefined();
-    });
+    const newDocView = await screen.findByText('New Doc View');
+    expect(newDocView.textContent).toBe('New Doc View');
   });
 
   it('navigates to template editor view on edit template button click', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ entries: [] }),
@@ -199,15 +209,15 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    const editTemplateBtn = screen.getByTestId('edit-docs-template-btn');
-    fireEvent.click(editTemplateBtn);
+    const editTemplateBtn = screen.getByRole('button', { name: /edit template & styles/i });
+    await user.click(editTemplateBtn);
 
-    await waitFor(() => {
-      expect(screen.getByText('Templates Docs View')).toBeDefined();
-    });
+    const templateView = await screen.findByText('Templates Docs View');
+    expect(templateView.textContent).toBe('Templates Docs View');
   });
 
   it('toggles collapse and expand on folder items', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockDocsResponse,
@@ -215,22 +225,21 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Sub Chapter One')).toBeDefined();
-    });
+    await screen.findByText('Sub Chapter One');
 
-    const collapseBtn = screen.getByLabelText('Collapse Guide Overview');
-    fireEvent.click(collapseBtn);
+    const collapseBtn = screen.getByRole('button', { name: 'Collapse Guide Overview' });
+    await user.click(collapseBtn);
 
     expect(screen.queryByText('Sub Chapter One')).toBeNull();
 
-    const expandBtn = screen.getByLabelText('Expand Guide Overview');
-    fireEvent.click(expandBtn);
+    const expandBtn = screen.getByRole('button', { name: 'Expand Guide Overview' });
+    await user.click(expandBtn);
 
-    expect(screen.getByText('Sub Chapter One')).toBeDefined();
+    expect(screen.getByText('Sub Chapter One').textContent).toBe('Sub Chapter One');
   });
 
   it('opens delete confirmation dialog and executes delete mutation for doc', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockDocsResponse,
@@ -238,32 +247,43 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Standalone Doc')).toBeDefined();
-    });
+    await screen.findByText('Standalone Doc');
 
-    const deleteBtn = screen.getByTestId('delete-doc-3');
-    fireEvent.click(deleteBtn);
+    const deleteBtn = screen.getByRole('button', { name: 'Delete Standalone Doc' });
+    await user.click(deleteBtn);
 
     // Check dialog appears
-    expect(screen.getByRole('heading', { name: 'Delete Doc' })).toBeDefined();
-    expect(screen.getByText(/Are you sure you want to delete “Standalone Doc”?/i)).toBeDefined();
+    screen.getByRole('dialog');
+    screen.getByRole('heading', { name: 'Delete Doc' });
+    expect(screen.getByText(/Are you sure you want to delete/i).textContent).toContain('Standalone Doc');
 
-    // Mock delete API response
+    // Mock delete API response and subsequent refetch invalidation
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       text: async () => 'OK',
     });
+    const updatedEntries = mockDocsResponse.entries.filter((e) => e.id !== 3);
+    (apiFetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ entries: updatedEntries }),
+    });
 
     const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
-    fireEvent.click(confirmDeleteBtn);
+    await user.click(confirmDeleteBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith('/api/entries/3', { method: 'DELETE' });
     });
+
+    // Await dialog closing and invalidated query update
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(screen.queryByText('Standalone Doc')).toBeNull();
   });
 
   it('closes delete confirmation dialog when cancel is clicked', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockDocsResponse,
@@ -271,21 +291,21 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Standalone Doc')).toBeDefined();
-    });
+    await screen.findByText('Standalone Doc');
 
-    const deleteBtn = screen.getByTestId('delete-doc-3');
-    fireEvent.click(deleteBtn);
+    const deleteBtn = screen.getByRole('button', { name: 'Delete Standalone Doc' });
+    await user.click(deleteBtn);
 
-    expect(screen.getByRole('heading', { name: 'Delete Doc' })).toBeDefined();
+    screen.getByRole('dialog');
+    screen.getByRole('heading', { name: 'Delete Doc' });
 
     const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
-    fireEvent.click(cancelBtn);
+    await user.click(cancelBtn);
 
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: 'Delete Doc' })).toBeNull();
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('filters docs based on status tab click', async () => {
@@ -297,18 +317,16 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      expect(screen.getByText('Guide Overview')).toBeDefined();
-      expect(screen.getByText('Review Chapter')).toBeDefined();
-    });
+    await screen.findByText('Guide Overview');
+    expect(screen.getByText('Review Chapter').textContent).toBe('Review Chapter');
 
-    const inReviewTab = screen.getByTestId('status-tab-in_review');
+    const inReviewTab = screen.getByRole('tab', { name: /in review/i });
     await user.click(inReviewTab);
 
     await waitFor(() => {
-      expect(screen.getByText('Review Chapter')).toBeDefined();
-      expect(screen.queryByText('Standalone Doc')).toBeNull();
+      expect(screen.getByText('Review Chapter').textContent).toBe('Review Chapter');
     });
+    expect(screen.queryByText('Standalone Doc')).toBeNull();
   });
 
   it('filters docs based on URL status param', async () => {
@@ -319,11 +337,10 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList(['/docs?status=ready_for_publish']);
 
-    await waitFor(() => {
-      expect(screen.getByText('Ready Chapter')).toBeDefined();
-      expect(screen.queryByText('Standalone Doc')).toBeNull();
-      expect(screen.queryByText('Review Chapter')).toBeNull();
-    });
+    const readyDoc = await screen.findByText('Ready Chapter');
+    expect(readyDoc.textContent).toBe('Ready Chapter');
+    expect(screen.queryByText('Standalone Doc')).toBeNull();
+    expect(screen.queryByText('Review Chapter')).toBeNull();
   });
 
   it('renders correct badge colors for workflow statuses', async () => {
@@ -334,15 +351,15 @@ describe('DocsList Component Integration Tests', () => {
 
     renderDocsList();
 
-    await waitFor(() => {
-      const inReviewBadge = screen.getByText('in review');
-      expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
+    await screen.findByText('Guide Overview');
 
-      const readyBadge = screen.getByText('ready for publish');
-      expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
+    const inReviewBadge = screen.getByText('in review');
+    expect(inReviewBadge.getAttribute('data-accent-color')).toBe('amber');
 
-      const archivedBadge = screen.getByText('archived');
-      expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
-    });
+    const readyBadge = screen.getByText('ready for publish');
+    expect(readyBadge.getAttribute('data-accent-color')).toBe('blue');
+
+    const archivedBadge = screen.getByText('archived');
+    expect(archivedBadge.getAttribute('data-accent-color')).toBe('red');
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { ThemePage } from './Theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
@@ -58,8 +58,9 @@ describe('ThemePage Component', () => {
   it('renders ThemeEditor on the theme page route', async () => {
     renderThemePage();
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeDefined();
-    });
+    const heading = await screen.findByRole('heading', { name: 'Modern Editorial' });
+    expect(heading.textContent).toBe('Modern Editorial');
+    expect(screen.getByRole('button', { name: /Back to Themes/i }).hasAttribute('disabled')).toBe(false);
   });
 });
+

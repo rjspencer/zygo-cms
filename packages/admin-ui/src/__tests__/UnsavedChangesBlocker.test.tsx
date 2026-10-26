@@ -1,10 +1,11 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
 import { createMemoryRouter, RouterProvider, Link } from 'react-router-dom';
 import { Settings } from '../pages/Settings';
+import { createTestQueryClient } from '../test/test-utils';
 
 vi.mock('../utils/api', () => ({
   apiFetch: vi.fn(),
@@ -29,7 +30,7 @@ const renderSettingsWithOtherPage = () => {
     { initialEntries: ['/settings'] }
   );
   render(
-    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+    <QueryClientProvider client={createTestQueryClient()}>
       <Theme>
         <RouterProvider router={router} />
       </Theme>
@@ -47,41 +48,56 @@ describe('Unsaved changes navigation blocker (Settings)', () => {
   });
 
   it('does not block navigation when there are no changes', async () => {
+    const user = userEvent.setup();
     renderSettingsWithOtherPage();
     await screen.findByDisplayValue('Original');
 
-    await userEvent.click(screen.getByText('Go elsewhere'));
+    await user.click(screen.getByRole('link', { name: 'Go elsewhere' }));
 
-    expect(await screen.findByText('Other page')).toBeTruthy();
+    const otherPage = await screen.findByText('Other page');
+    expect(otherPage.textContent).toBe('Other page');
+    expect(screen.queryByDisplayValue('Original')).toBeNull();
   });
 
   it('shows a confirmation dialog when navigating with unsaved changes, and Stay keeps the page', async () => {
+    const user = userEvent.setup();
     renderSettingsWithOtherPage();
     const input = await screen.findByDisplayValue('Original');
-    await userEvent.type(input, ' edited');
+    await user.type(input, ' edited');
 
-    await userEvent.click(screen.getByText('Go elsewhere'));
+    await user.click(screen.getByRole('link', { name: 'Go elsewhere' }));
 
-    expect(await screen.findByText('Unsaved changes')).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(await screen.findByRole('heading', { name: 'Unsaved changes' })).toBeDefined();
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
 
-    await waitFor(() => expect(screen.queryByText('Unsaved changes')).toBeNull());
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Unsaved changes' })).toBeNull();
+    });
     expect(screen.queryByText('Other page')).toBeNull();
-    expect(screen.getByDisplayValue('Original edited')).toBeTruthy();
+    const updatedInput = screen.getByDisplayValue('Original edited') as HTMLInputElement;
+    expect(updatedInput.value).toBe('Original edited');
   });
 
   it('navigates away when the user chooses to leave without saving', async () => {
+    const user = userEvent.setup();
     renderSettingsWithOtherPage();
     const input = await screen.findByDisplayValue('Original');
-    await userEvent.type(input, ' edited');
+    await user.type(input, ' edited');
 
-    await userEvent.click(screen.getByText('Go elsewhere'));
-    await userEvent.click(await screen.findByRole('button', { name: 'Leave without saving' }));
+    await user.click(screen.getByRole('link', { name: 'Go elsewhere' }));
+    const leaveBtn = await screen.findByRole('button', { name: 'Leave without saving' });
+    await user.click(leaveBtn);
 
-    expect(await screen.findByText('Other page')).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Unsaved changes' })).toBeNull();
+    });
+    const otherPage = await screen.findByText('Other page');
+    expect(otherPage.textContent).toBe('Other page');
+    expect(screen.queryByDisplayValue('Original edited')).toBeNull();
   });
 
   it('prevents tab close/refresh only while there are unsaved changes', async () => {
+    const user = userEvent.setup();
     renderSettingsWithOtherPage();
     const input = await screen.findByDisplayValue('Original');
 
@@ -89,7 +105,8 @@ describe('Unsaved changes navigation blocker (Settings)', () => {
     window.dispatchEvent(cleanEvent);
     expect(cleanEvent.defaultPrevented).toBe(false);
 
-    await userEvent.type(input, 'x');
+    await user.type(input, 'x');
+    expect((input as HTMLInputElement).value).toBe('Originalx');
 
     const dirtyEvent = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(dirtyEvent);

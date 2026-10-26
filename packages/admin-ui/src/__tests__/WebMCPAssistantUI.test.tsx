@@ -1,7 +1,7 @@
 import '../test/setup';
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Theme } from '@radix-ui/themes';
 import { MemoryRouter } from 'react-router-dom';
@@ -27,19 +27,22 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    expect(screen.getByText('WebMCP Assistant')).toBeInTheDocument();
-    expect(screen.getByText('Connected (In-Browser)')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'WebMCP Assistant' })).toBeDefined();
+    expect(screen.getByText('Connected (In-Browser)').textContent).toBe('Connected (In-Browser)');
 
-    const bridgeSwitch = screen.getByLabelText('Enable External WebSocket Bridge');
-    expect(bridgeSwitch).toBeInTheDocument();
+    const bridgeSwitch = screen.getByRole('switch', {
+      name: 'Enable External WebSocket Bridge',
+    });
+    expect(bridgeSwitch.getAttribute('aria-checked')).toBe('false');
 
-    const confirmationSwitch = screen.getByLabelText(
-      'Require Confirmation for Sensitive Actions'
-    );
-    expect(confirmationSwitch).toBeInTheDocument();
+    const confirmationSwitch = screen.getByRole('switch', {
+      name: 'Require Confirmation for Sensitive Actions',
+    });
+    expect(confirmationSwitch.getAttribute('aria-checked')).toBe('true');
   });
 
-  it('toggles settings switches and updates status badge in WebMCPAssistantDrawer', () => {
+  it('toggles settings switches and updates status badge in WebMCPAssistantDrawer', async () => {
+    const user = userEvent.setup();
     const registry = new WebMCPRegistry();
 
     render(
@@ -52,14 +55,22 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    const bridgeSwitch = screen.getByLabelText('Enable External WebSocket Bridge');
-    fireEvent.click(bridgeSwitch);
-    expect(screen.getByText('External Bridge Active')).toBeInTheDocument();
+    const bridgeSwitch = screen.getByRole('switch', {
+      name: 'Enable External WebSocket Bridge',
+    });
+    expect(bridgeSwitch.getAttribute('aria-checked')).toBe('false');
 
-    const confirmationSwitch = screen.getByLabelText(
-      'Require Confirmation for Sensitive Actions'
-    );
-    fireEvent.click(confirmationSwitch);
+    await user.click(bridgeSwitch);
+    expect(bridgeSwitch.getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('External Bridge Active').textContent).toBe('External Bridge Active');
+
+    const confirmationSwitch = screen.getByRole('switch', {
+      name: 'Require Confirmation for Sensitive Actions',
+    });
+    expect(confirmationSwitch.getAttribute('aria-checked')).toBe('true');
+
+    await user.click(confirmationSwitch);
+    expect(confirmationSwitch.getAttribute('aria-checked')).toBe('false');
   });
 
   it('renders registered tools list in Registered Tools tab', async () => {
@@ -85,11 +96,14 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     const toolsTab = screen.getByRole('tab', { name: /Registered Tools/i });
     await user.click(toolsTab);
 
-    expect(screen.getByText('test_custom_tool')).toBeInTheDocument();
-    expect(screen.getByText('A test custom tool description')).toBeInTheDocument();
+    expect(screen.getByText('test_custom_tool').textContent).toBe('test_custom_tool');
+    expect(screen.getByText('A test custom tool description').textContent).toBe(
+      'A test custom tool description'
+    );
   });
 
   it('displays live tool activity after registry.callTool and clears activity log', async () => {
+    const user = userEvent.setup();
     const registry = new WebMCPRegistry();
     registry.registerTool({
       name: 'ping_tool',
@@ -111,23 +125,29 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    expect(screen.getByText('No recent activity logged.')).toBeInTheDocument();
+    expect(screen.getByText('No recent activity logged.').textContent).toBe(
+      'No recent activity logged.'
+    );
 
     await act(async () => {
       await registry.callTool('ping_tool');
     });
 
-    expect(screen.getByText('ping_tool')).toBeInTheDocument();
-    expect(screen.getByText('Pong response')).toBeInTheDocument();
-    expect(screen.getByText('success')).toBeInTheDocument();
+    expect(screen.getByText('ping_tool').textContent).toBe('ping_tool');
+    expect(screen.getByText('Pong response').textContent).toBe('Pong response');
+    expect(screen.getByText('success').textContent).toBe('success');
 
     const clearBtn = screen.getByRole('button', { name: /Clear Activity Log/i });
-    fireEvent.click(clearBtn);
+    await user.click(clearBtn);
 
-    expect(screen.getByText('No recent activity logged.')).toBeInTheDocument();
+    expect(screen.getByText('No recent activity logged.').textContent).toBe(
+      'No recent activity logged.'
+    );
+    expect(screen.queryByText('Pong response')).toBeNull();
   });
 
-  it('renders StagedDiffModal before/after diffs and handles Accept and Reject actions', () => {
+  it('renders StagedDiffModal before/after diffs and handles Accept and Reject actions', async () => {
+    const user = userEvent.setup();
     const onAccept = vi.fn();
     const onReject = vi.fn();
 
@@ -146,18 +166,22 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    expect(screen.getByText('Update Blog Post Headline')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Update Blog Post Headline' })).toBeDefined();
     expect(
-      screen.getByText('Proposed title update for SEO improvements')
-    ).toBeInTheDocument();
-    expect(screen.getByText('title')).toBeInTheDocument();
-    expect(screen.getByText('Current (Before)')).toBeInTheDocument();
-    expect(screen.getByText('Proposed (After)')).toBeInTheDocument();
-    expect(screen.getByText('Old Blog Post Headline')).toBeInTheDocument();
-    expect(screen.getByText('New Awesome Blog Post Headline')).toBeInTheDocument();
+      screen.getByText('Proposed title update for SEO improvements').textContent
+    ).toBe('Proposed title update for SEO improvements');
+    expect(screen.getByText('title').textContent).toBe('title');
+    expect(screen.getByText('Current (Before)').textContent).toBe('Current (Before)');
+    expect(screen.getByText('Proposed (After)').textContent).toBe('Proposed (After)');
+    expect(screen.getByText('Old Blog Post Headline').textContent).toBe(
+      'Old Blog Post Headline'
+    );
+    expect(screen.getByText('New Awesome Blog Post Headline').textContent).toBe(
+      'New Awesome Blog Post Headline'
+    );
 
     const acceptBtn = screen.getByRole('button', { name: 'Accept Changes' });
-    fireEvent.click(acceptBtn);
+    await user.click(acceptBtn);
     expect(onAccept).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -175,11 +199,12 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     );
 
     const rejectBtn = screen.getByRole('button', { name: 'Reject Changes' });
-    fireEvent.click(rejectBtn);
+    await user.click(rejectBtn);
     expect(onReject).toHaveBeenCalledTimes(1);
   });
 
   it('integrates propose_staged_change tool with WebMCPProvider and StagedDiffModal acceptance', async () => {
+    const user = userEvent.setup();
     const registry = new WebMCPRegistry();
 
     const TestStagedIntegration: React.FC = () => {
@@ -212,8 +237,8 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    let proposalPromise: any;
-    act(() => {
+    let proposalPromise: Promise<any>;
+    await act(async () => {
       proposalPromise = registry.callTool('propose_staged_change', {
         title: 'Change Site Tagline',
         description: 'New branding tagline',
@@ -223,21 +248,25 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       });
     });
 
-    expect(screen.getByText('Change Site Tagline')).toBeInTheDocument();
-    expect(screen.getByText('New Innovative Tagline')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Change Site Tagline' })).toBeDefined();
+    expect(screen.getByText('New Innovative Tagline').textContent).toBe(
+      'New Innovative Tagline'
+    );
 
     const acceptBtn = screen.getByRole('button', { name: 'Accept Changes' });
-    await act(async () => {
-      fireEvent.click(acceptBtn);
-      const result = await proposalPromise;
-      expect(result.toolResult.accepted).toBe(true);
-      expect(result.toolResult.status).toBe('accepted');
-    });
+    await user.click(acceptBtn);
+    const result = await proposalPromise!;
+    expect(result.toolResult.accepted).toBe(true);
+    expect(result.toolResult.status).toBe('accepted');
 
-    expect(screen.queryByText('Change Site Tagline')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Change Site Tagline' })).toBeNull();
+    });
+    expect(screen.queryByText('Change Site Tagline')).toBeNull();
   });
 
   it('integrates propose_staged_change tool with WebMCPProvider and StagedDiffModal rejection', async () => {
+    const user = userEvent.setup();
     const registry = new WebMCPRegistry();
 
     const TestStagedIntegration: React.FC = () => {
@@ -270,8 +299,8 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       </Theme>
     );
 
-    let proposalPromise: any;
-    act(() => {
+    let proposalPromise: Promise<any>;
+    await act(async () => {
       proposalPromise = registry.callTool('propose_staged_change', {
         title: 'Modify Footer Copyright',
         field_label: 'copyright',
@@ -280,22 +309,24 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
       });
     });
 
-    expect(screen.getByText('Modify Footer Copyright')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Modify Footer Copyright' })).toBeDefined();
 
     const rejectBtn = screen.getByRole('button', { name: 'Reject Changes' });
-    await act(async () => {
-      fireEvent.click(rejectBtn);
-      const result = await proposalPromise;
-      expect(result.toolResult.accepted).toBe(false);
-      expect(result.toolResult.status).toBe('rejected');
-    });
+    await user.click(rejectBtn);
+    const result = await proposalPromise!;
+    expect(result.toolResult.accepted).toBe(false);
+    expect(result.toolResult.status).toBe('rejected');
 
-    expect(screen.queryByText('Modify Footer Copyright')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Modify Footer Copyright' })).toBeNull();
+    });
+    expect(screen.queryByText('Modify Footer Copyright')).toBeNull();
   });
 
   it('toggles WebMCPAssistantDrawer from Layout header button', async () => {
+    const user = userEvent.setup();
     const queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false } },
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
     });
     const registry = new WebMCPRegistry();
 
@@ -316,11 +347,19 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     const assistantBtn = screen.getByRole('button', {
       name: 'Open WebMCP Assistant',
     });
-    expect(assistantBtn).toBeInTheDocument();
+    expect(assistantBtn).toBeDefined();
 
-    fireEvent.click(assistantBtn);
+    await user.click(assistantBtn);
 
-    expect(await screen.findByText('WebMCP Assistant')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'WebMCP Assistant' })).toBeDefined();
+
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    await user.click(closeBtn);
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'WebMCP Assistant' })).toBeNull();
+    });
+    expect(screen.queryByRole('heading', { name: 'WebMCP Assistant' })).toBeNull();
   });
 
   it('executes a tool inline via the Registered Tools tab tool runner', async () => {
@@ -357,10 +396,11 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     const runBtn = screen.getByRole('button', { name: /Run test_custom_tool/i });
     await user.click(runBtn);
 
-    const argsInput = screen.getByLabelText('Tool Arguments JSON');
-    fireEvent.change(argsInput, {
-      target: { value: '{"msg": "Hello Inline Runner"}' },
-    });
+    const argsInput = screen.getByLabelText('Tool Arguments JSON') as HTMLTextAreaElement;
+    await user.click(argsInput);
+    await user.clear(argsInput);
+    await user.paste('{"msg": "Hello Inline Runner"}');
+    expect(argsInput.value).toBe('{"msg": "Hello Inline Runner"}');
 
     const executeBtn = screen.getByRole('button', { name: /Execute Tool/i });
     await user.click(executeBtn);
@@ -414,15 +454,15 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     const rpcTab = screen.getByRole('tab', { name: /RPC Console/i });
     await user.click(rpcTab);
 
-    const payloadInput = screen.getByLabelText('RPC Payload JSON');
-    fireEvent.change(payloadInput, {
-      target: {
-        value: JSON.stringify([
-          { name: 'tool_a', arguments: { x: 1 } },
-          { name: 'tool_b', arguments: { y: 2 } },
-        ]),
-      },
-    });
+    const payloadInput = screen.getByLabelText('RPC Payload JSON') as HTMLTextAreaElement;
+    const payloadText = JSON.stringify([
+      { name: 'tool_a', arguments: { x: 1 } },
+      { name: 'tool_b', arguments: { y: 2 } },
+    ]);
+    await user.click(payloadInput);
+    await user.clear(payloadInput);
+    await user.paste(payloadText);
+    expect(payloadInput.value).toBe(payloadText);
 
     const executeRpcBtn = screen.getByRole('button', { name: /Execute RPC/i });
     await user.click(executeRpcBtn);
@@ -433,4 +473,3 @@ describe('WebMCP Assistant UI & Human-in-the-Loop Controls', () => {
     expect(rpcOutput.textContent).toContain('Result B: 2');
   });
 });
-

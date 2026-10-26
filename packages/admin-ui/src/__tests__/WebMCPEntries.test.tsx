@@ -39,7 +39,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('list_entries', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toEqual(mockEntries);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/entries'),
@@ -54,7 +54,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('list_entries', { type: 'post' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const results = res.toolResult as any[];
       expect(results).toHaveLength(2);
       expect(results.every((e) => e.type === 'post')).toBe(true);
@@ -67,7 +67,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('list_entries', { status: 'draft' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const results = res.toolResult as any[];
       expect(results).toHaveLength(2);
       expect(results.every((e) => e.status === 'draft')).toBe(true);
@@ -80,13 +80,14 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('list_entries', { search: 'about' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const results = res.toolResult as any[];
       expect(results).toHaveLength(1);
       expect(results[0].slug).toBe('about-us');
     });
 
     it('handles API error response gracefully', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Internal Server Error',
@@ -96,14 +97,17 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       const res = await registry.callTool('list_entries', {});
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Failed to fetch entries: Database offline');
+      errorSpy.mockRestore();
     });
 
     it('handles network error thrown by fetch', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockRejectedValueOnce(new Error('Network failure'));
 
       const res = await registry.callTool('list_entries', {});
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Error listing entries: Network failure');
+      errorSpy.mockRestore();
     });
   });
 
@@ -116,7 +120,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('get_entry', { id: '42' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toEqual(entry);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/entries/42'),
@@ -131,6 +135,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
     });
 
     it('handles 404 not found error', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Not Found',
@@ -140,6 +145,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       const res = await registry.callTool('get_entry', { id: '999' });
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Failed to get entry 999: Entry does not exist');
+      errorSpy.mockRestore();
     });
   });
 
@@ -158,7 +164,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
         description: 'A new doc',
       });
 
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toEqual(created);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/entries'),
@@ -178,6 +184,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
     });
 
     it('handles API failure when creating entry', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Bad Request',
@@ -191,13 +198,14 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Failed to create entry: Slug already exists');
+      errorSpy.mockRestore();
     });
   });
 
   describe('delete_entry tool', () => {
     it('returns preview confirmation when dry_run is true without calling API', async () => {
       const res = await registry.callTool('delete_entry', { id: '5', dry_run: true });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect((res.toolResult as any).dry_run).toBe(true);
       expect(res.content[0].text).toContain('[Dry Run] Entry 5 would be deleted.');
       expect(mockFetch).not.toHaveBeenCalled();
@@ -210,7 +218,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
 
       const res = await registry.callTool('delete_entry', { id: '5' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect((res.toolResult as any).success).toBe(true);
       expect(res.content[0].text).toContain('Entry 5 deleted successfully.');
       expect(mockFetch).toHaveBeenCalledWith(
@@ -226,6 +234,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
     });
 
     it('handles API failure during deletion', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Forbidden',
@@ -235,6 +244,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       const res = await registry.callTool('delete_entry', { id: '1' });
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Failed to delete entry 1: Cannot delete protected entry');
+      errorSpy.mockRestore();
     });
   });
 
@@ -245,7 +255,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
         action: 'publish',
         dry_run: true,
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect((res.toolResult as any).dry_run).toBe(true);
       expect(res.content[0].text).toContain('[Dry Run] Bulk action "publish" would be performed on 3 entries');
       expect(mockFetch).not.toHaveBeenCalled();
@@ -261,7 +271,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
         ids: [1, 2],
         action: 'trash',
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect((res.toolResult as any).success).toBe(true);
       expect((res.toolResult as any).affected).toBe(2);
       expect(mockFetch).toHaveBeenCalledWith(
@@ -284,7 +294,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
         action: 'add_tags',
         tags: 'news, update',
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/entries/bulk'),
         expect.objectContaining({
@@ -322,6 +332,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
     });
 
     it('handles API failure gracefully', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockFetch.mockResolvedValueOnce({
         ok: false,
         statusText: 'Internal Server Error',
@@ -334,6 +345,7 @@ describe('Global Entry WebMCP Tools (createGlobalEntryTools)', () => {
       });
       expect(res.isError).toBe(true);
       expect(res.content[0].text).toContain('Bulk operation failed: Database failure');
+      errorSpy.mockRestore();
     });
   });
 });
@@ -453,7 +465,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_get_content', { format: 'html' });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const data = res.toolResult as any;
       expect(data.content).toBe('<p>Fallback Content</p>');
       expect(data.title).toBe('Initial Title');
@@ -476,7 +488,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_get_content', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const data = res.toolResult as any;
       expect(data.entryType).toBe('page');
       expect(data.sections).toEqual(sampleSections);
@@ -520,7 +532,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_get_selection', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toEqual({ from: 0, to: 0, empty: true, text: '' });
     });
 
@@ -542,7 +554,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_get_selection', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toEqual({
         from: 5,
         to: 15,
@@ -568,7 +580,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           position: 'end',
         });
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(screen.getByTestId('val-content').textContent).toBe('Start. End.');
     });
 
@@ -586,7 +598,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           position: 'start',
         });
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(screen.getByTestId('val-content').textContent).toBe('Hello World');
     });
 
@@ -614,7 +626,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
         });
       });
 
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(mockEditor.chain).toHaveBeenCalled();
       expect(insertMock).toHaveBeenCalledWith('<p>New TipTap Content</p>');
       expect(insertRun).toHaveBeenCalled();
@@ -636,7 +648,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           content: 'Brand New Content',
         });
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(screen.getByTestId('val-content').textContent).toBe('Brand New Content');
     });
 
@@ -662,7 +674,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           content: 'Replaced Selection',
         });
       });
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(mockEditor.chain).toHaveBeenCalled();
       expect(insertMock).toHaveBeenCalledWith('Replaced Selection');
       expect(screen.getByTestId('val-content').textContent).toBe('Replaced HTML');
@@ -689,7 +701,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
         });
       });
 
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(screen.getByTestId('val-title').textContent).toBe('Updated Title');
       expect(screen.getByTestId('val-slug').textContent).toBe('updated-title');
       expect(screen.getByTestId('val-description').textContent).toBe('New Description');
@@ -710,7 +722,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_save_draft', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(onSaveDraft).toHaveBeenCalledTimes(1);
       expect((res.toolResult as any).status).toBe('draft');
     });
@@ -725,7 +737,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_publish', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(onPublish).toHaveBeenCalledTimes(1);
       expect((res.toolResult as any).status).toBe('published');
     });
@@ -765,26 +777,27 @@ describe('useTipTapWebMCP Contextual Tools', () => {
 
     it('successfully connects with RichTextEditor onEditorReady and inserts content into DOM', async () => {
       const registry = new WebMCPRegistry();
-      const { container } = render(
+      render(
         <WebMCPProvider registry={registry}>
           <FullEditorComponent />
         </WebMCPProvider>
       );
 
       // Wait for TipTap editor DOM to mount
-      await waitFor(() => {
-        expect(container.querySelector('.tiptap')).not.toBeNull();
-      });
+      const editorElement = await screen.findByRole('textbox');
+      expect(editorElement.getAttribute('contenteditable')).toBe('true');
 
       // Insert content via WebMCP tool
-      const res = await registry.callTool('editor_insert_content', {
-        content: '<p>Inserted by WebMCP Agent</p>',
-        position: 'end',
+      const res = await act(async () => {
+        return await registry.callTool('editor_insert_content', {
+          content: '<p>Inserted by WebMCP Agent</p>',
+          position: 'end',
+        });
       });
 
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       await waitFor(() => {
-        expect(container.querySelector('.tiptap')?.textContent).toContain('Inserted by WebMCP Agent');
+        expect(editorElement.textContent).toContain('Inserted by WebMCP Agent');
       });
     });
   });
@@ -819,7 +832,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       );
 
       const res = await registry.callTool('editor_get_section_templates', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       const templates = Array.isArray(res.toolResult)
         ? res.toolResult
         : (res.toolResult as any).templates;
@@ -849,7 +862,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           data: { heading: 'Hello WebMCP' },
         });
       });
-      expect(appendRes.isError).toBeFalsy();
+      expect(appendRes.isError).toBe(false);
       let currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections).toHaveLength(2);
       expect(currentSections[1]).toEqual({
@@ -865,7 +878,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           index: 0,
         });
       });
-      expect(insertRes.isError).toBeFalsy();
+      expect(insertRes.isError).toBe(false);
       currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections).toHaveLength(3);
       expect(currentSections[0]).toEqual({
@@ -902,7 +915,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           data: { heading: 'Merged Heading' },
         });
       });
-      expect(mergeRes.isError).toBeFalsy();
+      expect(mergeRes.isError).toBe(false);
       let currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections[0].data).toEqual({
         heading: 'Merged Heading',
@@ -917,7 +930,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           merge: false,
         });
       });
-      expect(replaceRes.isError).toBeFalsy();
+      expect(replaceRes.isError).toBe(false);
       currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections[0].data).toEqual({
         heading: 'Only Heading',
@@ -958,7 +971,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       const removeRes = await act(async () => {
         return await registry.callTool('editor_remove_section', { index: 0 });
       });
-      expect(removeRes.isError).toBeFalsy();
+      expect(removeRes.isError).toBe(false);
       const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections).toHaveLength(1);
       expect(currentSections[0].type_id).toBe('cta');
@@ -990,7 +1003,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           to_index: 2,
         });
       });
-      expect(moveRes.isError).toBeFalsy();
+      expect(moveRes.isError).toBe(false);
       const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections.map((s: any) => s.type_id)).toEqual(['sec-1', 'sec-2', 'sec-0']);
 
@@ -1024,7 +1037,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           sections: batchSections,
         });
       });
-      expect(setRes.isError).toBeFalsy();
+      expect(setRes.isError).toBe(false);
       const currentSections = JSON.parse(screen.getByTestId('val-sections').textContent || '[]');
       expect(currentSections).toEqual(batchSections);
     });
@@ -1046,7 +1059,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
           sort_order: 7,
         });
       });
-      expect(metaRes.isError).toBeFalsy();
+      expect(metaRes.isError).toBe(false);
 
       expect(screen.getByTestId('val-cover-image').textContent).toBe('https://example.com/cover.png');
       expect(screen.getByTestId('val-canonical-url').textContent).toBe('https://example.com/canonical-page');
@@ -1055,7 +1068,7 @@ describe('useTipTapWebMCP Contextual Tools', () => {
       expect(screen.getByTestId('val-sort-order').textContent).toBe('7');
 
       const contentRes = await registry.callTool('editor_get_content', {});
-      expect(contentRes.isError).toBeFalsy();
+      expect(contentRes.isError).toBe(false);
       const data = contentRes.toolResult as any;
       expect(data.cover_image).toBe('https://example.com/cover.png');
       expect(data.canonical_url).toBe('https://example.com/canonical-page');

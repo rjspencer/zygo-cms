@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TemplateEditor } from './TemplateEditor';
@@ -54,6 +54,7 @@ describe('TemplateEditor Component', () => {
   };
 
   it('renders multi-tab UI for Schema, HTML, and CSS', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -72,29 +73,39 @@ describe('TemplateEditor Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
-    // Verify tabs are present
-    expect(screen.getByRole('tab', { name: /^Schema/i })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i })).toBeDefined();
-    expect(screen.getByRole('tab', { name: /CSS/i })).toBeDefined();
+    // Verify tabs are present and accessible
+    const schemaTab = screen.getByRole('tab', { name: /^Schema/i });
+    const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
+    const cssTab = screen.getByRole('tab', { name: /CSS/i });
+    expect(schemaTab.getAttribute('data-state')).toBe('active');
+    expect(htmlTab.getAttribute('data-state')).toBe('inactive');
+    expect(cssTab.getAttribute('data-state')).toBe('inactive');
 
     // Schema tab is active by default and renders VisualFieldBuilder fields
-    expect(screen.getByDisplayValue('Headline')).toBeDefined();
-    expect(screen.getByDisplayValue('headline')).toBeDefined();
+    const labelInput = screen.getByDisplayValue('Headline');
+    expect(labelInput.getAttribute('value')).toBe('Headline');
+    const nameFieldInput = screen.getByDisplayValue('headline');
+    expect(nameFieldInput.getAttribute('value')).toBe('headline');
 
     // Switch to HTML tab
-    const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
-    await userEvent.click(htmlTab);
-    expect(await screen.findByDisplayValue(mockTemplate.template_html)).toBeDefined();
+    await user.click(htmlTab);
+    expect(htmlTab.getAttribute('data-state')).toBe('active');
+    const htmlEditor = await screen.findByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
+    expect((htmlEditor as HTMLTextAreaElement).value.trim()).toBe(mockTemplate.template_html.trim());
 
     // Switch to CSS tab
-    const cssTab = screen.getByRole('tab', { name: /CSS/i });
-    await userEvent.click(cssTab);
-    expect(await screen.findByDisplayValue(mockTemplate.template_css)).toBeDefined();
+    await user.click(cssTab);
+    expect(cssTab.getAttribute('data-state')).toBe('active');
+    const cssEditor = await screen.findByRole('textbox', { name: /CSS Stylesheet/i });
+    expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
+    expect((cssEditor as HTMLTextAreaElement).value).toContain('padding: 2rem;');
   });
 
   it('admin role: renders Lock Template toggle and includes it in save', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string, options?: any) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -119,20 +130,21 @@ describe('TemplateEditor Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     // Lock toggle should be rendered for admin
     const lockSwitch = screen.getByRole('switch', { name: /Lock Template/i });
-    expect(lockSwitch).toBeDefined();
     expect(lockSwitch.getAttribute('aria-checked')).toBe('false');
 
     // Toggle lock
-    await userEvent.click(lockSwitch);
+    await user.click(lockSwitch);
     expect(lockSwitch.getAttribute('aria-checked')).toBe('true');
 
     // Click Save
     const saveBtn = screen.getByRole('button', { name: /Save Template/i });
-    await userEvent.click(saveBtn);
+    expect(saveBtn.hasAttribute('disabled')).toBe(false);
+    await user.click(saveBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -143,6 +155,9 @@ describe('TemplateEditor Component', () => {
         })
       );
     });
+
+    const successMessage = await screen.findByText('Template saved successfully!');
+    expect(successMessage.textContent).toBe('Template saved successfully!');
   });
 
   it('designer role: completely hides Lock Template toggle and locks core templates', async () => {
@@ -164,7 +179,8 @@ describe('TemplateEditor Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     // Lock Template toggle should NOT be in the DOM for designer
     expect(screen.queryByRole('switch', { name: /Lock Template/i })).toBeNull();
@@ -174,14 +190,14 @@ describe('TemplateEditor Component', () => {
     expect((saveBtn as HTMLButtonElement).disabled).toBe(true);
 
     // Tooltip warning should be present
-    expect(
-      screen.getAllByText(
-        'This core template is locked. Please reach out to an admin if you need to make a change.'
-      ).length
-    ).toBeGreaterThan(0);
+    const warning = screen.getByText(
+      'This core template is locked. Please reach out to an admin if you need to make a change.'
+    );
+    expect(warning.textContent).toContain('This core template is locked');
   });
 
   it('409 Conflict guardrail: shows modal and allows Force Save with ?force=true', async () => {
+    const user = userEvent.setup();
     let putCount = 0;
     (apiFetch as any).mockImplementation((url: string, options?: any) => {
       if (url === '/api/me') {
@@ -218,24 +234,24 @@ describe('TemplateEditor Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     const saveBtn = screen.getByRole('button', { name: /Save Template/i });
-    await userEvent.click(saveBtn);
+    await user.click(saveBtn);
 
     // Modal should appear with conflict message
-    expect(
-      await screen.findByText(
-        'CSS class collision: class "hero" is already in use by content type "post"'
-      )
-    ).toBeDefined();
+    const conflictMsg = await screen.findByText(
+      'CSS class collision: class "hero" is already in use by content type "post"'
+    );
+    expect(conflictMsg.textContent).toContain('CSS class collision');
 
     // Modal should have a destructively styled "Force Save" button
     const forceSaveBtn = screen.getByRole('button', { name: /Force Save/i });
-    expect(forceSaveBtn).toBeDefined();
+    expect(forceSaveBtn.hasAttribute('disabled')).toBe(false);
 
     // Click Force Save
-    await userEvent.click(forceSaveBtn);
+    await user.click(forceSaveBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -247,11 +263,19 @@ describe('TemplateEditor Component', () => {
       );
     });
 
-    // Modal should be closed and success callout visible
-    expect(await screen.findByText('Template saved successfully!')).toBeDefined();
+    // Modal should be closed and removed from DOM
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Success callout visible
+    const successMsg = await screen.findByText('Template saved successfully!');
+    expect(successMsg.textContent).toBe('Template saved successfully!');
   });
 
   it('400 Warning Confirmation: shows modal with warnings and allows Save Anyway with ?force=true', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string, options?: any) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -289,25 +313,26 @@ describe('TemplateEditor Component', () => {
 
     renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     const saveBtn = screen.getByRole('button', { name: /Save Template/i });
-    await userEvent.click(saveBtn);
+    await user.click(saveBtn);
 
     // Modal should appear with warnings
-    expect(await screen.findByText('Template Warnings')).toBeDefined();
-    expect(
-      screen.getByText(
-        "Schema field 'unused_field' is defined in schema but never used in template HTML"
-      )
-    ).toBeDefined();
+    const dialogTitle = await screen.findByRole('heading', { name: 'Template Warnings' });
+    expect(dialogTitle.textContent).toBe('Template Warnings');
+    const warningText = screen.getByText(
+      "Schema field 'unused_field' is defined in schema but never used in template HTML"
+    );
+    expect(warningText.textContent).toContain('unused_field');
 
     // Modal should have "Save Anyway" button
     const saveAnywayBtn = screen.getByRole('button', { name: /Save Anyway/i });
-    expect(saveAnywayBtn).toBeDefined();
+    expect(saveAnywayBtn.hasAttribute('disabled')).toBe(false);
 
     // Click "Save Anyway"
-    await userEvent.click(saveAnywayBtn);
+    await user.click(saveAnywayBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -319,11 +344,19 @@ describe('TemplateEditor Component', () => {
       );
     });
 
-    // Modal should be closed and success callout visible
-    expect(await screen.findByText('Template saved successfully!')).toBeDefined();
+    // Modal should be closed and removed from DOM
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
+
+    // Success callout visible
+    const successMsg = await screen.findByText('Template saved successfully!');
+    expect(successMsg.textContent).toBe('Template saved successfully!');
   });
 
   it('formats HTML and CSS on load when template data is fetched', async () => {
+    const user = userEvent.setup();
     const unformattedHtml = '<section class="hero"><div><h1>{{ headline }}</h1></div></section>';
     const unformattedCss = '.hero{padding:2rem;margin:0;}';
 
@@ -349,35 +382,29 @@ describe('TemplateEditor Component', () => {
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    const { container } = renderComponent();
+    renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     // Switch to HTML tab
     const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
-    await userEvent.click(htmlTab);
+    await user.click(htmlTab);
 
-    // Verify HTML editor displays loaded code (formatted or original unformatted)
-    const htmlEditor =
-      screen.queryByRole('textbox', { name: /HTML Template \(MiniJinja\)/i }) ||
-      container.querySelector('#editor-html textarea') ||
-      (await screen.findByDisplayValue(unformattedHtml));
-    expect(htmlEditor).toBeDefined();
+    // Verify HTML editor displays loaded code
+    const htmlEditor = await screen.findByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
     expect((htmlEditor as HTMLTextAreaElement).value).toContain('headline');
 
     // Switch to CSS tab
     const cssTab = screen.getByRole('tab', { name: /CSS/i });
-    await userEvent.click(cssTab);
+    await user.click(cssTab);
 
-    const cssEditor =
-      screen.queryByRole('textbox', { name: /CSS Stylesheet/i }) ||
-      container.querySelector('#editor-css textarea') ||
-      (await screen.findByDisplayValue(unformattedCss));
-    expect(cssEditor).toBeDefined();
+    const cssEditor = await screen.findByRole('textbox', { name: /CSS Stylesheet/i });
     expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
   });
 
   it('blurring HTML editor tab triggers formatting', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -394,22 +421,20 @@ describe('TemplateEditor Component', () => {
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    const { container } = renderComponent();
+    renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     // Switch to HTML tab
     const htmlTab = screen.getByRole('tab', { name: /HTML \(MiniJinja\)/i });
-    await userEvent.click(htmlTab);
+    await user.click(htmlTab);
 
-    const htmlEditor =
-      screen.queryByRole('textbox', { name: /HTML Template \(MiniJinja\)/i }) ||
-      container.querySelector('#editor-html textarea') ||
-      (await screen.findByDisplayValue(mockTemplate.template_html));
-    expect(htmlEditor).toBeDefined();
+    const htmlEditor = await screen.findByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
+    expect((htmlEditor as HTMLTextAreaElement).value).toContain('headline');
 
     // Simulate clicking and blurring
-    await userEvent.click(htmlEditor!);
+    await user.click(htmlEditor);
     (htmlEditor as HTMLTextAreaElement).blur();
 
     // Ensure the editor content remains valid and present
@@ -419,6 +444,7 @@ describe('TemplateEditor Component', () => {
   });
 
   it('blurring CSS editor tab triggers formatting', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -435,27 +461,54 @@ describe('TemplateEditor Component', () => {
       return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 
-    const { container } = renderComponent();
+    renderComponent();
 
-    expect(await screen.findByDisplayValue('Hero Section')).toBeDefined();
+    const nameInput = await screen.findByDisplayValue('Hero Section');
+    expect(nameInput.getAttribute('value')).toBe('Hero Section');
 
     // Switch to CSS tab
     const cssTab = screen.getByRole('tab', { name: /CSS/i });
-    await userEvent.click(cssTab);
+    await user.click(cssTab);
 
-    const cssEditor =
-      screen.queryByRole('textbox', { name: /CSS Stylesheet/i }) ||
-      container.querySelector('#editor-css textarea') ||
-      (await screen.findByDisplayValue(mockTemplate.template_css));
-    expect(cssEditor).toBeDefined();
+    const cssEditor = await screen.findByRole('textbox', { name: /CSS Stylesheet/i });
+    expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
 
     // Simulate clicking and blurring
-    await userEvent.click(cssEditor!);
+    await user.click(cssEditor);
     (cssEditor as HTMLTextAreaElement).blur();
 
     // Ensure the editor content remains valid and present
     await waitFor(() => {
       expect((cssEditor as HTMLTextAreaElement).value).toContain('.hero');
     });
+  });
+
+  it('handles template load error gracefully and displays error callout', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/me') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ role: 'admin' }),
+        });
+      }
+      if (url === '/api/content-types/hero') {
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
+    });
+
+    renderComponent();
+
+    const errorCallout = await screen.findByText('Failed to load template "hero"');
+    expect(errorCallout.textContent).toBe('Failed to load template "hero"');
+    const backBtn = screen.getByRole('button', { name: 'Back to Templates' });
+    expect(backBtn.hasAttribute('disabled')).toBe(false);
+
+    errorSpy.mockRestore();
   });
 });

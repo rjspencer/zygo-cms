@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ThemeEditorPage } from './ThemeEditorPage';
 import { Theme } from '@radix-ui/themes';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -123,25 +124,31 @@ describe('ThemeEditorPage', () => {
   it('redirects to /theme when navigating to /theme/editor without an ID', async () => {
     renderWithRouter('/theme/editor');
 
-    await waitFor(() => {
-      expect(screen.getByText('Themes List Page')).toBeDefined();
-    });
+    const redirectTarget = await screen.findByText('Themes List Page');
+    expect(redirectTarget.textContent).toBe('Themes List Page');
   });
 
   it('renders locked built-in theme with read-only badge and clone theme button', async () => {
     renderWithRouter('/theme/editor/modern-editorial');
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Modern Editorial').length).toBeGreaterThanOrEqual(1);
-    });
+    const heading = await screen.findByRole('heading', { name: 'Modern Editorial' });
+    expect(heading.textContent).toBe('Modern Editorial');
 
-    expect(screen.getByText('Built-in (Read-Only)')).toBeDefined();
-    expect(screen.getByText('Active Primary')).toBeDefined();
-    expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /Back to Themes/i })).toBeDefined();
+    const readOnlyBadge = screen.getByText('Built-in (Read-Only)');
+    expect(readOnlyBadge.textContent).toBe('Built-in (Read-Only)');
+
+    const activeBadge = screen.getByText('Active Primary');
+    expect(activeBadge.textContent).toBe('Active Primary');
+
+    const cloneButton = screen.getByRole('button', { name: /Clone Theme/i });
+    expect(cloneButton.hasAttribute('disabled')).toBe(false);
+
+    const backButton = screen.getByRole('button', { name: /Back to Themes/i });
+    expect(backButton.hasAttribute('disabled')).toBe(false);
   });
 
   it('calls duplicate API when Clone Theme is clicked', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string, options?: any) => {
       if (url === '/api/themes/modern-editorial' && !options) {
         return Promise.resolve({
@@ -152,7 +159,23 @@ describe('ThemeEditorPage', () => {
       if (url === '/api/themes/modern-editorial/duplicate' && options?.method === 'POST') {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ ...mockLockedTheme, id: 'modern-editorial-copy', name: 'Modern Editorial (Copy)' }),
+          json: async () => ({
+            ...mockLockedTheme,
+            id: 'modern-editorial-copy',
+            name: 'Modern Editorial (Copy)',
+            is_locked: false,
+          }),
+        });
+      }
+      if (url === '/api/themes/modern-editorial-copy' && !options) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            ...mockLockedTheme,
+            id: 'modern-editorial-copy',
+            name: 'Modern Editorial (Copy)',
+            is_locked: false,
+          }),
         });
       }
       if (url === '/api/settings') {
@@ -166,11 +189,10 @@ describe('ThemeEditorPage', () => {
 
     renderWithRouter('/theme/editor/modern-editorial');
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Clone Theme/i })).toBeDefined();
-    });
+    const cloneButton = await screen.findByRole('button', { name: /Clone Theme/i });
+    expect(cloneButton.hasAttribute('disabled')).toBe(false);
 
-    fireEvent.click(screen.getByRole('button', { name: /Clone Theme/i }));
+    await user.click(cloneButton);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -180,36 +202,48 @@ describe('ThemeEditorPage', () => {
         })
       );
     });
+
+    const newHeading = await screen.findByRole('heading', { name: 'Modern Editorial (Copy)' });
+    expect(newHeading.textContent).toBe('Modern Editorial (Copy)');
   });
 
   it('renders custom theme and saves modifications via PUT /api/themes/:id', async () => {
+    const user = userEvent.setup();
     renderWithRouter('/theme/editor/custom-midnight');
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Custom Midnight').length).toBeGreaterThanOrEqual(1);
-    });
+    const heading = await screen.findByRole('heading', { name: 'Custom Midnight' });
+    expect(heading.textContent).toBe('Custom Midnight');
 
-    expect(screen.getByText('Custom')).toBeDefined();
-
-    // Change a color input to trigger isDirty
-    const accentInput = screen.getByLabelText('Color picker for Accent Color');
-    fireEvent.change(accentInput, { target: { value: '#06b6d4' } });
+    const customBadge = screen.getByText('Custom');
+    expect(customBadge.textContent).toBe('Custom');
 
     const saveButton = screen.getByRole('button', { name: 'Save' });
-    expect(saveButton).toBeDefined();
-    fireEvent.click(saveButton);
+    expect(saveButton.hasAttribute('disabled')).toBe(true);
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/api/themes/custom-midnight',
-        expect.objectContaining({
-          method: 'PUT',
-        })
-      );
-    });
+    // Modify accent color hex to trigger dirty state
+    const accentInput = screen.getByRole('textbox', { name: 'Accent hex code' });
+    await user.clear(accentInput);
+    await user.type(accentInput, '#06b6d4');
+    expect(accentInput.getAttribute('value')).toBe('#06b6d4');
+
+    expect(screen.getByText('Unsaved Edits').textContent).toBe('Unsaved Edits');
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
+
+    await user.click(saveButton);
+
+    const savedButton = await screen.findByRole('button', { name: /Saved!/i });
+    expect(savedButton.textContent).toContain('Saved!');
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/api/themes/custom-midnight',
+      expect.objectContaining({
+        method: 'PUT',
+      })
+    );
   });
 
   it('supports inline rename for custom themes via PUT /api/themes/:id/rename', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string, options?: any) => {
       if (url === '/api/themes/custom-midnight' && !options) {
         return Promise.resolve({
@@ -234,27 +268,78 @@ describe('ThemeEditorPage', () => {
 
     renderWithRouter('/theme/editor/custom-midnight');
 
-    await waitFor(() => {
-      expect(screen.getAllByText('Custom Midnight').length).toBeGreaterThanOrEqual(1);
-    });
+    const heading = await screen.findByRole('heading', { name: 'Custom Midnight' });
+    expect(heading.textContent).toBe('Custom Midnight');
 
     const renameButton = screen.getByRole('button', { name: /Rename theme/i });
-    fireEvent.click(renameButton);
+    await user.click(renameButton);
 
     const input = screen.getByRole('textbox', { name: /Theme name/i });
-    fireEvent.change(input, { target: { value: 'Custom Midnight Renamed' } });
+    await user.clear(input);
+    await user.type(input, 'Custom Midnight Renamed');
+    expect(input.getAttribute('value')).toBe('Custom Midnight Renamed');
 
     const saveRenameButton = screen.getByRole('button', { name: /Save theme name/i });
-    fireEvent.click(saveRenameButton);
+    await user.click(saveRenameButton);
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/api/themes/custom-midnight/rename',
-        expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({ name: 'Custom Midnight Renamed' }),
-        })
-      );
+    const updatedHeading = await screen.findByRole('heading', { name: 'Custom Midnight Renamed' });
+    expect(updatedHeading.textContent).toBe('Custom Midnight Renamed');
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/api/themes/custom-midnight/rename',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ name: 'Custom Midnight Renamed' }),
+      })
+    );
+  });
+
+  it('allows canceling inline rename without calling rename API', async () => {
+    const user = userEvent.setup();
+    renderWithRouter('/theme/editor/custom-midnight');
+
+    const heading = await screen.findByRole('heading', { name: 'Custom Midnight' });
+    expect(heading.textContent).toBe('Custom Midnight');
+
+    const renameButton = screen.getByRole('button', { name: /Rename theme/i });
+    await user.click(renameButton);
+
+    const input = screen.getByRole('textbox', { name: /Theme name/i });
+    await user.clear(input);
+    await user.type(input, 'Different Name');
+
+    const cancelButton = screen.getByRole('button', { name: /Cancel/i });
+    await user.click(cancelButton);
+
+    expect(screen.queryByRole('textbox', { name: /Theme name/i })).toBeNull();
+
+    const revertedHeading = screen.getByRole('heading', { name: 'Custom Midnight' });
+    expect(revertedHeading.textContent).toBe('Custom Midnight');
+  });
+
+  it('displays error callout when theme fails to load', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    (apiFetch as any).mockImplementation((url: string) => {
+      if (url === '/api/themes/broken-theme') {
+        return Promise.resolve({
+          ok: false,
+          statusText: 'Not Found',
+        });
+      }
+      if (url === '/api/settings') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ theme_primary_id: 'modern-editorial' }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) });
     });
+
+    renderWithRouter('/theme/editor/broken-theme');
+
+    const errorMessage = await screen.findByText(/Theme not found/i);
+    expect(errorMessage.textContent).toContain('Theme not found');
+
+    errorSpy.mockRestore();
   });
 });
