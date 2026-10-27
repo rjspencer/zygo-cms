@@ -34,6 +34,22 @@ import {
 } from '../scripts/setup.mjs';
 
 describe('Setup Script Helpers', () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    delete globalThis.fetch;
+    globalThis.fetch = originalFetch;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => Promise.reject(new Error('Unexpected unmocked fetch call')));
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    delete globalThis.fetch;
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
   describe('extractJson', () => {
     it('parses standard JSON object', () => {
       const input = '{"success": true, "result": {"id": "123"}}';
