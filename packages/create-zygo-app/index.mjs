@@ -258,13 +258,23 @@ function ensureWorkersDevFalse(content) {
   }
 }
 
-function sanitizeWranglerConfigs(targetDir) {
+function sanitizeWranglerConfigs(targetDir, projectName) {
+  const normalized = normalizePackageName(projectName || path.basename(path.resolve(targetDir)));
+  const pubWorkerName = `${normalized}-public-worker`;
+  const apiWorkerName = `${normalized}-admin-api-worker`;
+  const uiWorkerName = `${normalized}-admin-ui-worker`;
+  const dbName = `zygo-cms-db-${normalized}`;
+  const bucketName = `zygo-cms-media-${normalized}`;
+
   const rootWranglerPath = path.join(targetDir, 'wrangler.toml');
   if (fs.existsSync(rootWranglerPath)) {
     let content = fs.readFileSync(rootWranglerPath, 'utf8');
     content = content.replace(/zygodactylstudios\.com/g, 'example.com');
     content = content.replace(/\(id:\s*[a-f0-9-]{36}\)/gi, `(id: ${PLACEHOLDER_DB_ID})`);
     content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${PLACEHOLDER_DB_ID}"`);
+    content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${dbName}"`);
+    content = content.replace(/#\s*- D1 database:\s*\S+/g, `#- D1 database:  ${dbName}`);
+    content = content.replace(/migrations apply \S+ --remote/, `migrations apply ${dbName} --remote`);
     fs.writeFileSync(rootWranglerPath, content, 'utf8');
   }
 
@@ -273,7 +283,10 @@ function sanitizeWranglerConfigs(targetDir) {
     let content = fs.readFileSync(publicWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
     content = ensureWorkersDevFalse(content);
+    content = content.replace(/name\s*=\s*"[^"]*"/, `name = "${pubWorkerName}"`);
     content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${PLACEHOLDER_DB_ID}"`);
+    content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${dbName}"`);
+    content = content.replace(/bucket_name\s*=\s*"[^"]*"/g, `bucket_name = "${bucketName}"`);
     fs.writeFileSync(publicWranglerPath, content, 'utf8');
   }
 
@@ -282,7 +295,10 @@ function sanitizeWranglerConfigs(targetDir) {
     let content = fs.readFileSync(apiWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
     content = ensureWorkersDevFalse(content);
+    content = content.replace(/name\s*=\s*"[^"]*"/, `name = "${apiWorkerName}"`);
     content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${PLACEHOLDER_DB_ID}"`);
+    content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${dbName}"`);
+    content = content.replace(/bucket_name\s*=\s*"[^"]*"/g, `bucket_name = "${bucketName}"`);
     fs.writeFileSync(apiWranglerPath, content, 'utf8');
   }
 
@@ -291,6 +307,7 @@ function sanitizeWranglerConfigs(targetDir) {
     let content = fs.readFileSync(uiWranglerPath, 'utf8');
     content = stripRoutesBlock(content);
     content = ensureWorkersDevFalse(content);
+    content = content.replace(/name\s*=\s*"[^"]*"/, `name = "${uiWorkerName}"`);
     fs.writeFileSync(uiWranglerPath, content, 'utf8');
   }
 }
@@ -300,11 +317,25 @@ function sanitizePackageJson(targetDir, projectName) {
   if (!fs.existsSync(pkgPath)) return;
 
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-  pkg.name = normalizePackageName(projectName);
+  const normalized = normalizePackageName(projectName);
+  pkg.name = normalized;
 
   if (pkg.scripts) {
     delete pkg.scripts['seed:docs:official'];
     delete pkg.scripts['test:create'];
+    const dbName = `zygo-cms-db-${normalized}`;
+    if (pkg.scripts['db:migrate']) {
+      pkg.scripts['db:migrate'] = pkg.scripts['db:migrate'].replace(
+        /migrations apply \S+/,
+        `migrations apply ${dbName}`
+      );
+    }
+    if (pkg.scripts['db:migrate:local']) {
+      pkg.scripts['db:migrate:local'] = pkg.scripts['db:migrate:local'].replace(
+        /migrations apply \S+/,
+        `migrations apply ${dbName}`
+      );
+    }
   }
 
   fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 4)}\n`, 'utf8');
@@ -326,7 +357,7 @@ function sanitizeProject(targetDir, projectName) {
   }
 
   sanitizePackageJson(targetDir, projectName);
-  sanitizeWranglerConfigs(targetDir);
+  sanitizeWranglerConfigs(targetDir, projectName);
 }
 
 function writeLocalEnvFiles(targetDir) {

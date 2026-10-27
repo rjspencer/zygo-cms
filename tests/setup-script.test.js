@@ -24,6 +24,13 @@ import {
   deleteDnsRecords,
   applyRemoteMigrations,
   deriveDefaultTeamSlug,
+  deriveInstanceSlug,
+  updateWorkerName,
+  updatePackageJsonDbScripts,
+  updateD1DatabaseConfig,
+  updateR2BucketConfig,
+  provisionD1Database,
+  provisionR2Bucket,
   ensureZeroTrustOrganization,
   parseCliArgs,
   runPreflightChecks,
@@ -137,6 +144,30 @@ describe('Setup Script Helpers', () => {
     });
   });
 
+  describe('deriveInstanceSlug', () => {
+    it('derives instance slug from domain name with dots replaced by hyphens', () => {
+      expect(deriveInstanceSlug('zygocms.com')).toBe('zygocms-com');
+      expect(deriveInstanceSlug('example.com')).toBe('example-com');
+    });
+
+    it('strips protocol, paths, and trailing slashes', () => {
+      expect(deriveInstanceSlug('https://my-site.co.uk/')).toBe('my-site-co-uk');
+      expect(deriveInstanceSlug('http://blog.company.io/extra')).toBe('blog-company-io');
+    });
+
+    it('handles project names and formats to lowercase alphanumeric and hyphens', () => {
+      expect(deriveInstanceSlug('zygocms')).toBe('zygocms');
+      expect(deriveInstanceSlug('My Cool Project!')).toBe('my-cool-project');
+      expect(deriveInstanceSlug('---test_instance---')).toBe('test-instance');
+    });
+
+    it('returns "zygo-cms" default when domain or name is empty or not a string', () => {
+      expect(deriveInstanceSlug('')).toBe('zygo-cms');
+      expect(deriveInstanceSlug(null)).toBe('zygo-cms');
+      expect(deriveInstanceSlug(undefined)).toBe('zygo-cms');
+    });
+  });
+
   describe('replaceOrInsertRoutes', () => {
     it('replaces existing routes block', () => {
       const content = 'name = "test"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]';
@@ -176,12 +207,32 @@ describe('Setup Script Helpers', () => {
 
       updatePublicWrangler('mytestdomain.com', 'test-db-uuid-111', mockPublicPath);
       const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('name = "mytestdomain-com-public-worker"');
       expect(updated).toContain('database_id = "test-db-uuid-111"');
       expect(updated).toContain('pattern = "mytestdomain.com"');
       expect(updated).toContain('pattern = "www.mytestdomain.com"');
       expect(updated).toContain('ADMIN_SUBDOMAIN = "admin"');
       expect(updated).toContain('workers_dev = false');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
+    });
+
+    it('updates public-worker/wrangler.toml with custom options for workerName, dbName, and bucketName', () => {
+      const mockPublicPath = path.join(testDir, 'public-worker-options.toml');
+      fs.writeFileSync(
+        mockPublicPath,
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[[r2_buckets]]\nbinding = "MEDIA"\nbucket_name = "zygo-cms-media"\n',
+        'utf8'
+      );
+
+      updatePublicWrangler('mytestdomain.com', 'test-db-uuid-111', 'www', 'redirect_to_sub', 'admin', mockPublicPath, {
+        instanceSlug: 'custom-slug',
+        dbName: 'custom-db-name',
+        bucketName: 'custom-bucket-name'
+      });
+      const updated = fs.readFileSync(mockPublicPath, 'utf8');
+      expect(updated).toContain('name = "custom-slug-public-worker"');
+      expect(updated).toContain('database_name = "custom-db-name"');
+      expect(updated).toContain('bucket_name = "custom-bucket-name"');
     });
 
     it('updates public-worker/wrangler.toml with custom admin subdomain', () => {
@@ -207,11 +258,31 @@ describe('Setup Script Helpers', () => {
 
       updateAdminApiWrangler('mytestdomain.com', 'test-db-uuid-222', mockApiPath);
       const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('name = "mytestdomain-com-admin-api-worker"');
       expect(updated).toContain('database_id = "test-db-uuid-222"');
       expect(updated).toContain('pattern = "api.mytestdomain.com"');
       expect(updated).toContain('PUBLIC_SUBDOMAIN = "www"');
       expect(updated).toContain('workers_dev = false');
       expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
+    });
+
+    it('updates admin-api-worker/wrangler.toml with custom options for workerName, dbName, and bucketName', () => {
+      const mockApiPath = path.join(testDir, 'admin-api-worker-options.toml');
+      fs.writeFileSync(
+        mockApiPath,
+        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[[r2_buckets]]\nbinding = "MEDIA"\nbucket_name = "zygo-cms-media"\n',
+        'utf8'
+      );
+
+      updateAdminApiWrangler('mytestdomain.com', 'test-db-uuid-222', 'api', 'www', mockApiPath, {
+        instanceSlug: 'custom-slug',
+        dbName: 'custom-db-name',
+        bucketName: 'custom-bucket-name'
+      });
+      const updated = fs.readFileSync(mockApiPath, 'utf8');
+      expect(updated).toContain('name = "custom-slug-admin-api-worker"');
+      expect(updated).toContain('database_name = "custom-db-name"');
+      expect(updated).toContain('bucket_name = "custom-bucket-name"');
     });
 
     it('updates admin-ui/wrangler.toml properly', () => {
@@ -224,8 +295,24 @@ describe('Setup Script Helpers', () => {
 
       updateAdminUiWrangler('mytestdomain.com', mockUiPath);
       const updated = fs.readFileSync(mockUiPath, 'utf8');
+      expect(updated).toContain('name = "mytestdomain-com-admin-ui-worker"');
       expect(updated).toContain('pattern = "admin.mytestdomain.com"');
       expect(updated).toContain('workers_dev = false');
+    });
+
+    it('updates admin-ui/wrangler.toml with custom options for workerName or instanceSlug', () => {
+      const mockUiPath = path.join(testDir, 'admin-ui-options.toml');
+      fs.writeFileSync(
+        mockUiPath,
+        'name = "admin-ui-worker"\ncompatibility_date = "2024-09-01"\n[assets]\ndirectory = "dist"\n',
+        'utf8'
+      );
+
+      updateAdminUiWrangler('mytestdomain.com', 'admin', mockUiPath, {
+        instanceSlug: 'custom-slug'
+      });
+      const updated = fs.readFileSync(mockUiPath, 'utf8');
+      expect(updated).toContain('name = "custom-slug-admin-ui-worker"');
     });
 
     it('updates admin-api-worker access vars properly', () => {
@@ -1567,6 +1654,21 @@ describe('Setup Script Helpers', () => {
       );
     });
 
+    it('applies migrations with custom dbName when provided', () => {
+      const execSpy = vi.fn().mockReturnValue(Buffer.from('Success'));
+      const result = applyRemoteMigrations({ CI: 'true', CLOUDFLARE_API_TOKEN: 'mock-token' }, 'zygo-cms-db-custom', execSpy);
+
+      expect(result).toBe(true);
+      expect(execSpy).toHaveBeenCalledWith(
+        expect.stringContaining('npx wrangler d1 migrations apply zygo-cms-db-custom --remote -c packages/admin-api-worker/wrangler.toml'),
+        expect.objectContaining({
+          env: expect.objectContaining({
+            CLOUDFLARE_API_TOKEN: 'mock-token'
+          })
+        })
+      );
+    });
+
     it('returns false and catches error when wrangler migration fails', () => {
       const execSpy = vi.fn().mockImplementation(() => {
         throw new Error('Database migration failed');
@@ -1574,6 +1676,113 @@ describe('Setup Script Helpers', () => {
       const result = applyRemoteMigrations(null, execSpy);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('provisionD1Database and provisionR2Bucket', () => {
+    const testDir = path.resolve('tests/mocks/provision-test');
+
+    beforeEach(() => {
+      fs.mkdirSync(testDir, { recursive: true });
+    });
+
+    afterEach(() => {
+      fs.rmSync(testDir, { recursive: true, force: true });
+    });
+
+    it('provisions existing D1 database and updates configs with dynamic dbName', () => {
+      const rootWrangler = path.join(testDir, 'wrangler.toml');
+      const pubWrangler = path.join(testDir, 'public.toml');
+      const apiWrangler = path.join(testDir, 'api.toml');
+      const pkgPath = path.join(testDir, 'package.json');
+
+      fs.writeFileSync(rootWrangler, '[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = ""\n', 'utf8');
+      fs.writeFileSync(pubWrangler, '[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = ""\n', 'utf8');
+      fs.writeFileSync(apiWrangler, '[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = ""\n', 'utf8');
+      fs.writeFileSync(pkgPath, JSON.stringify({
+        scripts: {
+          'db:migrate': 'wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml',
+          'db:migrate:local': 'wrangler d1 migrations apply zygo-cms-db --local -c packages/admin-api-worker/wrangler.toml'
+        }
+      }, null, 2), 'utf8');
+
+      const execFn = vi.fn().mockImplementation((cmd) => {
+        if (cmd.includes('d1 list')) {
+          return JSON.stringify([{ name: 'zygo-cms-db-instance', uuid: 'existing-uuid-123' }]);
+        }
+        return '';
+      });
+
+      const dbId = provisionD1Database(null, 'zygo-cms-db-instance', {
+        execFn,
+        customPaths: {
+          rootWrangler,
+          publicWrangler: pubWrangler,
+          adminApiWrangler: apiWrangler,
+          packageJson: pkgPath
+        }
+      });
+
+      expect(dbId).toBe('existing-uuid-123');
+      expect(fs.readFileSync(rootWrangler, 'utf8')).toContain('database_name = "zygo-cms-db-instance"');
+      expect(fs.readFileSync(rootWrangler, 'utf8')).toContain('database_id = "existing-uuid-123"');
+      expect(fs.readFileSync(pubWrangler, 'utf8')).toContain('database_name = "zygo-cms-db-instance"');
+      expect(fs.readFileSync(apiWrangler, 'utf8')).toContain('database_name = "zygo-cms-db-instance"');
+      const updatedPkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      expect(updatedPkg.scripts['db:migrate']).toContain('zygo-cms-db-instance');
+      expect(updatedPkg.scripts['db:migrate:local']).toContain('zygo-cms-db-instance');
+    });
+
+    it('creates new D1 database if not found', () => {
+      const rootWrangler = path.join(testDir, 'wrangler.toml');
+      fs.writeFileSync(rootWrangler, '[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = ""\n', 'utf8');
+
+      const execFn = vi.fn().mockImplementation((cmd) => {
+        if (cmd.includes('d1 list')) {
+          return '[]';
+        }
+        if (cmd.includes('d1 create')) {
+          return JSON.stringify({ uuid: 'new-uuid-456' });
+        }
+        return '';
+      });
+
+      const dbId = provisionD1Database(null, 'zygo-cms-db-brandnew', {
+        execFn,
+        customPaths: { rootWrangler }
+      });
+
+      expect(dbId).toBe('new-uuid-456');
+      expect(execFn).toHaveBeenCalledWith(
+        expect.stringContaining('npx wrangler d1 create zygo-cms-db-brandnew --json'),
+        expect.anything()
+      );
+      expect(fs.readFileSync(rootWrangler, 'utf8')).toContain('database_name = "zygo-cms-db-brandnew"');
+      expect(fs.readFileSync(rootWrangler, 'utf8')).toContain('database_id = "new-uuid-456"');
+    });
+
+    it('provisions R2 bucket with custom name and updates wranglers', () => {
+      const pubWrangler = path.join(testDir, 'public.toml');
+      const apiWrangler = path.join(testDir, 'api.toml');
+      fs.writeFileSync(pubWrangler, '[[r2_buckets]]\nbinding = "MEDIA"\nbucket_name = "zygo-cms-media"\n', 'utf8');
+      fs.writeFileSync(apiWrangler, '[[r2_buckets]]\nbinding = "MEDIA"\nbucket_name = "zygo-cms-media"\n', 'utf8');
+
+      const execFn = vi.fn().mockReturnValue('');
+
+      provisionR2Bucket(null, 'zygo-cms-media-instance', {
+        execFn,
+        customPaths: {
+          publicWrangler: pubWrangler,
+          adminApiWrangler: apiWrangler
+        }
+      });
+
+      expect(execFn).toHaveBeenCalledWith(
+        expect.stringContaining('npx wrangler r2 bucket create zygo-cms-media-instance'),
+        expect.anything()
+      );
+      expect(fs.readFileSync(pubWrangler, 'utf8')).toContain('bucket_name = "zygo-cms-media-instance"');
+      expect(fs.readFileSync(apiWrangler, 'utf8')).toContain('bucket_name = "zygo-cms-media-instance"');
     });
   });
 
@@ -1617,6 +1826,18 @@ describe('Setup Script Helpers', () => {
       const { flags, isInteractive } = parseCliArgs(['--dry-run']);
       expect(flags['dry-run']).toBe(true);
       expect(isInteractive).toBe(false);
+    });
+
+    it('parses --instance-slug, --db-name, and --bucket-name', () => {
+      const { flags } = parseCliArgs([
+        '--domain', 'custom.com',
+        '--instance-slug', 'custom-slug',
+        '--db-name', 'custom-db',
+        '--bucket-name', 'custom-bucket'
+      ]);
+      expect(flags['instance-slug']).toBe('custom-slug');
+      expect(flags['db-name']).toBe('custom-db');
+      expect(flags['bucket-name']).toBe('custom-bucket');
     });
 
     it('parses all long flags correctly', () => {
