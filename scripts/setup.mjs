@@ -436,7 +436,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.1.0'
+    'User-Agent': 'zygo-cms-setup/0.2.0'
   };
 
   const payload = {
@@ -559,7 +559,7 @@ async function getZeroTrustOrgDomain(accountId, apiToken) {
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'zygo-cms-setup/0.1.0'
+        'User-Agent': 'zygo-cms-setup/0.2.0'
       }
     });
     if (!res.ok) return null;
@@ -601,7 +601,7 @@ async function ensureZeroTrustOrganization(accountId, apiToken, teamName, orgNam
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'zygo-cms-setup/0.1.0'
+        'User-Agent': 'zygo-cms-setup/0.2.0'
       },
       body: JSON.stringify({
         name: resolvedOrgName,
@@ -628,7 +628,7 @@ async function ensureOneTimePinProvider(accountId, apiToken) {
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.1.0'
+    'User-Agent': 'zygo-cms-setup/0.2.0'
   };
 
   try {
@@ -677,7 +677,7 @@ async function configureGoogleProvider(accountId, apiToken, clientId, clientSecr
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.1.0'
+    'User-Agent': 'zygo-cms-setup/0.2.0'
   };
 
   try {
@@ -860,7 +860,7 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.1.0'
+    'User-Agent': 'zygo-cms-setup/0.2.0'
   };
 
   const newRule = {

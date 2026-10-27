@@ -1,6 +1,6 @@
 {
   "name": "create-zygo-app",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Scaffold a clean, standalone Zygo CMS project on Cloudflare Workers, D1, and R2.",
   "type": "module",
   "bin": {
