@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Settings } from './Settings';
@@ -85,14 +85,14 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
-      expect(screen.getByDisplayValue('https://test.example.com')).toBeTruthy();
-      expect(screen.getByDisplayValue('Test Description')).toBeTruthy();
-    });
+    const siteTitleInput = (await screen.findByDisplayValue('Test Title')) as HTMLInputElement;
+    expect(siteTitleInput.value).toBe('Test Title');
+    expect(((screen.getByLabelText('Canonical Origin')) as HTMLInputElement).value).toBe('https://test.example.com');
+    expect(((screen.getByLabelText('Meta Description')) as HTMLTextAreaElement).value).toBe('Test Description');
   });
 
   it('disables save button when there are no changes, and enables when dirty', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -112,20 +112,20 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
-    });
+    const titleInput = (await screen.findByDisplayValue('Test Title')) as HTMLInputElement;
+    expect(titleInput.value).toBe('Test Title');
 
-    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(true);
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(true);
 
-    const titleInput = screen.getByDisplayValue('Test Title');
-    await userEvent.type(titleInput, ' Updated');
+    await user.type(titleInput, ' Updated');
 
-    expect(saveButton.disabled).toBe(false);
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
+    expect(titleInput.value).toBe('Test Title Updated');
   });
 
   it('saves settings correctly with batch format', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -145,43 +145,44 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
-    });
+    const titleInput = (await screen.findByDisplayValue('Test Title')) as HTMLInputElement;
+    expect(titleInput.value).toBe('Test Title');
 
-    const titleInput = screen.getByDisplayValue('Test Title');
-    await userEvent.clear(titleInput);
-    await userEvent.type(titleInput, 'New Title');
+    await user.clear(titleInput);
+    await user.type(titleInput, 'New Title');
 
-    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
-    await userEvent.click(saveButton);
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
+    await user.click(saveButton);
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          settings: {
-            site_title: 'New Title',
-            canonical_origin: 'https://test.example.com',
-            description: 'Test Description',
-            analytics_enabled: 'false',
-            analytics_site_tag: '',
-            docs_mode_enabled: 'false',
-            docs_path: '/docs',
-            site_logo: '',
-            site_logo_dark: '',
-            site_favicon: '',
-            default_og_image: '',
-            footer_text: '',
-          },
-        }),
-      });
+    await screen.findByRole('button', { name: /saved!/i });
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settings: {
+          site_title: 'New Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+          analytics_enabled: 'false',
+          analytics_site_tag: '',
+          docs_mode_enabled: 'false',
+          docs_path: '/docs',
+          site_logo: '',
+          site_logo_dark: '',
+          site_favicon: '',
+          default_og_image: '',
+          footer_text: '',
+        },
+      }),
     });
   });
 
   it('displays user-facing error message when saving fails', async () => {
+    const user = userEvent.setup();
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     (apiFetch as any).mockImplementation(async (url: string, options?: any) => {
       if (options?.method === 'POST') {
         return {
@@ -216,45 +217,44 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
-    });
-
-    const titleInput = screen.getByDisplayValue('Test Title');
-    await userEvent.type(titleInput, ' Error Test');
+    const titleInput = (await screen.findByDisplayValue('Test Title')) as HTMLInputElement;
+    await user.type(titleInput, ' Error Test');
 
     const saveButton = screen.getByRole('button', { name: /save settings/i });
-    await userEvent.click(saveButton);
+    await user.click(saveButton);
 
-    await waitFor(() => {
-      expect(screen.getByText('Database connection failed')).toBeTruthy();
-    });
+    const errorCallout = await screen.findByText('Database connection failed');
+    expect(errorCallout.textContent).toBe('Database connection failed');
+
+    consoleErrorSpy.mockRestore();
   });
 
   it('displays Public Site configured from VITE_PUBLIC_SITE_URL in edge environment card', async () => {
-    import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
-    (apiFetch as any).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        site_title: 'Test Title',
-      }),
-    });
+    const originalSiteUrl = import.meta.env.VITE_PUBLIC_SITE_URL;
+    try {
+      import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
+      (apiFetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          site_title: 'Test Title',
+        }),
+      });
 
-    const queryClient = createTestQueryClient();
-    render(
-      <QueryClientProvider client={queryClient}>
-        <Theme>
-          <SettingsWithRouter />
-        </Theme>
-      </QueryClientProvider>
-    );
+      const queryClient = createTestQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <Theme>
+            <SettingsWithRouter />
+          </Theme>
+        </QueryClientProvider>
+      );
 
-    await waitFor(() => {
-      expect(screen.getByText('Public Site')).toBeTruthy();
-      expect(screen.getByText('https://zygodactylstudios.com')).toBeTruthy();
-    });
-
-    import.meta.env.VITE_PUBLIC_SITE_URL = '';
+      const heading = await screen.findByText('Public Site');
+      expect(heading.textContent).toBe('Public Site');
+      expect(screen.getByText('https://zygodactylstudios.com').textContent).toBe('https://zygodactylstudios.com');
+    } finally {
+      import.meta.env.VITE_PUBLIC_SITE_URL = originalSiteUrl;
+    }
   });
 
   it('associates form labels with inputs and configures aria-describedby for accessibility', async () => {
@@ -279,97 +279,77 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Test Title')).toBeTruthy();
-    });
-
     // Site Title
-    const siteTitleInput = screen.getByLabelText('Site Title');
-    expect(siteTitleInput).toBeDefined();
+    const siteTitleInput = await screen.findByLabelText('Site Title');
     expect(siteTitleInput.getAttribute('id')).toBe('settings-site-title-input');
 
     // Canonical Origin
     const canonicalInput = screen.getByLabelText('Canonical Origin');
-    expect(canonicalInput).toBeDefined();
     expect(canonicalInput.getAttribute('id')).toBe('settings-canonical-origin-input');
     expect(canonicalInput.getAttribute('aria-describedby')).toBe('settings-canonical-origin-description');
     const canonicalDesc = document.getElementById('settings-canonical-origin-description');
-    expect(canonicalDesc).toBeDefined();
     expect(canonicalDesc?.textContent).toContain('Used to generate canonical URLs');
 
     // Meta Description
     const metaDescriptionInput = screen.getByLabelText('Meta Description');
-    expect(metaDescriptionInput).toBeDefined();
     expect(metaDescriptionInput.getAttribute('id')).toBe('settings-meta-description-input');
 
     // Analytics Switch
     const analyticsSwitch = screen.getByLabelText('Enable Web Analytics');
-    expect(analyticsSwitch).toBeDefined();
     expect(analyticsSwitch.getAttribute('id')).toBe('settings-analytics-switch');
     expect(analyticsSwitch.getAttribute('aria-describedby')).toBe('settings-analytics-description');
     const analyticsDesc = document.getElementById('settings-analytics-description');
-    expect(analyticsDesc).toBeDefined();
     expect(analyticsDesc?.textContent).toContain('Enable pageview tracking');
 
     // Cloudflare Web Analytics Site Tag / Token
     const analyticsSiteTagInput = screen.getByLabelText('Cloudflare Web Analytics Site Tag / Token');
-    expect(analyticsSiteTagInput).toBeDefined();
     expect(analyticsSiteTagInput.getAttribute('id')).toBe('settings-analytics-site-tag');
     expect(analyticsSiteTagInput.getAttribute('aria-describedby')).toBe('settings-analytics-site-tag-desc');
     const analyticsSiteTagDesc = document.getElementById('settings-analytics-site-tag-desc');
-    expect(analyticsSiteTagDesc).toBeDefined();
     expect(analyticsSiteTagDesc?.textContent).toContain('Obtained from the Cloudflare Dashboard');
 
     // Docs Mode Switch
     const docsSwitch = screen.getByLabelText('Enable Docs Mode');
-    expect(docsSwitch).toBeDefined();
     expect(docsSwitch.getAttribute('id')).toBe('settings-docs-mode-switch');
     expect(docsSwitch.getAttribute('aria-describedby')).toBe('settings-docs-mode-description');
     const docsDesc = document.getElementById('settings-docs-mode-description');
-    expect(docsDesc).toBeDefined();
     expect(docsDesc?.textContent).toContain('Enable product documentation features');
 
     // Docs Base Path
     const docsPathInput = screen.getByLabelText('Docs Base Path');
-    expect(docsPathInput).toBeDefined();
     expect(docsPathInput.getAttribute('id')).toBe('settings-docs-path-input');
     expect(docsPathInput.getAttribute('aria-describedby')).toBe('settings-docs-path-description');
     const docsPathDesc = document.getElementById('settings-docs-path-description');
-    expect(docsPathDesc).toBeDefined();
     expect(docsPathDesc?.textContent).toContain('The path where the documentation will be served');
 
     // Site Logo
     const siteLogoInput = screen.getByLabelText('Site Logo');
-    expect(siteLogoInput).toBeDefined();
     expect(siteLogoInput.getAttribute('id')).toBe('settings-site-logo-input');
     expect(siteLogoInput.getAttribute('aria-describedby')).toBe('settings-site-logo-description');
 
     // Site Logo (Dark Mode)
     const siteLogoDarkInput = screen.getByLabelText('Site Logo (Dark Mode)');
-    expect(siteLogoDarkInput).toBeDefined();
     expect(siteLogoDarkInput.getAttribute('id')).toBe('settings-site-logo-dark-input');
     expect(siteLogoDarkInput.getAttribute('aria-describedby')).toBe('settings-site-logo-dark-description');
 
     // Favicon
     const faviconInput = screen.getByLabelText('Favicon');
-    expect(faviconInput).toBeDefined();
     expect(faviconInput.getAttribute('id')).toBe('settings-site-favicon-input');
     expect(faviconInput.getAttribute('aria-describedby')).toBe('settings-site-favicon-description');
 
     // Default OG Image
     const ogInput = screen.getByLabelText('Default Social Share Image (Open Graph)');
-    expect(ogInput).toBeDefined();
     expect(ogInput.getAttribute('id')).toBe('settings-default-og-image-input');
     expect(ogInput.getAttribute('aria-describedby')).toBe('settings-default-og-image-description');
 
     // Footer Text
     const footerInput = screen.getByLabelText('Footer Text');
-    expect(footerInput).toBeDefined();
     expect(footerInput.getAttribute('id')).toBe('settings-footer-text-input');
     expect(footerInput.getAttribute('aria-describedby')).toBe('settings-footer-text-description');
   });
 
   it('renders branding settings, displays previews, and clears on button click', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -393,37 +373,47 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('https://example.com/logo.png')).toBeTruthy();
-      expect(screen.getByDisplayValue('https://example.com/logo-dark.png')).toBeTruthy();
-      expect(screen.getByDisplayValue('https://example.com/favicon.ico')).toBeTruthy();
-      expect(screen.getByDisplayValue('https://example.com/og.png')).toBeTruthy();
-      expect(screen.getByDisplayValue('© 2026 Branded Site')).toBeTruthy();
-    });
+    const logoInput = (await screen.findByDisplayValue('https://example.com/logo.png')) as HTMLInputElement;
+    expect(logoInput.value).toBe('https://example.com/logo.png');
+    expect(((screen.getByLabelText('Site Logo (Dark Mode)')) as HTMLInputElement).value).toBe(
+      'https://example.com/logo-dark.png'
+    );
+    expect(((screen.getByLabelText('Favicon')) as HTMLInputElement).value).toBe(
+      'https://example.com/favicon.ico'
+    );
+    expect(
+      ((screen.getByLabelText('Default Social Share Image (Open Graph)')) as HTMLInputElement).value
+    ).toBe('https://example.com/og.png');
+    expect(((screen.getByLabelText('Footer Text')) as HTMLInputElement).value).toBe(
+      '© 2026 Branded Site'
+    );
 
-    // Check previews are rendered
-    expect(screen.getByTestId('settings-logo-preview')).toBeTruthy();
-    expect(screen.getByTestId('settings-logo-dark-preview')).toBeTruthy();
-    expect(screen.getByTestId('settings-favicon-preview')).toBeTruthy();
-    expect(screen.getByTestId('settings-default-og-preview')).toBeTruthy();
+    // Check previews have correct src
+    const logoPreview = screen.getByAltText('Logo preview') as HTMLImageElement;
+    expect(logoPreview.src).toBe('https://example.com/logo.png');
+    const logoDarkPreview = screen.getByAltText('Dark mode logo preview') as HTMLImageElement;
+    expect(logoDarkPreview.src).toBe('https://example.com/logo-dark.png');
+    const faviconPreview = screen.getByAltText('Favicon preview') as HTMLImageElement;
+    expect(faviconPreview.src).toBe('https://example.com/favicon.ico');
+    const ogPreview = screen.getByAltText('Social share preview') as HTMLImageElement;
+    expect(ogPreview.src).toBe('https://example.com/og.png');
 
     // Click clear dark logo button
-    const clearLogoDarkBtn = screen.getByTestId('settings-clear-logo-dark-button');
-    await userEvent.click(clearLogoDarkBtn);
+    const clearLogoDarkBtn = screen.getByRole('button', { name: 'Clear dark mode logo' });
+    await user.click(clearLogoDarkBtn);
 
-    const logoDarkInput = screen.getByTestId('settings-site-logo-dark-input') as HTMLInputElement;
+    const logoDarkInput = screen.getByLabelText('Site Logo (Dark Mode)') as HTMLInputElement;
     expect(logoDarkInput.value).toBe('');
 
     // Click clear logo button
-    const clearLogoBtn = screen.getByTestId('settings-clear-logo-button');
-    await userEvent.click(clearLogoBtn);
+    const clearLogoBtn = screen.getByRole('button', { name: 'Clear site logo' });
+    await user.click(clearLogoBtn);
 
-    const logoInput = screen.getByTestId('settings-site-logo-input') as HTMLInputElement;
     expect(logoInput.value).toBe('');
 
     // Save button should now be enabled
-    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
   });
 
   it('renders footer dynamic year preview when {{ year }} template tag is entered', async () => {
@@ -447,11 +437,11 @@ describe('Settings component', () => {
     );
 
     const currentYear = String(new Date().getFullYear());
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Copyright {{ year }} Zygo CMS')).toBeTruthy();
-      expect(screen.getByTestId('settings-footer-text-preview')).toBeTruthy();
-      expect(screen.getByTestId('settings-footer-text-preview').textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
-    });
+    const footerInput = (await screen.findByDisplayValue('Copyright {{ year }} Zygo CMS')) as HTMLTextAreaElement;
+    expect(footerInput.value).toBe('Copyright {{ year }} Zygo CMS');
+
+    const preview = screen.getByText(`Preview: Copyright ${currentYear} Zygo CMS`);
+    expect(preview.textContent).toContain(`Preview: Copyright ${currentYear} Zygo CMS`);
   });
 
   it('resolves relative /media/ URLs using getPublicSiteUrl and handles load errors gracefully', async () => {
@@ -476,22 +466,19 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      const logoImg = screen.getByTestId('settings-logo-preview') as HTMLImageElement;
-      expect(logoImg.src).toBe(getPublicSiteUrl('/media/1726700000000-logo.webp'));
-      const faviconImg = screen.getByTestId('settings-favicon-preview') as HTMLImageElement;
-      expect(faviconImg.src).toBe(getPublicSiteUrl('/media/favicon.png'));
-      const ogImg = screen.getByTestId('settings-default-og-preview') as HTMLImageElement;
-      expect(ogImg.src).toBe(getPublicSiteUrl('/media/social.jpg'));
-    });
+    const logoImg = (await screen.findByAltText('Logo preview')) as HTMLImageElement;
+    expect(logoImg.src).toBe(getPublicSiteUrl('/media/1726700000000-logo.webp'));
+    const faviconImg = screen.getByAltText('Favicon preview') as HTMLImageElement;
+    expect(faviconImg.src).toBe(getPublicSiteUrl('/media/favicon.png'));
+    const ogImg = screen.getByAltText('Social share preview') as HTMLImageElement;
+    expect(ogImg.src).toBe(getPublicSiteUrl('/media/social.jpg'));
 
     // Simulate image error on logo
-    const logoImg = screen.getByTestId('settings-logo-preview');
     fireEvent.error(logoImg);
 
-    await waitFor(() => {
-      expect(screen.getByText('Unable to load image preview')).toBeTruthy();
-    });
+    const errorText = await screen.findByText('Unable to load image preview');
+    expect(errorText.textContent).toBe('Unable to load image preview');
+    expect(screen.queryByAltText('Logo preview')).toBeNull();
   });
 
   it('pulls current values from Cloudflare API and renders them in AiCrawlSettingsCard', async () => {
@@ -527,15 +514,15 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('Cloudflare AI Crawl Control')).toBeTruthy();
-      expect(screen.getByText('Live Edge Sync')).toBeTruthy();
-      const masterSwitch = screen.getByRole('switch', { name: /block ai scrapers and crawlers/i });
-      expect(masterSwitch.getAttribute('aria-checked')).toBe('true');
-    });
+    const heading = await screen.findByRole('heading', { name: 'Cloudflare AI Crawl Control' });
+    expect(heading.textContent).toBe('Cloudflare AI Crawl Control');
+    expect(screen.getByText('Live Edge Sync').textContent).toBe('Live Edge Sync');
+    const masterSwitch = screen.getByRole('switch', { name: /block ai scrapers and crawlers/i });
+    expect(masterSwitch.getAttribute('aria-checked')).toBe('true');
   });
 
   it('saves AI crawl options to Cloudflare API when overall page save button is clicked', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation(async (url: string, options?: any) => {
       if (url.includes('/api/cloudflare/ai-crawl')) {
         if (options?.method === 'PUT') {
@@ -574,38 +561,35 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('Cloudflare AI Crawl Control')).toBeTruthy();
-    });
-
-    const masterSwitch = screen.getByRole('switch', { name: /block ai scrapers and crawlers/i });
+    const masterSwitch = await screen.findByRole('switch', { name: /block ai scrapers and crawlers/i });
     expect(masterSwitch.getAttribute('aria-checked')).toBe('false');
 
-    await userEvent.click(masterSwitch);
+    await user.click(masterSwitch);
     expect(masterSwitch.getAttribute('aria-checked')).toBe('true');
 
-    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
 
-    await userEvent.click(saveButton);
+    await user.click(saveButton);
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        '/api/cloudflare/ai-crawl',
-        expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({
-            ai_bots_protection: 'block',
-            ai_search: 'disabled',
-            ai_training: 'disabled',
-            ai_user: 'disabled',
-          }),
-        })
-      );
-    });
+    await screen.findByRole('button', { name: /saved!/i });
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/api/cloudflare/ai-crawl',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          ai_bots_protection: 'block',
+          ai_search: 'disabled',
+          ai_training: 'disabled',
+          ai_user: 'disabled',
+        }),
+      })
+    );
   });
 
   it('saves analytics_site_tag correctly when changed and saved', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -626,39 +610,38 @@ describe('Settings component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('initial-tag-123')).toBeTruthy();
-    });
+    const siteTagInput = (await screen.findByDisplayValue('initial-tag-123')) as HTMLInputElement;
+    expect(siteTagInput.value).toBe('initial-tag-123');
 
-    const siteTagInput = screen.getByLabelText('Cloudflare Web Analytics Site Tag / Token');
-    await userEvent.clear(siteTagInput);
-    await userEvent.type(siteTagInput, 'updated-tag-456');
+    await user.clear(siteTagInput);
+    await user.type(siteTagInput, 'updated-tag-456');
+    expect(siteTagInput.value).toBe('updated-tag-456');
 
-    const saveButton = screen.getByRole('button', { name: /save settings/i }) as HTMLButtonElement;
-    expect(saveButton.disabled).toBe(false);
-    await userEvent.click(saveButton);
+    const saveButton = screen.getByRole('button', { name: /save settings/i });
+    expect(saveButton.hasAttribute('disabled')).toBe(false);
+    await user.click(saveButton);
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          settings: {
-            site_title: 'Test Title',
-            canonical_origin: 'https://test.example.com',
-            description: 'Test Description',
-            analytics_enabled: 'true',
-            analytics_site_tag: 'updated-tag-456',
-            docs_mode_enabled: 'false',
-            docs_path: '/docs',
-            site_logo: '',
-            site_logo_dark: '',
-            site_favicon: '',
-            default_og_image: '',
-            footer_text: '',
-          },
-        }),
-      });
+    await screen.findByRole('button', { name: /saved!/i });
+
+    expect(apiFetch).toHaveBeenCalledWith('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        settings: {
+          site_title: 'Test Title',
+          canonical_origin: 'https://test.example.com',
+          description: 'Test Description',
+          analytics_enabled: 'true',
+          analytics_site_tag: 'updated-tag-456',
+          docs_mode_enabled: 'false',
+          docs_path: '/docs',
+          site_logo: '',
+          site_logo_dark: '',
+          site_favicon: '',
+          default_og_image: '',
+          footer_text: '',
+        },
+      }),
     });
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '../../test/test-utils';
-import { Theme } from '@radix-ui/themes';
 import { Users, UserItem } from './index';
 
 describe('Users Page Component', () => {
@@ -117,67 +117,76 @@ describe('Users Page Component', () => {
   });
 
   const renderUsersPage = () => {
-    return render(
-      <Theme>
-        <Users />
-      </Theme>
-    );
+    return render(<Users />);
   };
 
   it('renders page header, search bar, and invite user button', async () => {
     renderUsersPage();
 
-    expect(screen.getByRole('heading', { name: 'Users' })).toBeDefined();
-    expect(screen.getByText('Manage user accounts, roles, and profiles')).toBeDefined();
-    expect(screen.getByPlaceholderText('Search users by name, email, or role...')).toBeDefined();
+    const heading = screen.getByRole('heading', { name: 'Users' });
+    expect(heading.textContent).toBe('Users');
+    expect(screen.getByText('Manage user accounts, roles, and profiles').textContent).toBe(
+      'Manage user accounts, roles, and profiles'
+    );
+
     const searchInput = screen.getByLabelText('Search users by name, email, or role');
-    expect(searchInput).toBeDefined();
     expect(searchInput.getAttribute('id')).toBe('users-search-input');
-    expect(screen.getByRole('button', { name: /invite user/i })).toBeDefined();
+    expect(searchInput.getAttribute('placeholder')).toBe('Search users by name, email, or role...');
+
+    const inviteBtn = screen.getByRole('button', { name: /invite user/i });
+    expect(inviteBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('fetches and displays user list in table', async () => {
     renderUsersPage();
 
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
-    expect(screen.getByText('admin@zygodactyl.io')).toBeDefined();
-    expect(screen.getByText('admin')).toBeDefined();
-    expect(screen.getByText('Platform administrator and lead engineer.')).toBeDefined();
+    const aliceName = await screen.findByText('Alice Admin');
+    expect(aliceName.textContent).toBe('Alice Admin');
+    expect(screen.getByText('admin@zygodactyl.io').textContent).toBe('admin@zygodactyl.io');
+    expect(screen.getByText('admin').textContent).toBe('admin');
+    expect(screen.getByText('Platform administrator and lead engineer.').textContent).toBe(
+      'Platform administrator and lead engineer.'
+    );
 
-    expect(screen.getByText('Bob Author')).toBeDefined();
-    expect(screen.getByText('bob@zygodactyl.io')).toBeDefined();
-    expect(screen.getByText('author')).toBeDefined();
-    expect(screen.getByText('bobwriter.com')).toBeDefined();
+    expect(screen.getByText('Bob Author').textContent).toBe('Bob Author');
+    expect(screen.getByText('bob@zygodactyl.io').textContent).toBe('bob@zygodactyl.io');
+    expect(screen.getByText('author').textContent).toBe('author');
+    expect(screen.getByText('bobwriter.com').textContent).toBe('bobwriter.com');
   });
 
   it('filters users by search query', async () => {
+    const user = userEvent.setup();
     renderUsersPage();
 
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
-    expect(screen.getByText('Bob Author')).toBeDefined();
+    const aliceRow = await screen.findByText('Alice Admin');
+    expect(aliceRow.textContent).toBe('Alice Admin');
+    expect(screen.getByText('Bob Author').textContent).toBe('Bob Author');
 
-    const searchInput = screen.getByPlaceholderText('Search users by name, email, or role...');
-    fireEvent.change(searchInput, { target: { value: 'alice' } });
+    const searchInput = screen.getByLabelText('Search users by name, email, or role');
+    await user.type(searchInput, 'alice');
 
-    expect(screen.getByText('Alice Admin')).toBeDefined();
+    expect(screen.getByText('Alice Admin').textContent).toBe('Alice Admin');
     expect(screen.queryByText('Bob Author')).toBeNull();
 
     // Search query matching nobody
-    fireEvent.change(searchInput, { target: { value: 'nonexistent' } });
+    await user.clear(searchInput);
+    await user.type(searchInput, 'nonexistent');
     expect(screen.queryByText('Alice Admin')).toBeNull();
-    expect(screen.getByText('No users found')).toBeDefined();
+    expect(screen.getByText('No users found').textContent).toBe('No users found');
   });
 
   it('opens Invite User dialog and successfully invites a new user', async () => {
+    const user = userEvent.setup();
     renderUsersPage();
 
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
+    await screen.findByText('Alice Admin');
 
     const inviteButton = screen.getByRole('button', { name: /invite user/i });
-    fireEvent.click(inviteButton);
+    await user.click(inviteButton);
 
     // Verify modal title
-    expect(screen.getByRole('heading', { name: 'Invite User' })).toBeDefined();
+    const inviteHeading = screen.getByRole('heading', { name: 'Invite User' });
+    expect(inviteHeading.textContent).toBe('Invite User');
 
     // Fill in form fields
     const emailInput = screen.getByLabelText(/Email Address/i);
@@ -191,15 +200,15 @@ describe('Users Page Component', () => {
     expect(roleTrigger.getAttribute('id')).toBe('invite-user-role-trigger');
 
     const roleLabel = document.getElementById('invite-user-role-label');
-    expect(roleLabel).toBeDefined();
+    expect(roleLabel).not.toBeNull();
     expect(roleLabel?.getAttribute('for')).toBe('invite-user-role-trigger');
 
-    fireEvent.change(emailInput, { target: { value: 'charlie@zygodactyl.io' } });
-    fireEvent.change(nameInput, { target: { value: 'Charlie Editor' } });
+    await user.type(emailInput, 'charlie@zygodactyl.io');
+    await user.type(nameInput, 'Charlie Editor');
 
     // Submit dialog form
     const submitBtn = screen.getByRole('button', { name: 'Invite User' });
-    fireEvent.click(submitBtn);
+    await user.click(submitBtn);
 
     // Verify fetch was called with POST and correct payload
     await waitFor(() => {
@@ -217,11 +226,13 @@ describe('Users Page Component', () => {
     });
 
     // Verify new user is added to table
-    expect(await screen.findByText('Charlie Editor')).toBeDefined();
-    expect(screen.getByText('charlie@zygodactyl.io')).toBeDefined();
+    const charlieName = await screen.findByText('Charlie Editor');
+    expect(charlieName.textContent).toBe('Charlie Editor');
+    expect(screen.getByText('charlie@zygodactyl.io').textContent).toBe('charlie@zygodactyl.io');
 
     // Verify invitation email template dialog is shown
-    expect(await screen.findByText('User Invited')).toBeDefined();
+    const userInvitedHeading = await screen.findByRole('heading', { name: 'User Invited' });
+    expect(userInvitedHeading.textContent).toBe('User Invited');
     const emailTemplateArea = screen.getByLabelText('Invitation Email Template') as HTMLTextAreaElement;
     expect(emailTemplateArea.value).toContain('charlie@zygodactyl.io');
     expect(emailTemplateArea.value).toContain('Charlie Editor');
@@ -229,14 +240,19 @@ describe('Users Page Component', () => {
 
     // Click Copy Template button
     const copyBtn = screen.getByRole('button', { name: /Copy Template/i });
-    fireEvent.click(copyBtn);
+    await user.click(copyBtn);
+    const copiedBtn = await screen.findByRole('button', { name: /Copied!/i });
+    expect(copiedBtn.textContent).toContain('Copied!');
+    expect(await navigator.clipboard.readText()).toContain('charlie@zygodactyl.io');
 
     // Dismiss dialog
     const doneBtn = screen.getByRole('button', { name: 'Done' });
-    fireEvent.click(doneBtn);
+    await user.click(doneBtn);
+    expect(screen.queryByRole('heading', { name: 'User Invited' })).toBeNull();
   });
 
   it('displays error in Invite User dialog if backend returns an error', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string, options: any = {}) => {
@@ -258,38 +274,43 @@ describe('Users Page Component', () => {
       })
     );
 
+    const user = userEvent.setup();
     renderUsersPage();
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
+    await screen.findByText('Alice Admin');
 
     const inviteButton = screen.getByRole('button', { name: /invite user/i });
-    fireEvent.click(inviteButton);
+    await user.click(inviteButton);
 
     const emailInput = screen.getByPlaceholderText('colleague@example.com');
-    fireEvent.change(emailInput, { target: { value: 'duplicate@zygodactyl.io' } });
+    await user.type(emailInput, 'duplicate@zygodactyl.io');
 
     const submitBtn = screen.getByRole('button', { name: 'Invite User' });
-    fireEvent.click(submitBtn);
+    await user.click(submitBtn);
 
     const errorAlert = await screen.findByRole('alert');
     expect(errorAlert.getAttribute('id')).toBe('invite-user-error-alert');
-    expect(screen.getByText('User with this email already exists')).toBeDefined();
+    expect(errorAlert.textContent).toContain('User with this email already exists');
 
     const emailInputWithErr = screen.getByLabelText(/Email Address/i);
     expect(emailInputWithErr.getAttribute('aria-invalid')).toBe('true');
     expect(emailInputWithErr.getAttribute('aria-describedby')).toBe('invite-user-error-alert');
+
+    errorSpy.mockRestore();
   });
 
   it('opens Edit User dialog and updates user profile and role', async () => {
+    const user = userEvent.setup();
     renderUsersPage();
 
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
+    await screen.findByText('Alice Admin');
 
     // Click edit button for Alice
     const editButton = screen.getByRole('button', { name: 'Edit Alice Admin' });
-    fireEvent.click(editButton);
+    await user.click(editButton);
 
     // Verify modal title
-    expect(screen.getByRole('heading', { name: 'Edit User' })).toBeDefined();
+    const editHeading = screen.getByRole('heading', { name: 'Edit User' });
+    expect(editHeading.textContent).toBe('Edit User');
 
     // Verify inputs populated with Alice's info
     const nameInput = screen.getByLabelText('Display Name');
@@ -300,7 +321,7 @@ describe('Users Page Component', () => {
     expect(roleTrigger.getAttribute('id')).toBe('edit-user-role-trigger');
 
     const roleLabel = document.getElementById('edit-user-role-label');
-    expect(roleLabel).toBeDefined();
+    expect(roleLabel).not.toBeNull();
     expect(roleLabel?.getAttribute('for')).toBe('edit-user-role-trigger');
 
     const avatarUrlInput = screen.getByLabelText('Avatar URL');
@@ -312,12 +333,14 @@ describe('Users Page Component', () => {
     const bioInput = screen.getByLabelText('Bio');
     expect(bioInput.getAttribute('id')).toBe('edit-user-bio-input');
 
-    fireEvent.change(nameInput, { target: { value: 'Alice Senior Admin' } });
-    fireEvent.change(websiteInput, { target: { value: 'https://alice.dev' } });
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Alice Senior Admin');
+    await user.clear(websiteInput);
+    await user.type(websiteInput, 'https://alice.dev');
 
     // Submit edit
     const saveBtn = screen.getByRole('button', { name: 'Save Changes' });
-    fireEvent.click(saveBtn);
+    await user.click(saveBtn);
 
     // Verify PUT request
     await waitFor(() => {
@@ -337,10 +360,13 @@ describe('Users Page Component', () => {
     });
 
     // Check table updated
-    expect(await screen.findByText('Alice Senior Admin')).toBeDefined();
+    const updatedUser = await screen.findByText('Alice Senior Admin');
+    expect(updatedUser.textContent).toBe('Alice Senior Admin');
+    expect(screen.queryByRole('heading', { name: 'Edit User' })).toBeNull();
   });
 
   it('displays error in Edit User dialog with role alert and aria-invalid', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation((url: string, options: any = {}) => {
@@ -362,40 +388,47 @@ describe('Users Page Component', () => {
       })
     );
 
+    const user = userEvent.setup();
     renderUsersPage();
-    expect(await screen.findByText('Alice Admin')).toBeDefined();
+    await screen.findByText('Alice Admin');
 
     const editButton = screen.getByRole('button', { name: 'Edit Alice Admin' });
-    fireEvent.click(editButton);
+    await user.click(editButton);
 
     const saveBtn = screen.getByRole('button', { name: 'Save Changes' });
-    fireEvent.click(saveBtn);
+    await user.click(saveBtn);
 
     const errorAlert = await screen.findByRole('alert');
     expect(errorAlert.getAttribute('id')).toBe('edit-user-error-alert');
-    expect(screen.getByText('Failed to update user')).toBeDefined();
+    expect(errorAlert.textContent).toContain('Failed to update user');
 
     const nameInput = screen.getByLabelText('Display Name');
     expect(nameInput.getAttribute('aria-invalid')).toBe('true');
     expect(nameInput.getAttribute('aria-describedby')).toBe('edit-user-error-alert');
+
+    errorSpy.mockRestore();
   });
 
   it('opens Delete dialog and soft deletes a user', async () => {
+    const user = userEvent.setup();
     renderUsersPage();
 
-    expect(await screen.findByText('Bob Author')).toBeDefined();
+    await screen.findByText('Bob Author');
 
     // Click delete button for Bob
     const deleteButton = screen.getByRole('button', { name: 'Delete Bob Author' });
-    fireEvent.click(deleteButton);
+    await user.click(deleteButton);
 
     // Confirmation dialog appears
-    expect(screen.getByRole('heading', { name: 'Delete User' })).toBeDefined();
-    expect(screen.getByText(/Are you sure you want to delete “Bob Author”?/i)).toBeDefined();
+    const deleteHeading = screen.getByRole('heading', { name: 'Delete User' });
+    expect(deleteHeading.textContent).toBe('Delete User');
+    expect(screen.getByText(/Are you sure you want to delete “Bob Author”?/i).textContent).toContain(
+      'Are you sure you want to delete “Bob Author”?'
+    );
 
     // Click Delete in confirmation dialog
     const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete' });
-    fireEvent.click(confirmDeleteBtn);
+    await user.click(confirmDeleteBtn);
 
     // Verify DELETE request
     await waitFor(() => {
@@ -405,13 +438,13 @@ describe('Users Page Component', () => {
       );
     });
 
-    // Verify Bob is removed from table
-    await waitFor(() => {
-      expect(screen.queryByText('Bob Author')).toBeNull();
-    });
+    // Verify Bob is removed from table and dialog is closed
+    expect(screen.queryByText('Bob Author')).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Delete User' })).toBeNull();
   });
 
   it('displays error callout when fetching users fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(() =>
@@ -423,6 +456,8 @@ describe('Users Page Component', () => {
     );
 
     renderUsersPage();
-    expect(await screen.findByText('Database connection failed')).toBeDefined();
+    const errorCallout = await screen.findByText('Database connection failed');
+    expect(errorCallout.textContent).toBe('Database connection failed');
+    errorSpy.mockRestore();
   });
 });

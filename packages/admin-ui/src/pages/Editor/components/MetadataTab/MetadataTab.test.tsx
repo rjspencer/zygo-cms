@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Theme } from '@radix-ui/themes';
 import { describe, expect, it, vi } from 'vitest';
@@ -54,43 +55,39 @@ describe('MetadataTab', () => {
     );
 
     // Status
-    expect(screen.getByText('Status')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Draft' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Published' })).toBeDefined();
+    const draftBtn = screen.getByRole('button', { name: 'Draft' });
+    const publishedBtn = screen.getByRole('button', { name: 'Published' });
+    expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(publishedBtn.getAttribute('aria-pressed')).toBe('false');
 
     // Tags
-    expect(screen.getByText('Tags (comma separated)')).toBeDefined();
-    const tagsInput = screen.getByPlaceholderText('tech, news') as HTMLInputElement;
+    const tagsInput = screen.getByLabelText('Tags (comma separated)') as HTMLInputElement;
     expect(tagsInput.value).toBe('tech, news');
 
     // Category
-    expect(screen.getByText('Category')).toBeDefined();
-    const categoryInput = screen.getByPlaceholderText('Category...') as HTMLInputElement;
+    const categoryInput = screen.getByLabelText('Category') as HTMLInputElement;
     expect(categoryInput.value).toBe('Updates');
 
     // Cover Image
-    expect(screen.getByText('Cover Image URL')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Select Image' })).toBeDefined();
+    const selectImageBtn = screen.getByRole('button', { name: 'Select Image' });
+    expect(selectImageBtn.hasAttribute('disabled')).toBe(false);
 
     // Meta Description
-    expect(screen.getByText('Meta Description')).toBeDefined();
-    const descInput = screen.getByPlaceholderText('Brief description for SEO...') as HTMLTextAreaElement;
+    const descInput = screen.getByLabelText('Meta Description') as HTMLTextAreaElement;
     expect(descInput.value).toBe('SEO meta description');
 
     // Canonical URL
-    expect(screen.getByText('Canonical URL')).toBeDefined();
-    const canonicalInput = screen.getByPlaceholderText('https://example.com/...') as HTMLInputElement;
+    const canonicalInput = screen.getByLabelText('Canonical URL') as HTMLInputElement;
     expect(canonicalInput.value).toBe('https://example.com/post/1');
 
     // Schema JSON
-    expect(screen.getByText('Schema JSON')).toBeDefined();
-    const schemaInput = screen.getByPlaceholderText('{"@context": "https://schema.org", ...}') as HTMLTextAreaElement;
+    const schemaInput = screen.getByLabelText('Schema JSON') as HTMLTextAreaElement;
     expect(schemaInput.value).toBe('{"@context": "https://schema.org"}');
 
     // Social Previews mock
     const socialPreviews = screen.getByTestId('social-previews');
-    expect(socialPreviews).toBeDefined();
     expect(socialPreviews.getAttribute('data-entry-type')).toBe('post');
+    expect(socialPreviews.textContent).toContain('Social Previews for post');
   });
 
   it('hides hierarchy fields for entry types without hierarchy (post)', () => {
@@ -100,8 +97,8 @@ describe('MetadataTab', () => {
       </MediaPickerContext.Provider>
     );
 
-    expect(screen.queryByText('Parent ID')).toBeNull();
-    expect(screen.queryByText('Sort Order')).toBeNull();
+    expect(screen.queryByLabelText('Parent ID')).toBeNull();
+    expect(screen.queryByLabelText('Sort Order')).toBeNull();
   });
 
   it('shows hierarchy fields for entry types with hierarchy (page)', () => {
@@ -112,10 +109,11 @@ describe('MetadataTab', () => {
       { parentId: '5', sortOrder: 2 }
     );
 
-    expect(screen.getByText('Parent ID')).toBeDefined();
-    expect(screen.getByText('Sort Order')).toBeDefined();
-    expect((screen.getByPlaceholderText('Leave blank for root') as HTMLInputElement).value).toBe('5');
-    expect((screen.getByDisplayValue('2') as HTMLInputElement).value).toBe('2');
+    const parentIdInput = screen.getByLabelText('Parent ID') as HTMLInputElement;
+    expect(parentIdInput.value).toBe('5');
+
+    const sortOrderInput = screen.getByLabelText('Sort Order') as HTMLInputElement;
+    expect(sortOrderInput.value).toBe('2');
   });
 
   it('shows hierarchy fields for doc entry type', () => {
@@ -125,8 +123,11 @@ describe('MetadataTab', () => {
       </MediaPickerContext.Provider>
     );
 
-    expect(screen.getByText('Parent ID')).toBeDefined();
-    expect(screen.getByText('Sort Order')).toBeDefined();
+    const parentIdInput = screen.getByLabelText('Parent ID') as HTMLInputElement;
+    expect(parentIdInput.value).toBe('');
+
+    const sortOrderInput = screen.getByLabelText('Sort Order') as HTMLInputElement;
+    expect(sortOrderInput.value).toBe('0');
   });
 
   it('supports status field rendering', () => {
@@ -137,13 +138,15 @@ describe('MetadataTab', () => {
       { status: 'draft' }
     );
 
-    expect(screen.getByText('Status')).toBeDefined();
     const draftBtn = screen.getByRole('button', { name: 'Draft' });
-    expect(draftBtn).toBeDefined();
     expect(draftBtn.getAttribute('aria-pressed')).toBe('true');
+
+    const publishedBtn = screen.getByRole('button', { name: 'Published' });
+    expect(publishedBtn.getAttribute('aria-pressed')).toBe('false');
   });
 
-  it('supports removing cover image', () => {
+  it('supports removing cover image', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <MediaPickerContext.Provider value={vi.fn()}>
         <MetadataTab entryType="post" />
@@ -151,10 +154,12 @@ describe('MetadataTab', () => {
       { coverImage: 'https://example.com/banner.png' }
     );
 
-    expect(screen.getByText('https://example.com/banner.png')).toBeDefined();
-    const removeBtn = screen.getByRole('button', { name: 'Remove' });
+    const thumbnail = screen.getByAltText('Cover Thumbnail');
+    expect(thumbnail.getAttribute('src')).toBe('https://example.com/banner.png');
+    expect(screen.getByText('https://example.com/banner.png')).not.toBeNull();
 
-    fireEvent.click(removeBtn);
+    const removeBtn = screen.getByRole('button', { name: 'Remove' });
+    await user.click(removeBtn);
 
     expect(screen.queryByText('https://example.com/banner.png')).toBeNull();
     expect(screen.queryByAltText('Cover Thumbnail')).toBeNull();
@@ -175,21 +180,17 @@ describe('MetadataTab', () => {
     );
 
     const canonicalAlert = screen.getByText('Canonical URL must be a valid HTTP/HTTPS URL');
-    expect(canonicalAlert).toBeDefined();
     expect(canonicalAlert.getAttribute('role')).toBe('alert');
 
-    const canonicalInput = document.getElementById('editor-canonical-url-input');
-    expect(canonicalInput).not.toBeNull();
-    expect(canonicalInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(canonicalInput?.getAttribute('aria-describedby')).toBe('editor-canonical-url-error');
+    const canonicalInput = screen.getByLabelText('Canonical URL');
+    expect(canonicalInput.getAttribute('aria-invalid')).toBe('true');
+    expect(canonicalInput.getAttribute('aria-describedby')).toBe('editor-canonical-url-error');
 
     const schemaAlert = screen.getByText('Schema JSON must be a valid JSON object');
-    expect(schemaAlert).toBeDefined();
     expect(schemaAlert.getAttribute('role')).toBe('alert');
 
-    const schemaInput = document.getElementById('editor-schema-json-input');
-    expect(schemaInput).not.toBeNull();
-    expect(schemaInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(schemaInput?.getAttribute('aria-describedby')).toBe('editor-schema-json-error');
+    const schemaInput = screen.getByLabelText('Schema JSON');
+    expect(schemaInput.getAttribute('aria-invalid')).toBe('true');
+    expect(schemaInput.getAttribute('aria-describedby')).toBe('editor-schema-json-error');
   });
 });

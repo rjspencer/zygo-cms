@@ -16,6 +16,7 @@ vi.mock('react-router-dom', async () => {
 
 describe('BackButton component', () => {
   it('renders default "Back" text and calls navigate(-1) on click', async () => {
+    const user = userEvent.setup();
     mockNavigate.mockClear();
     render(
       <MemoryRouter>
@@ -26,13 +27,15 @@ describe('BackButton component', () => {
     );
 
     const button = screen.getByRole('button', { name: /Back/i });
-    expect(button).toBeTruthy();
+    expect(button.textContent).toContain('Back');
+    expect(button.hasAttribute('disabled')).toBe(false);
 
-    await userEvent.click(button);
+    await user.click(button);
     expect(mockNavigate).toHaveBeenCalledWith(-1);
   });
 
   it('navigates to specific route when `to` prop is provided', async () => {
+    const user = userEvent.setup();
     mockNavigate.mockClear();
     render(
       <MemoryRouter>
@@ -43,11 +46,15 @@ describe('BackButton component', () => {
     );
 
     const button = screen.getByRole('button', { name: /Back/i });
-    await userEvent.click(button);
+    expect(button.textContent).toContain('Back');
+    expect(button.hasAttribute('disabled')).toBe(false);
+
+    await user.click(button);
     expect(mockNavigate).toHaveBeenCalledWith('/templates');
   });
 
   it('calls custom `onClick` handler when provided', async () => {
+    const user = userEvent.setup();
     mockNavigate.mockClear();
     const handleClick = vi.fn();
     render(
@@ -59,8 +66,11 @@ describe('BackButton component', () => {
     );
 
     const button = screen.getByRole('button', { name: /Return/i });
-    await userEvent.click(button);
-    expect(handleClick).toHaveBeenCalled();
+    expect(button.textContent).toContain('Return');
+    expect(button.hasAttribute('disabled')).toBe(false);
+
+    await user.click(button);
+    expect(handleClick).toHaveBeenCalledTimes(1);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

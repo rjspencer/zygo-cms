@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, waitForElementToBeRemoved } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -44,8 +44,8 @@ describe('LinksTab', () => {
     });
 
     expect(
-      screen.getByText('Please save the entry first before generating trackable links.')
-    ).toBeDefined();
+      screen.getByText('Please save the entry first before generating trackable links.').textContent
+    ).toContain('Please save the entry first before generating trackable links.');
   });
 
   it('renders unsaved warning when entryId is "new"', () => {
@@ -56,8 +56,8 @@ describe('LinksTab', () => {
     });
 
     expect(
-      screen.getByText('Please save the entry first before generating trackable links.')
-    ).toBeDefined();
+      screen.getByText('Please save the entry first before generating trackable links.').textContent
+    ).toContain('Please save the entry first before generating trackable links.');
   });
 
   it('renders canonical URL and trackable links table when saved', async () => {
@@ -91,9 +91,10 @@ describe('LinksTab', () => {
       isSaved: true,
     });
 
-    expect(await screen.findByDisplayValue('https://zygodactylstudios.com/my-post')).toBeDefined();
-    expect(await screen.findByText('Spring Launch')).toBeDefined();
-    expect(screen.getByText('?utm_source=twitter&utm_medium=social')).toBeDefined();
+    const canonicalInput = await screen.findByDisplayValue('https://zygodactylstudios.com/my-post');
+    expect(canonicalInput.getAttribute('value')).toBe('https://zygodactylstudios.com/my-post');
+    expect((await screen.findByText('Spring Launch')).textContent).toContain('Spring Launch');
+    expect(screen.getByText('?utm_source=twitter&utm_medium=social').textContent).toContain('?utm_source=twitter&utm_medium=social');
   });
 
   it('displays empty state when no trackable links exist', async () => {
@@ -115,15 +116,17 @@ describe('LinksTab', () => {
 
     renderLinksTab({
       entryId: '1',
-      baseCanonicalUrl: 'https://example.com/my-post',
+      baseCanonicalUrl: '/my-post',
       isSaved: true,
     });
 
-    expect(await screen.findByText('No trackable links created yet.')).toBeDefined();
+    await screen.findByDisplayValue('https://zygodactylstudios.com/my-post');
+    expect((await screen.findByText('No trackable links created yet.')).textContent).toContain('No trackable links created yet.');
   });
 
   it('opens create dialog, fills react-hook-form inputs, and submits new link', async () => {
     const user = userEvent.setup();
+    let linksList: any[] = [];
 
     (apiFetch as any).mockImplementation(async (url: string, opts?: RequestInit) => {
       if (url === '/api/settings') {
@@ -135,19 +138,21 @@ describe('LinksTab', () => {
       if (url === '/api/entries/1/links' && (!opts || opts.method !== 'POST')) {
         return {
           ok: true,
-          json: async () => [],
+          json: async () => linksList,
         };
       }
       if (url === '/api/entries/1/links' && opts?.method === 'POST') {
+        const newLink = {
+          id: 2,
+          entry_id: 1,
+          name: 'Fall Newsletter',
+          url_params: 'utm_source=email&utm_medium=newsletter&utm_campaign=fall_sale&ref=home',
+          created_at: '2026-10-16T00:00:00Z',
+        };
+        linksList = [newLink];
         return {
           ok: true,
-          json: async () => ({
-            id: 2,
-            entry_id: 1,
-            name: 'Fall Newsletter',
-            url_params: 'utm_source=email&utm_medium=newsletter&utm_campaign=fall_sale&ref=home',
-            created_at: '2026-10-16T00:00:00Z',
-          }),
+          json: async () => newLink,
         };
       }
       return { ok: false, status: 404 };
@@ -155,14 +160,20 @@ describe('LinksTab', () => {
 
     renderLinksTab({
       entryId: '1',
-      baseCanonicalUrl: 'https://zygodactylstudios.com/my-post',
+      baseCanonicalUrl: '/my-post',
       isSaved: true,
     });
 
-    const createNewBtn = await screen.findByRole('button', { name: 'Create New' });
+    await screen.findByDisplayValue('https://zygodactylstudios.com/my-post');
+    await screen.findByText('No trackable links created yet.');
+
+    const createNewBtn = screen.getByRole('button', { name: 'Create New' });
     await user.click(createNewBtn);
 
-    expect(await screen.findByText('Create Trackable Link')).toBeDefined();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).not.toBeNull();
+    const dialogTitle = screen.getByText('Create Trackable Link');
+    expect(dialogTitle.textContent).toContain('Create Trackable Link');
 
     const nameInput = screen.getByPlaceholderText('e.g. Fall Newsletter');
     const sourceInput = screen.getByPlaceholderText('e.g. newsletter, twitter');
@@ -191,33 +202,43 @@ describe('LinksTab', () => {
         })
       );
     });
+
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect((await screen.findByText('Fall Newsletter')).textContent).toContain('Fall Newsletter');
   });
 
   it('deletes trackable link when delete button is confirmed', async () => {
+    const user = userEvent.setup();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    let linksList = [
+      {
+        id: 99,
+        entry_id: 1,
+        name: 'Link to Delete',
+        url_params: 'utm_source=test',
+        created_at: '2026-10-16T00:00:00Z',
+      },
+    ];
 
     (apiFetch as any).mockImplementation(async (url: string, opts?: RequestInit) => {
       if (url === '/api/settings') {
         return {
           ok: true,
-          json: async () => ({}),
+          json: async () => ({ canonical_origin: 'https://example.com' }),
         };
       }
       if (url === '/api/entries/1/links') {
         return {
           ok: true,
-          json: async () => [
-            {
-              id: 99,
-              entry_id: 1,
-              name: 'Link to Delete',
-              url_params: 'utm_source=test',
-              created_at: '2026-10-16T00:00:00Z',
-            },
-          ],
+          json: async () => linksList,
         };
       }
       if (url === '/api/links/99' && opts?.method === 'DELETE') {
+        linksList = [];
         return {
           ok: true,
           json: async () => ({ success: true }),
@@ -228,12 +249,13 @@ describe('LinksTab', () => {
 
     renderLinksTab({
       entryId: '1',
-      baseCanonicalUrl: 'https://example.com/post',
+      baseCanonicalUrl: '/post',
       isSaved: true,
     });
 
+    await screen.findByDisplayValue('https://example.com/post');
     const deleteBtn = await screen.findByLabelText('Delete link Link to Delete');
-    fireEvent.click(deleteBtn);
+    await user.click(deleteBtn);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -241,6 +263,9 @@ describe('LinksTab', () => {
         expect.objectContaining({ method: 'DELETE' })
       );
     });
+
+    expect((await screen.findByText('No trackable links created yet.')).textContent).toContain('No trackable links created yet.');
+  });
   });
 
   it('associates Canonical URL label with the text input via htmlFor and id', async () => {
@@ -295,14 +320,20 @@ describe('LinksTab', () => {
 
     renderLinksTab({
       entryId: '1',
-      baseCanonicalUrl: 'https://zygodactylstudios.com/my-post',
+      baseCanonicalUrl: '/my-post',
       isSaved: true,
     });
 
-    const createNewBtn = await screen.findByRole('button', { name: 'Create New' });
+    await screen.findByDisplayValue('https://zygodactylstudios.com/my-post');
+    await screen.findByText('No trackable links created yet.');
+
+    const createNewBtn = screen.getByRole('button', { name: 'Create New' });
     await user.click(createNewBtn);
 
-    expect(await screen.findByText('Create Trackable Link')).toBeDefined();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).not.toBeNull();
+    const dialogTitle = screen.getByText('Create Trackable Link');
+    expect(dialogTitle.textContent).toContain('Create Trackable Link');
 
     const fields = [
       { labelText: 'Campaign Name (Internal)', expectedId: 'link-field-name' },
@@ -318,5 +349,11 @@ describe('LinksTab', () => {
       const input = screen.getByLabelText(labelText);
       expect(input.getAttribute('id')).toBe(expectedId);
     }
+
+    const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
+    await user.click(cancelBtn);
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
-});

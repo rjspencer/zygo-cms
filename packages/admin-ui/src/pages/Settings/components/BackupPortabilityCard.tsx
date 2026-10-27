@@ -117,7 +117,7 @@ export const BackupPortabilityCard: React.FC = () => {
       return;
     }
 
-    if (!parsed || typeof parsed !== 'object') {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       setImportError('Invalid backup file: Root structure must be an object.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       setIsDryRunning(false);
@@ -436,20 +436,18 @@ export const BackupPortabilityCard: React.FC = () => {
               <Callout.Icon>
                 <ExclamationTriangleIcon />
               </Callout.Icon>
-              <Callout.Text>
-                <Box>
-                  <Text weight="bold" as="div" mb="1">
-                    Warnings:
-                  </Text>
-                  <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                    {warnings.map((w, idx) => (
-                      <li key={idx}>
-                        <Text size="1">{w}</Text>
-                      </li>
-                    ))}
-                  </ul>
-                </Box>
-              </Callout.Text>
+              <Box>
+                <Text weight="bold" as="div" mb="1">
+                  Warnings:
+                </Text>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  {warnings.map((w, idx) => (
+                    <li key={idx}>
+                      <Text size="1">{w}</Text>
+                    </li>
+                  ))}
+                </ul>
+              </Box>
             </Callout.Root>
           )}
 

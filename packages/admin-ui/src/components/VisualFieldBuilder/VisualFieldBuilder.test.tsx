@@ -1,7 +1,8 @@
+import '../../test/setup';
 import React, { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { Theme } from '@radix-ui/themes';
 import {
   VisualFieldBuilder,
@@ -10,6 +11,13 @@ import {
   SUBFIELD_TYPES,
 } from './index';
 import { SectionTemplateField } from '../../types/sectionTemplate';
+
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+  window.HTMLElement.prototype.setPointerCapture = () => {};
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
+  window.HTMLElement.prototype.scrollIntoView = () => {};
+});
 
 describe('slugify utility', () => {
   it('converts labels to lowercase slug format', () => {
@@ -55,8 +63,9 @@ describe('VisualFieldBuilder Component', () => {
 
   it('renders empty state when no fields are present', () => {
     renderBuilder([]);
-    expect(screen.getByText(/no fields defined yet/i)).toBeDefined();
-    expect(screen.getByRole('button', { name: /add field/i })).toBeDefined();
+    expect(screen.getByText(/no fields defined yet/i).textContent).toContain('No fields defined yet');
+    const addBtn = screen.getByRole('button', { name: /add field/i });
+    expect(addBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('renders fields with correct values and controls', () => {
@@ -71,21 +80,23 @@ describe('VisualFieldBuilder Component', () => {
 
     renderBuilder(fields);
 
-    expect(screen.getByDisplayValue('Headline')).toBeDefined();
-    expect(screen.getByDisplayValue('headline')).toBeDefined();
-    expect(screen.getByRole('switch', { name: /required/i })).toBeDefined();
-    expect(
-      screen.getByRole('switch', { name: /required/i }).getAttribute('aria-checked')
-    ).toBe('true');
-    expect(screen.getByRole('button', { name: /delete field/i })).toBeDefined();
+    const labelInput = screen.getByRole('textbox', { name: /field label/i });
+    expect(labelInput.getAttribute('value')).toBe('Headline');
+    const nameInput = screen.getByRole('textbox', { name: /field name/i });
+    expect(nameInput.getAttribute('value')).toBe('headline');
+    const reqSwitch = screen.getByRole('switch', { name: /required/i });
+    expect(reqSwitch.getAttribute('aria-checked')).toBe('true');
+    const deleteBtn = screen.getByRole('button', { name: /delete field/i });
+    expect(deleteBtn.hasAttribute('disabled')).toBe(false);
   });
 
   it('adds a new field with default values when Add Field is clicked', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     renderBuilder([], onChange);
 
     const addBtn = screen.getByRole('button', { name: /add field/i });
-    await userEvent.click(addBtn);
+    await user.click(addBtn);
 
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith([
@@ -99,6 +110,7 @@ describe('VisualFieldBuilder Component', () => {
   });
 
   it('auto-slugifies name from label when typing label', async () => {
+    const user = userEvent.setup();
     const onChangeSpy = vi.fn();
     render(
       <StatefulBuilder
@@ -107,12 +119,12 @@ describe('VisualFieldBuilder Component', () => {
       />
     );
 
-    const labelInput = screen.getByPlaceholderText('Field Label') as HTMLInputElement;
-    await userEvent.type(labelInput, 'Hero Title');
+    const labelInput = screen.getByRole('textbox', { name: /field label/i });
+    await user.type(labelInput, 'Hero Title');
 
-    expect(labelInput.value).toBe('Hero Title');
-    const nameInput = screen.getByPlaceholderText('Field Name') as HTMLInputElement;
-    expect(nameInput.value).toBe('hero_title');
+    expect(labelInput.getAttribute('value')).toBe('Hero Title');
+    const nameInput = screen.getByRole('textbox', { name: /field name/i });
+    expect(nameInput.getAttribute('value')).toBe('hero_title');
 
     expect(onChangeSpy).toHaveBeenLastCalledWith([
       expect.objectContaining({
@@ -123,6 +135,7 @@ describe('VisualFieldBuilder Component', () => {
   });
 
   it('stops auto-slugifying after name is manually edited', async () => {
+    const user = userEvent.setup();
     const onChangeSpy = vi.fn();
     render(
       <StatefulBuilder
@@ -131,27 +144,28 @@ describe('VisualFieldBuilder Component', () => {
       />
     );
 
-    const labelInput = screen.getByPlaceholderText('Field Label') as HTMLInputElement;
-    const nameInput = screen.getByPlaceholderText('Field Name') as HTMLInputElement;
+    const labelInput = screen.getByRole('textbox', { name: /field label/i });
+    const nameInput = screen.getByRole('textbox', { name: /field name/i });
 
     // 1. Type label -> name auto-slugifies
-    await userEvent.type(labelInput, 'Banner');
-    expect(nameInput.value).toBe('banner');
+    await user.type(labelInput, 'Banner');
+    expect(nameInput.getAttribute('value')).toBe('banner');
 
     // 2. Edit name directly
-    await userEvent.clear(nameInput);
-    await userEvent.type(nameInput, 'custom_banner_key');
-    expect(nameInput.value).toBe('custom_banner_key');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'custom_banner_key');
+    expect(nameInput.getAttribute('value')).toBe('custom_banner_key');
 
     // 3. Edit label again -> name must NOT be overwritten
-    await userEvent.clear(labelInput);
-    await userEvent.type(labelInput, 'Updated Headline');
+    await user.clear(labelInput);
+    await user.type(labelInput, 'Updated Headline');
 
-    expect(labelInput.value).toBe('Updated Headline');
-    expect(nameInput.value).toBe('custom_banner_key');
+    expect(labelInput.getAttribute('value')).toBe('Updated Headline');
+    expect(nameInput.getAttribute('value')).toBe('custom_banner_key');
   });
 
   it('toggles required switch', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     renderBuilder(
       [{ name: 'title', type: 'text', label: 'Title', required: false }],
@@ -161,7 +175,7 @@ describe('VisualFieldBuilder Component', () => {
     const reqSwitch = screen.getByRole('switch', { name: /required/i });
     expect(reqSwitch.getAttribute('aria-checked')).toBe('false');
 
-    fireEvent.click(reqSwitch);
+    await user.click(reqSwitch);
 
     expect(onChange).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -172,6 +186,7 @@ describe('VisualFieldBuilder Component', () => {
   });
 
   it('renders and allows interacting with field type selector', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     renderBuilder(
       [{ name: 'description', type: 'text', label: 'Description', required: false }],
@@ -179,13 +194,11 @@ describe('VisualFieldBuilder Component', () => {
     );
 
     const typeTrigger = screen.getByRole('combobox', { name: /field type/i });
-    expect(typeTrigger).toBeDefined();
     expect(typeTrigger.textContent).toContain('Text');
 
-    fireEvent.keyDown(typeTrigger, { key: ' ' });
+    await user.click(typeTrigger);
     const textareaOption = await screen.findByRole('option', { name: 'Textarea' });
-    expect(textareaOption).toBeDefined();
-    fireEvent.click(textareaOption);
+    await user.click(textareaOption);
 
     expect(onChange).toHaveBeenCalledWith([
       expect.objectContaining({
@@ -195,6 +208,7 @@ describe('VisualFieldBuilder Component', () => {
   });
 
   it('deletes a field when Delete field is clicked', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     const fields: SectionTemplateField[] = [
       { name: 'field_1', type: 'text', label: 'Field 1' },
@@ -205,7 +219,7 @@ describe('VisualFieldBuilder Component', () => {
     const deleteButtons = screen.getAllByRole('button', { name: /delete field/i });
     expect(deleteButtons).toHaveLength(2);
 
-    await userEvent.click(deleteButtons[0]);
+    await user.click(deleteButtons[0]);
 
     expect(onChange).toHaveBeenCalledWith([
       { name: 'field_2', type: 'text', label: 'Field 2' },
@@ -225,13 +239,15 @@ describe('VisualFieldBuilder Component', () => {
 
       renderBuilder(fields);
 
-      expect(screen.getByText('Select Options')).toBeDefined();
-      expect(screen.getByDisplayValue('Option A')).toBeDefined();
-      expect(screen.getByDisplayValue('Option B')).toBeDefined();
-      expect(screen.getByRole('button', { name: /add option/i })).toBeDefined();
+      expect(screen.getByText('Select Options').textContent).toBe('Select Options');
+      expect((screen.getByRole('textbox', { name: 'Option 1' }) as HTMLInputElement).value).toBe('Option A');
+      expect((screen.getByRole('textbox', { name: 'Option 2' }) as HTMLInputElement).value).toBe('Option B');
+      const addOptionBtn = screen.getByRole('button', { name: /add option/i });
+      expect(addOptionBtn.hasAttribute('disabled')).toBe(false);
     });
 
     it('adds, edits, and deletes options', async () => {
+      const user = userEvent.setup();
       const onChangeSpy = vi.fn();
       render(
         <StatefulBuilder
@@ -249,22 +265,22 @@ describe('VisualFieldBuilder Component', () => {
 
       // Add Option
       const addOptionBtn = screen.getByRole('button', { name: /add option/i });
-      await userEvent.click(addOptionBtn);
+      await user.click(addOptionBtn);
 
-      const optionInputs = screen.getAllByPlaceholderText(/Option \d+/i);
+      const optionInputs = screen.getAllByRole('textbox', { name: /Option \d+/i });
       expect(optionInputs).toHaveLength(2);
 
       // Edit newly added option
-      const secondOptionInput = optionInputs[1] as HTMLInputElement;
-      await userEvent.type(secondOptionInput, 'Second Option');
-      expect(secondOptionInput.value).toBe('Second Option');
+      const secondOptionInput = optionInputs[1];
+      await user.type(secondOptionInput, 'Second Option');
+      expect(secondOptionInput.getAttribute('value')).toBe('Second Option');
 
       // Delete the first option
       const removeButtons = screen.getAllByRole('button', { name: /remove option/i });
-      await userEvent.click(removeButtons[0]);
+      await user.click(removeButtons[0]);
 
-      expect(screen.getAllByPlaceholderText(/Option \d+/i)).toHaveLength(1);
-      expect(screen.getByDisplayValue('Second Option')).toBeDefined();
+      expect(screen.getAllByRole('textbox', { name: /Option \d+/i })).toHaveLength(1);
+      expect((screen.getByRole('textbox', { name: 'Option 1' }) as HTMLInputElement).value).toBe('Second Option');
     });
   });
 
@@ -283,14 +299,17 @@ describe('VisualFieldBuilder Component', () => {
 
       renderBuilder(fields);
 
-      expect(screen.getByText('List Sub-fields')).toBeDefined();
-      expect(screen.getByDisplayValue('Item Title')).toBeDefined();
-      expect(screen.getByDisplayValue('item_title')).toBeDefined();
-      expect(screen.getByRole('button', { name: /add sub-field/i })).toBeDefined();
-      expect(screen.getByRole('button', { name: /remove sub-field/i })).toBeDefined();
+      expect(screen.getByText('List Sub-fields').textContent).toBe('List Sub-fields');
+      expect((screen.getByRole('textbox', { name: /sub-field label/i }) as HTMLInputElement).value).toBe('Item Title');
+      expect((screen.getByRole('textbox', { name: /sub-field name/i }) as HTMLInputElement).value).toBe('item_title');
+      const addSubBtn = screen.getByRole('button', { name: /add sub-field/i });
+      expect(addSubBtn.hasAttribute('disabled')).toBe(false);
+      const removeSubBtn = screen.getByRole('button', { name: /remove sub-field/i });
+      expect(removeSubBtn.hasAttribute('disabled')).toBe(false);
     });
 
     it('adds sub-field and auto-slugifies sub-field label to name', async () => {
+      const user = userEvent.setup();
       const onChangeSpy = vi.fn();
       render(
         <StatefulBuilder
@@ -308,17 +327,18 @@ describe('VisualFieldBuilder Component', () => {
 
       // Add subfield
       const addSubBtn = screen.getByRole('button', { name: /add sub-field/i });
-      await userEvent.click(addSubBtn);
+      await user.click(addSubBtn);
 
-      const subLabelInput = screen.getByPlaceholderText('Sub-field Label') as HTMLInputElement;
-      const subNameInput = screen.getByPlaceholderText('Sub-field Name') as HTMLInputElement;
+      const subLabelInput = screen.getByRole('textbox', { name: /sub-field label/i });
+      const subNameInput = screen.getByRole('textbox', { name: /sub-field name/i });
 
-      await userEvent.type(subLabelInput, 'Button Text');
-      expect(subLabelInput.value).toBe('Button Text');
-      expect(subNameInput.value).toBe('button_text');
+      await user.type(subLabelInput, 'Button Text');
+      expect(subLabelInput.getAttribute('value')).toBe('Button Text');
+      expect(subNameInput.getAttribute('value')).toBe('button_text');
     });
 
     it('stops auto-slugifying sub-field name when sub-field name is manually edited', async () => {
+      const user = userEvent.setup();
       const onChangeSpy = vi.fn();
       render(
         <StatefulBuilder
@@ -334,24 +354,25 @@ describe('VisualFieldBuilder Component', () => {
         />
       );
 
-      const subLabelInput = screen.getByPlaceholderText('Sub-field Label') as HTMLInputElement;
-      const subNameInput = screen.getByPlaceholderText('Sub-field Name') as HTMLInputElement;
+      const subLabelInput = screen.getByRole('textbox', { name: /sub-field label/i });
+      const subNameInput = screen.getByRole('textbox', { name: /sub-field name/i });
 
-      await userEvent.type(subLabelInput, 'Price');
-      expect(subNameInput.value).toBe('price');
+      await user.type(subLabelInput, 'Price');
+      expect(subNameInput.getAttribute('value')).toBe('price');
 
-      await userEvent.clear(subNameInput);
-      await userEvent.type(subNameInput, 'custom_price');
-      expect(subNameInput.value).toBe('custom_price');
+      await user.clear(subNameInput);
+      await user.type(subNameInput, 'custom_price');
+      expect(subNameInput.getAttribute('value')).toBe('custom_price');
 
-      await userEvent.clear(subLabelInput);
-      await userEvent.type(subLabelInput, 'Amount');
+      await user.clear(subLabelInput);
+      await user.type(subLabelInput, 'Amount');
 
-      expect(subLabelInput.value).toBe('Amount');
-      expect(subNameInput.value).toBe('custom_price');
+      expect(subLabelInput.getAttribute('value')).toBe('Amount');
+      expect(subNameInput.getAttribute('value')).toBe('custom_price');
     });
 
     it('deletes a sub-field', async () => {
+      const user = userEvent.setup();
       const onChangeSpy = vi.fn();
       render(
         <StatefulBuilder
@@ -373,13 +394,14 @@ describe('VisualFieldBuilder Component', () => {
       const removeSubBtns = screen.getAllByRole('button', { name: /remove sub-field/i });
       expect(removeSubBtns).toHaveLength(2);
 
-      await userEvent.click(removeSubBtns[0]);
+      await user.click(removeSubBtns[0]);
 
       expect(screen.queryByDisplayValue('Sub 1')).toBeNull();
-      expect(screen.getByDisplayValue('Sub 2')).toBeDefined();
+      expect((screen.getByRole('textbox', { name: /sub-field label/i }) as HTMLInputElement).value).toBe('Sub 2');
     });
 
     it('changes sub-field type to select and renders sub-field options editor', async () => {
+      const user = userEvent.setup();
       const onChangeSpy = vi.fn();
       render(
         <StatefulBuilder
@@ -396,11 +418,11 @@ describe('VisualFieldBuilder Component', () => {
       );
 
       const subTypeTrigger = screen.getByRole('combobox', { name: /sub-field type/i });
-      fireEvent.keyDown(subTypeTrigger, { key: ' ' });
+      await user.click(subTypeTrigger);
       const selectOption = await screen.findByRole('option', { name: 'Select' });
-      fireEvent.click(selectOption);
+      await user.click(selectOption);
 
-      expect(await screen.findByText('Select Options')).toBeDefined();
+      expect((await screen.findByText('Select Options')).textContent).toBe('Select Options');
     });
 
     it('SUBFIELD_TYPES disallows nested list type', () => {
@@ -442,27 +464,31 @@ describe('VisualFieldBuilder Component', () => {
       renderBuilder(fields, vi.fn(), true);
 
       // Top level buttons
-      expect((screen.getByRole('button', { name: /add field/i }) as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /add field/i }).hasAttribute('disabled')).toBe(true);
       screen.getAllByRole('button', { name: /delete field/i }).forEach((btn) => {
-        expect((btn as HTMLButtonElement).disabled).toBe(true);
+        expect(btn.hasAttribute('disabled')).toBe(true);
       });
 
       // Options editor buttons and inputs
-      expect((screen.getByRole('button', { name: /add option/i }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByRole('button', { name: /remove option/i }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByPlaceholderText('Option 1') as HTMLInputElement).disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /add option/i }).hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('button', { name: /remove option/i }).hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('textbox', { name: 'Option 1' }).hasAttribute('disabled')).toBe(true);
 
       // Subfields editor buttons and inputs
-      expect((screen.getByRole('button', { name: /add sub-field/i }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByRole('button', { name: /remove sub-field/i }) as HTMLButtonElement).disabled).toBe(true);
-      expect((screen.getByPlaceholderText('Sub-field Label') as HTMLInputElement).disabled).toBe(true);
-      expect((screen.getByPlaceholderText('Sub-field Name') as HTMLInputElement).disabled).toBe(true);
+      expect(screen.getByRole('button', { name: /add sub-field/i }).hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('button', { name: /remove sub-field/i }).hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('textbox', { name: /sub-field label/i }).hasAttribute('disabled')).toBe(true);
+      expect(screen.getByRole('textbox', { name: /sub-field name/i }).hasAttribute('disabled')).toBe(true);
 
       // Top level inputs and switches
-      expect((screen.getByDisplayValue('Choice') as HTMLInputElement).disabled).toBe(true);
-      expect((screen.getByDisplayValue('choice') as HTMLInputElement).disabled).toBe(true);
+      screen.getAllByRole('textbox', { name: /field label/i }).forEach((input) => {
+        expect(input.hasAttribute('disabled')).toBe(true);
+      });
+      screen.getAllByRole('textbox', { name: /field name/i }).forEach((input) => {
+        expect(input.hasAttribute('disabled')).toBe(true);
+      });
       screen.getAllByRole('switch').forEach((sw) => {
-        expect((sw as HTMLButtonElement).disabled).toBe(true);
+        expect(sw.hasAttribute('disabled')).toBe(true);
       });
     });
   });

@@ -1,5 +1,8 @@
+import '../../test/setup';
+import { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Theme } from '@radix-ui/themes';
 import { SectionFieldRenderer } from './SectionFieldRenderer';
 import { SectionTemplateField } from '../../types/sectionTemplate';
@@ -38,33 +41,48 @@ describe('SectionFieldRenderer Component', () => {
       </Theme>
     );
 
-    expect(screen.getByDisplayValue('My Headline')).toBeDefined();
-    expect(screen.getByDisplayValue('My bio content')).toBeDefined();
-    expect(screen.getByDisplayValue('https://example.com')).toBeDefined();
-    expect(screen.getByText('/media/avatar.png')).toBeDefined();
-    expect(screen.getByText('Item #1')).toBeDefined();
-    expect(screen.getByDisplayValue('Sub Item 1')).toBeDefined();
+    expect((screen.getByLabelText(/Headline/) as HTMLInputElement).value).toBe('My Headline');
+    expect((screen.getByLabelText('Bio') as HTMLTextAreaElement).value).toBe('My bio content');
+    expect((screen.getByLabelText('Website') as HTMLInputElement).value).toBe('https://example.com');
+    expect(screen.getByRole('switch', { name: 'Featured' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('/media/avatar.png').textContent).toBe('/media/avatar.png');
+    expect(screen.getByText('Item #1').textContent).toBe('Item #1');
+    expect((screen.getByLabelText('Item Name') as HTMLInputElement).value).toBe('Sub Item 1');
   });
 
-  it('calls onChange when text field is updated', () => {
-    const data = { headline: 'Initial' };
+  it('calls onChange when text field is updated', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
 
-    render(
-      <Theme>
-        <SectionFieldRenderer fields={fields} data={data} onChange={onChange} />
-      </Theme>
-    );
+    const Wrapper = () => {
+      const [data, setData] = useState<Record<string, any>>({ headline: 'Initial' });
+      return (
+        <Theme>
+          <SectionFieldRenderer
+            fields={fields}
+            data={data}
+            onChange={(next) => {
+              setData(next);
+              onChange(next);
+            }}
+          />
+        </Theme>
+      );
+    };
 
-    const input = screen.getByDisplayValue('Initial');
-    fireEvent.change(input, { target: { value: 'Updated' } });
+    render(<Wrapper />);
 
-    expect(onChange).toHaveBeenCalledWith(
+    const input = screen.getByLabelText(/Headline/);
+    await user.clear(input);
+    await user.type(input, 'Updated');
+
+    expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ headline: 'Updated' })
     );
   });
 
-  it('calls onOpenMediaPicker when Select Image is clicked on image field', () => {
+  it('calls onOpenMediaPicker when Select Image is clicked on image field', async () => {
+    const user = userEvent.setup();
     const data = { avatar: '' };
     const onChange = vi.fn();
     const onOpenMediaPicker = vi.fn();
@@ -81,13 +99,14 @@ describe('SectionFieldRenderer Component', () => {
     );
 
     const selectImageBtn = screen.getByRole('button', { name: /select image/i });
-    fireEvent.click(selectImageBtn);
+    await user.click(selectImageBtn);
 
     expect(onOpenMediaPicker).toHaveBeenCalledTimes(1);
     expect(typeof onOpenMediaPicker.mock.calls[0][0]).toBe('function');
   });
 
-  it('removes image URL when Remove button is clicked', () => {
+  it('removes image URL when Remove button is clicked', async () => {
+    const user = userEvent.setup();
     const data = { avatar: '/media/old.png' };
     const onChange = vi.fn();
 
@@ -98,14 +117,15 @@ describe('SectionFieldRenderer Component', () => {
     );
 
     const removeBtn = screen.getByRole('button', { name: /remove/i });
-    fireEvent.click(removeBtn);
+    await user.click(removeBtn);
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ avatar: '' })
     );
   });
 
-  it('renders "Select Video" button and triggers onOpenMediaPicker for video field type', () => {
+  it('renders "Select Video" button and triggers onOpenMediaPicker for video field type', async () => {
+    const user = userEvent.setup();
     const videoFields: SectionTemplateField[] = [
       { name: 'promo_video', type: 'video', label: 'Promo Video' },
     ];
@@ -125,8 +145,8 @@ describe('SectionFieldRenderer Component', () => {
     );
 
     const selectVideoBtn = screen.getByRole('button', { name: /select video/i });
-    expect(selectVideoBtn).toBeDefined();
-    fireEvent.click(selectVideoBtn);
+    expect(selectVideoBtn.hasAttribute('disabled')).toBe(false);
+    await user.click(selectVideoBtn);
 
     expect(onOpenMediaPicker).toHaveBeenCalledTimes(1);
   });
@@ -151,17 +171,17 @@ describe('SectionFieldRenderer Component', () => {
     // Labelable fields use <label> with htmlFor matching control id
     const headlineLabel = screen.getByText(/Headline/);
     expect(headlineLabel.tagName.toLowerCase()).toBe('label');
-    const headlineInput = screen.getByDisplayValue('My Headline');
+    const headlineInput = screen.getByLabelText(/Headline/);
     expect(headlineLabel.getAttribute('for')).toBe(headlineInput.getAttribute('id'));
 
     const bioLabel = screen.getByText('Bio');
     expect(bioLabel.tagName.toLowerCase()).toBe('label');
-    const bioInput = screen.getByDisplayValue('My bio content');
+    const bioInput = screen.getByLabelText('Bio');
     expect(bioLabel.getAttribute('for')).toBe(bioInput.getAttribute('id'));
 
     const websiteLabel = screen.getByText('Website');
     expect(websiteLabel.tagName.toLowerCase()).toBe('label');
-    const websiteInput = screen.getByDisplayValue('https://example.com');
+    const websiteInput = screen.getByLabelText('Website');
     expect(websiteLabel.getAttribute('for')).toBe(websiteInput.getAttribute('id'));
 
     const featuredLabel = screen.getByText('Featured');
@@ -196,17 +216,17 @@ describe('SectionFieldRenderer Component', () => {
       </Theme>
     );
 
-    const errorMessage = screen.getByText('Headline is required');
-    expect(errorMessage.getAttribute('role')).toBe('alert');
+    const errorMessage = screen.getByRole('alert');
+    expect(errorMessage.textContent).toContain('Headline is required');
     const errorId = errorMessage.getAttribute('id');
-    expect(errorId).toBeDefined();
+    expect(Boolean(errorId)).toBe(true);
 
-    const headlineInput = screen.getByPlaceholderText('Enter Headline');
+    const headlineInput = screen.getByLabelText(/Headline/);
     expect(headlineInput.getAttribute('aria-invalid')).toBe('true');
     expect(headlineInput.getAttribute('aria-describedby')).toBe(errorId);
 
     // Un-errored field should not have aria-invalid true or aria-describedby
-    const bioInput = screen.getByPlaceholderText('Enter Bio');
+    const bioInput = screen.getByLabelText('Bio');
     expect(bioInput.getAttribute('aria-invalid')).toBe('false');
     expect(bioInput.getAttribute('aria-describedby')).toBeNull();
   });

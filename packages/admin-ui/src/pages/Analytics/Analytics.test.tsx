@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Analytics } from './Analytics';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -39,10 +39,14 @@ describe('Analytics Page', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders loading state initially', () => {
     (apiFetch as any).mockImplementation(() => new Promise(() => {})); // Never resolves
     renderAnalytics();
-    expect(screen.getByText('Loading metrics...')).toBeDefined();
+    expect(screen.getByText('Loading metrics...').textContent).toBe('Loading metrics...');
   });
 
   it('renders analytics data successfully', async () => {
@@ -67,17 +71,17 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Total Page Views')).toBeDefined();
-    });
+    const totalViews = await screen.findByText('Total Page Views');
+    expect(totalViews.textContent).toBe('Total Page Views');
 
-    expect(screen.getByText('151.7k')).toBeDefined();
-    expect(screen.getAllByText('/')[0]).toBeDefined();
-    expect(screen.getAllByText('US')[0]).toBeDefined();
-    expect(screen.getByText('Real-time Edge')).toBeDefined();
+    expect(screen.getByText('151.7k').textContent).toBe('151.7k');
+    expect(screen.getAllByText('/')[0].textContent).toBe('/');
+    expect(screen.getAllByText('US')[0].textContent).toBe('US');
+    expect(screen.getByText('Real-time Edge').textContent).toBe('Real-time Edge');
   });
 
   it('renders error state when API fails', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (apiFetch as any).mockResolvedValueOnce({
       ok: false,
       status: 500,
@@ -85,12 +89,13 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load analytics data.')).toBeDefined();
-    });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Failed to load analytics data.');
+    errorSpy.mockRestore();
   });
 
   it('renders error state with details when API returns 502 with error message', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (apiFetch as any).mockResolvedValueOnce({
       ok: false,
       status: 502,
@@ -101,10 +106,10 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load analytics data.')).toBeDefined();
-      expect(screen.getByText('Cloudflare GraphQL query timed out')).toBeDefined();
-    });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Failed to load analytics data.');
+    expect(alert.textContent).toContain('Cloudflare GraphQL query timed out');
+    errorSpy.mockRestore();
   });
 
   it('renders error state when GraphQL response contains errors array', async () => {
@@ -118,10 +123,9 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Failed to load analytics data.')).toBeDefined();
-      expect(screen.getByText('Field "unknownField" does not exist')).toBeDefined();
-    });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Failed to load analytics data.');
+    expect(alert.textContent).toContain('Field "unknownField" does not exist');
   });
 
   it('renders setup message with Cloudflare dashboard link when analytics returns 403', async () => {
@@ -132,11 +136,14 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Cloudflare Web Analytics Not Enabled')).toBeDefined();
+    const heading = await screen.findByRole('heading', {
+      name: /cloudflare web analytics not enabled/i,
     });
-    expect(screen.getByText('Cloudflare Dashboard')).toBeDefined();
-    expect(screen.getByText('Disabled')).toBeDefined();
+    expect(heading.textContent).toBe('Cloudflare Web Analytics Not Enabled');
+
+    const link = screen.getByRole('link', { name: /cloudflare dashboard/i });
+    expect(link.getAttribute('href')).toBe('https://dash.cloudflare.com/');
+    expect(screen.getByText('Disabled').textContent).toBe('Disabled');
   });
 
   it('renders configuration guide when missing credentials', async () => {
@@ -150,14 +157,18 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Cloudflare Analytics Not Configured')).toBeDefined();
+    const heading = await screen.findByRole('heading', {
+      name: /cloudflare analytics not configured/i,
     });
-    expect(screen.getByText(/CF_API_TOKEN/)).toBeDefined();
-    expect(screen.getByText('Configure in Site Settings')).toBeDefined();
+    expect(heading.textContent).toBe('Cloudflare Analytics Not Configured');
+
+    expect(screen.getByText(/CF_API_TOKEN/).textContent).toContain('CF_API_TOKEN');
+    const settingsLink = screen.getByRole('link', { name: /configure in site settings/i });
+    expect(settingsLink.getAttribute('href')).toBe('/settings');
   });
 
   it('renders dual analytics data with RUM metrics and Edge metrics tab switching', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -186,25 +197,23 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(screen.getByText('Total Page Views')).toBeDefined();
-    });
+    const totalViews = await screen.findByText('Total Page Views');
+    expect(totalViews.textContent).toBe('Total Page Views');
 
-    expect(screen.getAllByText('12.0k')[0]).toBeDefined();
-    expect(screen.getAllByText('/blog/first-post')[0]).toBeDefined();
-    expect(screen.getAllByText('United States')[0]).toBeDefined();
+    expect(screen.getAllByText('12.0k')[0].textContent).toBe('12.0k');
+    expect(screen.getAllByText('/blog/first-post')[0].textContent).toBe('/blog/first-post');
+    expect(screen.getAllByText('United States')[0].textContent).toBe('United States');
 
     // Switch to Edge Infrastructure tab
     const edgeTab = screen.getByRole('tab', { name: /edge infrastructure/i });
-    await userEvent.click(edgeTab);
+    await user.click(edgeTab);
 
-    await waitFor(() => {
-      expect(screen.getByText('Total Edge Requests')).toBeDefined();
-    });
-    expect(screen.getAllByText('50.0k')[0]).toBeDefined();
-    expect(screen.getAllByText('10.0 MB')[0]).toBeDefined();
-    expect(screen.getAllByText('/api/v1')[0]).toBeDefined();
-    expect(screen.getAllByText('Germany')[0]).toBeDefined();
+    const edgeRequests = await screen.findByText('Total Edge Requests');
+    expect(edgeRequests.textContent).toBe('Total Edge Requests');
+    expect(screen.getAllByText('50.0k')[0].textContent).toBe('50.0k');
+    expect(screen.getAllByText('10.0 MB')[0].textContent).toBe('10.0 MB');
+    expect(screen.getAllByText('/api/v1')[0].textContent).toBe('/api/v1');
+    expect(screen.getAllByText('Germany')[0].textContent).toBe('Germany');
   });
 
   it('renders RUM unconfigured prompt banner and displays edge metrics when rum_configured is false', async () => {
@@ -229,17 +238,14 @@ describe('Analytics Page', () => {
 
     renderAnalytics();
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Cloudflare Web Analytics Site Tag is not configured/i)
-      ).toBeDefined();
-    });
+    const banner = await screen.findByText(/Cloudflare Web Analytics Site Tag is not configured/i);
+    expect(banner.textContent).toContain('Cloudflare Web Analytics Site Tag is not configured');
 
     // In default rendered view, Edge metrics are shown
-    expect(screen.getByText('Total Edge Requests')).toBeDefined();
-    expect(screen.getAllByText('25.0k')[0]).toBeDefined();
-    expect(screen.getAllByText('5.0 MB')[0]).toBeDefined();
-    expect(screen.getAllByText('/home')[0]).toBeDefined();
-    expect(screen.getAllByText('Canada')[0]).toBeDefined();
+    expect(screen.getByText('Total Edge Requests').textContent).toBe('Total Edge Requests');
+    expect(screen.getAllByText('25.0k')[0].textContent).toBe('25.0k');
+    expect(screen.getAllByText('5.0 MB')[0].textContent).toBe('5.0 MB');
+    expect(screen.getAllByText('/home')[0].textContent).toBe('/home');
+    expect(screen.getAllByText('Canada')[0].textContent).toBe('Canada');
   });
 });

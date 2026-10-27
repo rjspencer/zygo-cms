@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Theme } from '@radix-ui/themes';
 import { describe, expect, it } from 'vitest';
@@ -64,10 +65,12 @@ describe('SectionList', () => {
   it('renders empty state message when sections array is empty', () => {
     renderWithForm(<SectionList sectionTemplates={mockTemplates} />, { sections: [] });
 
-    expect(screen.getByText('Page Sections')).toBeDefined();
-    expect(
-      screen.getByText('No sections added yet. Click "Add Section..." above to add one.')
-    ).toBeDefined();
+    const heading = screen.getByText('Page Sections');
+    expect(heading.textContent).toBe('Page Sections');
+    const emptyNotice = screen.getByText(
+      'No sections added yet. Click "Add Section..." above to add one.'
+    );
+    expect(emptyNotice.textContent).toContain('No sections added yet');
   });
 
   it('renders section cards when initialized with sections', () => {
@@ -81,11 +84,19 @@ describe('SectionList', () => {
       }
     );
 
-    expect(screen.getByText('Hero Section')).toBeDefined();
-    expect(screen.getByText('Features Section')).toBeDefined();
+    const heroTitle = screen.getByText('Hero Section');
+    expect(heroTitle.textContent).toBe('Hero Section');
+    const featuresTitle = screen.getByText('Features Section');
+    expect(featuresTitle.textContent).toBe('Features Section');
+
+    const heroInput = screen.getByRole('textbox', { name: 'Title' });
+    expect(heroInput.getAttribute('value')).toBe('First Hero');
+    const featuresInput = screen.getByRole('textbox', { name: 'Feature Items' });
+    expect(featuresInput.getAttribute('value')).toBe('Great Features');
   });
 
-  it('handles expanding and collapsing section cards', () => {
+  it('handles expanding and collapsing section cards', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -94,20 +105,23 @@ describe('SectionList', () => {
     );
 
     // Initial state: expanded
-    expect(screen.getByText('Title')).toBeDefined();
+    const titleInput = screen.getByRole('textbox', { name: 'Title' });
+    expect(titleInput.getAttribute('value')).toBe('First Hero');
     const collapseBtn = screen.getByRole('button', { name: 'Collapse section' });
 
     // Collapse
-    fireEvent.click(collapseBtn);
-    expect(screen.queryByText('Title')).toBeNull();
+    await user.click(collapseBtn);
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
 
     // Expand
     const expandBtn = screen.getByRole('button', { name: 'Expand section' });
-    fireEvent.click(expandBtn);
-    expect(screen.getByText('Title')).toBeDefined();
+    await user.click(expandBtn);
+    const restoredTitleInput = screen.getByRole('textbox', { name: 'Title' });
+    expect(restoredTitleInput.getAttribute('value')).toBe('First Hero');
   });
 
-  it('deletes a section when clicking delete button', () => {
+  it('deletes a section when clicking delete button', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -122,13 +136,16 @@ describe('SectionList', () => {
     expect(deleteButtons).toHaveLength(2);
 
     // Delete the first section
-    fireEvent.click(deleteButtons[0]);
+    await user.click(deleteButtons[0]);
 
     expect(screen.queryByText('Hero Section')).toBeNull();
-    expect(screen.getByText('Features Section')).toBeDefined();
+    const remainingHeading = screen.getByText('Features Section');
+    expect(remainingHeading.textContent).toBe('Features Section');
+    expect(screen.getAllByRole('button', { name: 'Delete section' })).toHaveLength(1);
   });
 
-  it('moves sections up and down', () => {
+  it('moves sections up and down', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -140,16 +157,27 @@ describe('SectionList', () => {
     );
 
     const moveDownButtons = screen.getAllByRole('button', { name: 'Move section down' });
+    expect(moveDownButtons[0].hasAttribute('disabled')).toBe(false);
+    expect(moveDownButtons[1].hasAttribute('disabled')).toBe(true);
+
     // First section can move down
-    fireEvent.click(moveDownButtons[0]);
+    await user.click(moveDownButtons[0]);
 
     // Check headings order or move buttons status
     const moveUpButtons = screen.getAllByRole('button', { name: 'Move section up' });
     // Features Section is now first (so its move up button is disabled)
     expect(moveUpButtons[0].hasAttribute('disabled')).toBe(true);
+    expect(moveUpButtons[1].hasAttribute('disabled')).toBe(false);
+
+    const sectionHeadings = screen.getAllByText(/(Hero|Features) Section/);
+    expect(sectionHeadings.map((h) => h.textContent)).toEqual([
+      'Features Section',
+      'Hero Section',
+    ]);
   });
 
-  it('handles missing template gracefully and permits deletion', () => {
+  it('handles missing template gracefully and permits deletion', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -157,19 +185,23 @@ describe('SectionList', () => {
       }
     );
 
-    expect(screen.getByText('Missing template')).toBeDefined();
-    expect(screen.getByText('(non_existent_template)')).toBeDefined();
+    const missingNotice = screen.getByText('Missing template');
+    expect(missingNotice.textContent).toBe('Missing template');
+    const missingTypeId = screen.getByText('(non_existent_template)');
+    expect(missingTypeId.textContent).toBe('(non_existent_template)');
 
     const deleteBtn = screen.getByRole('button', { name: 'Delete section' });
-    fireEvent.click(deleteBtn);
+    await user.click(deleteBtn);
 
     expect(screen.queryByText('Missing template')).toBeNull();
-    expect(
-      screen.getByText('No sections added yet. Click "Add Section..." above to add one.')
-    ).toBeDefined();
+    const emptyNotice = screen.getByText(
+      'No sections added yet. Click "Add Section..." above to add one.'
+    );
+    expect(emptyNotice.textContent).toContain('No sections added yet');
   });
 
-  it('preserves collapsed section state when moving sections up and down', () => {
+  it('preserves collapsed section state when moving sections up and down', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -183,28 +215,33 @@ describe('SectionList', () => {
     // Collapse the first section (Hero)
     const collapseButtons = screen.getAllByRole('button', { name: 'Collapse section' });
     expect(collapseButtons).toHaveLength(2);
-    fireEvent.click(collapseButtons[0]);
+    await user.click(collapseButtons[0]);
 
     // First section is now collapsed (has "Expand section" button)
-    expect(screen.getByRole('button', { name: 'Expand section' })).toBeDefined();
+    expect(screen.getAllByRole('button', { name: 'Expand section' })).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
 
     // Move first section down
     const moveDownButtons = screen.getAllByRole('button', { name: 'Move section down' });
-    fireEvent.click(moveDownButtons[0]);
+    await user.click(moveDownButtons[0]);
 
     // Now index 0 is Features (expanded) and index 1 is Hero (collapsed)
     const expandButtonsAfterMove = screen.getAllByRole('button', { name: 'Expand section' });
     expect(expandButtonsAfterMove).toHaveLength(1);
+    expect(screen.getByRole('textbox', { name: 'Feature Items' }).getAttribute('value')).toBe('Feature 2');
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
 
     // Move index 1 (Hero) back up
     const moveUpButtons = screen.getAllByRole('button', { name: 'Move section up' });
-    fireEvent.click(moveUpButtons[1]);
+    await user.click(moveUpButtons[1]);
 
     // Hero is back at index 0 and still collapsed
     expect(screen.getAllByRole('button', { name: 'Expand section' })).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
   });
 
-  it('preserves collapsed section state when another section is deleted', () => {
+  it('preserves collapsed section state when another section is deleted', async () => {
+    const user = userEvent.setup();
     renderWithForm(
       <SectionList sectionTemplates={mockTemplates} />,
       {
@@ -219,20 +256,21 @@ describe('SectionList', () => {
     // Collapse the second section (Features)
     const collapseButtons = screen.getAllByRole('button', { name: 'Collapse section' });
     expect(collapseButtons).toHaveLength(3);
-    fireEvent.click(collapseButtons[1]); // Collapse Features
+    await user.click(collapseButtons[1]); // Collapse Features
 
     expect(screen.getAllByRole('button', { name: 'Expand section' })).toHaveLength(1);
+    expect(screen.queryByRole('textbox', { name: 'Feature Items' })).toBeNull();
 
     // Delete first section (Hero)
     const deleteButtons = screen.getAllByRole('button', { name: 'Delete section' });
-    fireEvent.click(deleteButtons[0]);
+    await user.click(deleteButtons[0]);
 
     // Now Features is at index 0 and should still be collapsed
     expect(screen.getAllByRole('button', { name: 'Expand section' })).toHaveLength(1);
-    expect(screen.queryByText('Feature 2')).toBeNull(); // Still collapsed, body content hidden
+    expect(screen.queryByRole('textbox', { name: 'Feature Items' })).toBeNull();
   });
 
-  it('renders inline error message with role="alert" when section has nested validation error', () => {
+  it('renders inline error message with role="alert" when section has nested validation error', async () => {
     const templatesWithRequired: SectionTemplate[] = [
       {
         id: 'hero',
@@ -251,12 +289,12 @@ describe('SectionList', () => {
       />
     );
 
-    const alert = screen.getByRole('alert');
-    expect(alert).toBeDefined();
+    const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe('Title is required');
   });
 
   it('auto-expands collapsed section when validation error arrives', async () => {
+    const user = userEvent.setup();
     const templatesWithRequired: SectionTemplate[] = [
       {
         id: 'hero',
@@ -299,16 +337,18 @@ describe('SectionList', () => {
 
     // Collapse it first
     const collapseBtn = screen.getByRole('button', { name: 'Collapse section' });
-    fireEvent.click(collapseBtn);
-    expect(screen.queryByText('Title is required')).toBeNull();
-    expect(screen.getByRole('button', { name: 'Expand section' })).toBeDefined();
+    await user.click(collapseBtn);
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
+    const expandBtn = screen.getByRole('button', { name: 'Expand section' });
+    expect(expandBtn.getAttribute('aria-label')).toBe('Expand section');
 
     // Trigger error
-    fireEvent.click(screen.getByText('Trigger Error'));
+    await user.click(screen.getByRole('button', { name: 'Trigger Error' }));
 
     // Should auto-expand and show alert
     const alert = await screen.findByRole('alert');
-    expect(alert).toBeDefined();
     expect(alert.textContent).toBe('Title is required');
+    const restoredTitleInput = screen.getByRole('textbox', { name: 'Title' });
+    expect(restoredTitleInput.getAttribute('aria-invalid')).toBe('true');
   });
 });

@@ -1,4 +1,6 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import '../../test/setup';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { TemplatesList } from './TemplatesList';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -85,10 +87,11 @@ describe('TemplatesList Component Integration Tests', () => {
 
     renderComponent();
 
-    expect(await screen.findByText('Post Template')).toBeDefined();
-    expect(screen.getByText('Promo Banner')).toBeDefined();
-    expect(screen.getByText('post')).toBeDefined();
-    expect(screen.getByText('banner')).toBeDefined();
+    const postTemplate = await screen.findByText('Post Template');
+    expect(postTemplate.textContent).toBe('Post Template');
+    expect(screen.getByText('Promo Banner').textContent).toBe('Promo Banner');
+    expect(screen.getByText('post').textContent).toBe('post');
+    expect(screen.getByText('banner').textContent).toBe('banner');
   });
 
   it('renders preview link with correct attributes in the header', async () => {
@@ -110,15 +113,13 @@ describe('TemplatesList Component Integration Tests', () => {
 
     renderComponent();
 
-    const previewLink = screen.getByTestId('templates-preview-link');
-    expect(previewLink).toBeDefined();
+    const previewLink = screen.getByRole('link', {
+      name: 'Preview all templates on the public site (opens in new tab)',
+    });
     expect(previewLink.textContent).toBe('Preview');
     expect(previewLink.getAttribute('href')).toBe('/theme-preview');
     expect(previewLink.getAttribute('target')).toBe('_blank');
     expect(previewLink.getAttribute('rel')).toBe('noopener noreferrer');
-    expect(previewLink.getAttribute('aria-label')).toBe(
-      'Preview all templates on the public site (opens in new tab)'
-    );
   });
 
   it('admin role: shows lock toggle and enables all buttons', async () => {
@@ -140,7 +141,8 @@ describe('TemplatesList Component Integration Tests', () => {
 
     renderComponent();
 
-    expect(await screen.findByText('Lock Control')).toBeDefined();
+    const lockControlHeader = await screen.findByRole('columnheader', { name: 'Lock Control' });
+    expect(lockControlHeader.textContent).toBe('Lock Control');
 
     const switches = screen.getAllByRole('switch');
     expect(switches.length).toBe(2);
@@ -149,13 +151,13 @@ describe('TemplatesList Component Integration Tests', () => {
 
     const editButtons = screen.getAllByRole('button', { name: /^Edit / });
     expect(editButtons.length).toBe(2);
-    expect(editButtons[0].getAttribute('disabled')).toBeNull();
-    expect(editButtons[1].getAttribute('disabled')).toBeNull();
+    expect(editButtons[0].hasAttribute('disabled')).toBe(false);
+    expect(editButtons[1].hasAttribute('disabled')).toBe(false);
 
     const deleteButtons = screen.getAllByRole('button', { name: /^Delete / });
     expect(deleteButtons.length).toBe(2);
-    expect(deleteButtons[0].getAttribute('disabled')).toBeNull();
-    expect(deleteButtons[1].getAttribute('disabled')).toBeNull();
+    expect(deleteButtons[0].hasAttribute('disabled')).toBe(false);
+    expect(deleteButtons[1].hasAttribute('disabled')).toBe(false);
   });
 
   it('designer role: hides lock toggle and disables actions on locked templates', async () => {
@@ -178,19 +180,19 @@ describe('TemplatesList Component Integration Tests', () => {
     renderComponent();
 
     await screen.findByText('Post Template');
-    expect(screen.queryByText('Lock Control')).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Lock Control' })).toBeNull();
 
     const editPost = screen.getByRole('button', { name: 'Edit Post Template' });
-    expect(editPost.getAttribute('disabled')).not.toBeNull();
+    expect(editPost.hasAttribute('disabled')).toBe(true);
 
     const deletePost = screen.getByRole('button', { name: 'Delete Post Template' });
-    expect(deletePost.getAttribute('disabled')).not.toBeNull();
+    expect(deletePost.hasAttribute('disabled')).toBe(true);
 
     const editBanner = screen.getByRole('button', { name: 'Edit Promo Banner' });
-    expect(editBanner.getAttribute('disabled')).toBeNull();
+    expect(editBanner.hasAttribute('disabled')).toBe(false);
 
     const deleteBanner = screen.getByRole('button', { name: 'Delete Promo Banner' });
-    expect(deleteBanner.getAttribute('disabled')).toBeNull();
+    expect(deleteBanner.hasAttribute('disabled')).toBe(false);
   });
 
   it('filters templates by search query param', async () => {
@@ -212,11 +214,13 @@ describe('TemplatesList Component Integration Tests', () => {
 
     renderComponent(['/templates?q=promo']);
 
-    await screen.findByText('Promo Banner');
+    const promoBanner = await screen.findByText('Promo Banner');
+    expect(promoBanner.textContent).toBe('Promo Banner');
     expect(screen.queryByText('Post Template')).toBeNull();
   });
 
   it('filters templates when typing in search input', async () => {
+    const user = userEvent.setup();
     (apiFetch as any).mockImplementation((url: string) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -236,16 +240,20 @@ describe('TemplatesList Component Integration Tests', () => {
     renderComponent();
 
     await screen.findByText('Post Template');
-    const searchInput = screen.getByPlaceholderText('Search templates by name, slug, or description...');
-    fireEvent.change(searchInput, { target: { value: 'banner' } });
+    const searchInput = screen.getByRole('textbox', {
+      name: 'Search templates by name, slug, or description',
+    }) as HTMLInputElement;
+    await user.click(searchInput);
+    await user.paste('banner');
 
-    await waitFor(() => {
-      expect(screen.getByText('Promo Banner')).toBeDefined();
-      expect(screen.queryByText('Post Template')).toBeNull();
-    });
+    expect(searchInput.value).toBe('banner');
+    expect(screen.getByText('Promo Banner').textContent).toBe('Promo Banner');
+    expect(screen.queryByText('Post Template')).toBeNull();
   });
 
   it('toggles lock status when switch clicked by admin', async () => {
+    const user = userEvent.setup();
+    let templatesData = [...mockTemplates];
     (apiFetch as any).mockImplementation((url: string, opts?: any) => {
       if (url === '/api/me') {
         return Promise.resolve({
@@ -253,13 +261,17 @@ describe('TemplatesList Component Integration Tests', () => {
           json: async () => ({ role: 'admin' }),
         });
       }
-      if (url === '/api/content-types') {
+      if (url === '/api/content-types' && (!opts || opts.method === 'GET' || !opts.method)) {
         return Promise.resolve({
           ok: true,
-          json: async () => mockTemplates,
+          json: async () => templatesData,
         });
       }
       if (url.startsWith('/api/content-types/banner') && opts?.method === 'PUT') {
+        const body = JSON.parse(opts.body);
+        templatesData = templatesData.map((t) =>
+          t.id === 'banner' ? { ...t, is_locked: body.is_locked } : t
+        );
         return Promise.resolve({
           ok: true,
           json: async () => ({ success: true }),
@@ -272,13 +284,18 @@ describe('TemplatesList Component Integration Tests', () => {
 
     await screen.findByText('Post Template');
     const bannerSwitch = screen.getByRole('switch', { name: 'Toggle lock for Promo Banner' });
-    fireEvent.click(bannerSwitch);
+    expect(bannerSwitch.getAttribute('aria-checked')).toBe('false');
+
+    await user.click(bannerSwitch);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         '/api/content-types/banner',
         expect.objectContaining({ method: 'PUT' })
       );
+    });
+    await waitFor(() => {
+      expect(bannerSwitch.getAttribute('aria-checked')).toBe('true');
     });
   });
 });

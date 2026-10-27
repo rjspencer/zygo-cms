@@ -1,7 +1,16 @@
 import '@testing-library/jest-dom/vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
 import { expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { configure as configureDom } from '@testing-library/dom';
+import { getConfig as getRtlConfig } from '@testing-library/react';
 import { server } from './mocks/server';
+
+const rtlConfig = getRtlConfig();
+configureDom({
+  asyncWrapper: rtlConfig.asyncWrapper,
+  eventWrapper: rtlConfig.eventWrapper,
+  unstable_advanceTimersWrapper: rtlConfig.unstable_advanceTimersWrapper,
+});
 
 expect.extend(matchers);
 

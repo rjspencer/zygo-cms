@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, waitForElementToBeRemoved } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Theme, Button } from '@radix-ui/themes';
 import { QRCodeDialog } from './QRCodeDialog';
@@ -15,7 +16,8 @@ describe('QRCodeDialog', () => {
       </Theme>
     );
 
-    expect(screen.getByRole('button', { name: 'QR Code' })).toBeDefined();
+    const trigger = screen.getByRole('button', { name: 'QR Code' });
+    expect(trigger.hasAttribute('disabled')).toBe(false);
   });
 
   it('renders custom trigger when provided', () => {
@@ -28,10 +30,12 @@ describe('QRCodeDialog', () => {
       </Theme>
     );
 
-    expect(screen.getByRole('button', { name: 'Custom Trigger' })).toBeDefined();
+    const customTrigger = screen.getByRole('button', { name: 'Custom Trigger' });
+    expect(customTrigger.hasAttribute('disabled')).toBe(false);
   });
 
-  it('opens dialog with QR code, url, and actions on trigger click', async () => {
+  it('opens and closes dialog with QR code, url, and actions on trigger click', async () => {
+    const user = userEvent.setup();
     render(
       <Theme>
         <QRCodeDialog url="https://example.com/test-url" />
@@ -39,17 +43,31 @@ describe('QRCodeDialog', () => {
     );
 
     const trigger = screen.getByRole('button', { name: 'QR Code' });
-    fireEvent.click(trigger);
+    await user.click(trigger);
 
-    expect(await screen.findByText('Share via QR Code')).toBeDefined();
-    expect(screen.getByText('Scan to visit the trackable link.')).toBeDefined();
-    expect(screen.getByText('https://example.com/test-url')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Copy to Clipboard' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Download Image' })).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Close' })).toBeDefined();
+    expect(await screen.findByRole('heading', { name: 'Share via QR Code' })).not.toBeNull();
+    expect(screen.getByText('Scan to visit the trackable link.').textContent).toBe(
+      'Scan to visit the trackable link.'
+    );
+    expect(screen.getByText('https://example.com/test-url').textContent).toBe(
+      'https://example.com/test-url'
+    );
+    expect(screen.getByRole('button', { name: 'Copy to Clipboard' }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Download Image' }).hasAttribute('disabled')).toBe(false);
+
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    expect(closeBtn.hasAttribute('disabled')).toBe(false);
+
+    // Radix Teardown (Pattern 14)
+    await user.click(closeBtn);
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('triggers copy action when Copy to Clipboard button is clicked', async () => {
+    const user = userEvent.setup();
     const mockWrite = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', {
       value: {
@@ -64,24 +82,39 @@ describe('QRCodeDialog', () => {
       </Theme>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'QR Code' }));
+    await user.click(screen.getByRole('button', { name: 'QR Code' }));
     const copyBtn = await screen.findByRole('button', { name: 'Copy to Clipboard' });
-    fireEvent.click(copyBtn);
+    await user.click(copyBtn);
 
-    expect(copyBtn).toBeDefined();
+    expect(copyBtn.hasAttribute('disabled')).toBe(false);
+
+    // Radix Teardown (Pattern 14)
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('triggers download action when Download Image button is clicked', async () => {
+    const user = userEvent.setup();
     render(
       <Theme>
         <QRCodeDialog url="https://example.com/test-download" />
       </Theme>
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'QR Code' }));
+    await user.click(screen.getByRole('button', { name: 'QR Code' }));
     const downloadBtn = await screen.findByRole('button', { name: 'Download Image' });
-    fireEvent.click(downloadBtn);
+    await user.click(downloadBtn);
 
-    expect(downloadBtn).toBeDefined();
+    expect(downloadBtn.hasAttribute('disabled')).toBe(false);
+
+    // Radix Teardown (Pattern 14)
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

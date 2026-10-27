@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Theme } from '@radix-ui/themes';
@@ -36,7 +36,7 @@ describe('RoleGuard component', () => {
       </QueryClientProvider>
     );
 
-    expect(screen.getByText('Loading access...')).toBeDefined();
+    expect(screen.getByText('Loading access...').textContent).toBe('Loading access...');
     expect(screen.queryByText('Admin Content')).toBeNull();
   });
 
@@ -56,9 +56,8 @@ describe('RoleGuard component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('Admin Content')).toBeDefined();
-    });
+    const content = await screen.findByText('Admin Content');
+    expect(content.textContent).toBe('Admin Content');
     expect(screen.queryByText('Loading access...')).toBeNull();
     expect(screen.queryByText(/Access Denied/i)).toBeNull();
   });
@@ -79,9 +78,8 @@ describe('RoleGuard component', () => {
       </QueryClientProvider>
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/Access Denied/i)).toBeDefined();
-    });
+    const denied = await screen.findByText(/Access Denied/i);
+    expect(denied.textContent).toContain('Access Denied');
     expect(screen.queryByText('Admin Content')).toBeNull();
   });
 });

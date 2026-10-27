@@ -1,4 +1,5 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithForm } from '../../testUtils/renderWithForm';
 import type { SectionTemplate } from '../../../../types/sectionTemplate';
@@ -29,15 +30,21 @@ describe('ContentTab', () => {
     );
 
     // SlugField
-    expect(screen.getByText('Slug')).toBeDefined();
-    expect(screen.getByText('/')).toBeDefined();
+    const slugInput = screen.getByRole('textbox', { name: 'Slug' }) as HTMLInputElement;
+    expect(slugInput.value).toBe('about-us');
+    screen.getByText('/');
 
     // SectionList
-    expect(screen.getByText('Page Sections')).toBeDefined();
-    expect(screen.getByText('Hero Section')).toBeDefined();
+    screen.getByText('Page Sections');
+    screen.getByText('Hero Section');
+    const titleInput = screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement;
+    expect(titleInput.value).toBe('Welcome');
+    screen.getByRole('button', { name: 'Collapse section' });
+    screen.getByRole('button', { name: 'Delete section' });
 
     // No PostBodyField
     expect(screen.queryByText('Body Content')).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /body/i })).toBeNull();
   });
 
   it('renders SlugField and PostBodyField when entryType is "post"', () => {
@@ -55,12 +62,14 @@ describe('ContentTab', () => {
     );
 
     // SlugField
-    expect(screen.getByText('Slug')).toBeDefined();
-    expect(screen.getByText('/post/')).toBeDefined();
+    const slugInput = screen.getByRole('textbox', { name: 'Slug' }) as HTMLInputElement;
+    expect(slugInput.value).toBe('my-first-post');
+    screen.getByText('/post/');
 
     // PostBodyField
-    expect(screen.getByText('Body Content')).toBeDefined();
-    expect(screen.getByRole('textbox', { name: 'Post Body' })).toBeDefined();
+    screen.getByText('Body Content');
+    const postBody = screen.getByRole('textbox', { name: 'Post Body' });
+    expect(postBody.textContent).toContain('Post body');
     expect(onEditorReady).toHaveBeenCalled();
 
     // No SectionList
@@ -81,18 +90,22 @@ describe('ContentTab', () => {
     );
 
     // SlugField
-    expect(screen.getByText('Slug')).toBeDefined();
-    expect(screen.getByText('/docs/')).toBeDefined();
+    const slugInput = screen.getByRole('textbox', { name: 'Slug' }) as HTMLInputElement;
+    expect(slugInput.value).toBe('intro');
+    screen.getByText('/docs/');
 
     // PostBodyField
-    expect(screen.getByText('Body Content')).toBeDefined();
-    expect(screen.getByRole('textbox', { name: 'Doc Body' })).toBeDefined();
+    screen.getByText('Body Content');
+    const docBody = screen.getByRole('textbox', { name: 'Doc Body' });
+    expect(docBody.textContent).toContain('Documentation');
 
     // No SectionList
     expect(screen.queryByText('Page Sections')).toBeNull();
   });
 
-  it('allows typing into the slug field and toggling section expansion in page mode', () => {
+  it('allows typing into the slug field and toggling section expansion in page mode', async () => {
+    const user = userEvent.setup();
+
     renderWithForm(
       <ContentTab
         entryType="page"
@@ -105,13 +118,25 @@ describe('ContentTab', () => {
       }
     );
 
-    const input = screen.getByPlaceholderText('url-friendly-slug') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'updated-slug' } });
-    expect(input.value).toBe('updated-slug');
+    const slugInput = screen.getByRole('textbox', { name: 'Slug' }) as HTMLInputElement;
+    expect(slugInput.value).toBe('initial');
 
-    expect(screen.getByText('Title')).toBeDefined();
+    await user.clear(slugInput);
+    await user.type(slugInput, 'updated-slug');
+    expect(slugInput.value).toBe('updated-slug');
+
+    const titleInput = screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement;
+    expect(titleInput.value).toBe('Hero');
+
     const collapseBtn = screen.getByRole('button', { name: 'Collapse section' });
-    fireEvent.click(collapseBtn);
+    await user.click(collapseBtn);
+
+    expect(screen.queryByRole('textbox', { name: 'Title' })).toBeNull();
     expect(screen.queryByText('Title')).toBeNull();
+    const expandBtn = screen.getByRole('button', { name: 'Expand section' });
+
+    await user.click(expandBtn);
+    const restoredTitleInput = screen.getByRole('textbox', { name: 'Title' }) as HTMLInputElement;
+    expect(restoredTitleInput.value).toBe('Hero');
   });
 });

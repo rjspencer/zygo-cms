@@ -1,5 +1,5 @@
 import '../test/setup';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, waitForElementToBeRemoved, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -219,17 +219,23 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
     renderComponent();
 
     // Verify header and unread count badge
-    expect(await screen.findByText('Submissions Inbox')).toBeInTheDocument();
-    expect(await screen.findByText('1 unread')).toBeInTheDocument();
+    const heading = await screen.findByRole('heading', { name: /submissions inbox/i });
+    expect(heading.textContent).toBe('Submissions Inbox');
+
+    const unreadBadge = await screen.findByText('1 unread');
+    expect(unreadBadge.textContent).toBe('1 unread');
 
     // Verify table rows
-    expect(await screen.findByTestId('submission-row-101')).toBeInTheDocument();
-    expect(screen.getByTestId('submission-row-102')).toBeInTheDocument();
-    expect(screen.getByTestId('submission-row-103')).toBeInTheDocument();
+    const row101 = await screen.findByTestId('submission-row-101');
+    expect(row101).not.toBeNull();
+    expect(screen.getByTestId('submission-row-102')).not.toBeNull();
+    expect(screen.getByTestId('submission-row-103')).not.toBeNull();
 
-    expect(screen.getByText('Alice Johnson')).toBeInTheDocument();
-    expect(screen.getByText('alice@example.com')).toBeInTheDocument();
-    expect(screen.getByText('Inquiry about pricing')).toBeInTheDocument();
+    expect(screen.getByText('Alice Johnson').textContent).toBe('Alice Johnson');
+    expect(screen.getByText('alice@example.com').textContent).toBe('alice@example.com');
+    expect(screen.getByText('Inquiry about pricing').textContent).toBe('Inquiry about pricing');
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   it('filters submissions when clicking status tabs', async () => {
@@ -242,36 +248,36 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
     const unreadTab = screen.getByTestId('submissions-tab-unread');
     await user.click(unreadTab);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('submission-row-101')).toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-102')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-103')).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.queryByTestId('submission-row-102')).toBeNull());
+    expect(screen.getByTestId('submission-row-101')).not.toBeNull();
+    expect(screen.queryByTestId('submission-row-103')).toBeNull();
 
     // Click Archived tab
     const archivedTab = screen.getByTestId('submissions-tab-archived');
     await user.click(archivedTab);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('submission-row-103')).toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-101')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-102')).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.queryByTestId('submission-row-101')).toBeNull());
+    expect(screen.getByTestId('submission-row-103')).not.toBeNull();
+    expect(screen.queryByTestId('submission-row-102')).toBeNull();
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   it('filters submissions by search query', async () => {
+    const user = userEvent.setup();
     renderComponent();
 
     await screen.findByTestId('submission-row-101');
 
     const searchInput = screen.getByTestId('submissions-search-input');
-    fireEvent.change(searchInput, { target: { value: 'pricing' } });
+    const inputElement = searchInput.querySelector('input') ?? searchInput;
+    await user.type(inputElement, 'pricing');
 
-    await waitFor(() => {
-      expect(screen.getByTestId('submission-row-101')).toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-102')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('submission-row-103')).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.queryByTestId('submission-row-102')).toBeNull());
+    expect(screen.getByTestId('submission-row-101')).not.toBeNull();
+    expect(screen.queryByTestId('submission-row-103')).toBeNull();
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   it('toggles read/unread status on row action button click', async () => {
@@ -282,6 +288,7 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
 
     // Row 101 is unread -> click Mark as read
     const markReadBtn = screen.getByTestId('submission-toggle-read-101');
+    expect(markReadBtn.getAttribute('aria-label')).toBe('Mark as read');
     await user.click(markReadBtn);
 
     await waitFor(() => {
@@ -293,26 +300,31 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
         })
       );
     });
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   it('handles submission deletion on confirmation', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     renderComponent();
 
     await screen.findByTestId('submission-row-101');
 
     const deleteBtn = screen.getByTestId('submission-delete-101');
+    expect(deleteBtn.getAttribute('aria-label')).toBe('Delete submission');
     await user.click(deleteBtn);
 
-    expect(window.confirm).toHaveBeenCalled();
+    expect(confirmSpy).toHaveBeenCalled();
     await waitFor(() => {
       expect(apiFetchSpy).toHaveBeenCalledWith(
         '/api/submissions/101',
         expect.objectContaining({ method: 'DELETE' })
       );
     });
+
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 
   it('opens detail dialog on row click and displays submission details', async () => {
@@ -324,10 +336,12 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
 
     // Detail modal opens
     const modal = await screen.findByTestId('submission-detail-modal');
-    expect(modal).toBeInTheDocument();
-    expect(within(modal).getByText('Can you provide a price sheet for enterprise plans?')).toBeInTheDocument();
-    expect(within(modal).getByText('alice@example.com')).toBeInTheDocument();
-    expect(within(modal).getByText('$10k+')).toBeInTheDocument();
+    expect(modal).not.toBeNull();
+    expect(within(modal).getByText('Can you provide a price sheet for enterprise plans?').textContent).toContain(
+      'Can you provide a price sheet for enterprise plans?'
+    );
+    expect(within(modal).getByText('alice@example.com').textContent).toBe('alice@example.com');
+    expect(within(modal).getByText('$10k+').textContent).toBe('$10k+');
 
     // Opening unread automatically triggers mark as read mutation
     expect(apiFetchSpy).toHaveBeenCalledWith(
@@ -337,5 +351,17 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
         body: JSON.stringify({ status: 'read' }),
       })
     );
+
+    // Close Radix dialog and ensure removal from DOM to avoid Radix Presence teardown act warnings
+    const closeBtn = screen.getByRole('button', { name: /close/i });
+    expect(closeBtn.hasAttribute('disabled')).toBe(false);
+    await user.click(closeBtn);
+    if (screen.queryByTestId('submission-detail-modal')) {
+      await waitForElementToBeRemoved(() => screen.queryByTestId('submission-detail-modal'));
+    }
+    expect(screen.queryByTestId('submission-detail-modal')).toBeNull();
+
+    // Await background query refetch triggered by automatic mark-as-read mutation to settle
+    await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   });
 });

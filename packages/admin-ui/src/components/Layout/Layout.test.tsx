@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '../../test/test-utils';
 import { Layout } from './Layout';
 
@@ -77,39 +78,44 @@ describe('Layout Component', () => {
     return render(<Layout />);
   };
 
-  it('renders sidebar navigation and brand', () => {
+  it('renders sidebar navigation and brand', async () => {
     renderLayout();
-    expect(screen.getByRole('img', { name: 'Zygo CMS' })).toBeDefined();
-    expect(screen.getByText('v0.1')).toBeDefined();
-    expect(screen.getByText('Overview')).toBeDefined();
-    expect(screen.getByText('Content')).toBeDefined();
-    expect(screen.getByText('Design')).toBeDefined();
-    expect(screen.getByText('Admin')).toBeDefined();
-    expect(screen.getByText('Dashboard')).toBeDefined();
-    expect(screen.getByText('Posts')).toBeDefined();
-    expect(screen.getByText('Pages')).toBeDefined();
-    expect(screen.getByText('Page Templates')).toBeDefined();
-    expect(screen.getByText('Posts Template')).toBeDefined();
-    expect(screen.getByText('Docs Template')).toBeDefined();
-    expect(screen.getByText('Submissions')).toBeDefined();
-    expect(screen.getByText('Media Library')).toBeDefined();
-    expect(screen.getByText('Users')).toBeDefined();
-    expect(screen.getByText('Theme')).toBeDefined();
+    expect(await screen.findByText('editor@zygodactyl.io')).not.toBeNull();
+    const logoImg = screen.getByRole('img', { name: 'Zygo CMS' });
+    expect(logoImg.getAttribute('alt')).toBe('Zygo CMS');
+    expect(screen.getByText('v0.1').textContent).toBe('v0.1');
+    expect(screen.getByText('Overview').textContent).toBe('Overview');
+    expect(screen.getByText('Content').textContent).toBe('Content');
+    expect(screen.getByText('Design').textContent).toBe('Design');
+    expect(screen.getByText('Admin').textContent).toBe('Admin');
+    expect(screen.getByText('Dashboard').textContent).toBe('Dashboard');
+    expect(screen.getByText('Posts').textContent).toBe('Posts');
+    expect(screen.getByText('Pages').textContent).toBe('Pages');
+    expect(screen.getByText('Page Templates').textContent).toBe('Page Templates');
+    expect(screen.getByText('Posts Template').textContent).toBe('Posts Template');
+    expect(screen.getByText('Docs Template').textContent).toBe('Docs Template');
+    expect(screen.getByText('Submissions').textContent).toBe('Submissions');
+    expect(screen.getByText('Media Library').textContent).toBe('Media Library');
+    expect(screen.getByText('Users').textContent).toBe('Users');
+    expect(screen.getByText('Theme').textContent).toBe('Theme');
     expect(screen.queryByText('Content Types')).toBeNull();
   });
 
-  it('hides section header text labels when sidebar is collapsed while keeping navigation links accessible', () => {
+  it('hides section header text labels when sidebar is collapsed while keeping navigation links accessible', async () => {
+    const user = userEvent.setup();
     renderLayout();
+    expect(await screen.findByText('editor@zygodactyl.io')).not.toBeNull();
 
     // Verify all 4 section headers are rendered initially
-    expect(screen.getByText('Overview')).toBeDefined();
-    expect(screen.getByText('Content')).toBeDefined();
-    expect(screen.getByText('Design')).toBeDefined();
-    expect(screen.getByText('Admin')).toBeDefined();
+    expect(screen.getByText('Overview').textContent).toBe('Overview');
+    expect(screen.getByText('Content').textContent).toBe('Content');
+    expect(screen.getByText('Design').textContent).toBe('Design');
+    expect(screen.getByText('Admin').textContent).toBe('Admin');
 
     // Click collapse button
     const collapseButton = screen.getByRole('button', { name: 'Collapse sidebar' });
-    fireEvent.click(collapseButton);
+    expect(collapseButton.hasAttribute('disabled')).toBe(false);
+    await user.click(collapseButton);
 
     // Verify section header text labels are hidden
     expect(screen.queryByText('Overview')).toBeNull();
@@ -118,23 +124,25 @@ describe('Layout Component', () => {
     expect(screen.queryByText('Admin')).toBeNull();
 
     // Verify navigation links remain accessible by title
-    expect(screen.getByTitle('Dashboard')).toBeDefined();
-    expect(screen.getByTitle('Analytics')).toBeDefined();
-    expect(screen.getByTitle('Pages')).toBeDefined();
-    expect(screen.getByTitle('Posts')).toBeDefined();
-    expect(screen.getByTitle('Submissions')).toBeDefined();
-    expect(screen.getByTitle('Media Library')).toBeDefined();
-    expect(screen.getByTitle('Site Navigation')).toBeDefined();
-    expect(screen.getByTitle('Page Templates')).toBeDefined();
-    expect(screen.getByTitle('Posts Template')).toBeDefined();
-    expect(screen.getByTitle('Docs Template')).toBeDefined();
-    expect(screen.getByTitle('Theme')).toBeDefined();
-    expect(screen.getByTitle('Users')).toBeDefined();
-    expect(screen.getByTitle('Settings')).toBeDefined();
+    expect(screen.getByTitle('Dashboard').getAttribute('href')).toBe('/');
+    expect(screen.getByTitle('Analytics').getAttribute('href')).toBe('/analytics');
+    expect(screen.getByTitle('Pages').getAttribute('href')).toBe('/pages');
+    expect(screen.getByTitle('Posts').getAttribute('href')).toBe('/posts');
+    expect(screen.getByTitle('Submissions').getAttribute('href')).toBe('/submissions');
+    expect(screen.getByTitle('Media Library').getAttribute('href')).toBe('/media');
+    expect(screen.getByTitle('Site Navigation').getAttribute('href')).toBe('/navigation');
+    expect(screen.getByTitle('Page Templates').getAttribute('href')).toBe('/templates');
+    expect(screen.getByTitle('Posts Template').getAttribute('href')).toBe('/templates/posts');
+    expect(screen.getByTitle('Docs Template').getAttribute('href')).toBe('/templates/docs');
+    expect(screen.getByTitle('Theme').getAttribute('href')).toBe('/theme');
+    expect(screen.getByTitle('Users').getAttribute('href')).toBe('/users');
+    expect(screen.getByTitle('Settings').getAttribute('href')).toBe('/settings');
   });
 
-  it('applies subtle gray background highlight on hover for inactive nav items', () => {
+  it('applies subtle gray background highlight on hover for inactive nav items', async () => {
+    const user = userEvent.setup();
     renderLayout();
+    expect(await screen.findByText('editor@zygodactyl.io')).not.toBeNull();
 
     const pagesText = screen.getByText('Pages');
     const pagesLink = pagesText.closest('a')!;
@@ -142,10 +150,10 @@ describe('Layout Component', () => {
 
     expect(pagesFlex.style.backgroundColor).toBe('transparent');
 
-    fireEvent.mouseEnter(pagesLink);
+    await user.hover(pagesLink);
     expect(pagesFlex.style.backgroundColor).toBe('var(--gray-a3)');
 
-    fireEvent.mouseLeave(pagesLink);
+    await user.unhover(pagesLink);
     expect(pagesFlex.style.backgroundColor).toBe('transparent');
   });
 
@@ -153,11 +161,11 @@ describe('Layout Component', () => {
     renderLayout();
 
     // Verify user email is updated from /api/me
-    expect(await screen.findByText('editor@zygodactyl.io')).toBeDefined();
+    const emailEl = await screen.findByText('editor@zygodactyl.io');
+    expect(emailEl.textContent).toBe('editor@zygodactyl.io');
 
     // Verify logout link points to auth_url returned by /api/admin/dashboard
     const logoutLink = screen.getByTestId('logout-link');
-    expect(logoutLink).toBeDefined();
     expect(logoutLink.getAttribute('href')).toBe('/cdn-cgi/access/logout?custom=true');
   });
 
@@ -183,14 +191,14 @@ describe('Layout Component', () => {
     );
 
     renderLayout();
-    expect(await screen.findByText('Admin User')).toBeDefined();
+    const adminUser = await screen.findByText('Admin User');
+    expect(adminUser.textContent).toBe('Admin User');
   });
 
   it('renders "View Live Site" link with default "/" when VITE_PUBLIC_SITE_URL is not set', () => {
     import.meta.env.VITE_PUBLIC_SITE_URL = '';
     renderLayout();
     const liveSiteLink = screen.getByTestId('view-live-site-link');
-    expect(liveSiteLink).toBeDefined();
     expect(liveSiteLink.getAttribute('href')).toBe('/');
     expect(liveSiteLink.getAttribute('target')).toBe('_blank');
   });
@@ -199,7 +207,6 @@ describe('Layout Component', () => {
     import.meta.env.VITE_PUBLIC_SITE_URL = 'https://zygodactylstudios.com';
     renderLayout();
     const liveSiteLink = screen.getByTestId('view-live-site-link');
-    expect(liveSiteLink).toBeDefined();
     expect(liveSiteLink.getAttribute('href')).toBe('https://zygodactylstudios.com/');
     expect(liveSiteLink.getAttribute('target')).toBe('_blank');
   });
@@ -231,6 +238,7 @@ describe('Layout Component', () => {
     );
 
     renderLayout();
-    expect(await screen.findByText('7')).toBeDefined();
+    const badge = await screen.findByText('7');
+    expect(badge.textContent).toBe('7');
   });
 });

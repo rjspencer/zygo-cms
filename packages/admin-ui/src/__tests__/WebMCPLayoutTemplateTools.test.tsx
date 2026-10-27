@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { WebMCPProvider, useWebMCP } from '../providers/WebMCPProvider';
 import { useLayoutTemplateWebMCP } from '../lib/webmcp/layoutTemplateTools';
+import { WebMCPRegistry } from '../lib/webmcp/registry';
 import type { LayoutTemplate } from '../types/layoutTemplate';
 
 const mockTemplate: LayoutTemplate = {
@@ -33,7 +34,12 @@ const TestLayoutTemplateComponent: React.FC<{
     isSaving: false,
   });
 
-  return <div data-testid="test-layout-template-cmp">Active</div>;
+  return (
+    <div data-testid="test-layout-template-cmp">
+      <span data-testid="layout-html">{html}</span>
+      <span data-testid="layout-css">{css}</span>
+    </div>
+  );
 };
 
 describe('WebMCP Layout Template Tools Integration', () => {
@@ -55,7 +61,7 @@ describe('WebMCP Layout Template Tools Integration', () => {
     );
 
     await waitFor(() => {
-      expect(webmcpContext).toBeDefined();
+      expect(webmcpContext?.registry).toBeInstanceOf(WebMCPRegistry);
       const toolNames = webmcpContext.registry.getTools().map((t: any) => t.name);
       expect(toolNames).toContain('layout_template_get_post');
       expect(toolNames).toContain('layout_template_update_html_post');
@@ -71,18 +77,26 @@ describe('WebMCP Layout Template Tools Integration', () => {
     expect(getResult.toolResult.template_html).toBe('<article><h1>{{ post.title }}</h1></article>');
 
     // 2. Test update HTML
-    const updateHtmlResult = await webmcpContext.registry.callTool('layout_template_update_html_post', {
-      template_html: '<main><h2>{{ post.title }}</h2></main>',
+    let updateHtmlResult: any;
+    await act(async () => {
+      updateHtmlResult = await webmcpContext.registry.callTool('layout_template_update_html_post', {
+        template_html: '<main><h2>{{ post.title }}</h2></main>',
+      });
     });
     expect(updateHtmlResult.isError).toBeFalsy();
     expect(updateHtmlResult.toolResult.success).toBe(true);
+    expect(screen.getByTestId('layout-html').textContent).toBe('<main><h2>{{ post.title }}</h2></main>');
 
     // 3. Test update CSS
-    const updateCssResult = await webmcpContext.registry.callTool('layout_template_update_css_post', {
-      template_css: '.posts-list { gap: 2rem; }',
+    let updateCssResult: any;
+    await act(async () => {
+      updateCssResult = await webmcpContext.registry.callTool('layout_template_update_css_post', {
+        template_css: '.posts-list { gap: 2rem; }',
+      });
     });
     expect(updateCssResult.isError).toBeFalsy();
     expect(updateCssResult.toolResult.success).toBe(true);
+    expect(screen.getByTestId('layout-css').textContent).toBe('.posts-list { gap: 2rem; }');
 
     // 4. Test save
     const saveResult = await webmcpContext.registry.callTool('layout_template_save_post', {});

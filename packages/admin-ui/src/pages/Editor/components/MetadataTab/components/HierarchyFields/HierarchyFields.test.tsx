@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Theme } from '@radix-ui/themes';
 import { describe, expect, it } from 'vitest';
@@ -31,35 +32,38 @@ describe('HierarchyFields', () => {
   it('renders Parent ID and Sort Order inputs with labels and helper texts', () => {
     renderWithForm(<HierarchyFields />, { parentId: '12', sortOrder: 3 });
 
-    expect(screen.getByText('Parent ID')).toBeDefined();
-    expect(screen.getByText('ID of the parent entry')).toBeDefined();
-    expect(screen.getByText('Sort Order')).toBeDefined();
-    expect(screen.getByText('Order relative to siblings')).toBeDefined();
+    expect(screen.getByText('ID of the parent entry').textContent).toBe('ID of the parent entry');
+    expect(screen.getByText('Order relative to siblings').textContent).toBe('Order relative to siblings');
 
-    const parentIdInput = screen.getByPlaceholderText('Leave blank for root') as HTMLInputElement;
+    const parentIdInput = screen.getByLabelText('Parent ID') as HTMLInputElement;
     expect(parentIdInput.value).toBe('12');
+    expect(parentIdInput.getAttribute('placeholder')).toBe('Leave blank for root');
     expect(parentIdInput.getAttribute('aria-describedby')).toBe('editor-parent-id-help');
+    expect(parentIdInput.getAttribute('aria-invalid')).toBe('false');
 
-    const sortOrderInput = screen.getByDisplayValue('3') as HTMLInputElement;
-    expect(sortOrderInput).toBeDefined();
+    const sortOrderInput = screen.getByLabelText('Sort Order') as HTMLInputElement;
+    expect(sortOrderInput.value).toBe('3');
     expect(sortOrderInput.type).toBe('number');
     expect(sortOrderInput.getAttribute('aria-describedby')).toBe('editor-sort-order-help');
   });
 
-  it('updates Parent ID input value on change', () => {
+  it('updates Parent ID input value on change', async () => {
+    const user = userEvent.setup();
     renderWithForm(<HierarchyFields />, { parentId: '' });
 
-    const parentIdInput = screen.getByPlaceholderText('Leave blank for root') as HTMLInputElement;
-    fireEvent.change(parentIdInput, { target: { value: '99' } });
+    const parentIdInput = screen.getByLabelText('Parent ID') as HTMLInputElement;
+    await user.type(parentIdInput, '99');
 
     expect(parentIdInput.value).toBe('99');
   });
 
-  it('updates Sort Order input value on change', () => {
+  it('updates Sort Order input value on change', async () => {
+    const user = userEvent.setup();
     renderWithForm(<HierarchyFields />, { sortOrder: 0 });
 
-    const sortOrderInput = screen.getByDisplayValue('0') as HTMLInputElement;
-    fireEvent.change(sortOrderInput, { target: { value: '5' } });
+    const sortOrderInput = screen.getByLabelText('Sort Order') as HTMLInputElement;
+    await user.clear(sortOrderInput);
+    await user.type(sortOrderInput, '5');
 
     expect(sortOrderInput.value).toBe('5');
   });
@@ -73,12 +77,10 @@ describe('HierarchyFields', () => {
     );
 
     const alert = screen.getByRole('alert');
-    expect(alert).toBeDefined();
     expect(alert.textContent).toBe(errorMessage);
 
-    const parentIdInput = document.getElementById('editor-parent-id-input');
-    expect(parentIdInput).not.toBeNull();
-    expect(parentIdInput?.getAttribute('aria-invalid')).toBe('true');
-    expect(parentIdInput?.getAttribute('aria-describedby')).toBe('editor-parent-id-error editor-parent-id-help');
+    const parentIdInput = screen.getByLabelText('Parent ID');
+    expect(parentIdInput.getAttribute('aria-invalid')).toBe('true');
+    expect(parentIdInput.getAttribute('aria-describedby')).toBe('editor-parent-id-error editor-parent-id-help');
   });
 });

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { FormProvider, useForm } from 'react-hook-form';
 import { Theme } from '@radix-ui/themes';
 import { describe, expect, it } from 'vitest';
@@ -31,32 +32,35 @@ describe('SlugField', () => {
   it('renders label and input with default placeholder and initial value', () => {
     renderWithForm(<SlugField entryType="page" />, { slug: 'initial-slug' });
 
-    expect(screen.getByText('Slug')).toBeDefined();
-    const input = screen.getByPlaceholderText('url-friendly-slug') as HTMLInputElement;
-    expect(input).toBeDefined();
-    expect(input.value).toBe('initial-slug');
-    expect(screen.getByText('/')).toBeDefined();
+    const input = screen.getByRole('textbox', { name: 'Slug' });
+    expect(input.getAttribute('placeholder')).toBe('url-friendly-slug');
+    expect((input as HTMLInputElement).value).toBe('initial-slug');
+    expect(input.getAttribute('aria-invalid')).toBe('false');
+    expect(input.getAttribute('aria-describedby')).toBeNull();
+    expect(screen.getByText('/').textContent).toBe('/');
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('renders prefix /post/ for post entryType', () => {
     renderWithForm(<SlugField entryType="post" />);
 
-    expect(screen.getByText('/post/')).toBeDefined();
+    expect(screen.getByText('/post/').textContent).toBe('/post/');
   });
 
   it('renders prefix /docs/ for doc entryType', () => {
     renderWithForm(<SlugField entryType="doc" />);
 
-    expect(screen.getByText('/docs/')).toBeDefined();
+    expect(screen.getByText('/docs/').textContent).toBe('/docs/');
   });
 
-  it('handles typing in slug field', () => {
+  it('handles typing in slug field', async () => {
+    const user = userEvent.setup();
     renderWithForm(<SlugField entryType="page" />, { slug: '' });
 
-    const input = screen.getByPlaceholderText('url-friendly-slug') as HTMLInputElement;
-    fireEvent.change(input, { target: { value: 'my-new-slug' } });
+    const input = screen.getByRole('textbox', { name: 'Slug' });
+    await user.type(input, 'my-new-slug');
 
-    expect(input.value).toBe('my-new-slug');
+    expect((input as HTMLInputElement).value).toBe('my-new-slug');
   });
 
   it('displays error message in role="alert" and marks input as aria-invalid when slug has an error', () => {
@@ -68,12 +72,11 @@ describe('SlugField', () => {
     );
 
     const alert = screen.getByRole('alert');
-    expect(alert).toBeDefined();
     expect(alert.textContent).toBe(errorMessage);
+    expect(alert.getAttribute('id')).toBe('editor-slug-error');
 
-    const inputElement = document.getElementById('editor-slug-input');
-    expect(inputElement).not.toBeNull();
-    expect(inputElement?.getAttribute('aria-invalid')).toBe('true');
-    expect(inputElement?.getAttribute('aria-describedby')).toBe('editor-slug-error');
+    const input = screen.getByRole('textbox', { name: 'Slug' });
+    expect(input.getAttribute('aria-invalid')).toBe('true');
+    expect(input.getAttribute('aria-describedby')).toBe('editor-slug-error');
   });
 });

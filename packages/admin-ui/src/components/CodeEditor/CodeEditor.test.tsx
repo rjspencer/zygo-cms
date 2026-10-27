@@ -28,7 +28,6 @@ describe('CodeEditor Component', () => {
     );
 
     const textarea = screen.getByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
-    expect(textarea).toBeDefined();
     expect((textarea as HTMLTextAreaElement).value).toBe(htmlSnippet);
 
     // Verify Prism highlighted MiniJinja tokens in the <pre> block
@@ -53,7 +52,6 @@ describe('CodeEditor Component', () => {
     );
 
     const textarea = screen.getByRole('textbox', { name: /CSS Stylesheet/i });
-    expect(textarea).toBeDefined();
     expect((textarea as HTMLTextAreaElement).value).toBe(cssSnippet);
 
     const pre = container.querySelector('pre');
@@ -97,6 +95,7 @@ describe('CodeEditor Component', () => {
   });
 
   it('blur event calls formatCode and triggers onChange with formatted code when valid', async () => {
+    const user = userEvent.setup();
     const unformattedHtml = '<section><div><span>Unformatted</span></div></section>';
     const formattedHtml = '<section>\n  <div>\n    <span>Unformatted</span>\n  </div>\n</section>';
     const onChange = vi.fn();
@@ -115,7 +114,7 @@ describe('CodeEditor Component', () => {
 
     const textarea = screen.getByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
 
-    await userEvent.click(textarea);
+    await user.click(textarea);
     textarea.blur();
 
     await waitFor(() => {
@@ -126,6 +125,7 @@ describe('CodeEditor Component', () => {
   });
 
   it('blur event does NOT crash or wipe code when syntax is invalid/incomplete', async () => {
+    const user = userEvent.setup();
     const invalidHtml = '<section class="hero"><div unclosed-tag>';
     const onChange = vi.fn();
     const onBlur = vi.fn();
@@ -144,7 +144,7 @@ describe('CodeEditor Component', () => {
 
     const textarea = screen.getByRole('textbox', { name: /HTML Template \(MiniJinja\)/i });
 
-    await userEvent.click(textarea);
+    await user.click(textarea);
     textarea.blur();
 
     await waitFor(() => {
@@ -180,14 +180,18 @@ describe('CodeEditor Component', () => {
     const { unmount } = renderWithTheme(
       <CodeEditor value="<div></div>" onChange={onChange} language="html" />
     );
-    expect(screen.getByRole('textbox', { name: 'HTML Template (MiniJinja)' })).toBeDefined();
+    expect(
+      screen.getByRole('textbox', { name: 'HTML Template (MiniJinja)' }).tagName
+    ).toBe('TEXTAREA');
     unmount();
 
     // Default CSS aria-label
     const { unmount: unmountCss } = renderWithTheme(
       <CodeEditor value="body {}" onChange={onChange} language="css" />
     );
-    expect(screen.getByRole('textbox', { name: 'CSS Stylesheet' })).toBeDefined();
+    expect(
+      screen.getByRole('textbox', { name: 'CSS Stylesheet' }).tagName
+    ).toBe('TEXTAREA');
     unmountCss();
 
     // Custom aria-label override
@@ -199,7 +203,9 @@ describe('CodeEditor Component', () => {
         ariaLabel="Custom Code Editor Area"
       />
     );
-    expect(screen.getByRole('textbox', { name: 'Custom Code Editor Area' })).toBeDefined();
+    expect(
+      screen.getByRole('textbox', { name: 'Custom Code Editor Area' }).tagName
+    ).toBe('TEXTAREA');
   });
 
   it('respects explicit theme prop override regardless of context', () => {

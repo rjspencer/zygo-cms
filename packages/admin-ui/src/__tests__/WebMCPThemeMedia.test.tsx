@@ -1,7 +1,7 @@
 import '../test/setup';
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, act, waitFor } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -41,7 +41,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('get_theme_settings');
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(result.toolResult).toMatchObject({
         site_title: 'Zygo Test Site',
         theme_color_accent: '#ff0055',
@@ -51,6 +51,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
     });
 
     it('get_theme_settings handles API error properly', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
         http.get('*/api/settings', () => {
           return new HttpResponse(null, { status: 500, statusText: 'Internal Server Error' });
@@ -60,6 +61,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       const result = await registry.callTool('get_theme_settings');
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Failed to fetch theme settings');
+      errorSpy.mockRestore();
     });
 
     it('get_settings and update_settings handle branding settings properly', async () => {
@@ -77,7 +79,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const getResult = await registry.callTool('get_settings');
-      expect(getResult.isError).toBeFalsy();
+      expect(getResult.isError).toBe(false);
       expect(getResult.toolResult).toMatchObject({
         site_title: 'Branded Site',
         site_logo: 'https://example.com/logo.png',
@@ -101,7 +103,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         },
       });
 
-      expect(updateResult.isError).toBeFalsy();
+      expect(updateResult.isError).toBe(false);
       expect(receivedPayload).toEqual({
         settings: {
           site_logo: 'https://example.com/new-logo.png',
@@ -123,7 +125,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const getResult = await registry.callTool('get_settings');
-      expect(getResult.isError).toBeFalsy();
+      expect(getResult.isError).toBe(false);
       expect(getResult.toolResult).toMatchObject({
         site_title: 'Analytics Site',
         analytics_enabled: 'true',
@@ -143,7 +145,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         },
       });
 
-      expect(updateResult.isError).toBeFalsy();
+      expect(updateResult.isError).toBe(false);
       expect(receivedPayload).toEqual({
         settings: {
           analytics_enabled: 'false',
@@ -167,7 +169,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
 
       expect(apiCalled).toBe(false);
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).dry_run).toBe(true);
       expect((result.toolResult as any).settings).toEqual({ theme_color_accent: '#10b981' });
       expect(result.content[0].text).toContain('[Dry Run]');
@@ -187,7 +189,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         },
       });
 
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(receivedBody).toEqual({
         theme_color_accent: '#3b82f6',
         theme_font_size_base: '19px',
@@ -209,13 +211,14 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         settings: { theme_color_bg: '#111827' },
       });
 
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(postReceivedBody).toEqual({
         settings: { theme_color_bg: '#111827' },
       });
     });
 
     it('update_theme_settings handles API error', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       vi.spyOn(apiModule, 'apiFetch').mockResolvedValue(
         new Response(null, { status: 403, statusText: 'Forbidden' })
       );
@@ -225,6 +228,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Failed to update theme settings');
+      errorSpy.mockRestore();
     });
 
     it('reset_theme_to_defaults previews reset in dry_run mode', async () => {
@@ -236,7 +240,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       const result = await registry.callTool('reset_theme_to_defaults', { dry_run: true });
       expect(apiCalled).toBe(false);
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).dry_run).toBe(true);
       expect((result.toolResult as any).settings).toEqual(DEFAULT_THEME_SETTINGS);
       expect(result.content[0].text).toContain('[Dry Run]');
@@ -250,7 +254,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
 
       const result = await registry.callTool('reset_theme_to_defaults');
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(receivedSettings).toEqual(DEFAULT_THEME_SETTINGS);
       expect(result.content[0].text).toContain('Theme settings successfully reset to defaults');
     });
@@ -274,9 +278,9 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('get_menu');
-      expect(result.isError).toBeFalsy();
-      expect((result.toolResult as any).header).toBeDefined();
-      expect((result.toolResult as any).footer).toBeDefined();
+      expect(result.isError).toBe(false);
+      expect((result.toolResult as any).header).toMatchObject({ name: 'header' });
+      expect((result.toolResult as any).footer).toMatchObject({ name: 'footer' });
     });
 
     it('get_menu returns filtered menu for a specific slug', async () => {
@@ -296,12 +300,13 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('get_menu', { slug: 'header' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).name).toBe('header');
       expect(result.content[0].text).toContain('Home');
     });
 
     it('get_menu returns error when requested menu slug is not found', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
         http.get('*/api/menus', () => {
           return HttpResponse.json({
@@ -316,6 +321,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       const result = await registry.callTool('get_menu', { slug: 'sidebar' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Menu not found for slug: sidebar');
+      errorSpy.mockRestore();
     });
 
     it('update_menu_items previews menu changes in dry_run mode', async () => {
@@ -335,7 +341,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
 
       expect(apiCalled).toBe(false);
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).dry_run).toBe(true);
       expect((result.toolResult as any).items).toEqual(items);
       expect(result.content[0].text).toContain('[Dry Run]');
@@ -366,13 +372,14 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         items,
       });
 
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(receivedUrl).toBe('/api/menus/header');
       expect(receivedBody).toEqual({ items_json: JSON.stringify(items) });
       expect(result.content[0].text).toContain('successfully updated with 2 items');
     });
 
     it('update_menu_items handles API errors', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       vi.spyOn(apiModule, 'apiFetch').mockResolvedValue({
         ok: false,
         status: 500,
@@ -387,6 +394,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Failed to update menu items');
+      errorSpy.mockRestore();
     });
   });
 
@@ -435,7 +443,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('list_media', { page: 1, limit: 10 });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       const res = result.toolResult as any;
       expect(res.media).toHaveLength(3);
       expect(res.total).toBe(3);
@@ -452,7 +460,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('list_media', { query: 'logo' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       const res = result.toolResult as any;
       expect(res.media).toHaveLength(1);
       expect(res.media[0].filename).toBe('logo.png');
@@ -468,7 +476,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('list_media', { query: 'architectural' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       const res = result.toolResult as any;
       expect(res.media).toHaveLength(1);
       expect(res.media[0].key).toBe('photo-1.jpg');
@@ -482,7 +490,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('list_media', { page: 2, limit: 2 });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       const res = result.toolResult as any;
       expect(res.media).toHaveLength(1);
       expect(res.media[0].filename).toBe('cover-article.webp');
@@ -498,11 +506,12 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('get_media_details', { id: '2' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).filename).toBe('logo.png');
     });
 
     it('get_media_details falls back to list search if /api/media/:id returns 404', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
         http.get('*/api/media/:id', () => {
           return new HttpResponse(null, { status: 404 });
@@ -513,11 +522,13 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await registry.callTool('get_media_details', { id: 'photo-1.jpg' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect((result.toolResult as any).id).toBe('1');
+      errorSpy.mockRestore();
     });
 
     it('get_media_details returns error when media item does not exist', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       server.use(
         http.get('*/api/media/:id', () => {
           return new HttpResponse(null, { status: 404 });
@@ -530,6 +541,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       const result = await registry.callTool('get_media_details', { id: 'nonexistent.png' });
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Media item not found');
+      errorSpy.mockRestore();
     });
 
     it('update_media_metadata updates alt_text and title via PUT /api/media/:id', async () => {
@@ -553,7 +565,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         title: 'Updated Photo Title',
       });
 
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(receivedUrl).toBe('/api/media/photo-1.jpg');
       expect(receivedBody).toEqual({
         alt_text: 'Updated accessible description',
@@ -563,6 +575,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
     });
 
     it('update_media_metadata returns error on API failure', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       vi.spyOn(apiModule, 'apiFetch').mockResolvedValue({
         ok: false,
         status: 500,
@@ -577,6 +590,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain('Failed to update media metadata');
+      errorSpy.mockRestore();
     });
   });
 
@@ -630,7 +644,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       // Verify active tokens
       const activeResult = await testRegistry.callTool('theme_get_active_tokens');
-      expect(activeResult.isError).toBeFalsy();
+      expect(activeResult.isError).toBe(false);
       expect((activeResult.toolResult as any).colorAccent).toBe(DEFAULT_THEME_TOKENS.colorAccent);
 
       // Live update token
@@ -642,7 +656,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
             headerLayout: 'split',
           },
         });
-        expect(updateResult.isError).toBeFalsy();
+        expect(updateResult.isError).toBe(false);
       });
 
       // Verify DOM updated in real time
@@ -657,15 +671,15 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       // Reset live tokens
       await act(async () => {
         const resetResult = await testRegistry.callTool('theme_reset_live_tokens');
-        expect(resetResult.isError).toBeFalsy();
+        expect(resetResult.isError).toBe(false);
       });
 
       expect(screen.getByTestId('live-color-accent').textContent).toBe(DEFAULT_THEME_TOKENS.colorAccent);
 
       // Verify all 6 theme editor tools are registered
-      expect(testRegistry.getTool('theme_save_active')).toBeDefined();
-      expect(testRegistry.getTool('theme_save_as_custom')).toBeDefined();
-      expect(testRegistry.getTool('theme_select_preset')).toBeDefined();
+      expect(testRegistry.getTool('theme_save_active')?.name).toBe('theme_save_active');
+      expect(testRegistry.getTool('theme_save_as_custom')?.name).toBe('theme_save_as_custom');
+      expect(testRegistry.getTool('theme_select_preset')?.name).toBe('theme_select_preset');
 
       // Unmount should deregister tools
       unmount();
@@ -688,7 +702,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const result = await testRegistry.callTool('theme_save_active', {});
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(mockSave).toHaveBeenCalled();
       expect(result.toolResult).toMatchObject({ success: true, theme: 'Warm Contemporary' });
     });
@@ -708,7 +722,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       expect(emptyResult.content[0].text).toContain('non-empty custom theme name is required');
 
       const result = await testRegistry.callTool('theme_save_as_custom', { name: 'My Cyber Theme' });
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(mockSaveAsCustom).toHaveBeenCalledWith(undefined, 'My Cyber Theme');
       expect(result.toolResult).toMatchObject({ success: true, themeName: 'My Cyber Theme' });
     });
@@ -732,7 +746,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         font_preset: 'Space Grotesk & IBM Plex Mono',
       });
 
-      expect(result.isError).toBeFalsy();
+      expect(result.isError).toBe(false);
       expect(mockSelectPreset).toHaveBeenCalledWith('Bento-Brutalism');
       expect(mockApplyFont).toHaveBeenCalledWith('Space Grotesk & IBM Plex Mono');
       expect(result.toolResult).toMatchObject({
@@ -746,7 +760,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       const darkResult = await testRegistry.callTool('theme_select_preset', {
         theme_name: 'Bento-Brutalism (Dark)',
       });
-      expect(darkResult.isError).toBeFalsy();
+      expect(darkResult.isError).toBe(false);
       expect(mockSelectPreset).toHaveBeenCalledWith('Bento-Brutalism (Dark)');
     });
 
@@ -784,21 +798,20 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       render(<RouterProvider router={router} />);
 
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Modern Editorial' })).toBeDefined();
-      });
+      const heading = await screen.findByRole('heading', { name: 'Modern Editorial' });
+      expect(heading.textContent).toBe('Modern Editorial');
 
       // Verify the WebMCP tools are registered
-      expect(testRegistry.getTool('theme_get_active_tokens')).toBeDefined();
-      expect(testRegistry.getTool('theme_update_live_tokens')).toBeDefined();
-      expect(testRegistry.getTool('theme_reset_live_tokens')).toBeDefined();
-      expect(testRegistry.getTool('theme_save_active')).toBeDefined();
-      expect(testRegistry.getTool('theme_save_as_custom')).toBeDefined();
-      expect(testRegistry.getTool('theme_select_preset')).toBeDefined();
+      expect(testRegistry.getTool('theme_get_active_tokens')?.name).toBe('theme_get_active_tokens');
+      expect(testRegistry.getTool('theme_update_live_tokens')?.name).toBe('theme_update_live_tokens');
+      expect(testRegistry.getTool('theme_reset_live_tokens')?.name).toBe('theme_reset_live_tokens');
+      expect(testRegistry.getTool('theme_save_active')?.name).toBe('theme_save_active');
+      expect(testRegistry.getTool('theme_save_as_custom')?.name).toBe('theme_save_as_custom');
+      expect(testRegistry.getTool('theme_select_preset')?.name).toBe('theme_select_preset');
 
       // Inspect live tokens
       const inspect = await testRegistry.callTool('theme_get_active_tokens');
-      expect(inspect.isError).toBeFalsy();
+      expect(inspect.isError).toBe(false);
 
       // Live update theme token via WebMCP
       await act(async () => {
@@ -811,7 +824,9 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       });
 
       // Verify the preview reflects the live updated tagline
-      expect(screen.getByText('WebMCP Live Synchronized Tagline')).toBeDefined();
+      expect(screen.getByText('WebMCP Live Synchronized Tagline').textContent).toBe(
+        'WebMCP Live Synchronized Tagline'
+      );
     });
   });
 
@@ -870,12 +885,12 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
         </WebMCPProvider>
       );
 
-      expect(navRegistry.getTool('navigation_get_active_state')).toBeDefined();
-      expect(navRegistry.getTool('navigation_set_tab')).toBeDefined();
-      expect(navRegistry.getTool('navigation_add_item')).toBeDefined();
-      expect(navRegistry.getTool('navigation_delete_item')).toBeDefined();
-      expect(navRegistry.getTool('navigation_set_items')).toBeDefined();
-      expect(navRegistry.getTool('navigation_save')).toBeDefined();
+      expect(navRegistry.getTool('navigation_get_active_state')?.name).toBe('navigation_get_active_state');
+      expect(navRegistry.getTool('navigation_set_tab')?.name).toBe('navigation_set_tab');
+      expect(navRegistry.getTool('navigation_add_item')?.name).toBe('navigation_add_item');
+      expect(navRegistry.getTool('navigation_delete_item')?.name).toBe('navigation_delete_item');
+      expect(navRegistry.getTool('navigation_set_items')?.name).toBe('navigation_set_items');
+      expect(navRegistry.getTool('navigation_save')?.name).toBe('navigation_save');
 
       unmount();
 
@@ -896,7 +911,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
       );
 
       const res = await navRegistry.callTool('navigation_get_active_state', {});
-      expect(res.isError).toBeFalsy();
+      expect(res.isError).toBe(false);
       expect(res.toolResult).toMatchObject({
         activeTab: 'header',
         header: [{ title: 'Home', url: '/' }],
@@ -915,7 +930,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
 
       await act(async () => {
         const res = await navRegistry.callTool('navigation_set_tab', { tab: 'footer' });
-        expect(res.isError).toBeFalsy();
+        expect(res.isError).toBe(false);
       });
 
       expect(screen.getByTestId('active-nav-tab').textContent).toBe('footer');
@@ -935,7 +950,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
           title: 'Docs',
           url: '/docs',
         });
-        expect(addRes.isError).toBeFalsy();
+        expect(addRes.isError).toBe(false);
       });
 
       expect(screen.getByTestId('header-count').textContent).toBe('2');
@@ -945,7 +960,7 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
           tab: 'header',
           index: 1,
         });
-        expect(delRes.isError).toBeFalsy();
+        expect(delRes.isError).toBe(false);
       });
 
       expect(screen.getByTestId('header-count').textContent).toBe('1');
@@ -968,13 +983,13 @@ describe('WebMCP Theme, Media & Navigation Menu Tools', () => {
           ],
           save: true,
         });
-        expect(setRes.isError).toBeFalsy();
+        expect(setRes.isError).toBe(false);
       });
 
       expect(screen.getByTestId('header-count').textContent).toBe('2');
 
       const saveRes = await navRegistry.callTool('navigation_save', { tab: 'header' });
-      expect(saveRes.isError).toBeFalsy();
+      expect(saveRes.isError).toBe(false);
     });
   });
 });

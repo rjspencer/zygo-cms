@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { slugify } from './slugify';
 import { buildEntryPayload, EMPTY_FORM_VALUES, toFormValues } from './entryForm';
 
@@ -21,7 +21,10 @@ describe('toFormValues', () => {
   });
 
   it('falls back to no sections on invalid body_json', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     expect(toFormValues({ body_json: '{oops' }).sections).toEqual([]);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
 
