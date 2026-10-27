@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## Completed Improvements & Milestones
+## [0.2.0] - 2026-10-27
 
 ### Public Form Submission UX & Admin Submissions Inbox Fix
 - **Admin API & Core Submission Stats/List Alignment (`packages/core` & `packages/admin-api-worker`)**:
@@ -197,6 +197,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Documentation (`packages/zygo-mcp/AGENTS.md`)**:
   - Documented CLI MCP architectural standards, naming conventions (`zygo_*`), structured return contracts (`{ toolResult, content }`), and the full catalog of registered tools.
 
+
+## [0.1.0] - 2026-10-21
 
 ### Pre-Built Wasm Distribution & CI-Managed `release` Branch
 - **Smart Build Runner (`scripts/build.mjs`, `package.json`)**:
