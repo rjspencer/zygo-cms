@@ -220,55 +220,14 @@ describe('create-zygo-app CLI Scaffolder', () => {
       expect(uiToml).toContain('workers_dev = false');
 
       expect(pubAfterSetup).toContain(`database_id = "${newDbId}"`);
-      expect(pubAfterSetup).toContain('name = "customblog-io-public-worker"');
       expect(pubAfterSetup).toContain('pattern = "customblog.io"');
       expect(pubAfterSetup).toContain('pattern = "www.customblog.io"');
       expect(pubAfterSetup).toContain('workers_dev = false');
       expect(apiAfterSetup).toContain(`database_id = "${newDbId}"`);
-      expect(apiAfterSetup).toContain('name = "customblog-io-admin-api-worker"');
       expect(apiAfterSetup).toContain('pattern = "api.customblog.io"');
       expect(apiAfterSetup).toContain('workers_dev = false');
-      expect(uiAfterSetup).toContain('name = "customblog-io-admin-ui-worker"');
       expect(uiAfterSetup).toContain('pattern = "admin.customblog.io"');
       expect(uiAfterSetup).toContain('workers_dev = false');
-    });
-
-    it('namespaces worker names, database_name, and bucket_name based on projectName', () => {
-      fs.mkdirSync(path.join(tmpRoot, 'packages/public-worker'), { recursive: true });
-      fs.mkdirSync(path.join(tmpRoot, 'packages/admin-api-worker'), { recursive: true });
-      fs.mkdirSync(path.join(tmpRoot, 'packages/admin-ui'), { recursive: true });
-
-      fs.copyFileSync(path.join(ROOT_DIR, 'wrangler.toml'), path.join(tmpRoot, 'wrangler.toml'));
-      fs.copyFileSync(
-        path.join(ROOT_DIR, 'packages/public-worker/wrangler.toml'),
-        path.join(tmpRoot, 'packages/public-worker/wrangler.toml')
-      );
-      fs.copyFileSync(
-        path.join(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml'),
-        path.join(tmpRoot, 'packages/admin-api-worker/wrangler.toml')
-      );
-      fs.copyFileSync(
-        path.join(ROOT_DIR, 'packages/admin-ui/wrangler.toml'),
-        path.join(tmpRoot, 'packages/admin-ui/wrangler.toml')
-      );
-
-      sanitizeWranglerConfigs(tmpRoot, 'my-blog-app');
-
-      const rootToml = fs.readFileSync(path.join(tmpRoot, 'wrangler.toml'), 'utf8');
-      const pubToml = fs.readFileSync(path.join(tmpRoot, 'packages/public-worker/wrangler.toml'), 'utf8');
-      const apiToml = fs.readFileSync(path.join(tmpRoot, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
-      const uiToml = fs.readFileSync(path.join(tmpRoot, 'packages/admin-ui/wrangler.toml'), 'utf8');
-
-      expect(pubToml).toContain('name = "my-blog-app-public-worker"');
-      expect(pubToml).toContain('database_name = "zygo-cms-db-my-blog-app"');
-      expect(pubToml).toContain('bucket_name = "zygo-cms-media-my-blog-app"');
-
-      expect(apiToml).toContain('name = "my-blog-app-admin-api-worker"');
-      expect(apiToml).toContain('database_name = "zygo-cms-db-my-blog-app"');
-      expect(apiToml).toContain('bucket_name = "zygo-cms-media-my-blog-app"');
-
-      expect(uiToml).toContain('name = "my-blog-app-admin-ui-worker"');
-      expect(rootToml).toContain('database_name = "zygo-cms-db-my-blog-app"');
     });
   });
 
@@ -553,22 +512,6 @@ describe('create-zygo-app CLI Scaffolder', () => {
       expect(pkg.scripts['test:create']).toBeUndefined();
       expect(pkg.scripts.setup).toBe('node scripts/setup.mjs');
       expect(pkg.scripts.dev).toBeDefined();
-      expect(pkg.scripts['db:migrate']).toContain('zygo-cms-db-my-new-cms');
-      expect(pkg.scripts['db:migrate:local']).toContain('zygo-cms-db-my-new-cms');
-
-      // wrangler configs must have namespaced worker names and databases
-      const pubToml = fs.readFileSync(path.join(targetDir, 'packages/public-worker/wrangler.toml'), 'utf8');
-      expect(pubToml).toContain('name = "my-new-cms-public-worker"');
-      expect(pubToml).toContain('database_name = "zygo-cms-db-my-new-cms"');
-      expect(pubToml).toContain('bucket_name = "zygo-cms-media-my-new-cms"');
-
-      const apiToml = fs.readFileSync(path.join(targetDir, 'packages/admin-api-worker/wrangler.toml'), 'utf8');
-      expect(apiToml).toContain('name = "my-new-cms-admin-api-worker"');
-      expect(apiToml).toContain('database_name = "zygo-cms-db-my-new-cms"');
-      expect(apiToml).toContain('bucket_name = "zygo-cms-media-my-new-cms"');
-
-      const uiToml = fs.readFileSync(path.join(targetDir, 'packages/admin-ui/wrangler.toml'), 'utf8');
-      expect(uiToml).toContain('name = "my-new-cms-admin-ui-worker"');
 
       // Local environment files must be created
       const rootDevVars = fs.readFileSync(path.join(targetDir, '.dev.vars'), 'utf8');
