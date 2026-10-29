@@ -1,6 +1,6 @@
 {
     "name": "zygo-cms",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "module",
     "engines": {
         "pnpm": ">11.0.0"
