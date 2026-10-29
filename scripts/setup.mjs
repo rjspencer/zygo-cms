@@ -89,6 +89,26 @@ function deriveDefaultTeamSlug(domain) {
   return sanitized || 'zygo-cms';
 }
 
+function deriveInstanceSlug(domainOrName) {
+  if (!domainOrName || typeof domainOrName !== 'string') {
+    return 'zygo-cms';
+  }
+  let clean = domainOrName.trim().toLowerCase();
+  clean = clean.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const slug = clean
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'zygo-cms';
+}
+
+function updateWorkerName(content, workerName) {
+  if (/name\s*=\s*"[^"]*"/.test(content)) {
+    return content.replace(/name\s*=\s*"[^"]*"/, `name = "${workerName}"`);
+  }
+  return `name = "${workerName}"\n${content}`;
+}
+
 function validateEmail(email) {
   if (!email) return null;
   const clean = email.trim().toLowerCase();
@@ -138,7 +158,27 @@ function ensureWorkersDevFalse(content) {
   }
 }
 
-function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', adminSubdomain = 'admin', customFilePath = null) {
+function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexHandling = 'redirect_to_sub', adminSubdomain = 'admin', customFilePath = null, options = {}) {
+  if (typeof publicSubdomain === 'object' && publicSubdomain !== null) {
+    options = publicSubdomain;
+    customFilePath = options.customFilePath || null;
+    publicSubdomain = options.publicSubdomain || 'www';
+    apexHandling = options.apexHandling || 'redirect_to_sub';
+    adminSubdomain = options.adminSubdomain || 'admin';
+  } else if (typeof apexHandling === 'object' && apexHandling !== null) {
+    options = apexHandling;
+    customFilePath = options.customFilePath || null;
+    apexHandling = options.apexHandling || 'redirect_to_sub';
+    adminSubdomain = options.adminSubdomain || 'admin';
+  } else if (typeof adminSubdomain === 'object' && adminSubdomain !== null) {
+    options = adminSubdomain;
+    customFilePath = options.customFilePath || null;
+    adminSubdomain = options.adminSubdomain || 'admin';
+  } else if (typeof customFilePath === 'object' && customFilePath !== null) {
+    options = customFilePath;
+    customFilePath = options.customFilePath || null;
+  }
+
   if (typeof publicSubdomain === 'string' && (publicSubdomain.endsWith('.toml') || publicSubdomain.includes('/') || publicSubdomain.includes('\\'))) {
     customFilePath = publicSubdomain;
     publicSubdomain = 'www';
@@ -156,6 +196,17 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
+
+  const slug = options?.instanceSlug || deriveInstanceSlug(domain);
+  const workerName = options?.workerName || `${slug}-public-worker`;
+  content = updateWorkerName(content, workerName);
+
+  if (options?.dbName) {
+    content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${options.dbName}"`);
+  }
+  if (options?.bucketName) {
+    content = content.replace(/bucket_name\s*=\s*"[^"]*"/g, `bucket_name = "${options.bucketName}"`);
+  }
 
   content = ensureWorkersDevFalse(content);
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
@@ -184,7 +235,21 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', publicSubdomain = 'www', customFilePath = null) {
+function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', publicSubdomain = 'www', customFilePath = null, options = {}) {
+  if (typeof apiSubdomain === 'object' && apiSubdomain !== null) {
+    options = apiSubdomain;
+    customFilePath = options.customFilePath || null;
+    apiSubdomain = options.apiSubdomain || 'api';
+    publicSubdomain = options.publicSubdomain || 'www';
+  } else if (typeof publicSubdomain === 'object' && publicSubdomain !== null) {
+    options = publicSubdomain;
+    customFilePath = options.customFilePath || null;
+    publicSubdomain = options.publicSubdomain || 'www';
+  } else if (typeof customFilePath === 'object' && customFilePath !== null) {
+    options = customFilePath;
+    customFilePath = options.customFilePath || null;
+  }
+
   if (typeof apiSubdomain === 'string' && (apiSubdomain.endsWith('.toml') || apiSubdomain.includes('/') || apiSubdomain.includes('\\'))) {
     customFilePath = apiSubdomain;
     apiSubdomain = 'api';
@@ -196,6 +261,17 @@ function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', public
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
+
+  const slug = options?.instanceSlug || deriveInstanceSlug(domain);
+  const workerName = options?.workerName || `${slug}-admin-api-worker`;
+  content = updateWorkerName(content, workerName);
+
+  if (options?.dbName) {
+    content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${options.dbName}"`);
+  }
+  if (options?.bucketName) {
+    content = content.replace(/bucket_name\s*=\s*"[^"]*"/g, `bucket_name = "${options.bucketName}"`);
+  }
 
   content = ensureWorkersDevFalse(content);
   content = content.replace(/database_id\s*=\s*"[^"]*"/, `database_id = "${databaseId}"`);
@@ -255,13 +331,26 @@ function updateAdminApiAccessVars(aud, teamDomain, customFilePath = null) {
   fs.writeFileSync(filePath, content, 'utf8');
 }
 
-function updateAdminUiWrangler(domain, uiSubdomain = 'admin', customFilePath = null) {
+function updateAdminUiWrangler(domain, uiSubdomain = 'admin', customFilePath = null, options = {}) {
+  if (typeof uiSubdomain === 'object' && uiSubdomain !== null) {
+    options = uiSubdomain;
+    customFilePath = options.customFilePath || null;
+    uiSubdomain = options.uiSubdomain || 'admin';
+  } else if (typeof customFilePath === 'object' && customFilePath !== null) {
+    options = customFilePath;
+    customFilePath = options.customFilePath || null;
+  }
+
   if (typeof uiSubdomain === 'string' && (uiSubdomain.endsWith('.toml') || uiSubdomain.includes('/') || uiSubdomain.includes('\\'))) {
     customFilePath = uiSubdomain;
     uiSubdomain = 'admin';
   }
   const filePath = customFilePath || path.resolve(ROOT_DIR, 'packages/admin-ui/wrangler.toml');
   let content = fs.readFileSync(filePath, 'utf8');
+
+  const slug = options?.instanceSlug || deriveInstanceSlug(domain);
+  const workerName = options?.workerName || `${slug}-admin-ui-worker`;
+  content = updateWorkerName(content, workerName);
 
   content = ensureWorkersDevFalse(content);
   const sub = uiSubdomain || 'admin';
@@ -330,19 +419,101 @@ function updateAdminUiEnv(domain, apiSubdomain = 'api', customEnvPath = null) {
 }
 
 
-function provisionD1Database(childEnv = null) {
-  console.log('\n[1/5] Provisioning Cloudflare D1 Database (zygo-cms-db)...');
+function updatePackageJsonDbScripts(dbName, customPkgPath = null) {
+  const pkgPath = customPkgPath || path.resolve(ROOT_DIR, 'package.json');
+  if (!fs.existsSync(pkgPath)) return;
+  try {
+    const raw = fs.readFileSync(pkgPath, 'utf8');
+    const pkg = JSON.parse(raw);
+    let changed = false;
+    if (pkg.scripts) {
+      if (pkg.scripts['db:migrate']) {
+        pkg.scripts['db:migrate'] = pkg.scripts['db:migrate'].replace(
+          /migrations apply \S+/,
+          `migrations apply ${dbName}`
+        );
+        changed = true;
+      }
+      if (pkg.scripts['db:migrate:local']) {
+        pkg.scripts['db:migrate:local'] = pkg.scripts['db:migrate:local'].replace(
+          /migrations apply \S+/,
+          `migrations apply ${dbName}`
+        );
+        changed = true;
+      }
+      if (changed) {
+        fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 4)}\n`, 'utf8');
+      }
+    }
+  } catch (err) {
+    console.warn(`⚠️  Could not update package.json migration scripts: ${err.message}`);
+  }
+}
+
+function updateD1DatabaseConfig(dbName, databaseId = null, customPaths = null) {
+  const filePaths = customPaths
+    ? [customPaths.rootWrangler, customPaths.publicWrangler, customPaths.adminApiWrangler].filter(Boolean)
+    : [
+        path.resolve(ROOT_DIR, 'wrangler.toml'),
+        path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml'),
+        path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml')
+      ];
+
+  for (const filePath of filePaths) {
+    if (!fs.existsSync(filePath)) continue;
+    let content = fs.readFileSync(filePath, 'utf8');
+    if (dbName) {
+      content = content.replace(/database_name\s*=\s*"[^"]*"/g, `database_name = "${dbName}"`);
+    }
+    if (databaseId) {
+      content = content.replace(/database_id\s*=\s*"[^"]*"/g, `database_id = "${databaseId}"`);
+    }
+    fs.writeFileSync(filePath, content, 'utf8');
+  }
+
+  const pkgPath = customPaths ? customPaths.packageJson : path.resolve(ROOT_DIR, 'package.json');
+  if (dbName && pkgPath && fs.existsSync(pkgPath)) {
+    updatePackageJsonDbScripts(dbName, pkgPath);
+  }
+}
+
+function updateR2BucketConfig(bucketName, customPaths = null) {
+  const filePaths = customPaths
+    ? [customPaths.publicWrangler, customPaths.adminApiWrangler].filter(Boolean)
+    : [
+        path.resolve(ROOT_DIR, 'packages/public-worker/wrangler.toml'),
+        path.resolve(ROOT_DIR, 'packages/admin-api-worker/wrangler.toml')
+      ];
+
+  for (const filePath of filePaths) {
+    if (!fs.existsSync(filePath)) continue;
+    let content = fs.readFileSync(filePath, 'utf8');
+    if (bucketName) {
+      content = content.replace(/bucket_name\s*=\s*"[^"]*"/g, `bucket_name = "${bucketName}"`);
+    }
+    fs.writeFileSync(filePath, content, 'utf8');
+  }
+}
+
+function provisionD1Database(childEnv = null, dbName = 'zygo-cms-db', options = {}) {
+  if (typeof dbName === 'object' && dbName !== null) {
+    options = dbName;
+    dbName = options.dbName || 'zygo-cms-db';
+  }
+  const resolvedDbName = dbName || 'zygo-cms-db';
+  console.log(`\n[1/5] Provisioning Cloudflare D1 Database (${resolvedDbName})...`);
   let databaseId = null;
   const env = childEnv || { ...process.env, CI: 'true' };
+  const execFn = options.execFn || execSync;
 
   try {
-    const listOut = execSync('npx wrangler d1 list --json', { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
+    const listOut = execFn('npx wrangler d1 list --json', { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
     const list = extractJson(listOut);
     if (Array.isArray(list)) {
-      const existing = list.find((db) => db.name === 'zygo-cms-db');
+      const existing = list.find((db) => db.name === resolvedDbName);
       if (existing) {
         databaseId = existing.uuid || existing.database_id;
-        console.log(`✓ Found existing D1 database "zygo-cms-db" (UUID: ${databaseId})`);
+        console.log(`✓ Found existing D1 database "${resolvedDbName}" (UUID: ${databaseId})`);
       }
     }
   } catch (_) {
@@ -350,9 +521,9 @@ function provisionD1Database(childEnv = null) {
   }
 
   if (!databaseId) {
-    console.log('  Creating new D1 database "zygo-cms-db"...');
+    console.log(`  Creating new D1 database "${resolvedDbName}"...`);
     try {
-      const createOut = execSync('npx wrangler d1 create zygo-cms-db --json', { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
+      const createOut = execFn(`npx wrangler d1 create ${resolvedDbName} --json`, { stdio: ['pipe', 'pipe', 'pipe'], env }).toString();
       const created = extractJson(createOut);
       databaseId = created?.uuid || created?.database_id || created?.id;
     } catch (err) {
@@ -364,32 +535,57 @@ function provisionD1Database(childEnv = null) {
         throw new Error(`Failed to create D1 database: ${err.message}`);
       }
     }
-    console.log(`✓ Created D1 database "zygo-cms-db" (UUID: ${databaseId})`);
+    console.log(`✓ Created D1 database "${resolvedDbName}" (UUID: ${databaseId})`);
   }
+
+  updateD1DatabaseConfig(resolvedDbName, databaseId, options.customPaths || {});
 
   return databaseId;
 }
 
-function provisionR2Bucket(childEnv = null) {
-  console.log('\n[2/5] Provisioning Cloudflare R2 Media Bucket (zygo-cms-media)...');
+function provisionR2Bucket(childEnv = null, bucketName = 'zygo-cms-media', options = {}) {
+  if (typeof bucketName === 'object' && bucketName !== null) {
+    options = bucketName;
+    bucketName = options.bucketName || 'zygo-cms-media';
+  }
+  const resolvedBucketName = bucketName || 'zygo-cms-media';
+  console.log(`\n[2/5] Provisioning Cloudflare R2 Media Bucket (${resolvedBucketName})...`);
   const env = childEnv || { ...process.env, CI: 'true' };
+  const execFn = options.execFn || execSync;
   try {
-    execSync('npx wrangler r2 bucket create zygo-cms-media', { stdio: ['pipe', 'pipe', 'pipe'], env });
-    console.log('✓ Created R2 bucket "zygo-cms-media"');
+    execFn(`npx wrangler r2 bucket create ${resolvedBucketName}`, { stdio: ['pipe', 'pipe', 'pipe'], env });
+    console.log(`✓ Created R2 bucket "${resolvedBucketName}"`);
   } catch (err) {
     const out = ((err.stdout?.toString() || '') + (err.stderr?.toString() || '')).toLowerCase();
     if (out.includes('already exists') || out.includes('already_exists') || out.includes('10004')) {
-      console.log('✓ R2 bucket "zygo-cms-media" already exists');
+      console.log(`✓ R2 bucket "${resolvedBucketName}" already exists`);
     } else {
       console.warn(`⚠️  Warning: R2 bucket creation returned: ${err.message}. Continuing...`);
     }
   }
+
+  updateR2BucketConfig(resolvedBucketName, options.customPaths || {});
 }
 
-function applyRemoteMigrations(childEnv = null, execFn = execSync) {
-  console.log('\n[4/5] Applying remote D1 database migrations...');
+function applyRemoteMigrations(childEnv = null, dbNameOrExecFn = 'zygo-cms-db', maybeExecFn = execSync) {
+  let dbName = 'zygo-cms-db';
+  let execFn = execSync;
+
+  if (typeof dbNameOrExecFn === 'function') {
+    execFn = dbNameOrExecFn;
+    if (typeof maybeExecFn === 'string') {
+      dbName = maybeExecFn;
+    }
+  } else if (typeof dbNameOrExecFn === 'string') {
+    dbName = dbNameOrExecFn;
+    if (typeof maybeExecFn === 'function') {
+      execFn = maybeExecFn;
+    }
+  }
+
+  console.log(`\n[4/5] Applying remote D1 database migrations (${dbName})...`);
   try {
-    execFn('npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml', {
+    execFn(`npx wrangler d1 migrations apply ${dbName} --remote -c packages/admin-api-worker/wrangler.toml`, {
       stdio: 'inherit',
       env: childEnv || { ...process.env, CI: 'true' }
     });
@@ -398,7 +594,7 @@ function applyRemoteMigrations(childEnv = null, execFn = execSync) {
   } catch (err) {
     console.error(`⚠️  Failed to apply remote migrations automatically: ${err.message}`);
     console.log('You can apply migrations manually later using:');
-    console.log('  npx wrangler d1 migrations apply zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml');
+    console.log(`  npx wrangler d1 migrations apply ${dbName} --remote -c packages/admin-api-worker/wrangler.toml`);
     return false;
   }
 }
@@ -1096,7 +1292,9 @@ const CONFIG_FILES = [
   'packages/public-worker/wrangler.toml',
   'packages/admin-api-worker/wrangler.toml',
   'packages/admin-ui/wrangler.toml',
-  'packages/admin-ui/.env.production'
+  'packages/admin-ui/.env.production',
+  'wrangler.toml',
+  'package.json'
 ];
 
 function backupConfigs(rootDir = ROOT_DIR) {
@@ -1138,6 +1336,9 @@ function parseCliArgs(args = process.argv.slice(2)) {
       'dry-run': { type: 'boolean', default: false },
       'no-deploy': { type: 'boolean', default: false },
       'domain': { type: 'string' },
+      'instance-slug': { type: 'string' },
+      'db-name': { type: 'string' },
+      'bucket-name': { type: 'string' },
       'email': { type: 'string' },
       'account-id': { type: 'string' },
       'token': { type: 'string' },
@@ -1401,8 +1602,17 @@ async function main() {
   const detectedAccountId = flags['account-id'] || process.env.CLOUDFLARE_ACCOUNT_ID || process.env.CF_ACCOUNT_ID || detectAccountId();
   const detectedApiToken = flags.token || process.env.CLOUDFLARE_API_TOKEN || process.env.CF_API_TOKEN || null;
 
+  const instanceSlug = flags['instance-slug']
+    ? deriveInstanceSlug(flags['instance-slug'])
+    : (flags.domain ? deriveInstanceSlug(flags.domain) : null);
+  const dbName = flags['db-name'] || (instanceSlug ? `zygo-cms-db-${instanceSlug}` : 'zygo-cms-db');
+  const bucketName = flags['bucket-name'] || (instanceSlug ? `zygo-cms-media-${instanceSlug}` : 'zygo-cms-media');
+
   const config = {
     domain: flags.domain || '',
+    instanceSlug: instanceSlug || '',
+    dbName: dbName,
+    bucketName: bucketName,
     publicSubdomain: flags['public-subdomain'] || 'www',
     apexHandling: flags['apex-handling'] || 'redirect_to_sub',
     adminUiSubdomain: flags['admin-ui-subdomain'] || 'admin',
@@ -1429,6 +1639,15 @@ async function main() {
       process.exit(1);
     }
     config.domain = validateDomain(config.domain);
+    if (!flags['instance-slug']) {
+      config.instanceSlug = deriveInstanceSlug(config.domain);
+    }
+    if (!flags['db-name']) {
+      config.dbName = `zygo-cms-db-${config.instanceSlug}`;
+    }
+    if (!flags['bucket-name']) {
+      config.bucketName = `zygo-cms-media-${config.instanceSlug}`;
+    }
 
     if (!config.adminEmail || !validateEmail(config.adminEmail)) {
       console.error(pc.red('Error: Missing or invalid required flag: --email <email> (e.g. --email admin@example.com)'));
@@ -1451,6 +1670,15 @@ async function main() {
     });
     if (isCancel(domainAns)) { cancel('Setup cancelled'); return process.exit(0); }
     config.domain = domainAns.trim();
+    if (!flags['instance-slug']) {
+      config.instanceSlug = deriveInstanceSlug(config.domain);
+    }
+    if (!flags['db-name']) {
+      config.dbName = `zygo-cms-db-${config.instanceSlug}`;
+    }
+    if (!flags['bucket-name']) {
+      config.bucketName = `zygo-cms-media-${config.instanceSlug}`;
+    }
 
     const publicSubAns = await text({
       message: 'Public Subdomain',
@@ -1704,6 +1932,9 @@ async function main() {
     console.log('─'.repeat(50));
     console.log(pc.bold('Target Domain & Subdomains:'));
     console.log(`  • Apex Domain:       ${config.domain}`);
+    console.log(`  • Instance Slug:     ${config.instanceSlug}`);
+    console.log(`  • D1 Database:       ${config.dbName}`);
+    console.log(`  • R2 Bucket:         ${config.bucketName}`);
     console.log(`  • Public Site:       https://${config.publicSubdomain}.${config.domain}`);
     console.log(`  • Admin UI:          https://${config.adminUiSubdomain}.${config.domain}`);
     console.log(`  • Admin API:         https://${config.adminApiSubdomain}.${config.domain}`);
@@ -1720,8 +1951,8 @@ async function main() {
     console.log(`  • AI Crawl Policy:   ${JSON.stringify(config.aiCrawlSettings)}`);
     console.log(pc.bold('\nPlanned Actions:'));
     console.log('  1. Snapshot configuration files (wrangler.toml, .env.production)');
-    console.log('  2. Provision Cloudflare D1 database (zygo-cms-db)');
-    console.log('  3. Provision Cloudflare R2 bucket (zygo-cms-media)');
+    console.log(`  2. Provision Cloudflare D1 database (${config.dbName})`);
+    console.log(`  3. Provision Cloudflare R2 bucket (${config.bucketName})`);
     console.log('  4. Update public-worker, admin-api-worker, admin-ui wrangler.toml & .env');
     console.log('  5. Apply remote D1 database migrations');
     if (!config.skipAccess) {
@@ -1763,22 +1994,32 @@ async function main() {
   const s = spinner();
 
   try {
-    s.start('Provisioning D1 Database (zygo-cms-db)');
-    const databaseId = provisionD1Database(childEnv);
+    s.start(`Provisioning D1 Database (${config.dbName})`);
+    const databaseId = provisionD1Database(childEnv, config.dbName);
     s.stop(`✓ Provisioned D1 Database (UUID: ${databaseId})`);
 
-    s.start('Provisioning R2 Bucket (zygo-cms-media)');
-    provisionR2Bucket(childEnv);
-    s.stop('✓ Provisioned R2 Bucket');
+    s.start(`Provisioning R2 Bucket (${config.bucketName})`);
+    provisionR2Bucket(childEnv, config.bucketName);
+    s.stop(`✓ Provisioned R2 Bucket (${config.bucketName})`);
 
     s.start('Updating wrangler.toml configurations');
-    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling, config.adminUiSubdomain);
-    updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain, config.publicSubdomain);
-    updateAdminUiWrangler(config.domain, config.adminUiSubdomain);
+    updatePublicWrangler(config.domain, databaseId, config.publicSubdomain, config.apexHandling, config.adminUiSubdomain, null, {
+      instanceSlug: config.instanceSlug,
+      dbName: config.dbName,
+      bucketName: config.bucketName
+    });
+    updateAdminApiWrangler(config.domain, databaseId, config.adminApiSubdomain, config.publicSubdomain, null, {
+      instanceSlug: config.instanceSlug,
+      dbName: config.dbName,
+      bucketName: config.bucketName
+    });
+    updateAdminUiWrangler(config.domain, config.adminUiSubdomain, null, {
+      instanceSlug: config.instanceSlug
+    });
     s.stop('✓ Updated wrangler configurations');
 
     s.start('Applying remote migrations');
-    const migrationOk = applyRemoteMigrations(childEnv);
+    const migrationOk = applyRemoteMigrations(childEnv, config.dbName);
     if (migrationOk) {
       s.stop('✓ Migrations applied');
     } else {
@@ -1980,6 +2221,11 @@ export {
   getZeroTrustOrgDomain,
   ensureZeroTrustOrganization,
   deriveDefaultTeamSlug,
+  deriveInstanceSlug,
+  updateWorkerName,
+  updateD1DatabaseConfig,
+  updateR2BucketConfig,
+  updatePackageJsonDbScripts,
   applyCloudflareRedirect,
   applyAiCrawlSettings,
   updateAdminApiZoneVar,

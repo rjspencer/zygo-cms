@@ -6,13 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
-## [0.2.1] - 2026-10-29
+## [0.2.1] - 2026-10-27
 
-### Release Automation & Scaffolder Distribution
-- **Automated npm Publishing for `create-zygo-app` (`.github/workflows/release.yml`)**:
-  - Configured `actions/setup-node@v4` with `registry-url: 'https://registry.npmjs.org'` and automated publication of `create-zygo-app` to npm whenever a semantic version release tag (`v*.*.*`) is pushed.
-- **Cloudflare Provisioning Standard Defaults (`scripts/setup.mjs`, `packages/create-zygo-app/index.mjs`)**:
-  - Restored standard non-namespaced Cloudflare provisioning defaults (`public-worker`, `admin-api-worker`, `admin-ui-worker`, `zygo-cms-db`, `zygo-cms-media`) across setup tooling and standalone project scaffolding.
+### Cloudflare Multi-Instance Support & Dynamic Resource Namespacing
+- **Cloudflare Multi-Instance Provisioning (`scripts/setup.mjs`)**:
+  - Added support for running multiple isolated Zygo CMS instances within a single Cloudflare account by deriving instance slugs from project name or domain (`deriveInstanceSlug`).
+  - Namespaced worker names (`<slug>-public-worker`, `<slug>-admin-api-worker`, `<slug>-admin-ui-worker`), D1 database (`zygo-cms-db-<slug>`), and R2 media bucket (`zygo-cms-media-<slug>`).
+  - Added CLI options `--instance-slug`, `--db-name`, and `--bucket-name` to `scripts/setup.mjs` for granular provisioning control.
+  - Updated `package.json` migration scripts to dynamically target the active instance's D1 database.
+- **Standalone Project Scaffolding (`packages/create-zygo-app/index.mjs`)**:
+  - Updated project creation template to automatically sanitize and namespace worker names and resource bindings based on the target project name.
+- **Automated Multi-Instance & Provisioning Test Suites (`tests/create-zygo-app.test.js`, `tests/setup-script.test.js`)**:
+  - Added unit test suites verifying instance slug derivation, multi-instance configuration generation, and scaffolded project resource binding isolation.
 
 ## [0.2.0] - 2026-10-27
 
