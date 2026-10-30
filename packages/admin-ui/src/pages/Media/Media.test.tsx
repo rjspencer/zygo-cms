@@ -410,6 +410,7 @@ describe('Media Page Component', () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(mockMediaResponse) });
     vi.stubGlobal('fetch', fetchMock);
+    window.confirm = window.confirm || (() => false);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     renderMediaPage();

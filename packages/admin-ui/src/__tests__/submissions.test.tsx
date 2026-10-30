@@ -306,6 +306,7 @@ describe('Submissions Inbox Page (Submissions.tsx)', () => {
 
   it('handles submission deletion on confirmation', async () => {
     const user = userEvent.setup();
+    window.confirm = window.confirm || (() => false);
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     renderComponent();

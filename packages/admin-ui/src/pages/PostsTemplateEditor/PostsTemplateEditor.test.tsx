@@ -98,7 +98,9 @@ describe('PostsTemplateEditor Component', () => {
     expect(screen.getByTestId('tab-trigger-html')).toBeDefined();
     expect(screen.getByTestId('tab-trigger-css')).toBeDefined();
     expect(screen.getByTestId('posts-template-reset-btn')).toBeDefined();
-    expect(screen.getByTestId('posts-template-revisions-btn').textContent).toContain('Revisions (1)');
+    await waitFor(() => {
+      expect(screen.getByTestId('posts-template-revisions-btn').textContent).toContain('Revisions (1)');
+    });
   });
 
   it('switches between HTML and CSS tabs', async () => {
