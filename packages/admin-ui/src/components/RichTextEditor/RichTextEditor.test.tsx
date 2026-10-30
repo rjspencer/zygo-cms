@@ -100,6 +100,7 @@ describe('RichTextEditor Component', () => {
   it('inserts image with width="1024" and style="max-width: 100%" without ?size=md when prompted for URL', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
+    window.prompt = window.prompt || (() => null);
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('https://example.com/pic.jpg');
 
     const { container } = render(
@@ -123,6 +124,7 @@ describe('RichTextEditor Component', () => {
   it('prompts for image URL when onOpenMediaPicker is not passed', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
+    window.prompt = window.prompt || (() => null);
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('https://example.com/pic.jpg');
 
     render(
@@ -141,6 +143,7 @@ describe('RichTextEditor Component', () => {
   it('prompts for link URL when Link button is clicked', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
+    window.prompt = window.prompt || (() => null);
     const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('https://example.com');
 
     render(
