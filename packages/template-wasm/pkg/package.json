@@ -1,0 +1,16 @@
+{
+  "name": "template-wasm",
+  "type": "module",
+  "version": "0.2.1",
+  "license": "MIT OR Apache-2.0",
+  "files": [
+    "template_wasm_bg.wasm",
+    "template_wasm.js",
+    "template_wasm.d.ts"
+  ],
+  "main": "template_wasm.js",
+  "types": "template_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

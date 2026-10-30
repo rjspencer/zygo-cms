@@ -1,0 +1,15 @@
+{
+  "files": [
+    "index_bg.wasm",
+    "index.js",
+    "index.d.ts"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "main": "index.js",
+  "name": "public-worker",
+  "sideEffects": [
+    "./index.js"
+  ],
+  "type": "module",
+  "version": "0.2.1"
+}
