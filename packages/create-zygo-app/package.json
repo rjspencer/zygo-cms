@@ -21,7 +21,7 @@
     "scaffolder"
   ],
   "author": "Ryan Spencer <ryanjoelspencer@gmail.com>",
-  "license": "MIT",
+  "license": "MIT OR Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rjspencer/zygo-cms.git",
