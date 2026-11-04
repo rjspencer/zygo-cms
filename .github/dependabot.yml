@@ -16,6 +16,10 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
+    ignore:
+      # rsa 0.9 requires RustCrypto digest 0.10 (sha2 0.10); sha2 0.11 uses digest 0.11
+      - dependency-name: "sha2"
+        versions: [">= 0.11.0"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

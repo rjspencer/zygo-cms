@@ -15,8 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - Updated `runPreflightChecks` so `Rust wasm32 target` and `worker-build` checks are non-critical (`critical: false`) when pre-compiled Wasm artifacts are present on disk, ensuring Zero-Rust users can run `pnpm run setup` without installing a Rust toolchain.
   - Updated `verifyDeployment` and the completion summary in `main()` to use `${publicSubdomain}.${domain}` instead of the apex domain when `apexHandling` is set to `'do_nothing'`.
   - Consolidated hardcoded `User-Agent` headers into a single `USER_AGENT` constant and removed legacy `PROPELAUTH_AUTH_URL` regex replacements and the inline Vitest `toThrow` monkey-patch.
-- **Workspace Dependency Updates (`package.json`, `packages/admin-ui/package.json`, `pnpm-lock.yaml`)**:
-  - Updated workspace npm dependencies (`@tailwindcss/cli`, `@tailwindcss/vite`, `tailwindcss` to `^4.3.4`, `wrangler` to `^4.157.0`, `@tanstack/react-query` & `@tanstack/react-query-devtools` to `^5.105.3`, and `@tiptap/*` packages to `^3.32.2`).
+- **Workspace Dependency Updates (`package.json`, `packages/admin-ui/package.json`, `pnpm-lock.yaml`, `Cargo.toml`, `Cargo.lock`, `.github/workflows/`, `.github/dependabot.yml`)**:
+  - Updated workspace npm dependencies (`@tailwindcss/cli`, `@tailwindcss/vite`, `tailwindcss` to `^4.3.4`, `wrangler` to `^4.157.0`, `@tanstack/react-query` & `@tanstack/react-query-devtools` to `^5.105.3`, and `@tiptap/*` packages to `^3.32.2`). Retained Vite 6/7, Vitest 4, and TypeScript 5 across the workspace to preserve peer dependency compatibility with Storybook (`@storybook/react-vite`) and `@vitejs/plugin-react`.
+  - Updated Rust and Cargo dependencies across workspace crates: `minijinja` (`3.0.5` with explicit `serde` feature, adapting `minijinja::value::Serde` and AST parser `minijinja::machinery::parse` / `Expr::Tuple` across `packages/core`, `packages/public-worker`, and `packages/template-wasm`), `thiserror` (`2.0.21`), `base64` (`0.23.1`), `worker` (`0.8.7`), `serde_json` (`1.0.154`), and `wasm-bindgen` (`0.2.130`).
+  - Updated GitHub Actions CI/CD workflows and Dependabot configuration: bumped `actions/checkout` (`v7`), `actions/setup-node` (`v7`), `pnpm/action-setup` (`v5`), and `cloudflare/wrangler-action` (`v4`), and added a Dependabot ignore rule for `sha2 >= 0.11.0` (`rsa 0.9` compatibility).
 
 ## [0.2.1] - 2026-10-27
 

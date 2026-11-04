@@ -125,6 +125,11 @@ fn extract_target_vars(expr: &Expr) -> Vec<String> {
                 vars.extend(extract_target_vars(item));
             }
         }
+        Expr::Tuple(t) => {
+            for item in &t.items {
+                vars.extend(extract_target_vars(item));
+            }
+        }
         _ => {}
     }
     vars
@@ -524,6 +529,11 @@ impl<'a> Validator<'a> {
                     self.visit_expr(item);
                 }
             }
+            Expr::Tuple(t) => {
+                for item in &t.items {
+                    self.visit_expr(item);
+                }
+            }
             Expr::Map(m) => {
                 for (k, v) in m.keys.iter().zip(m.values.iter()) {
                     self.visit_expr(k);
@@ -593,7 +603,6 @@ pub fn validate_template<S: TemplateSchema>(
     let ast = match minijinja::machinery::parse(
         template_html,
         "<template>",
-        Default::default(),
         Default::default(),
     ) {
         Ok(ast) => ast,

@@ -252,7 +252,6 @@ pub fn validate_backup_payload(payload: &ZygoBackupPayload) -> Result<Vec<String
                 &layout.template_html,
                 &layout.id,
                 Default::default(),
-                Default::default(),
             ) {
                 return Err(format!(
                     "Layout template '{}' MiniJinja syntax error: {}",
