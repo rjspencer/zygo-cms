@@ -97,7 +97,7 @@ flowchart TD
 If you are building a website, designing section templates, configuring themes, or managing content with Zygo CMS, you do not need Rust installed.
 
 ### System Requirements
-- **Node.js**: v22 or higher
+- **Node.js**: v24 or higher
 - **pnpm**: v11 or higher
 - **Cloudflare Wrangler CLI**: Installed locally or run via `npx wrangler`
 

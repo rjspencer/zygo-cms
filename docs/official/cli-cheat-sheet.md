@@ -44,7 +44,7 @@ The provisioning setup wizard supports CLI flags for preflight diagnostics, dry 
 
 | Flag / Invocation | Description |
 | :--- | :--- |
-| `node scripts/setup.mjs --doctor` | Preflight diagnostic mode: validates Node.js (>= 22), pnpm (>= 11), Rust Wasm target, Cloudflare Account ID, and Zone without modifying files |
+| `node scripts/setup.mjs --doctor` | Preflight diagnostic mode: validates Node.js (>= 24), pnpm (>= 11), Rust Wasm target, Cloudflare Account ID, and Zone without modifying files |
 | `node scripts/setup.mjs --dry-run` | Prints the 10-step execution plan and resolves configuration without modifying local files or remote Cloudflare resources |
 | `node scripts/setup.mjs --yes` / `-y` | Non-interactive mode for CI/headless provisioning; skips confirmation prompts (requires `--domain <domain> --email <email>`) |
 | `node scripts/setup.mjs --no-deploy` | Provisions D1, R2, DNS, and Access resources and updates configurations without running worker deployment |
@@ -58,7 +58,7 @@ Diagnostic and maintenance operations mapped across macOS, Linux, Windows WSL2, 
 | Task / Operation | macOS (Zsh / Terminal) | Linux (Ubuntu / Bash) | Windows 11 (WSL2 Ubuntu) | Windows 11 (Native PowerShell) |
 | :--- | :--- | :--- | :--- | :--- |
 | **Compiler / Toolchain** | `xcode-select --install` | `sudo apt install build-essential pkg-config libssl-dev` | Same as Linux (`build-essential`) | Visual Studio Build Tools (C++ Workload) via `winget` |
-| **Node.js LTS (v22)** | `brew install node@22` | NodeSource repo (`setup_22.x`) | NodeSource repo (`setup_22.x`) | `winget install OpenJS.NodeJS.LTS` |
+| **Node.js LTS (v24)** | `brew install node@24` | NodeSource repo (`setup_24.x`) | NodeSource repo (`setup_24.x`) | `winget install OpenJS.NodeJS.LTS` |
 | **Package Manager (pnpm 11)** | `brew install pnpm` | `corepack enable && corepack prepare pnpm@11 --activate` | `corepack enable && corepack prepare pnpm@11 --activate` | `corepack enable; corepack prepare pnpm@11 --activate` |
 | **Rust & Wasm Target** | `rustup target add wasm32-unknown-unknown` | `rustup target add wasm32-unknown-unknown` | `rustup target add wasm32-unknown-unknown` | `rustup target add wasm32-unknown-unknown` |
 | **Worker Builder** | `cargo install worker-build` | `cargo install worker-build` | `cargo install worker-build` | `cargo install worker-build` |

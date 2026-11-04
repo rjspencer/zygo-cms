@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Setup Wizard Improvements, Node.js 24 LTS Standardization & Dependency Updates
+- **Node.js 24 LTS Standardization (`scripts/setup.mjs`, `package.json`, `packages/create-zygo-app/package.json`, `.github/workflows/`, `docs/`)**:
+  - Updated minimum Node.js requirement to Node.js 24 LTS (`>=24.0.0`) across `runPreflightChecks` in `scripts/setup.mjs`, root `package.json` and `packages/create-zygo-app/package.json` `engines`, GitHub Actions workflows (`deploy.yml` and `release.yml`), `README.md`, and official documentation (`quickstart.md`, `wasm-distribution.md`, `deployment.md`, `cli-cheat-sheet.md`).
+- **Setup Wizard Enhancements (`scripts/setup.mjs`, `tests/setup-script.test.js`)**:
+  - Updated `runPreflightChecks` so `Rust wasm32 target` and `worker-build` checks are non-critical (`critical: false`) when pre-compiled Wasm artifacts are present on disk, ensuring Zero-Rust users can run `pnpm run setup` without installing a Rust toolchain.
+  - Updated `verifyDeployment` and the completion summary in `main()` to use `${publicSubdomain}.${domain}` instead of the apex domain when `apexHandling` is set to `'do_nothing'`.
+  - Consolidated hardcoded `User-Agent` headers into a single `USER_AGENT` constant and removed legacy `PROPELAUTH_AUTH_URL` regex replacements and the inline Vitest `toThrow` monkey-patch.
+- **Workspace Dependency Updates (`package.json`, `packages/admin-ui/package.json`, `pnpm-lock.yaml`)**:
+  - Updated workspace npm dependencies (`@tailwindcss/cli`, `@tailwindcss/vite`, `tailwindcss` to `^4.3.4`, `wrangler` to `^4.157.0`, `@tanstack/react-query` & `@tanstack/react-query-devtools` to `^5.105.3`, and `@tiptap/*` packages to `^3.32.2`).
+
 ## [0.2.1] - 2026-10-27
 
 ### Cloudflare Multi-Instance Support & Dynamic Resource Namespacing

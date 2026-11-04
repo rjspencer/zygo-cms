@@ -4,7 +4,8 @@
     "license": "MIT OR Apache-2.0",
     "type": "module",
     "engines": {
-        "pnpm": ">11.0.0"
+        "node": ">=24.0.0",
+        "pnpm": ">=11.0.0"
     },
     "scripts": {
         "dev": "concurrently -k -c \"blue,green,magenta,cyan\" -n \"api,public,ui,watch:api\" \"pnpm run dev:api:serve\" \"pnpm run dev:public\" \"pnpm run dev:ui\" \"pnpm run watch:api\"",
@@ -42,8 +43,8 @@
     },
     "devDependencies": {
         "@clack/prompts": "^1.8.1",
-        "@tailwindcss/cli": "^4.3.3",
-        "@tailwindcss/vite": "^4.3.3",
+        "@tailwindcss/cli": "^4.3.4",
+        "@tailwindcss/vite": "^4.3.4",
         "@testing-library/dom": "^10.4.2",
         "@testing-library/user-event": "^14.6.8",
         "@vitest/coverage-v8": "^4.1.12",
@@ -52,9 +53,9 @@
         "happy-dom": "^21.0.4",
         "picocolors": "^1.1.1",
         "postcss": "^8.5.32",
-        "tailwindcss": "^4.3.3",
+        "tailwindcss": "^4.3.4",
         "vite": "^7.3.7",
         "vitest": "^4.1.12",
-        "wrangler": "^4.155.0"
+        "wrangler": "^4.157.0"
     }
 }
