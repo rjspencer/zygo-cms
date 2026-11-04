@@ -1,4 +1,5 @@
 use minijinja::Environment;
+use minijinja::value::Serde;
 use zygo_core::models::{
     BreadcrumbItem, ContentType, Entry, EntryRevision, LayoutTemplate, MenuItem, Pagination,
     SectionTemplate, ThemeTokens,
@@ -1154,7 +1155,7 @@ fn render_sections(
             if let Some(tid) = type_id {
                 if let Ok(tmpl) = env.get_template(tid) {
                     let section_data = section.get("data").unwrap_or(section);
-                    if let Ok(rendered) = tmpl.render(section_data) {
+                    if let Ok(rendered) = tmpl.render(Serde(section_data)) {
                         sections_html.push_str(&format!(
                             "<div class=\"template-{}\" style=\"display: contents;\">{}</div>",
                             tid, rendered
@@ -1211,7 +1212,7 @@ fn render_template(
         .map(|s| s.to_string());
 
     let rendered = tmpl
-        .render(ctx)
+        .render(Serde(&ctx))
         .map_err(|e| worker::Error::RustError(e.to_string()))?;
 
     if name == "sitemap" || name == "rss" {

@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
 use minijinja::Environment;
+use minijinja::value::Serde;
 use zygo_core::template_engine::configure_env;
 
 #[wasm_bindgen]
@@ -24,7 +25,7 @@ pub fn render_template(html: &str, dummy_data_json: &str) -> String {
         );
     }
 
-    match tmpl.render(ctx) {
+    match tmpl.render(Serde(&ctx)) {
         Ok(rendered) => rendered,
         Err(e) => format!("Render error: {}", e),
     }
