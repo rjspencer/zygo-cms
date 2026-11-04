@@ -7,7 +7,7 @@ Get up and running with Zygo CMS on your local machine in minutes. This guide wa
 Zygo CMS features a **zero-Rust onboarding path** for site operators, designers, and content editors. Thanks to pre-compiled WebAssembly worker distribution, you can run, build, and deploy a complete CMS site using only Node.js and pnpm.
 
 ### Standard Setup (Zero-Rust)
-- **[Node.js](https://nodejs.org/)** (v22 or higher): JavaScript runtime for scripts and frontend tooling.
+- **[Node.js](https://nodejs.org/)** (v24 or higher): JavaScript runtime for scripts and frontend tooling.
 - **[pnpm](https://pnpm.io/)** (v11 or higher): Fast, disk-efficient package manager.
 - **[Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/)**: Cloudflare's official CLI for managing Workers and D1 databases (run via `npx wrangler` or installed globally).
 

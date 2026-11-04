@@ -75,7 +75,7 @@ Zygo CMS supports a **zero-Rust setup** for standard website creation, theme sty
 
 #### For Standard Users, Site Operators & Designers
 If you scaffolded with `create-zygo-app` or are working with templates, themes, and content:
-- **Node.js** (v22 or higher) & **pnpm** (v11 or higher) are the **only** required prerequisites.
+- **Node.js** (v24 or higher) & **pnpm** (v11 or higher) are the **only** required prerequisites.
 - Cloudflare Wrangler (installed locally or via `pnpm add -g wrangler`).
 
 #### For Rust & Worker Contributors (Optional)

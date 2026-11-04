@@ -8,34 +8,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-
-// Vitest helper: allow `await expect(promise).resolves.not.toThrow()` to return resolved value
-if (typeof process !== 'undefined' && process.env.VITEST) {
-  try {
-    const { expect } = await import('vitest');
-    const proto = expect(1).constructor.prototype;
-    const origToThrow = proto.toThrow;
-    proto.toThrow = function (...args) {
-      const res = origToThrow?.apply(this, args);
-      if (this.__flags?.promise === 'resolves') {
-        return this.__flags?.object ?? this._obj ?? res;
-      }
-      return res;
-    };
-    const origThrows = proto.throws;
-    proto.throws = function (...args) {
-      const res = origThrows?.apply(this, args);
-      if (this.__flags?.promise === 'resolves') {
-        return this.__flags?.object ?? this._obj ?? res;
-      }
-      return res;
-    };
-  } catch (_) {}
-}
+import { checkPrebuiltArtifacts } from './build.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
+const USER_AGENT = 'zygo-cms-setup/0.2.1';
 
 function extractJson(raw) {
   if (!raw) return null;
@@ -221,8 +199,6 @@ function updatePublicWrangler(domain, databaseId, publicSubdomain = 'www', apexH
   }
   content = replaceOrInsertRoutes(content, routesStr);
 
-  content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
-
   const adminSub = adminSubdomain || 'admin';
   if (/ADMIN_SUBDOMAIN\s*=\s*"[^"]*"/.test(content)) {
     content = content.replace(/ADMIN_SUBDOMAIN\s*=\s*"[^"]*"/, `ADMIN_SUBDOMAIN = "${adminSub}"`);
@@ -279,8 +255,6 @@ function updateAdminApiWrangler(domain, databaseId, apiSubdomain = 'api', public
   const sub = apiSubdomain || 'api';
   const routesStr = `routes = [\n  { pattern = "${sub}.${domain}", custom_domain = true }\n]`;
   content = replaceOrInsertRoutes(content, routesStr);
-
-  content = content.replace(/^[ \t]*PROPELAUTH_AUTH_URL[ \t]*=.*\r?\n?/gm, '');
 
   const publicSub = publicSubdomain ?? 'www';
   if (/PUBLIC_SUBDOMAIN\s*=\s*"[^"]*"/.test(content)) {
@@ -632,7 +606,7 @@ async function createAccessAppAndPolicy(accountId, apiToken, appName, appDomain,
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.2.1'
+    'User-Agent': USER_AGENT
   };
 
   const payload = {
@@ -755,7 +729,7 @@ async function getZeroTrustOrgDomain(accountId, apiToken) {
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'zygo-cms-setup/0.2.1'
+        'User-Agent': USER_AGENT
       }
     });
     if (!res.ok) return null;
@@ -797,7 +771,7 @@ async function ensureZeroTrustOrganization(accountId, apiToken, teamName, orgNam
       headers: {
         'Authorization': `Bearer ${apiToken}`,
         'Content-Type': 'application/json',
-        'User-Agent': 'zygo-cms-setup/0.2.1'
+        'User-Agent': USER_AGENT
       },
       body: JSON.stringify({
         name: resolvedOrgName,
@@ -824,7 +798,7 @@ async function ensureOneTimePinProvider(accountId, apiToken) {
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.2.1'
+    'User-Agent': USER_AGENT
   };
 
   try {
@@ -873,7 +847,7 @@ async function configureGoogleProvider(accountId, apiToken, clientId, clientSecr
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.2.1'
+    'User-Agent': USER_AGENT
   };
 
   try {
@@ -1056,7 +1030,7 @@ async function applyCloudflareRedirect(zoneId, apiToken, fromHostname, toHostnam
   const headers = {
     'Authorization': `Bearer ${apiToken}`,
     'Content-Type': 'application/json',
-    'User-Agent': 'zygo-cms-setup/0.2.1'
+    'User-Agent': USER_AGENT
   };
 
   const newRule = {
@@ -1357,18 +1331,18 @@ function parseCliArgs(args = process.argv.slice(2)) {
   return { flags: values, isInteractive };
 }
 
-async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = execSync, fetchFn = fetch } = {}) {
+async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = execSync, fetchFn = fetch, rootDir = ROOT_DIR, hasPrebuiltWasm } = {}) {
   const checks = [];
 
-  // 1. Node.js LTS (v22+)
+  // 1. Node.js LTS (v24+)
   const nodeVersion = process.versions.node;
   const nodeMajor = parseInt(nodeVersion.split('.')[0], 10);
-  const nodeOk = !isNaN(nodeMajor) && nodeMajor >= 22;
+  const nodeOk = !isNaN(nodeMajor) && nodeMajor >= 24;
   checks.push({
-    name: 'Node.js LTS (v22+)',
+    name: 'Node.js LTS (v24+)',
     ok: nodeOk,
     detail: `Found v${nodeVersion}`,
-    fix: !nodeOk ? 'Install Node.js 22 LTS or newer (https://nodejs.org)' : undefined,
+    fix: !nodeOk ? 'Install Node.js 24 LTS or newer (https://nodejs.org)' : undefined,
     critical: true
   });
 
@@ -1393,6 +1367,10 @@ async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = ex
     critical: true
   });
 
+  const prebuiltOk = hasPrebuiltWasm !== undefined
+    ? Boolean(hasPrebuiltWasm)
+    : checkPrebuiltArtifacts(rootDir).allExist;
+
   // 3. Rust wasm32 target
   let wasmOk = false;
   let wasmDetail = 'Not installed';
@@ -1403,12 +1381,15 @@ async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = ex
   } catch (err) {
     wasmDetail = err.message || 'rustup not found';
   }
+  if (!wasmOk && prebuiltOk) {
+    wasmDetail = `${wasmDetail} (optional — pre-compiled Wasm present)`;
+  }
   checks.push({
     name: 'Rust wasm32 target',
     ok: wasmOk,
     detail: wasmDetail,
     fix: !wasmOk ? 'Run: rustup target add wasm32-unknown-unknown' : undefined,
-    critical: true
+    critical: !prebuiltOk
   });
 
   // 4. worker-build
@@ -1423,12 +1404,15 @@ async function runPreflightChecks(config = {}, { isDoctorMode = false, exec = ex
   } catch (err) {
     workerBuildDetail = err.message || 'worker-build not found';
   }
+  if (!workerBuildOk && prebuiltOk) {
+    workerBuildDetail = `${workerBuildDetail} (optional — pre-compiled Wasm present)`;
+  }
   checks.push({
     name: 'worker-build',
     ok: workerBuildOk,
     detail: workerBuildDetail,
     fix: !workerBuildOk ? 'Run: cargo install -q worker-build' : undefined,
-    critical: true
+    critical: !prebuiltOk
   });
 
   // 5. Cloudflare Account Auth
@@ -1503,15 +1487,18 @@ function printPreflightReport(checks) {
 }
 
 async function verifyDeployment(config, { fetchFn = fetch } = {}) {
-  const publicSub = config.publicSubdomain || 'www';
+  const publicSub = config.publicSubdomain !== undefined ? config.publicSubdomain : 'www';
   const adminUiSub = config.adminUiSubdomain || 'admin';
   const adminApiSub = config.adminApiSubdomain || 'api';
   const domain = config.domain;
+  const publicHost = config.apexHandling === 'do_nothing' && publicSub
+    ? `${publicSub}.${domain}`
+    : domain;
 
   const targets = [
     {
       name: 'Public Site',
-      url: `https://${domain}`,
+      url: `https://${publicHost}`,
       allowedStatuses: [200, 301, 302]
     },
     {
@@ -2184,13 +2171,20 @@ async function main() {
     await verifyDeployment(config);
   }
 
+  const publicSiteHost = config.apexHandling === 'do_nothing' && config.publicSubdomain
+    ? `${config.publicSubdomain}.${config.domain}`
+    : config.domain;
+  const dnsHosts = config.apexHandling === 'do_nothing'
+    ? `${config.publicSubdomain}, ${config.adminUiSubdomain}, and ${config.adminApiSubdomain}`
+    : `${config.domain}, ${config.publicSubdomain}, ${config.adminUiSubdomain}, and ${config.adminApiSubdomain}`;
+
   outro(pc.green('🎉 Zygo CMS Setup Complete!\n') +
     'Configured URLs:\n' +
-    `  • Public Site:   https://${config.domain}\n` +
+    `  • Public Site:   https://${publicSiteHost}\n` +
     `  • Admin UI:      https://${config.adminUiSubdomain}.${config.domain}\n` +
     `  • Admin API:     https://${config.adminApiSubdomain}.${config.domain}\n\n` +
     'Next Steps:\n' +
-    `  1. Ensure DNS records for ${config.domain}, ${config.publicSubdomain}, ${config.adminUiSubdomain}, and ${config.adminApiSubdomain} are managed by Cloudflare.\n` +
+    `  1. Ensure DNS records for ${dnsHosts} are managed by Cloudflare.\n` +
     `  2. Login at https://${config.adminUiSubdomain}.${config.domain} with ${config.adminEmail}`);
 }
 

@@ -201,7 +201,7 @@ describe('Setup Script Helpers', () => {
       const mockPublicPath = path.join(testDir, 'public-worker.toml');
       fs.writeFileSync(
         mockPublicPath,
-        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[vars]\nPROPELAUTH_AUTH_URL = "https://old.com"\n',
+        'name = "public-worker"\ncompatibility_date = "2024-09-01"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[vars]\n',
         'utf8'
       );
 
@@ -213,7 +213,6 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('pattern = "www.mytestdomain.com"');
       expect(updated).toContain('ADMIN_SUBDOMAIN = "admin"');
       expect(updated).toContain('workers_dev = false');
-      expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
     });
 
     it('updates public-worker/wrangler.toml with custom options for workerName, dbName, and bucketName', () => {
@@ -252,7 +251,7 @@ describe('Setup Script Helpers', () => {
       const mockApiPath = path.join(testDir, 'admin-api-worker.toml');
       fs.writeFileSync(
         mockApiPath,
-        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[vars]\nPROPELAUTH_AUTH_URL = "https://old.com"\n',
+        'name = "admin-api-worker"\ncompatibility_date = "2024-09-01"\nroutes = [\n  { pattern = "old.com", custom_domain = true }\n]\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "zygo-cms-db"\ndatabase_id = "old-uuid"\n[vars]\n',
         'utf8'
       );
 
@@ -263,7 +262,6 @@ describe('Setup Script Helpers', () => {
       expect(updated).toContain('pattern = "api.mytestdomain.com"');
       expect(updated).toContain('PUBLIC_SUBDOMAIN = "www"');
       expect(updated).toContain('workers_dev = false');
-      expect(updated).not.toContain('PROPELAUTH_AUTH_URL');
     });
 
     it('updates admin-api-worker/wrangler.toml with custom options for workerName, dbName, and bucketName', () => {
@@ -1885,10 +1883,11 @@ describe('Setup Script Helpers', () => {
   });
 
   describe('runPreflightChecks', () => {
-    it('verifies Node major version >= 22', async () => {
+    it('verifies Node major version >= 24', async () => {
       const checks = await runPreflightChecks({}, { exec: vi.fn(), fetchFn: vi.fn() });
       const nodeCheck = checks.find(c => /node/i.test(c.name));
       expect(nodeCheck).toBeDefined();
+      expect(nodeCheck.name).toContain('v24+');
       expect(nodeCheck.ok).toBe(true);
       expect(nodeCheck.critical).toBe(true);
     });
@@ -1941,13 +1940,13 @@ describe('Setup Script Helpers', () => {
       expect(pnpmCheckThrow.critical).toBe(true);
     });
 
-    it('marks rust wasm32 check ok: false and critical: true with fix command when wasm32 target is missing', async () => {
+    it('marks rust wasm32 check ok: false and critical: true when wasm32 target is missing and prebuilt Wasm is absent', async () => {
       const mockExec = vi.fn().mockImplementation((cmd) => {
         if (/rustup/i.test(cmd)) return 'aarch64-apple-darwin (installed)\n';
         return '';
       });
 
-      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn() });
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn(), hasPrebuiltWasm: false });
       const rustCheck = checks.find(c => /rust|wasm32/i.test(c.name));
       expect(rustCheck).toBeDefined();
       expect(rustCheck.ok).toBe(false);
@@ -1955,18 +1954,40 @@ describe('Setup Script Helpers', () => {
       expect(rustCheck.fix).toContain('wasm32-unknown-unknown');
     });
 
-    it('marks worker-build check ok: false when worker-build throws error or missing', async () => {
+    it('marks worker-build check ok: false and critical: true when worker-build is missing and prebuilt Wasm is absent', async () => {
       const mockExec = vi.fn().mockImplementation((cmd) => {
         if (/worker-build/i.test(cmd)) throw new Error('worker-build: command not found');
         return '';
       });
 
-      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn() });
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn(), hasPrebuiltWasm: false });
       const workerBuildCheck = checks.find(c => /worker-build/i.test(c.name));
       expect(workerBuildCheck).toBeDefined();
       expect(workerBuildCheck.ok).toBe(false);
       expect(workerBuildCheck.critical).toBe(true);
       expect(workerBuildCheck.fix).toBeDefined();
+    });
+
+    it('marks rust wasm32 and worker-build checks critical: false when pre-compiled Wasm artifacts are present', async () => {
+      const mockExec = vi.fn().mockImplementation((cmd) => {
+        if (/rustup/i.test(cmd)) throw new Error('rustup: command not found');
+        if (/worker-build/i.test(cmd)) throw new Error('worker-build: command not found');
+        return '';
+      });
+
+      const checks = await runPreflightChecks({}, { exec: mockExec, fetchFn: vi.fn(), hasPrebuiltWasm: true });
+      const rustCheck = checks.find(c => /rust|wasm32/i.test(c.name));
+      const workerBuildCheck = checks.find(c => /worker-build/i.test(c.name));
+
+      expect(rustCheck).toBeDefined();
+      expect(rustCheck.ok).toBe(false);
+      expect(rustCheck.critical).toBe(false);
+      expect(rustCheck.detail).toContain('pre-compiled Wasm present');
+
+      expect(workerBuildCheck).toBeDefined();
+      expect(workerBuildCheck.ok).toBe(false);
+      expect(workerBuildCheck.critical).toBe(false);
+      expect(workerBuildCheck.detail).toContain('pre-compiled Wasm present');
     });
 
     it('validates Cloudflare account ID when present in config', async () => {
@@ -2018,7 +2039,7 @@ describe('Setup Script Helpers', () => {
     it('formats and outputs preflight report without throwing', () => {
       const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const checks = [
-        { name: 'Node.js LTS (v22+)', ok: true, detail: 'v22.12.0', critical: true },
+        { name: 'Node.js LTS (v24+)', ok: true, detail: 'v24.0.0', critical: true },
         { name: 'pnpm (v11+)', ok: false, detail: 'v9.0.0', fix: 'npm i -g pnpm@latest', critical: true }
       ];
 
@@ -2144,6 +2165,16 @@ describe('Setup Script Helpers', () => {
       expect(apiCheck.ok).toBe(true);
     });
 
+    it('uses publicSubdomain host when apexHandling is "do_nothing"', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ status: 200, ok: true });
+      const results = await verifyDeployment(
+        { ...config, publicSubdomain: 'www', apexHandling: 'do_nothing' },
+        { fetchFn: mockFetch }
+      );
+      const publicCheck = results.find(r => /public/i.test(r.name));
+      expect(publicCheck.url).toBe('https://www.example.com');
+    });
+
     it('marks endpoints as ok: false on HTTP 500 error or network rejection without throwing unhandled error', async () => {
       const mockFetch = vi.fn().mockImplementation((url) => {
         if (url.includes('api.example.com')) {
@@ -2152,7 +2183,7 @@ describe('Setup Script Helpers', () => {
         return Promise.resolve({ status: 500, ok: false });
       });
 
-      const results = await expect(verifyDeployment(config, { fetchFn: mockFetch })).resolves.not.toThrow();
+      const results = await verifyDeployment(config, { fetchFn: mockFetch });
       expect(results).toBeDefined();
       expect(results.length).toBeGreaterThan(0);
       results.forEach(res => {

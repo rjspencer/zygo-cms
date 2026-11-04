@@ -50,7 +50,7 @@ During this interactive process, the script will:
 
 The setup wizard includes robust automation, diagnostic, and rollback features:
 
-- **Preflight Doctor (`--doctor`)**: Run `node scripts/setup.mjs --doctor` to verify Node.js (>= 22), pnpm (>= 11), Rust Wasm target (if applicable), Cloudflare Account ID, and active Zone before modifying files.
+- **Preflight Doctor (`--doctor`)**: Run `node scripts/setup.mjs --doctor` to verify Node.js (>= 24), pnpm (>= 11), Rust Wasm target (if applicable), Cloudflare Account ID, and active Zone before modifying files.
 - **Automated DNS Conflict Detection**: Automatically checks target hostnames (`public`, `admin`, `api`, and apex) for conflicting `A`, `AAAA`, or `CNAME` records and offers to clean them up while strictly preserving `MX` and `TXT` records (such as email authentication SPF/DKIM/DMARC).
 - **Cloudflare Zero Trust & AI Crawl Control**: Automatically detects or provisions your Zero Trust organization (`<team>.cloudflareaccess.com`), enforces `workers_dev = false` across all workers to prevent bypassing edge routing, configures RS256 JWT signature verification (`CF_ACCESS_AUD` and `CF_ACCESS_TEAM_DOMAIN`), and configures Cloudflare AI Crawl Control policies (`block_all`, `allow_search_only`, `custom`, or `disabled`).
 - **Non-Interactive & Dry-Run Modes**: Supports `--dry-run` to print the 10-step execution plan without mutating files or remote resources, `--yes` (`-y`) for automated CI/headless provisioning (using `--domain <domain>`, `--email <email>`, etc.), and `--no-deploy` to provision Cloudflare infrastructure without executing an immediate deployment.
