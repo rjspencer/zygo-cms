@@ -291,3 +291,18 @@ npx wrangler d1 execute zygo-cms-db --remote --command "DELETE FROM entries WHER
 ```
 *(Use `--local` instead of `--remote` for local development).*
 
+
+---
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+### Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and the Contributor License Agreement.

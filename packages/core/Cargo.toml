@@ -2,6 +2,7 @@
 name = "zygo-core"
 version = "0.2.1"
 edition = "2024"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 worker = { version = "0.8", features = ["d1"] }

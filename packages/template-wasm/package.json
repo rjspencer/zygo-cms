@@ -1,6 +1,7 @@
 {
   "name": "template-wasm",
   "version": "0.2.1",
+  "license": "MIT OR Apache-2.0",
   "main": "pkg/template_wasm.js",
   "types": "pkg/template_wasm.d.ts",
   "files": [
