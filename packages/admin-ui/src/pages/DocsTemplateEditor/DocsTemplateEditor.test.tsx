@@ -98,7 +98,9 @@ describe('DocsTemplateEditor Component', () => {
     expect(screen.getByTestId('tab-trigger-html')).toBeDefined();
     expect(screen.getByTestId('tab-trigger-css')).toBeDefined();
     expect(screen.getByTestId('docs-template-reset-btn')).toBeDefined();
-    expect(screen.getByTestId('docs-template-revisions-btn').textContent).toContain('Revisions (1)');
+    await waitFor(() => {
+      expect(screen.getByTestId('docs-template-revisions-btn').textContent).toContain('Revisions (1)');
+    });
   });
 
   it('switches between HTML and CSS tabs', async () => {

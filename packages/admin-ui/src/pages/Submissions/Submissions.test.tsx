@@ -242,6 +242,7 @@ describe('Submissions Page', () => {
 
   it('handles delete mutation after confirmation', async () => {
     const user = userEvent.setup();
+    window.confirm = window.confirm || (() => false);
     const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
     renderComponent();
 

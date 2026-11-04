@@ -2,14 +2,18 @@
   "name": "zygo-mcp",
   "version": "1.0.0",
   "description": "",
-  "main": "index.mjs", "bin": { "zygo-mcp": "index.mjs" }, "type": "module",
+  "main": "index.mjs",
+  "bin": {
+    "zygo-mcp": "index.mjs"
+  },
+  "type": "module",
   "scripts": {
     "test": "vitest run"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT OR Apache-2.0",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0"
+    "@modelcontextprotocol/sdk": "^1.32.2"
   }
 }
