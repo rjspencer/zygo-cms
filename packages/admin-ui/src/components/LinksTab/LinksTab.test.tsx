@@ -212,6 +212,7 @@ describe('LinksTab', () => {
 
   it('deletes trackable link when delete button is confirmed', async () => {
     const user = userEvent.setup();
+    window.confirm = window.confirm || (() => false);
     vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     let linksList = [
