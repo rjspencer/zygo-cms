@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Self-Hosted Upgrade Guide & Official Documentation Integrity Suite
+- **Official Documentation (`docs/official/upgrades.md`)**:
+  - Authored comprehensive, production-grade guide covering release channels (zero-Rust `release` branch vs developer `main`), pre-upgrade point-in-time D1 SQLite backups, local configuration preservation (`database_id`, custom domain routes, Zero Trust IDs), D1 migrations (`pnpm run db:migrate`), smart build runner compilation, staged zero-downtime edge rollout (`deploy:api` -> `deploy:ui` -> `deploy:public`), cache invalidation, and emergency rollback procedures.
+- **Documentation Seeder & Cross-References (`scripts/seed_official_docs.mjs`, `docs/`)**:
+  - Registered `upgrades.md` (and `themes.md`) in `scripts/seed_official_docs.mjs` pages registry to populate the public SSR documentation hierarchy.
+  - Added cross-references and CLI cheat-sheet entries across `docs/official/deployment.md`, `docs/official/cli-cheat-sheet.md`, `docs/official/wasm-distribution.md`, and `docs/AGENTS.md`.
+- **Documentation Integrity Test Suite (`tests/docs-integrity.test.js`)**:
+  - Implemented automated Vitest suite verifying synchronization between `docs/official/` and `seed_official_docs.mjs`, slug uniqueness and kebab-case formatting, valid path hierarchy, and internal `/docs/...` link resolution.
+- **Admin UI Test Hermeticity (`packages/admin-ui/src/test/`)**:
+  - Added hermetic `beforeEach` environment variable reset in `setup.ts` and explicit mock handlers for `http://localhost:8788/` and `http://127.0.0.1:8788/` in `handlers.ts`.
+
 ### Media Alt Text Support Across Full-Stack, Section Templates & Dual MCP Parity
 - **Database Schema & Section Templates (`migrations/0019_media_alt_text.sql`)**:
   - Added nullable `alt_text TEXT` column to `media` table.
