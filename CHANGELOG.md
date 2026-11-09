@@ -8,6 +8,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Media Alt Text Support Across Full-Stack, Section Templates & Dual MCP Parity
+- **Database Schema & Section Templates (`migrations/0019_media_alt_text.sql`)**:
+  - Added nullable `alt_text TEXT` column to `media` table.
+  - Updated seeded `hero` section template in `section_templates`: added `image_alt` field to `schema_json` and updated `template_html` to output `alt="{{ image_alt|default('') }}"` replacing the hardcoded `alt=""`.
+- **Rust Core Models, D1 DB & Backups (`packages/core`)**:
+  - Added `pub alt_text: Option<String>` to `MediaItem` and `BackupMediaItem`.
+  - Updated `find_media_by_key` and `find_media_paginated` in `packages/core/src/db/media.rs` to select explicit columns (`id, key, filename, mime_type, size_bytes, alt_text, created_at`).
+  - Updated `insert_media` to accept optional `alt_text` and handle conflict resolution with `COALESCE(excluded.alt_text, media.alt_text)`.
+  - Added `update_media_alt_text` in `packages/core/src/db/media.rs`.
+  - Preserved `alt_text` in backup export and import bundle operations in `packages/core/src/db/backup.rs`.
+- **Admin REST API Endpoints (`packages/admin-api-worker`)**:
+  - Registered `PUT /api/media/:key` and `PATCH /api/media/:key` with `auth_required!` enforcement and JSON body parsing `{ "alt_text": ... }`.
+  - Updated `upload_media` to accept optional `alt_text` via multipart form or query param.
+  - Updated `list_media` JSON responses to include `alt_text`.
+- **Admin UI Media Library & Picker (`packages/admin-ui`)**:
+  - Added `altText?: string | null` to `MediaItem` types.
+  - Added `updateAltTextMutation` in `useMediaData` calling `PUT /api/media/:key`.
+  - Updated `MediaCard`: added responsive alt text display with ellipsis tooltip, "No alt text" amber surface badge, in-place edit input with autoFocus and keyboard shortcuts (Enter to save, Escape to cancel), and accessible `aria-label` / `data-testid` attributes.
+  - Updated `MediaPickerModal`: selection now passes `item.altText || item.name`.
+  - Added test coverage in `Media.test.tsx`, `MediaPickerModal.test.tsx`, and updated Storybook stories in `Media.stories.tsx`.
+- **MCP Parity (`packages/admin-ui/src/lib/webmcp/` & `packages/zygo-mcp/`)**:
+  - Verified and aligned WebMCP tool `update_media_metadata` in `themeAndMediaTools.ts` with support for `id` and `key` parameter aliases and alt text in `list_media`.
+  - Added `zygo_update_media_metadata` to CLI MCP bridge (`packages/zygo-mcp/index.mjs`) with strict input schema, `PUT /api/media/:key` delegation, and documentation in `packages/zygo-mcp/AGENTS.md`.
+  - Added comprehensive Vitest tests in `packages/zygo-mcp/__tests__/navigation_media.test.mjs`.
+
 ### Setup Wizard Improvements, Node.js 24 LTS Standardization & Dependency Updates
 - **Node.js 24 LTS Standardization (`scripts/setup.mjs`, `package.json`, `packages/create-zygo-app/package.json`, `.github/workflows/`, `docs/`)**:
   - Updated minimum Node.js requirement to Node.js 24 LTS (`>=24.0.0`) across `runPreflightChecks` in `scripts/setup.mjs`, root `package.json` and `packages/create-zygo-app/package.json` `engines`, GitHub Actions workflows (`deploy.yml` and `release.yml`), `README.md`, and official documentation (`quickstart.md`, `wasm-distribution.md`, `deployment.md`, `cli-cheat-sheet.md`).

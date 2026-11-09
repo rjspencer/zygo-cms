@@ -4,7 +4,50 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ---
 
-## 1. Immediate Priority
+## 1. Immediate Priority (Launch Blockers)
+
+### Upgrade Guide for Self-Hosted Installs
+- **Goal**: Document how existing installs move to a new release.
+- **Details**:
+  - Add a `docs/official` guide covering pulling a new release, applying D1 migrations, rebuilding, and redeploying.
+
+### Editor Role
+- **Goal**: Implement the `editor` role described in `docs/official/concepts.md` (the schema currently only defines `admin | author`).
+- **Details**:
+  - Editors have full editorial authority across all entries: review, approve ("Mark Ready"), publish, and archive.
+  - Expose the role in user management UI, API, and MCP tools.
+
+### Permanent Deletion & Empty Trash UI
+- **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.
+- **Details**:
+  - Add "Delete Permanently" action in the Trash table and an "Empty Trash" batch action.
+  - Cascade delete associated snapshots in `entry_revisions`.
+  - Required to support GDPR erasure requests; permanent deletion currently requires direct SQL execution via Wrangler D1.
+
+### Author & Editor User Guide
+- **Goal**: Add non-developer documentation to `docs/official`.
+- **Details**:
+  - Cover writing posts and docs, building pages with sections, scheduling, the review workflow, and using the media library.
+
+---
+
+## 2. Soon
+
+### Content Localization & Multi-language (i18n)
+- **Goal**: Treat locales as first-class citizens.
+- **Details**:
+  - Allow authors to manage translated versions of the same post/page.
+  - Serve content via subdirectories (e.g., `/en/post-slug` vs `/fr/post-slug`).
+
+### Connect an Email Sender
+- **Goal**: Automatically dispatch onboarding invitation and authentication emails to new users directly from Zygo CMS.
+- **Details**:
+  - Integrate an email delivery provider (e.g., Cloudflare Email Routing / Workers Email, Resend, or Mailchannels).
+  - Automatically deliver the onboarding email with access instructions when an admin invites a user, eliminating the manual copy-paste workflow.
+
+---
+
+## 3. Icebox & Long-Term Considerations
 
 ### Instagram Feed Section with Automated Cron Sync
 - **Goal**: Provide a zero-cookie, GDPR-compliant Instagram Profile & Grid section template (`instagram-feed`) that automatically syncs latest posts, thumbnails, and profile stats via a background Cloudflare Worker cron trigger.
@@ -12,21 +55,17 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Seed an `instagram-feed` section template featuring an account profile header (avatar with gradient ring, handle, followers and post counts) and a responsive 3×2 thumbnail grid with media-type indicators (play icon for videos, carousel badge) and outbound post links.
   - Implement a scheduled background Worker cron (`[triggers.crons]`) to periodically fetch recent media from Instagram's API, mirror thumbnails to R2/CDN storage, and persist updated section data in D1.
   - Completely eliminates third-party client scripts, tracking cookies, and layout shifts (CLS), guaranteeing 100% GDPR compliance without requiring a cookie consent banner.
-
----
-
-## 2. Soon
-
-(See Backlog & Icebox below for upcoming candidates)
-
----
-
-## 3. Icebox & Long-Term Considerations
+  - Note: the Instagram Basic Display API was retired in Dec 2024; this requires the Instagram Graph API (Business/Creator accounts and Meta app review).
 
 ### Webhooks & API Integrations
 - **Goal**: Notify external systems of CMS events.
 - **Details**:
   - Dispatch HTTP callbacks on key events (e.g., `entry.published`, `entry.updated`) to trigger external builds, social media posts, or notifications.
+
+### Custom Content Types
+- **Goal**: Allow users to define content types beyond the built-in `post`, `page`, and `doc`.
+- **Details**:
+  - Low priority: Zygo CMS targets smaller sites, where the built-in types plus custom fields cover most needs.
 
 ### Cloudflare Images (Paid Add-On) Integration
 - **Goal**: Optional integration with Cloudflare's paid Image Transformations / Cloudflare Images service for on-the-fly edge resizing, AVIF/WebP negotiation, and custom crop focal points.
@@ -55,12 +94,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 - **Details**:
   - Dynamically generate a clean Markdown index of published entries and site metadata (cached and invalidated alongside `/sitemap.xml`).
 
-### Content Localization & Multi-language (i18n)
-- **Goal**: Treat locales as first-class citizens.
-- **Details**:
-  - Allow authors to manage translated versions of the same post/page.
-  - Serve content via subdirectories (e.g., `/en/post-slug` vs `/fr/post-slug`).
-
 ### Multiplayer / Real-time Editing
 - **Goal**: Enable Google Docs-style real-time collaborative editing.
 - **Details**:
@@ -82,19 +115,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 - **Goal**: Strictly validate `list` sub-fields used inside template loops (e.g. `item.caption`).
 - **Details**:
   - Currently warn-only, since MiniJinja's `undeclared_variables` cannot map loop variables back to a list's sub-fields.
-
-### Permanent Deletion & Empty Trash UI
-- **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.
-- **Details**:
-  - Add "Delete Permanently" action in the Trash table and an "Empty Trash" batch action.
-  - Cascade delete associated snapshots in `entry_revisions`.
-  - Intentionally kept in the Icebox to maximize data safety; permanent deletion currently requires direct SQL execution via Wrangler D1.
-
-### Connect an Email Sender
-- **Goal**: Automatically dispatch onboarding invitation and authentication emails to new users directly from Zygo CMS.
-- **Details**:
-  - Integrate an email delivery provider (e.g., Cloudflare Email Routing / Workers Email, Resend, or Mailchannels).
-  - Automatically deliver the onboarding email with access instructions when an admin invites a user, eliminating the manual copy-paste workflow.
 
 ### Shareable Links Enhancements
 - **Goal**: Expand the Shareable Trackable Links feature in the Admin UI.
