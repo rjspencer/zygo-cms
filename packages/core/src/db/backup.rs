@@ -142,7 +142,7 @@ pub async fn export_site_backup(db: &D1Database) -> Result<ZygoBackupPayload> {
     // 8. Media Manifest (explicit columns)
     let media_rows = db
         .prepare(
-            "SELECT id, key, filename, mime_type, size_bytes, created_at FROM media ORDER BY id ASC",
+            "SELECT id, key, filename, mime_type, size_bytes, alt_text, created_at FROM media ORDER BY id ASC",
         )
         .all()
         .await?
@@ -158,6 +158,7 @@ pub async fn export_site_backup(db: &D1Database) -> Result<ZygoBackupPayload> {
                 filename: m.filename,
                 mime_type: m.mime_type,
                 size_bytes: m.size_bytes,
+                alt_text: m.alt_text,
                 url: Some(url),
                 created_at: m.created_at,
             }
@@ -344,6 +345,28 @@ pub async fn import_site_backup(
             JsValue::from(redirect.status_code as f64),
             opt_js(&redirect.notes),
             opt_js_i64(&redirect.hit_count),
+        ])?
+        .run()
+        .await?;
+    }
+
+    // 7. Media Manifest
+    for media in &payload.media_manifest {
+        db.prepare(
+            "INSERT INTO media (key, filename, mime_type, size_bytes, alt_text, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, CURRENT_TIMESTAMP)
+             ON CONFLICT(key) DO UPDATE SET
+                 filename = excluded.filename,
+                 mime_type = excluded.mime_type,
+                 size_bytes = excluded.size_bytes,
+                 alt_text = COALESCE(excluded.alt_text, media.alt_text)",
+        )
+        .bind(&[
+            media.key.as_str().into(),
+            media.filename.as_str().into(),
+            media.mime_type.as_str().into(),
+            JsValue::from(media.size_bytes as f64),
+            opt_js(&media.alt_text),
         ])?
         .run()
         .await?;

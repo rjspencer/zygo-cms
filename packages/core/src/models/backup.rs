@@ -152,6 +152,8 @@ pub struct BackupMediaItem {
     pub mime_type: String,
     pub size_bytes: i64,
     #[serde(default)]
+    pub alt_text: Option<String>,
+    #[serde(default)]
     pub url: Option<String>,
     #[serde(default)]
     pub created_at: Option<String>,
@@ -350,6 +352,7 @@ mod tests {
                 filename: "test.webp".to_string(),
                 mime_type: "image/webp".to_string(),
                 size_bytes: 1024,
+                alt_text: Some("Hero background test".to_string()),
                 url: Some("/media/test.webp".to_string()),
                 created_at: None,
             }],
@@ -362,6 +365,10 @@ mod tests {
         assert_eq!(deserialized.entries.len(), 1);
         assert_eq!(deserialized.redirects.len(), 1);
         assert_eq!(deserialized.media_manifest.len(), 1);
+        assert_eq!(
+            deserialized.media_manifest[0].alt_text,
+            Some("Hero background test".to_string())
+        );
     }
 
     #[test]

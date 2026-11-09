@@ -7,6 +7,8 @@ pub struct MediaItem {
     pub filename: String,
     pub mime_type: String,
     pub size_bytes: i64,
+    #[serde(default)]
+    pub alt_text: Option<String>,
     pub created_at: Option<String>,
 }
 
@@ -109,9 +111,19 @@ mod tests {
             filename: "test.png".to_string(),
             mime_type: "image/png".to_string(),
             size_bytes: 1024,
+            alt_text: Some("Test alt text".to_string()),
             created_at: Some("2026-09-18 12:00:00".to_string()),
         };
         assert_eq!(item.url(), "/media/1726700000000-test.png");
+        assert_eq!(item.alt_text.as_deref(), Some("Test alt text"));
+    }
+
+    #[test]
+    fn test_media_item_deserialization_defaults() {
+        let json = r#"{"id":1,"key":"k","filename":"f.png","mime_type":"image/png","size_bytes":100}"#;
+        let item: MediaItem = serde_json::from_str(json).unwrap();
+        assert_eq!(item.alt_text, None);
+        assert_eq!(item.created_at, None);
     }
 
     #[test]

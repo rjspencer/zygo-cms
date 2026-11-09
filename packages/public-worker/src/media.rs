@@ -112,7 +112,7 @@ pub async fn sync_r2_to_d1(env: &worker::Env) -> Result<MediaSyncReport> {
                     .unwrap_or_else(|| guess_mime_type(&filename).to_string());
                 let size_bytes = obj.size() as i64;
 
-                db::insert_media(&db, &key, &filename, &mime_type, size_bytes).await?;
+                db::insert_media(&db, &key, &filename, &mime_type, size_bytes, None).await?;
                 synced += 1;
             }
         }
