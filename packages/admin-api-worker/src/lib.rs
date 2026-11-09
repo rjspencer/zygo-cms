@@ -156,6 +156,8 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         .post_async("/api/media", handlers::api::upload_media)
         .get_async("/api/media", handlers::api::list_media)
         .post_async("/api/media/sync", handlers::api::sync_media)
+        .put_async("/api/media/:key", handlers::api::update_media)
+        .patch_async("/api/media/:key", handlers::api::update_media)
         .delete_async("/api/media/:key", handlers::api::delete_media)
         .get_async("/media/:key", handlers::api::stream_media)
         .get_async("/api/media/:key", handlers::api::stream_media)
