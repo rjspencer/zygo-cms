@@ -49,6 +49,29 @@ The provisioning setup wizard supports CLI flags for preflight diagnostics, dry 
 | `node scripts/setup.mjs --yes` / `-y` | Non-interactive mode for CI/headless provisioning; skips confirmation prompts (requires `--domain <domain> --email <email>`) |
 | `node scripts/setup.mjs --no-deploy` | Provisions D1, R2, DNS, and Access resources and updates configurations without running worker deployment |
 
+### Common Upgrade Commands
+
+When updating an existing installation to a new version, consult the [Upgrade Guide](/docs/upgrades) for detailed version checklists, migration steps, and rollback strategies. Common commands:
+
+```bash
+# 1. Backup remote database before upgrading
+npx wrangler d1 export zygo-cms-db --remote -c packages/admin-api-worker/wrangler.toml --output="./pre-upgrade-backup.sql"
+
+# 2. Fetch and merge updates from release branch
+git fetch origin release && git merge origin/release
+
+# 3. Update dependencies
+pnpm install
+
+# 4. Verify test suite and local migration
+pnpm run test:all
+pnpm run db:migrate:local
+
+# 5. Apply remote database migrations and deploy
+pnpm run db:migrate
+pnpm run deploy
+```
+
 ---
 
 ## 2. Cross-Platform Commands Matrix

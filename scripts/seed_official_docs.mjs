@@ -39,10 +39,24 @@ const pages = [
     parentPath: '/docs',
   },
   {
+    file: 'themes.md',
+    slug: 'themes',
+    title: 'Themes & Styling',
+    path: '/docs/themes',
+    parentPath: '/docs',
+  },
+  {
     file: 'deployment.md',
     slug: 'deployment',
     title: 'Deployment Guide',
     path: '/docs/deployment',
+    parentPath: '/docs',
+  },
+  {
+    file: 'upgrades.md',
+    slug: 'upgrades',
+    title: 'Upgrade Guide',
+    path: '/docs/upgrades',
     parentPath: '/docs',
   },
   {
