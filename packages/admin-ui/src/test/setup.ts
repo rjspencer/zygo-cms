@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import * as matchers from '@testing-library/jest-dom/matchers';
-import { expect, beforeAll, afterEach, afterAll } from 'vitest';
+import { expect, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
 import { configure as configureDom } from '@testing-library/dom';
 import { getConfig as getRtlConfig } from '@testing-library/react';
 import { server } from './mocks/server';
@@ -77,6 +77,10 @@ if (typeof window !== 'undefined') {
 // Start MSW server before tests run
 beforeAll(() => {
   server.listen({ onUnhandledFrame: 'bypass' });
+});
+
+beforeEach(() => {
+  import.meta.env.VITE_PUBLIC_SITE_URL = '';
 });
 
 // Reset handlers after each test so tests don't affect each other
