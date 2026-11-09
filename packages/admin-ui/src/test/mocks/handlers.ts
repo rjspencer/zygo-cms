@@ -184,6 +184,18 @@ export const mockRedirects = [
 
 export const handlers = [
   // Health check for edge status
+  http.get('http://localhost:8788', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
+  http.get('http://localhost:8788/', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
+  http.get('http://127.0.0.1:8788', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
+  http.get('http://127.0.0.1:8788/', () => {
+    return new HttpResponse('OK', { status: 200 });
+  }),
   http.get('*/', () => {
     return new HttpResponse('OK', { status: 200 });
   }),

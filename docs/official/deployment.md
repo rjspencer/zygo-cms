@@ -73,6 +73,7 @@ Before deploying your workers to production, you must initialize the production 
 **Important Migration Guidelines:**
 - **Zero Downtime:** Always design migrations to be backward-compatible (e.g., list explicit column names, never use `SELECT *`).
 - **SQLite Limitations:** Cloudflare D1 strictly disallows non-constant defaults in `ALTER TABLE ... ADD COLUMN`. Add columns as nullable first, then backfill data using an `UPDATE` query.
+- **Upgrades:** When upgrading an existing production deployment rather than provisioning a clean installation, follow the step-by-step procedures in the [Upgrade Guide](/docs/upgrades).
 
 ### Seeding Production Content
 
@@ -109,6 +110,9 @@ pnpm run deploy:public   # packages/public-worker
 pnpm run deploy:api      # packages/admin-api-worker
 pnpm run deploy:ui       # packages/admin-ui
 ```
+
+> [!TIP]
+> For instructions on upgrading existing deployments, running zero-downtime database migrations, and disaster recovery procedures, see the [Upgrade Guide](/docs/upgrades).
 
 ## Cache Invalidation Architecture
 

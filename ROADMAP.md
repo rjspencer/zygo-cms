@@ -6,11 +6,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority (Launch Blockers)
 
-### Upgrade Guide for Self-Hosted Installs
-- **Goal**: Document how existing installs move to a new release.
-- **Details**:
-  - Add a `docs/official` guide covering pulling a new release, applying D1 migrations, rebuilding, and redeploying.
-
 ### Editor Role
 - **Goal**: Implement the `editor` role described in `docs/official/concepts.md` (the schema currently only defines `admin | author`).
 - **Details**:

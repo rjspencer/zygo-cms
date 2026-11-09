@@ -147,6 +147,29 @@ pnpm run deploy
 
 Wrangler packages and uploads the pre-compiled WebAssembly binaries directly to Cloudflare Workers and deploys the Admin UI SPA.
 
+### 5. Maintaining and Updating Pre-Compiled Installs
+When a new Zygo CMS version is released, you can update your pre-compiled site without needing a Rust compiler:
+
+1. Fetch and merge the latest compiled release branch:
+   ```bash
+   git fetch origin release
+   git merge origin/release
+   ```
+2. Update Node dependencies:
+   ```bash
+   pnpm install
+   ```
+3. Apply any pending database schema migrations:
+   ```bash
+   pnpm run db:migrate
+   ```
+4. Re-deploy the updated workers and UI:
+   ```bash
+   pnpm run deploy
+   ```
+
+For detailed step-by-step instructions, pre-upgrade database backup best practices, and zero-downtime migration steps, see the [Upgrade Guide](/docs/upgrades).
+
 ---
 
 ## Contributor Guide (Modifying Rust Workers)
