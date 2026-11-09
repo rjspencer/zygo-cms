@@ -43,6 +43,7 @@ export const useMediaPickerData = ({
           type: item.mime_type || '',
           url: item.url || `/media/${item.key}`,
           uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
+          altText: item.alt_text ?? null,
         };
       });
     },
@@ -128,7 +129,7 @@ export const useMediaPickerData = ({
   );
 
   const handleSelectItem = (item: MediaItem) => {
-    onSelect(item.url, item.name);
+    onSelect(item.url, item.altText || item.name);
     onClose();
   };
 

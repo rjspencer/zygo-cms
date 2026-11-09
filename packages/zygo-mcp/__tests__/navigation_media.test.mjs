@@ -20,6 +20,7 @@ describe('Zygo MCP CLI Bridge - Navigation, Media, and Theme Tools', () => {
       expect(toolNames).toContain('zygo_update_menu');
       expect(toolNames).toContain('zygo_list_media');
       expect(toolNames).toContain('zygo_delete_media');
+      expect(toolNames).toContain('zygo_update_media_metadata');
       expect(toolNames).toContain('zygo_get_theme_settings');
       expect(toolNames).toContain('zygo_update_theme_settings');
       expect(toolNames).toContain('zygo_reset_theme_to_defaults');
@@ -47,6 +48,13 @@ describe('Zygo MCP CLI Bridge - Navigation, Media, and Theme Tools', () => {
 
       const deleteMedia = tools.find((t) => t.name === 'zygo_delete_media');
       expect(deleteMedia.inputSchema.type).toBe('object');
+
+      const updateMedia = tools.find((t) => t.name === 'zygo_update_media_metadata');
+      expect(updateMedia.inputSchema.type).toBe('object');
+      expect(updateMedia.inputSchema.required).toContain('key');
+      expect(updateMedia.inputSchema.required).toContain('alt_text');
+      expect(updateMedia.inputSchema.properties).toHaveProperty('key');
+      expect(updateMedia.inputSchema.properties).toHaveProperty('alt_text');
 
       const getTheme = tools.find((t) => t.name === 'zygo_get_theme_settings');
       expect(getTheme.inputSchema.type).toBe('object');
@@ -302,6 +310,116 @@ describe('Zygo MCP CLI Bridge - Navigation, Media, and Theme Tools', () => {
 
         expect(res.isError).toBe(true);
         expect(mockFetch).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('zygo_update_media_metadata', () => {
+      it('sends PUT request to /api/media/<key> with alt_text', async () => {
+        const mockResponse = {
+          success: true,
+          key: '1726700000000-photo.webp',
+          alt_text: 'An accessible landscape'
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          json: async () => mockResponse
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_media_metadata',
+            arguments: {
+              key: '1726700000000-photo.webp',
+              alt_text: 'An accessible landscape'
+            }
+          }
+        });
+
+        expect(res.isError).toBeFalsy();
+        expect(res.toolResult).toEqual(mockResponse);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/api/media/1726700000000-photo.webp'),
+          expect.objectContaining({
+            method: 'PUT',
+            headers: expect.objectContaining({
+              'Content-Type': 'application/json'
+            }),
+            body: JSON.stringify({ alt_text: 'An accessible landscape' })
+          })
+        );
+      });
+
+      it('validates missing key validation error', async () => {
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_media_metadata',
+            arguments: {
+              alt_text: 'Missing key description'
+            }
+          }
+        });
+
+        expect(res.isError).toBe(true);
+        expect(res.content[0].text).toContain('key');
+        expect(mockFetch).not.toHaveBeenCalled();
+      });
+
+      it('validates missing alt_text validation error', async () => {
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_media_metadata',
+            arguments: {
+              key: '1726700000000-photo.webp'
+            }
+          }
+        });
+
+        expect(res.isError).toBe(true);
+        expect(res.content[0].text).toContain('alt_text');
+        expect(mockFetch).not.toHaveBeenCalled();
+      });
+
+      it('handles HTTP 404 error when media file is not found', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 404,
+          text: async () => 'Media file not found'
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_media_metadata',
+            arguments: {
+              key: 'missing.webp',
+              alt_text: 'Nonexistent file'
+            }
+          }
+        });
+
+        expect(res.isError).toBe(true);
+        expect(res.content[0].text).toContain('HTTP 404');
+      });
+
+      it('handles HTTP 500 error from backend', async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          text: async () => 'Internal Server Error'
+        });
+
+        const res = await handleCallTool({
+          params: {
+            name: 'zygo_update_media_metadata',
+            arguments: {
+              key: 'photo.webp',
+              alt_text: 'Server error test'
+            }
+          }
+        });
+
+        expect(res.isError).toBe(true);
+        expect(res.content[0].text).toContain('HTTP 500');
       });
     });
   });

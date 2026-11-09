@@ -354,6 +354,24 @@ export const tools = [
         }
     },
     {
+        name: "zygo_update_media_metadata",
+        description: "Update alt text and metadata for an uploaded media file in R2/D1 storage.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                key: {
+                    type: "string",
+                    description: "The unique key of the media file to update (e.g. '1726700000000-photo.webp')."
+                },
+                alt_text: {
+                    type: "string",
+                    description: "Alternative text describing the media for accessibility and SEO."
+                }
+            },
+            required: ["key", "alt_text"]
+        }
+    },
+    {
         name: "zygo_get_theme_settings",
         description: "Get active theme settings, color tokens, and custom CSS.",
         inputSchema: { type: "object", properties: {} }
@@ -1032,6 +1050,31 @@ export async function handleCallTool(request, customContext = {}) {
                 data = await res.json();
             } catch {
                 data = { success: true, key };
+            }
+            return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+        }
+
+        if (request.params.name === "zygo_update_media_metadata") {
+            const args = request.params.arguments || {};
+            const key = args.key || args.id;
+            const alt_text = args.alt_text;
+            if (!key) throw new Error("Media key is required");
+            if (alt_text === undefined || alt_text === null) throw new Error("Media alt_text is required");
+            const cleanKey = String(key).replace(/^\//, '');
+            const res = await fetch(activeGetApiUrl(`/media/${encodeURIComponent(cleanKey)}`), {
+                method: "PUT",
+                headers: {
+                    ...activeHeaders,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ alt_text })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+            let data;
+            try {
+                data = await res.json();
+            } catch {
+                data = { success: true, key: cleanKey, alt_text };
             }
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
         }

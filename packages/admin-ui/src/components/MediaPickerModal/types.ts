@@ -13,6 +13,7 @@ export interface MediaItem {
   type: string;
   url: string;
   uploadedAt: string;
+  altText?: string | null;
 }
 
 export interface MediaPickerToolbarProps {

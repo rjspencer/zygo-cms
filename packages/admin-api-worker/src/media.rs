@@ -15,7 +15,7 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
         .get("Content-Type")?
         .unwrap_or_default();
 
-    let (safe_name, content_type, bytes, thumb, md) = if content_type_header.starts_with("multipart/form-data") {
+    let (safe_name, content_type, bytes, thumb, md, alt_text) = if content_type_header.starts_with("multipart/form-data") {
         let form = req.form_data().await?;
         let (file_name, file_type, file_bytes) = match form.get("file") {
             Some(FormEntry::File(f)) => {
@@ -38,6 +38,17 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
             Some(FormEntry::File(f)) => Some(f.bytes().await?),
             _ => None,
         };
+        let alt_text = match form.get("alt_text") {
+            Some(FormEntry::Field(s)) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            }
+            _ => None,
+        };
 
         let safe: String = file_name
             .chars()
@@ -55,7 +66,7 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
             guess_mime_type(&safe).to_string()
         };
 
-        (safe, ct, file_bytes, thumb_bytes, md_bytes)
+        (safe, ct, file_bytes, thumb_bytes, md_bytes, alt_text)
     } else {
         // Direct binary upload fallback
         let url = req.url()?;
@@ -64,6 +75,12 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
             .find(|(k, _)| k == "filename")
             .map(|(_, v)| v.to_string())
             .unwrap_or_else(|| "upload.bin".to_string());
+
+        let alt_text = url
+            .query_pairs()
+            .find(|(k, _)| k == "alt_text")
+            .map(|(_, v)| v.trim().to_string())
+            .filter(|s| !s.is_empty());
 
         let safe: String = original_filename
             .chars()
@@ -84,7 +101,7 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
         };
 
         let b = req.bytes().await?;
-        (safe, ct, b, None, None)
+        (safe, ct, b, None, None, alt_text)
     };
 
     if bytes.is_empty() {
@@ -141,7 +158,7 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
 
     // 3. Index in D1 with atomic rollback of all uploaded R2 keys on failure
     let db = ctx.env.d1("DB")?;
-    if let Err(db_err) = db::insert_media(&db, &key, &safe_name, &content_type, size_bytes).await {
+    if let Err(db_err) = db::insert_media(&db, &key, &safe_name, &content_type, size_bytes, alt_text.as_deref()).await {
         worker::console_error!(
             "Failed to insert media into D1: {db_err}. Rolling back R2 objects for asset '{key}'."
         );
@@ -159,6 +176,7 @@ pub async fn upload_media(mut req: Request, ctx: &RouteContext<()>) -> Result<Re
         "mime_type": content_type,
         "size_bytes": size_bytes,
         "size": size_bytes,
+        "alt_text": alt_text,
     }))
 }
 
@@ -211,6 +229,7 @@ pub async fn list_media(req: &Request, ctx: &RouteContext<()>) -> Result<Respons
                 "mime_type": item.mime_type,
                 "size_bytes": item.size_bytes,
                 "size": size,
+                "alt_text": item.alt_text,
                 "url": url,
                 "created_at": item.created_at,
             })
@@ -225,6 +244,45 @@ pub async fn list_media(req: &Request, ctx: &RouteContext<()>) -> Result<Respons
             "total_items": total_items,
             "total_pages": total_pages,
         }
+    }))
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdateMediaPayload {
+    #[serde(default)]
+    pub alt_text: Option<String>,
+}
+
+/// Update media metadata (such as alt text) in D1
+pub async fn update_media(key: &str, mut req: Request, ctx: &RouteContext<()>) -> Result<Response> {
+    let _user = crate::auth_required!(&req, ctx);
+    if key.trim().is_empty() {
+        return AppError::BadRequest("Missing media key".into()).to_response();
+    }
+
+    let payload = match req.json::<UpdateMediaPayload>().await {
+        Ok(p) => p,
+        Err(_) => return AppError::BadRequest("Invalid JSON body".into()).to_response(),
+    };
+
+    let alt_text_opt = payload.alt_text.as_deref().map(str::trim).and_then(|s| {
+        if s.is_empty() {
+            None
+        } else {
+            Some(s)
+        }
+    });
+
+    let db = ctx.env.d1("DB")?;
+    let updated = db::media::update_media_alt_text(&db, key, alt_text_opt).await?;
+    if !updated {
+        return AppError::NotFound.to_response();
+    }
+
+    Response::from_json(&serde_json::json!({
+        "success": true,
+        "key": key,
+        "alt_text": alt_text_opt,
     }))
 }
 
@@ -301,7 +359,7 @@ pub async fn sync_r2_to_d1(env: &worker::Env) -> Result<MediaSyncReport> {
                     .unwrap_or_else(|| guess_mime_type(&filename).to_string());
                 let size_bytes = obj.size() as i64;
 
-                db::insert_media(&db, &key, &filename, &mime_type, size_bytes).await?;
+                db::insert_media(&db, &key, &filename, &mime_type, size_bytes, None).await?;
                 synced += 1;
             }
         }
@@ -376,5 +434,25 @@ pub async fn get_media(key: &str, req: &Request, ctx: &RouteContext<()>) -> Resu
             Response::from_bytes(bytes).map(|res| res.with_headers(headers))
         }
         Err(err) => err.to_response(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_media_payload_deserialization() {
+        let json_with_alt = r#"{"alt_text": "Sample description"}"#;
+        let payload: UpdateMediaPayload = serde_json::from_str(json_with_alt).unwrap();
+        assert_eq!(payload.alt_text, Some("Sample description".to_string()));
+
+        let json_null = r#"{"alt_text": null}"#;
+        let payload_null: UpdateMediaPayload = serde_json::from_str(json_null).unwrap();
+        assert_eq!(payload_null.alt_text, None);
+
+        let json_empty = r#"{}"#;
+        let payload_empty: UpdateMediaPayload = serde_json::from_str(json_empty).unwrap();
+        assert_eq!(payload_empty.alt_text, None);
     }
 }

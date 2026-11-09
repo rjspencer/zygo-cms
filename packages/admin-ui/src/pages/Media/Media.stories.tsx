@@ -14,6 +14,7 @@ const mockMediaItems: MediaItem[] = [
     type: 'image/jpeg',
     url: '/media/photo-1.jpg',
     uploadedAt: '2026-09-27',
+    altText: 'Sunny mountain landscape with trees',
   },
   {
     id: 'banner.png',
@@ -22,6 +23,7 @@ const mockMediaItems: MediaItem[] = [
     type: 'image/png',
     url: '/media/banner.png',
     uploadedAt: '2026-09-26',
+    altText: null,
   },
   {
     id: 'hero-video.mp4',
@@ -30,6 +32,7 @@ const mockMediaItems: MediaItem[] = [
     type: 'video/mp4',
     url: '/media/hero-video.mp4',
     uploadedAt: '2026-09-25',
+    altText: 'Hero background video for landing page',
   },
 ];
 

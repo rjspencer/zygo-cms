@@ -38,6 +38,7 @@
 ### 4. Media & Theming
 - `zygo_list_media`: List uploaded media files stored in Cloudflare R2.
 - `zygo_delete_media`: Permanently delete a media object by key from R2.
+- `zygo_update_media_metadata`: Update alt text and metadata for an uploaded media file in R2/D1 storage.
 - `zygo_list_themes`: List all themes (presets and custom) with active primary and dark role indicators.
 - `zygo_get_theme`: Retrieve full theme record and design tokens by theme ID.
 - `zygo_create_theme`: Create a new custom theme preset.

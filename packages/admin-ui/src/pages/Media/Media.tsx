@@ -16,6 +16,7 @@ export const Media: React.FC = () => {
     uploadMutation,
     syncMutation,
     deleteMutation,
+    updateAltTextMutation,
   } = useMediaData({
     onUploadSuccess: handleUploadSuccess,
     onUploadSettled: () => resetFileInput(),
@@ -58,6 +59,13 @@ export const Media: React.FC = () => {
     [deleteMutation]
   );
 
+  const handleUpdateAltText = useCallback(
+    async (id: string, altText: string) => {
+      await updateAltTextMutation.mutateAsync({ id, altText });
+    },
+    [updateAltTextMutation]
+  );
+
   return (
     <Box>
       <MediaHeader
@@ -96,6 +104,8 @@ export const Media: React.FC = () => {
         onCopy={handleCopy}
         onDelete={handleDelete}
         isDeleting={deleteMutation.isPending}
+        onUpdateAltText={handleUpdateAltText}
+        isUpdatingAltText={updateAltTextMutation.isPending}
       />
     </Box>
   );

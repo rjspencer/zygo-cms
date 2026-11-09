@@ -95,6 +95,15 @@ pub async fn sync_media(req: Request, ctx: RouteContext<()>) -> Result<Response>
     }
 }
 
+pub async fn update_media(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let _user = auth_required!(&req, ctx);
+    let key = match ctx.param("key") {
+        Some(k) => k,
+        None => return Response::error("Missing key", 400),
+    };
+    media::update_media(key, req, &ctx).await
+}
+
 pub async fn delete_media(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = auth_required!(&req, ctx);
     let key = match ctx.param("key") {

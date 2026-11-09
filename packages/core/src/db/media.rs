@@ -20,24 +20,47 @@ pub async fn insert_media(
     filename: &str,
     mime_type: &str,
     size_bytes: i64,
+    alt_text: Option<&str>,
 ) -> Result<()> {
+    let alt_js = alt_text.map(JsValue::from).unwrap_or_else(JsValue::null);
     let statement = db
         .prepare(
-            "INSERT INTO media (key, filename, mime_type, size_bytes)
-             VALUES (?1, ?2, ?3, ?4)
+            "INSERT INTO media (key, filename, mime_type, size_bytes, alt_text)
+             VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(key) DO UPDATE SET
                  filename = excluded.filename,
                  mime_type = excluded.mime_type,
-                 size_bytes = excluded.size_bytes",
+                 size_bytes = excluded.size_bytes,
+                 alt_text = COALESCE(excluded.alt_text, media.alt_text)",
         )
         .bind(&[
             JsValue::from(key),
             JsValue::from(filename),
             JsValue::from(mime_type),
             JsValue::from(size_bytes as f64),
+            alt_js,
         ])?;
     statement.run().await?;
     Ok(())
+}
+
+/// Update alt text for an existing media item by its storage key
+pub async fn update_media_alt_text(
+    db: &D1Database,
+    key: &str,
+    alt_text: Option<&str>,
+) -> Result<bool> {
+    let alt_js = alt_text.map(JsValue::from).unwrap_or_else(JsValue::null);
+    let statement = db
+        .prepare("UPDATE media SET alt_text = ?1 WHERE key = ?2")
+        .bind(&[alt_js, JsValue::from(key)])?;
+    let res = statement.run().await?;
+    let changes = res.meta()?.and_then(|m| m.changes).unwrap_or(0);
+    if changes > 0 {
+        return Ok(true);
+    }
+    let exists = find_media_by_key(db, key).await?.is_some();
+    Ok(exists)
 }
 
 /// Delete a media entry by its storage key
@@ -54,7 +77,7 @@ pub async fn delete_media_by_key(db: &D1Database, key: &str) -> Result<bool> {
 pub async fn find_media_by_key(db: &D1Database, key: &str) -> Result<Option<MediaItem>> {
     let statement = db
         .prepare(
-            "SELECT id, key, filename, mime_type, size_bytes, created_at FROM media WHERE key = ?1",
+            "SELECT id, key, filename, mime_type, size_bytes, alt_text, created_at FROM media WHERE key = ?1",
         )
         .bind(&[JsValue::from(key)])?;
     statement.first::<MediaItem>(None).await
@@ -100,7 +123,7 @@ pub async fn find_media_paginated(
         Some(term) => {
             let pattern = format!("%{}%", term.trim());
             let query = format!(
-                "SELECT id, key, filename, mime_type, size_bytes, created_at FROM media WHERE filename LIKE ?1 {order_clause} LIMIT ?2 OFFSET ?3"
+                "SELECT id, key, filename, mime_type, size_bytes, alt_text, created_at FROM media WHERE filename LIKE ?1 {order_clause} LIMIT ?2 OFFSET ?3"
             );
             db.prepare(&query).bind(&[
                 JsValue::from(pattern),
@@ -110,7 +133,7 @@ pub async fn find_media_paginated(
         }
         None => {
             let query = format!(
-                "SELECT id, key, filename, mime_type, size_bytes, created_at FROM media {order_clause} LIMIT ?1 OFFSET ?2"
+                "SELECT id, key, filename, mime_type, size_bytes, alt_text, created_at FROM media {order_clause} LIMIT ?1 OFFSET ?2"
             );
             db.prepare(&query)
                 .bind(&[JsValue::from(limit as f64), JsValue::from(offset as f64)])?
