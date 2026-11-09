@@ -1121,9 +1121,14 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
           paginated = items.slice(start, start + limit);
         }
 
+        const mediaWithAlt = paginated.map((item) => ({
+          ...item,
+          alt_text: item.alt_text !== undefined ? item.alt_text : (item.alt ?? ''),
+        }));
+
         return {
           toolResult: {
-            media: paginated,
+            media: mediaWithAlt,
             page,
             limit,
             total,
@@ -1131,7 +1136,7 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
           content: [{
             type: 'text',
             text: JSON.stringify({
-              media: paginated,
+              media: mediaWithAlt,
               page,
               limit,
               total,
@@ -1225,14 +1230,21 @@ export function createGlobalThemeMediaMenuTools(): WebMCPToolDefinition[] {
         required: ['id', 'alt_text'],
       },
       handler: async (args: Record<string, any>): Promise<WebMCPToolResult> => {
-        const id = String(args.id || '');
-        const alt_text = String(args.alt_text || '');
+        const id = String(args.id || args.key || '').trim();
+        const alt_text = args.alt_text !== undefined && args.alt_text !== null ? String(args.alt_text) : '';
         const title = args.title !== undefined ? String(args.title) : undefined;
 
         if (!id) {
           return {
             isError: true,
             content: [{ type: 'text', text: 'Missing required media id' }],
+          };
+        }
+
+        if (args.alt_text === undefined || args.alt_text === null) {
+          return {
+            isError: true,
+            content: [{ type: 'text', text: 'Missing required alt_text' }],
           };
         }
 
