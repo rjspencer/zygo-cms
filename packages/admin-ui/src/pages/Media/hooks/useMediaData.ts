@@ -28,6 +28,7 @@ export function useMediaData(options?: UseMediaDataOptions) {
         type: item.mime_type,
         url: item.url || `/media/${item.key}`,
         uploadedAt: item.created_at ? item.created_at.split(' ')[0] : '',
+        altText: item.alt_text ?? null,
       }));
     },
   });
@@ -116,11 +117,32 @@ export function useMediaData(options?: UseMediaDataOptions) {
     },
   });
 
+  const updateAltTextMutation = useMutation({
+    mutationFn: async ({ id, altText }: { id: string; altText: string }) => {
+      const res = await apiFetch(`/api/media/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ alt_text: altText }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(errText || 'Failed to update alt text');
+      }
+      return res.json().catch(() => ({ success: true }));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['media'] });
+    },
+  });
+
   return {
     items,
     isLoading,
     uploadMutation,
     syncMutation,
     deleteMutation,
+    updateAltTextMutation,
   };
 }

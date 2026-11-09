@@ -7,6 +7,7 @@ export interface MediaItem {
   type: string;
   url: string;
   uploadedAt: string;
+  altText?: string | null;
 }
 
 export interface MediaHeaderProps {
@@ -36,6 +37,8 @@ export interface MediaCardProps {
   onCopy: (id: string, url: string) => void;
   onDelete: (id: string) => void;
   isDeleting: boolean;
+  onUpdateAltText?: (id: string, altText: string) => Promise<void>;
+  isUpdatingAltText?: boolean;
 }
 
 export interface MediaGridProps {
@@ -44,4 +47,6 @@ export interface MediaGridProps {
   onCopy: (id: string, url: string) => void;
   onDelete: (id: string) => void;
   isDeleting: boolean;
+  onUpdateAltText?: (id: string, altText: string) => Promise<void>;
+  isUpdatingAltText?: boolean;
 }

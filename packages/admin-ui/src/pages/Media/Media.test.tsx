@@ -446,4 +446,189 @@ describe('Media Page Component', () => {
     await screen.findByText('photo-1.jpg');
     expect(screen.queryByText('banner.png')).toBeNull();
   });
+
+  describe('Alt Text Support', () => {
+    const mediaWithAlt = {
+      media: [
+        {
+          id: 1,
+          key: 'photo-1.jpg',
+          filename: 'photo-1.jpg',
+          mime_type: 'image/jpeg',
+          size_bytes: 2048,
+          size: 2048,
+          url: '/media/photo-1.jpg',
+          alt_text: 'A scenic mountain landscape',
+          created_at: '2026-09-27 12:00:00',
+        },
+        {
+          id: 2,
+          key: 'banner.png',
+          filename: 'banner.png',
+          mime_type: 'image/png',
+          size_bytes: 2048,
+          size: 2048,
+          url: '/media/banner.png',
+          alt_text: null,
+          created_at: '2026-09-26 10:00:00',
+        },
+      ],
+      pagination: { page: 1, per_page: 20, total_items: 2, total_pages: 1 },
+    };
+
+    it('displays alt text when present and "No alt text" badge when missing', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((url: string) => {
+          if (url.includes('/api/media')) {
+            return Promise.resolve({
+              ok: true,
+              json: () => Promise.resolve(mediaWithAlt),
+            });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        })
+      );
+
+      renderMediaPage();
+
+      await screen.findByText('Alt: A scenic mountain landscape');
+      expect(screen.getByText('No alt text')).toBeDefined();
+    });
+
+    it('allows editing and saving alt text, triggering PUT /api/media/:id', async () => {
+      const user = userEvent.setup();
+      let putBody: any = null;
+      let putUrl = '';
+
+      const fetchMock = vi.fn().mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'PUT' && url.includes('/api/media')) {
+          putUrl = url;
+          putBody = JSON.parse(options.body);
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true }),
+          });
+        }
+        if (url.includes('/api/media')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mediaWithAlt),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderMediaPage();
+      await screen.findByText('Alt: A scenic mountain landscape');
+
+      const editButton = screen.getByRole('button', {
+        name: 'Edit alt text for photo-1.jpg',
+      });
+      await user.click(editButton);
+
+      const altInput = screen.getByTestId('media-alt-input');
+      expect(altInput.getAttribute('value')).toBe('A scenic mountain landscape');
+
+      await user.clear(altInput);
+      await user.type(altInput, 'Updated mountain landscape at dusk');
+
+      const saveButton = screen.getByTestId('media-alt-save');
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(putUrl).toContain('photo-1.jpg');
+      });
+      expect(putBody).toEqual({ alt_text: 'Updated mountain landscape at dusk' });
+    });
+
+    it('cancels alt text editing and restores previous value when cancel button is clicked', async () => {
+      const user = userEvent.setup();
+      const putSpy = vi.fn();
+
+      const fetchMock = vi.fn().mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'PUT') {
+          putSpy();
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }
+        if (url.includes('/api/media')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mediaWithAlt),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderMediaPage();
+      await screen.findByText('Alt: A scenic mountain landscape');
+
+      const editButton = screen.getByRole('button', {
+        name: 'Edit alt text for photo-1.jpg',
+      });
+      await user.click(editButton);
+
+      const altInput = screen.getByTestId('media-alt-input');
+      await user.clear(altInput);
+      await user.type(altInput, 'Should be discarded');
+
+      const cancelButton = screen.getByTestId('media-alt-cancel');
+      await user.click(cancelButton);
+
+      expect(screen.queryByTestId('media-alt-input')).toBeNull();
+      expect(screen.getByText('Alt: A scenic mountain landscape')).toBeDefined();
+      expect(putSpy).not.toHaveBeenCalled();
+    });
+
+    it('keeps edit input open when save mutation fails', async () => {
+      const user = userEvent.setup();
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const fetchMock = vi.fn().mockImplementation((url: string, options?: any) => {
+        if (options?.method === 'PUT') {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            text: () => Promise.resolve('Failed to update alt text'),
+          });
+        }
+        if (url.includes('/api/media')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mediaWithAlt),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      });
+
+      vi.stubGlobal('fetch', fetchMock);
+
+      renderMediaPage();
+      await screen.findByText('Alt: A scenic mountain landscape');
+
+      const editButton = screen.getByRole('button', {
+        name: 'Edit alt text for photo-1.jpg',
+      });
+      await user.click(editButton);
+
+      const altInput = screen.getByTestId('media-alt-input');
+      await user.clear(altInput);
+      await user.type(altInput, 'Failed save attempt');
+
+      const saveButton = screen.getByTestId('media-alt-save');
+      await user.click(saveButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('media-alt-input')).toBeDefined();
+      });
+      expect((screen.getByTestId('media-alt-input') as HTMLInputElement).value).toBe(
+        'Failed save attempt'
+      );
+      errorSpy.mockRestore();
+    });
+  });
 });

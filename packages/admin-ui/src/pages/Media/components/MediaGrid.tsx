@@ -9,6 +9,8 @@ export const MediaGrid: React.FC<MediaGridProps> = ({
   onCopy,
   onDelete,
   isDeleting,
+  onUpdateAltText,
+  isUpdatingAltText,
 }) => {
   return (
     <Grid columns={{ initial: '1', sm: '2', md: '3' }} gap="4">
@@ -20,6 +22,8 @@ export const MediaGrid: React.FC<MediaGridProps> = ({
           onCopy={onCopy}
           onDelete={onDelete}
           isDeleting={isDeleting}
+          onUpdateAltText={onUpdateAltText}
+          isUpdatingAltText={isUpdatingAltText}
         />
       ))}
     </Grid>

@@ -155,6 +155,54 @@ describe('MediaPickerModal Component', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('calls onSelect with item altText when present', async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    const onClose = vi.fn();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/media')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                media: [
+                  {
+                    id: 1,
+                    key: 'mountain.jpg',
+                    filename: 'mountain.jpg',
+                    alt_text: 'A scenic mountain view',
+                    mime_type: 'image/jpeg',
+                    size: 1024,
+                    url: '/media/mountain.jpg',
+                    created_at: '2026-09-27 12:00:00',
+                  },
+                ],
+              }),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      })
+    );
+
+    const { rerenderModal } = renderModal({ onSelect, onClose });
+    await screen.findByText('mountain.jpg');
+
+    const selectButton = screen.getByRole('button', { name: /select mountain\.jpg/i });
+    await user.click(selectButton);
+
+    expect(onSelect).toHaveBeenCalledWith('/media/mountain.jpg', 'A scenic mountain view');
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    rerenderModal({ open: false });
+    if (screen.queryByRole('dialog')) {
+      await waitForElementToBeRemoved(() => screen.queryByRole('dialog'));
+    }
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('calls onClose when Cancel button is clicked', async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
