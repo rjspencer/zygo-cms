@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Author & Editor User Guide (`docs/official/user-guide.md`)
+- **Official Documentation (`docs/official/user-guide.md`)**:
+  - Authored comprehensive, non-developer-friendly user guide covering all editorial capabilities in Zygo CMS:
+    - **Roles & Permissions**: Full breakdown and permissions matrix across `author`, `editor`, and `admin` roles.
+    - **Writing Posts & Docs**: Distinction between chronological `/post/` and hierarchical `/docs/` entries, TipTap rich text formatting toolbar, Markdown keyboard shortcuts, metadata configuration, SEO descriptions, and live Google / Slack / iMessage social preview unfurls.
+    - **Visual Section Builder**: Stacking modular section blocks for `page` entries, comprehensive reference table of all 17 built-in presets (`hero`, `text`, `text-image`, `gallery`, `image-carousel`, `call-to-action`, `feature-grid`, `testimonial`, `faq`, `video-embed`, `pricing`, `stats`, `logo-cloud`, `team`, `steps`, `contact-form`, `newsletter`), reordering/deleting controls, and real-time client-side WebAssembly (Wasm) responsive preview.
+    - **Editorial & Review Workflow**: The 6 entry lifecycle states (`draft`, `in_review`, `ready_for_publish`, `published`, `archived`, `scheduled`), step-by-step editorial transitions, role-aware action buttons (`Save Draft`, `Submit for Review`, `Mark Ready`, `Publish`, `Archive`), immutable revision history, and shareable cryptographic preview tokens (`/preview/<token>`).
+    - **Automated Scheduling**: Setting `published_at` to future dates, automated edge cron evaluation and atomic status transitions, and instant cache invalidation across canonical URLs, `/`, `/posts`, `/rss.xml`, and `/sitemap.xml`.
+    - **Media Library & Asset Management**: Navigating `/media` and in-editor Media Picker modal, drag & drop uploads, size thresholds (25 MB max, 10 MB video advisory), client-side HTML5 Canvas WebP conversion and responsive variants (`lg`, `md`, `thumb`), alt text editing for WCAG accessibility and SEO, one-click CDN URL copying, and asset deletion.
+- **Documentation Seeder & Cross-References (`scripts/seed_official_docs.mjs`, `docs/`)**:
+  - Registered `user-guide.md` in `scripts/seed_official_docs.mjs` pages registry (`slug: 'user-guide'`, `path: '/docs/user-guide'`).
+  - Added `user-guide.md` to reference guide list in `docs/AGENTS.md`.
+  - Added cross-references across `docs/official/introduction.md`, `docs/official/quickstart.md`, and `docs/official/concepts.md`.
+- **Quality Gates & Integrity**:
+  - Validated via `tests/docs-integrity.test.js`, `pnpm run test:all`, `tsc --noEmit`, `pnpm run build`, and `cargo test`.
+
 ### Self-Hosted Upgrade Guide & Official Documentation Integrity Suite
 - **Official Documentation (`docs/official/upgrades.md`)**:
   - Authored comprehensive, production-grade guide covering release channels (zero-Rust `release` branch vs developer `main`), pre-upgrade point-in-time D1 SQLite backups, local configuration preservation (`database_id`, custom domain routes, Zero Trust IDs), D1 migrations (`pnpm run db:migrate`), smart build runner compilation, staged zero-downtime edge rollout (`deploy:api` -> `deploy:ui` -> `deploy:public`), cache invalidation, and emergency rollback procedures.

@@ -84,6 +84,15 @@ Once the terminal output stabilizes and indicates all servers are running:
 3. Once the dashboard loads, navigate to **Pages** or **Posts** (under **Content**) in the sidebar to start creating and editing content!
 4. View your public-facing rendered site at **[http://localhost:8788](http://localhost:8788)**.
 
+## Next Steps
+
+Now that your local instance is up and running:
+
+- Walk through the [Author & Editor User Guide](/docs/user-guide) to learn about creating posts, assembling pages with Section Templates, managing media, and handling review workflows.
+- Explore [Core Concepts](/docs/concepts) to dive into Zygo's edge data model and dual content rendering.
+- Follow [Common Examples](/docs/examples) for hands-on tutorials on building landing pages and customized layouts.
+- Read the [Deployment Guide](/docs/deployment) when you are ready to ship to production on Cloudflare.
+
 ## Troubleshooting
 
 If you run into issues during the quickstart process, consider these common solutions:

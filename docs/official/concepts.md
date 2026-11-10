@@ -227,6 +227,8 @@ Zygo CMS features a multi-stage editorial workflow with role-based access contro
   - **Editors & Admins:** Have full editorial authority across all entries, allowing them to review, approve ("Mark Ready"), publish, or archive content.
 - **Status Filtering:** Posts, Pages, and Docs listing views provide dedicated status tabs (`All`, `Published`, `In Review`, `Ready for Publish`, `Draft`, `Archived`) with direct URL synchronization.
 
+For a comprehensive guide on navigating workflow statuses, submitting content for review, publishing, and managing revisions in the dashboard, see the [Author & Editor User Guide](/docs/user-guide).
+
 ## Bulk Content Operations & Trash/Restore
 
 Zygo CMS provides atomic batch operations across content entries via `/api/entries/bulk` and the Admin UI `BulkActionBar`:

@@ -32,6 +32,13 @@ const pages = [
     parentPath: '/docs',
   },
   {
+    file: 'user-guide.md',
+    slug: 'user-guide',
+    title: 'Author & Editor User Guide',
+    path: '/docs/user-guide',
+    parentPath: '/docs',
+  },
+  {
     file: 'examples.md',
     slug: 'examples',
     title: 'Common Examples',
