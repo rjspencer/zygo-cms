@@ -19,11 +19,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
   - Cascade delete associated snapshots in `entry_revisions`.
   - Required to support GDPR erasure requests; permanent deletion currently requires direct SQL execution via Wrangler D1.
 
-### Author & Editor User Guide
-- **Goal**: Add non-developer documentation to `docs/official`.
-- **Details**:
-  - Cover writing posts and docs, building pages with sections, scheduling, the review workflow, and using the media library.
-
 ---
 
 ## 2. Soon
