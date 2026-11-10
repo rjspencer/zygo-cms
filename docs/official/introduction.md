@@ -15,7 +15,7 @@ Zygo CMS is engineered to provide high performance, robust security, and a seaml
 - **Cloudflare D1:** Cloudflare's serverless SQLite database hosted across their edge network. D1 offers fast, relational data access without the need to provision, scale, or manage traditional database servers, significantly minimizing operational overhead.
 - **Cloudflare R2:** Global object storage at the edge. R2 hosts images, videos, and other media assets with zero egress fees, seamlessly integrating with the Zygo CMS Media Library to deliver assets quickly worldwide.
 - **Rust (Wasm):** The core business logic, routing, and API handling are written in Rust and compiled to WebAssembly (Wasm). Rust guarantees memory safety and predictable, blazing-fast performance without garbage collection pauses, making it an ideal choice for high-throughput edge environments.
-- **React Admin UI:** A polished, fully decoupled modern dashboard built with React. It provides an intuitive interface for managing content, media, menus, and site settings without impacting the performance of the public-facing site.
+- **React Admin UI:** A polished, fully decoupled modern dashboard built with React. It provides an intuitive interface for managing content, media, menus, and site settings without impacting the performance of the public-facing site. For an end-to-end walkthrough of authoring and managing content in the dashboard, see the [Author & Editor User Guide](/docs/user-guide).
 
 ## Three-Worker Architecture
 
