@@ -43,19 +43,19 @@
     },
     "devDependencies": {
         "@clack/prompts": "^1.8.1",
-        "@tailwindcss/cli": "^4.3.4",
-        "@tailwindcss/vite": "^4.3.4",
+        "@tailwindcss/cli": "^4.3.5",
+        "@tailwindcss/vite": "^4.3.5",
         "@testing-library/dom": "^10.4.2",
         "@testing-library/user-event": "^14.6.8",
-        "@vitest/coverage-v8": "^5.0.5",
+        "@vitest/coverage-v8": "^5.1.0",
         "autoprefixer": "^10.6.2",
-        "concurrently": "^10.0.6",
+        "concurrently": "^10.0.7",
         "happy-dom": "^21.0.4",
         "picocolors": "^1.1.1",
         "postcss": "^8.5.32",
-        "tailwindcss": "^4.3.4",
-        "vite": "^8.3.5",
-        "vitest": "^5.0.5",
-        "wrangler": "^4.157.0"
+        "tailwindcss": "^4.3.5",
+        "vite": "^8.3.6",
+        "vitest": "^5.1.0",
+        "wrangler": "^4.158.0"
     }
 }
