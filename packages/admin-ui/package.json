@@ -36,12 +36,12 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "latest",
-    "@storybook/addon-a11y": "^10.6.5",
-    "@storybook/addon-docs": "^10.6.5",
-    "@storybook/addon-mcp": "^10.6.5",
-    "@storybook/addon-vitest": "^10.6.5",
-    "@storybook/react": "^10.6.5",
-    "@storybook/react-vite": "^10.6.5",
+    "@storybook/addon-a11y": "^10.6.6",
+    "@storybook/addon-docs": "^10.6.6",
+    "@storybook/addon-mcp": "^10.6.6",
+    "@storybook/addon-vitest": "^10.6.6",
+    "@storybook/react": "^10.6.6",
+    "@storybook/react-vite": "^10.6.6",
     "@storybook/test": "^8.6.15",
     "@storybook/test-runner": "^0.26.0",
     "@testing-library/jest-dom": "^7.0.1",
@@ -49,13 +49,13 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@vitejs/plugin-react": "^6.1.2",
-    "@vitest/browser": "^5.0.5",
-    "@vitest/coverage-v8": "^5.0.5",
-    "msw": "^3.0.3",
+    "@vitejs/plugin-react": "^6.2.1",
+    "@vitest/browser": "^5.1.0",
+    "@vitest/coverage-v8": "^5.1.0",
+    "msw": "^3.0.4",
     "playwright": "latest",
-    "storybook": "^10.6.5",
+    "storybook": "^10.6.6",
     "typescript": "^7.0.2",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   }
 }
