@@ -1,8 +1,13 @@
 use worker::*;
 use zygo_core::{
     error::AppError,
-    models::{CreateRedirectReq, UpdateRedirectReq},
+    models::{is_editorial_role, CreateRedirectReq, UpdateRedirectReq},
 };
+
+/// Returns true if the given user role can create, update, or delete redirects.
+pub fn can_manage_redirects(role: &str) -> bool {
+    is_editorial_role(role)
+}
 
 fn validate_redirect(source_path: &str, target_url: &str, status_code: i32) -> std::result::Result<(), AppError> {
     if !source_path.starts_with('/') {
@@ -50,6 +55,9 @@ pub async fn list_redirects(req: Request, ctx: RouteContext<()>) -> Result<Respo
 
 pub async fn create_redirect(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = crate::auth_required!(&req, ctx);
+    if !can_manage_redirects(&_user.role) {
+        return AppError::Unauthorized("Editor or Admin role required to manage redirects".into()).to_response();
+    }
 
     let payload: CreateRedirectReq = match req.json().await {
         Ok(p) => p,
@@ -87,6 +95,9 @@ pub async fn create_redirect(mut req: Request, ctx: RouteContext<()>) -> Result<
 
 pub async fn update_redirect(mut req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = crate::auth_required!(&req, ctx);
+    if !can_manage_redirects(&_user.role) {
+        return AppError::Unauthorized("Editor or Admin role required to manage redirects".into()).to_response();
+    }
 
     let id = match ctx.param("id").and_then(|i| i.parse::<i64>().ok()) {
         Some(id) => id,
@@ -140,6 +151,9 @@ pub async fn update_redirect(mut req: Request, ctx: RouteContext<()>) -> Result<
 
 pub async fn delete_redirect(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let _user = crate::auth_required!(&req, ctx);
+    if !can_manage_redirects(&_user.role) {
+        return AppError::Unauthorized("Editor or Admin role required to manage redirects".into()).to_response();
+    }
 
     let id = match ctx.param("id").and_then(|i| i.parse::<i64>().ok()) {
         Some(id) => id,
@@ -212,5 +226,15 @@ mod tests {
         assert!(validate_redirect("/sitemap.xml", "/new", 301).is_err());
         assert!(validate_redirect("/rss.xml", "/new", 301).is_err());
         assert!(validate_redirect("/feed.xml", "/new", 301).is_err());
+    }
+
+    #[test]
+    fn test_can_manage_redirects_rbac() {
+        assert!(can_manage_redirects("admin"));
+        assert!(can_manage_redirects("editor"));
+        assert!(can_manage_redirects(" Editor "));
+        assert!(!can_manage_redirects("author"));
+        assert!(!can_manage_redirects(""));
+        assert!(!can_manage_redirects("viewer"));
     }
 }

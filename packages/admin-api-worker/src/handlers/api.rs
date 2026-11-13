@@ -1312,7 +1312,8 @@ mod tests {
         assert!(validate_author_entry_creation("author", None).is_ok());
 
         // Admin and Editor can create with any status
-        for &status in AUTHOR_RESTRICTED_STATUSES {
+        let all_statuses = ["draft", "in_review", "ready_for_publish", "published", "archived", "scheduled"];
+        for &status in &all_statuses {
             assert!(validate_author_entry_creation("admin", Some(status)).is_ok());
             assert!(validate_author_entry_creation("editor", Some(status)).is_ok());
         }
@@ -1335,7 +1336,8 @@ mod tests {
         assert!(validate_author_entry_update("author", None).is_ok());
 
         // Admin and Editor can update with any status
-        for &status in AUTHOR_RESTRICTED_STATUSES {
+        let all_statuses = ["draft", "in_review", "ready_for_publish", "published", "archived", "scheduled"];
+        for &status in &all_statuses {
             assert!(validate_author_entry_update("admin", Some(status)).is_ok());
             assert!(validate_author_entry_update("editor", Some(status)).is_ok());
         }
@@ -1356,9 +1358,17 @@ mod tests {
         assert!(validate_author_bulk_action("author", models::BulkActionType::AddTags).is_ok());
         assert!(validate_author_bulk_action("author", models::BulkActionType::RemoveTags).is_ok());
 
-        // Admin and Editor can bulk publish
-        assert!(validate_author_bulk_action("admin", models::BulkActionType::Publish).is_ok());
-        assert!(validate_author_bulk_action("editor", models::BulkActionType::Publish).is_ok());
+        // Admin and Editor can perform all bulk actions
+        for action in [
+            models::BulkActionType::Publish,
+            models::BulkActionType::Unpublish,
+            models::BulkActionType::Trash,
+            models::BulkActionType::AddTags,
+            models::BulkActionType::RemoveTags,
+        ] {
+            assert!(validate_author_bulk_action("admin", action.clone()).is_ok());
+            assert!(validate_author_bulk_action("editor", action).is_ok());
+        }
     }
 
     #[test]

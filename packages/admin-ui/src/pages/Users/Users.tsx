@@ -9,8 +9,12 @@ import { InviteUserDialog } from './components/InviteUserDialog/InviteUserDialog
 import { EditUserDialog } from './components/EditUserDialog/EditUserDialog';
 import { DeleteUserDialog } from './components/DeleteUserDialog/DeleteUserDialog';
 import { UserInvitedDialog } from './components/UserInvitedDialog/UserInvitedDialog';
+import { createGlobalUserTools } from '../../lib/webmcp';
+import { useRegisterWebMCPTools } from '../../providers/WebMCPProvider';
 
 export const Users: React.FC = () => {
+  const userTools = React.useMemo(() => createGlobalUserTools(), []);
+  useRegisterWebMCPTools(userTools, []);
   const {
     users,
     loading,

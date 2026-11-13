@@ -23,6 +23,7 @@ const toolSourceFiles = [
   'lib/webmcp/entryTools.ts',
   'lib/webmcp/templateTools.ts',
   'lib/webmcp/themeAndMediaTools.ts',
+  'lib/webmcp/userTools.ts',
 ];
 
 const discoveredTools = [];
@@ -53,6 +54,7 @@ const editorTargets = [
   { name: 'Navigation Editor', relPath: 'pages/Navigation.tsx' },
   { name: 'Media Library', relPath: 'pages/Media.tsx' },
   { name: 'Settings Page', relPath: 'pages/Settings.tsx' },
+  { name: 'Users Page', relPath: 'pages/Users/Users.tsx' },
 ];
 
 const editorReport = editorTargets.map((target) => {

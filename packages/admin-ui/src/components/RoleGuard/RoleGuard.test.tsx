@@ -40,6 +40,27 @@ describe('RoleGuard component', () => {
     expect(screen.queryByText('Admin Content')).toBeNull();
   });
 
+  it('renders children when editor role is allowed alongside admin', async () => {
+    (apiFetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({ role: 'editor' }),
+    });
+
+    render(
+      <QueryClientProvider client={createTestQueryClient()}>
+        <Theme>
+          <RoleGuard allowedRoles={['admin', 'editor']}>
+            <div>Editorial Content</div>
+          </RoleGuard>
+        </Theme>
+      </QueryClientProvider>
+    );
+
+    const content = await screen.findByText('Editorial Content');
+    expect(content.textContent).toBe('Editorial Content');
+    expect(screen.queryByText(/Access Denied/i)).toBeNull();
+  });
+
   it('renders children when role is allowed', async () => {
     (apiFetch as any).mockResolvedValue({
       ok: true,

@@ -8,6 +8,7 @@ import {
 import { createGlobalRedirectTools } from './redirectTools';
 import { createGlobalSubmissionTools } from './submissionTools';
 import { createGlobalBackupTools } from './backupTools';
+import { createGlobalUserTools } from './userTools';
 
 export class WebMCPRegistry {
   private tools = new Map<string, WebMCPToolDefinition>();
@@ -362,8 +363,13 @@ export class WebMCPRegistry {
   registerBackupTools(): () => void {
     return this.registerTools(createGlobalBackupTools());
   }
+
+  registerUserTools(): () => void {
+    return this.registerTools(createGlobalUserTools());
+  }
 }
 
 export { createGlobalRedirectTools } from './redirectTools';
 export { createGlobalSubmissionTools } from './submissionTools';
 export { createGlobalBackupTools } from './backupTools';
+export { createGlobalUserTools } from './userTools';

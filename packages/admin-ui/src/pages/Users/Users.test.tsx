@@ -460,4 +460,85 @@ describe('Users Page Component', () => {
     expect(errorCallout.textContent).toBe('Database connection failed');
     errorSpy.mockRestore();
   });
+
+  it('displays editor role badge, filters by editor role, and edits an editor user', async () => {
+    const editorUser: UserItem = {
+      id: 3,
+      auth_provider_id: 'cf-access-3',
+      email: 'clara@zygodactyl.io',
+      display_name: 'Clara Editor',
+      role: 'editor',
+      bio: 'Managing editor.',
+      website: 'https://clara.editorial.dev',
+      avatar_url: null,
+      created_at: '2026-09-01 09:00:00',
+      updated_at: '2026-09-01 09:00:00',
+      deleted_at: null,
+    };
+    const usersWithEditor = [...mockUsers, editorUser];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, options: any = {}) => {
+        const method = options.method || 'GET';
+        if (url.includes('/api/admin/users/3') && method === 'PUT') {
+          const body = JSON.parse(options.body || '{}');
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                ...editorUser,
+                ...body,
+                updated_at: '2026-10-02 10:00:00',
+              }),
+          });
+        }
+        if (url.includes('/api/admin/users') && method === 'GET') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(usersWithEditor),
+          });
+        }
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+      })
+    );
+
+    const user = userEvent.setup();
+    renderUsersPage();
+
+    await screen.findByText('Clara Editor');
+    expect(screen.getByText('editor').textContent).toBe('editor');
+
+    const searchInput = screen.getByLabelText('Search users by name, email, or role');
+    await user.type(searchInput, 'editor');
+
+    expect(screen.getByText('Clara Editor').textContent).toBe('Clara Editor');
+    expect(screen.queryByText('Alice Admin')).toBeNull();
+    expect(screen.queryByText('Bob Author')).toBeNull();
+
+    const editBtn = screen.getByRole('button', { name: 'Edit Clara Editor' });
+    await user.click(editBtn);
+
+    const roleTrigger = screen.getByLabelText('Select role');
+    expect(roleTrigger.textContent).toContain('Editor');
+
+    const saveBtn = screen.getByRole('button', { name: 'Save Changes' });
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/admin/users/3'),
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({
+            role: 'editor',
+            display_name: 'Clara Editor',
+            bio: 'Managing editor.',
+            website: 'https://clara.editorial.dev',
+            avatar_url: null,
+          }),
+        })
+      );
+    });
+  });
 });

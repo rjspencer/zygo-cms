@@ -58,3 +58,19 @@ export const AccessDenied: Story = {
     children: <div>Protected Admin Content</div>,
   },
 };
+
+export const EditorAllowed: Story = {
+  decorators: [
+    (Story) => (
+      <QueryClientProvider client={createQueryClient('editor')}>
+        <Theme>
+          <Story />
+        </Theme>
+      </QueryClientProvider>
+    ),
+  ],
+  args: {
+    allowedRoles: ['admin', 'editor'],
+    children: <div>Editorial Redirects & Content</div>,
+  },
+};

@@ -6,12 +6,6 @@ This document tracks upcoming priorities, planned enhancements, and long-term ar
 
 ## 1. Immediate Priority (Launch Blockers)
 
-### Editor Role
-- **Goal**: Implement the `editor` role described in `docs/official/concepts.md` (the schema currently only defines `admin | author`).
-- **Details**:
-  - Editors have full editorial authority across all entries: review, approve ("Mark Ready"), publish, and archive.
-  - Expose the role in user management UI, API, and MCP tools.
-
 ### Permanent Deletion & Empty Trash UI
 - **Goal**: Provide an explicit UI/API mechanism in the admin panel to empty trash or permanently delete soft-deleted entries.
 - **Details**:

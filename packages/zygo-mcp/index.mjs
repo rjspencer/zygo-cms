@@ -689,6 +689,116 @@ export const tools = [
             },
             required: ["backup"]
         }
+    },
+    {
+        name: "zygo_list_users",
+        description: "List CMS users with optional filtering by role (admin, editor, author) and soft-deleted status.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                role: {
+                    type: "string",
+                    enum: ["admin", "editor", "author"],
+                    description: "Filter users by role (admin, editor, or author)"
+                },
+                include_deleted: {
+                    type: "boolean",
+                    description: "Include soft-deleted users in results (defaults to false)"
+                }
+            },
+            additionalProperties: false
+        }
+    },
+    {
+        name: "zygo_create_user",
+        description: "Invite/create a new CMS user with email and role (admin, editor, or author).",
+        inputSchema: {
+            type: "object",
+            properties: {
+                email: {
+                    type: "string",
+                    description: "User email address (required)"
+                },
+                display_name: {
+                    type: "string",
+                    description: "Optional display name (defaults to email prefix)"
+                },
+                role: {
+                    type: "string",
+                    enum: ["admin", "editor", "author"],
+                    description: "User role (admin, editor, or author; defaults to author)"
+                },
+                bio: {
+                    type: "string",
+                    description: "Optional user biography"
+                },
+                website: {
+                    type: "string",
+                    description: "Optional personal website URL"
+                },
+                avatar_url: {
+                    type: "string",
+                    description: "Optional avatar image URL"
+                }
+            },
+            required: ["email"],
+            additionalProperties: false
+        }
+    },
+    {
+        name: "zygo_update_user",
+        description: "Update an existing CMS user role (admin, editor, author) or profile details.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: {
+                    type: "number",
+                    description: "Numeric ID of the user to update (required)"
+                },
+                role: {
+                    type: "string",
+                    enum: ["admin", "editor", "author"],
+                    description: "Updated role (admin, editor, or author)"
+                },
+                display_name: {
+                    type: "string",
+                    description: "Updated display name (empty string clears it)"
+                },
+                bio: {
+                    type: "string",
+                    description: "Updated biography (empty string clears it)"
+                },
+                website: {
+                    type: "string",
+                    description: "Updated website URL (empty string clears it)"
+                },
+                avatar_url: {
+                    type: "string",
+                    description: "Updated avatar URL (empty string clears it)"
+                }
+            },
+            required: ["id"],
+            additionalProperties: false
+        }
+    },
+    {
+        name: "zygo_delete_user",
+        description: "Soft-delete a CMS user by numeric ID with optional dry-run preview.",
+        inputSchema: {
+            type: "object",
+            properties: {
+                id: {
+                    type: "number",
+                    description: "Numeric ID of the user to delete (required)"
+                },
+                dry_run: {
+                    type: "boolean",
+                    description: "If true, previews the target user without deleting (defaults to false)"
+                }
+            },
+            required: ["id"],
+            additionalProperties: false
+        }
     }
 ];
 
@@ -1423,10 +1533,157 @@ export async function handleCallTool(request, customContext = {}) {
             return { toolResult: data, content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
         }
 
+        if (
+            request.params.name === "zygo_list_users" ||
+            request.params.name === "zygo_create_user" ||
+            request.params.name === "zygo_update_user" ||
+            request.params.name === "zygo_delete_user"
+        ) {
+            return await handleUserToolCall(
+                request.params.name,
+                request.params.arguments || {},
+                activeGetApiUrl,
+                activeHeaders
+            );
+        }
+
         throw new Error(`Unknown tool: ${request.params.name}`);
     } catch (e) {
         return { isError: true, content: [{ type: "text", text: e.message }] };
     }
+}
+
+async function handleUserToolCall(toolName, args, activeGetApiUrl, activeHeaders) {
+    const VALID_ROLES = ["admin", "editor", "author"];
+
+    const normalizeRole = (role) => {
+        if (typeof role !== "string" || !role.trim()) {
+            throw new Error(`Invalid role: must be one of ${VALID_ROLES.join(", ")}`);
+        }
+        const normalized = role.trim().toLowerCase();
+        if (!VALID_ROLES.includes(normalized)) {
+            throw new Error(`Invalid role '${role}'. Must be one of: ${VALID_ROLES.join(", ")}`);
+        }
+        return normalized;
+    };
+
+    const parseUserId = (id) => {
+        const num = typeof id === "number" ? id : typeof id === "string" && id.trim() !== "" ? Number(id) : NaN;
+        if (!Number.isInteger(num) || num <= 0) {
+            throw new Error('A valid positive numeric user "id" is required.');
+        }
+        return num;
+    };
+
+    const jsonToolResult = (data) => ({
+        toolResult: data,
+        content: [{ type: "text", text: JSON.stringify(data, null, 2) }]
+    });
+
+    if (toolName === "zygo_list_users") {
+        let roleFilter;
+        if (args.role !== undefined && args.role !== null) {
+            roleFilter = normalizeRole(args.role);
+        }
+        const includeDeleted = Boolean(args.include_deleted);
+        const res = await fetch(activeGetApiUrl('/admin/users'), { headers: activeHeaders });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        const allUsers = await res.json();
+        const users = (Array.isArray(allUsers) ? allUsers : []).filter((user) => {
+            if (!includeDeleted && user?.deleted_at) return false;
+            if (roleFilter && user?.role !== roleFilter) return false;
+            return true;
+        });
+        return jsonToolResult({ users, count: users.length });
+    }
+
+    if (toolName === "zygo_create_user") {
+        if (typeof args.email !== "string" || !args.email.trim()) {
+            throw new Error('A non-empty "email" string is required.');
+        }
+        const resolvedRole = args.role !== undefined && args.role !== null ? normalizeRole(args.role) : "author";
+        const payload = {
+            email: args.email.trim(),
+            role: resolvedRole
+        };
+        for (const field of ["display_name", "bio", "website", "avatar_url"]) {
+            if (typeof args[field] === "string" && args[field].trim()) {
+                payload[field] = args[field].trim();
+            }
+        }
+        const res = await fetch(activeGetApiUrl('/admin/users'), {
+            method: "POST",
+            headers: {
+                ...activeHeaders,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        return jsonToolResult(await res.json());
+    }
+
+    if (toolName === "zygo_update_user") {
+        const userId = parseUserId(args.id);
+        const payload = {};
+        if (args.role !== undefined && args.role !== null) {
+            payload.role = normalizeRole(args.role);
+        }
+        for (const field of ["display_name", "bio", "website", "avatar_url"]) {
+            if (args[field] !== undefined) {
+                if (typeof args[field] !== "string") {
+                    throw new Error(`Field "${field}" must be a string.`);
+                }
+                payload[field] = args[field];
+            }
+        }
+        if (Object.keys(payload).length === 0) {
+            throw new Error("At least one field (role, display_name, bio, website, avatar_url) must be provided to update.");
+        }
+        const res = await fetch(activeGetApiUrl(`/admin/users/${userId}`), {
+            method: "PUT",
+            headers: {
+                ...activeHeaders,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        return jsonToolResult(await res.json());
+    }
+
+    if (toolName === "zygo_delete_user") {
+        const userId = parseUserId(args.id);
+        if (args.dry_run === true) {
+            const listRes = await fetch(activeGetApiUrl('/admin/users'), { headers: activeHeaders });
+            if (!listRes.ok) throw new Error(`HTTP ${listRes.status}: ${await listRes.text()}`);
+            const allUsers = await listRes.json();
+            const target = (Array.isArray(allUsers) ? allUsers : []).find((u) => Number(u?.id) === userId);
+            if (!target) {
+                throw new Error(`User with ID ${userId} not found.`);
+            }
+            return jsonToolResult({
+                dry_run: true,
+                action: "delete_user",
+                target_id: userId,
+                user: target
+            });
+        }
+        const res = await fetch(activeGetApiUrl(`/admin/users/${userId}`), {
+            method: "DELETE",
+            headers: activeHeaders
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        let data;
+        try {
+            data = await res.json();
+        } catch {
+            data = { success: true, id: userId };
+        }
+        return jsonToolResult(data);
+    }
+
+    throw new Error(`Unknown user tool: ${toolName}`);
 }
 
 server.setRequestHandler(CallToolRequestSchema, (request) => handleCallTool(request));
