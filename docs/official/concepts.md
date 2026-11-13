@@ -20,7 +20,7 @@ erDiagram
         string auth_provider_id UK
         string email
         string display_name
-        string role "admin | author"
+        string role "admin | editor | author"
         string bio
         string website
         string avatar_url
@@ -336,6 +336,6 @@ Zygo CMS is built from the ground up for agentic AI collaboration. Every adminis
   - Includes an embedded in-app Assistant Drawer and an interactive RPC Console for inspecting and invoking tools live in the Admin UI.
   - Tools operate within the active browser session, inheriting user authentication, form state, and draft buffers.
 - **Standalone CLI MCP Bridge (`packages/zygo-mcp`):**
-  - A production-grade MCP server implemented in `packages/zygo-mcp/index.mjs` exposing 37 comprehensive tools.
-  - Allows external coding assistants (Claude Desktop, Cursor, Gemini CLI, Antigravity) to manage entries, media, templates, menus, redirects, submissions, and Cloudflare AI settings over standard JSON-RPC.
+  - A production-grade MCP server implemented in `packages/zygo-mcp/index.mjs` exposing 51 comprehensive tools.
+  - Allows external coding assistants (Claude Desktop, Cursor, Gemini CLI, Antigravity) to manage entries, media, templates, menus, redirects, submissions, users, and Cloudflare AI settings over standard JSON-RPC.
   - Every tool has strict JSON schema validation, detailed tool metadata, and automated end-to-end Vitest coverage matching the WebMCP implementation.

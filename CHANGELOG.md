@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Editor Role & Dual MCP User Management Parity
+- **Core & Backend Validation (`packages/core/src/models/user.rs`, `packages/admin-api-worker/src/handlers/users.rs`)**: Added canonical `VALID_USER_ROLES` (`admin`, `editor`, `author`), `validate_user_role`, and `is_editorial_role` helpers; enforced strict role validation and normalization in `create_user` (defaulting to `author`) and `update_user` (preserving existing role if omitted), returning `400 Bad Request` on invalid roles.
+- **Editorial RBAC Enforcement (`packages/admin-api-worker/src/handlers/redirects.rs`, `src/handlers/api.rs`)**: Restricted redirect mutations (`create_redirect`, `update_redirect`, `delete_redirect`) to `admin` and `editor` roles via `can_manage_redirects`, and expanded entry/bulk-action RBAC tests across all six statuses and five bulk actions for the `editor` role.
+- **Dual MCP User Management Parity (`packages/admin-ui/src/lib/webmcp/userTools.ts`, `packages/zygo-mcp/index.mjs`)**: Added strict-schema `list_users`, `create_user`, `update_user`, and `delete_user` tools (with `dry_run` preview) registered on the Users page (`useRegisterWebMCPTools`) alongside matching CLI MCP tools (`zygo_list_users`, `zygo_create_user`, `zygo_update_user`, `zygo_delete_user`) and documentation (`packages/zygo-mcp/AGENTS.md`).
+- **Tests, Stories & Docs**: Added Vitest coverage (`WebMCPUsers.test.tsx`, `packages/zygo-mcp/__tests__/users.test.mjs`), expanded `Users.test.tsx` and `RoleGuard` tests/stories (`EditorAllowed`), and updated `docs/official/concepts.md`.
+
 ### Author & Editor User Guide (`docs/official/user-guide.md`)
 - **Official Documentation (`docs/official/user-guide.md`)**:
   - Authored comprehensive, non-developer-friendly user guide covering all editorial capabilities in Zygo CMS:
