@@ -3,7 +3,26 @@ use serde::Deserialize;
 use worker::wasm_bindgen::JsValue;
 use worker::{Request, Response, Result, RouteContext};
 use zygo_core::error::AppError;
-use zygo_core::models::User;
+use zygo_core::models::{validate_user_role, User};
+
+/// Resolves and validates the role for user creation, defaulting omitted or empty input to `"author"`.
+pub fn resolve_and_validate_create_role(role: Option<String>) -> std::result::Result<String, String> {
+    match role.filter(|s| !s.trim().is_empty()) {
+        Some(r) => validate_user_role(&r),
+        None => Ok("author".to_string()),
+    }
+}
+
+/// Resolves and validates the role for user updates, preserving `existing_role` when omitted or empty.
+pub fn resolve_and_validate_update_role(
+    role: Option<String>,
+    existing_role: &str,
+) -> std::result::Result<String, String> {
+    match role.filter(|s| !s.trim().is_empty()) {
+        Some(r) => validate_user_role(&r),
+        None => Ok(existing_role.to_string()),
+    }
+}
 
 fn opt_js(val: &Option<String>) -> JsValue {
     val.as_deref().map(JsValue::from).unwrap_or_else(JsValue::null)
@@ -97,10 +116,10 @@ pub async fn create_user(mut req: Request, ctx: RouteContext<()>) -> Result<Resp
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| email.clone());
 
-    let role = payload
-        .role
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| "author".to_string());
+    let role = match resolve_and_validate_create_role(payload.role) {
+        Ok(r) => r,
+        Err(msg) => return AppError::BadRequest(msg).to_response(),
+    };
 
     let display_name = payload
         .display_name
@@ -176,10 +195,10 @@ pub async fn update_user(mut req: Request, ctx: RouteContext<()>) -> Result<Resp
         None => return AppError::NotFound.to_response(),
     };
 
-    let role = payload
-        .role
-        .filter(|r| !r.trim().is_empty())
-        .unwrap_or(existing.role);
+    let role = match resolve_and_validate_update_role(payload.role, &existing.role) {
+        Ok(r) => r,
+        Err(msg) => return AppError::BadRequest(msg).to_response(),
+    };
 
     let display_name = if let Some(d) = payload.display_name {
         if d.is_empty() { None } else { Some(d) }
@@ -258,4 +277,52 @@ pub async fn delete_user(req: Request, ctx: RouteContext<()>) -> Result<Response
     db.prepare(update_query).bind(&[id.into()])?.run().await?;
 
     crate::utils::json_response(&serde_json::json!({ "success": true }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_and_validate_create_role() {
+        assert_eq!(resolve_and_validate_create_role(None).unwrap(), "author");
+        assert_eq!(
+            resolve_and_validate_create_role(Some("  ".to_string())).unwrap(),
+            "author"
+        );
+        assert_eq!(
+            resolve_and_validate_create_role(Some("admin".to_string())).unwrap(),
+            "admin"
+        );
+        assert_eq!(
+            resolve_and_validate_create_role(Some(" Editor ".to_string())).unwrap(),
+            "editor"
+        );
+        assert_eq!(
+            resolve_and_validate_create_role(Some("author".to_string())).unwrap(),
+            "author"
+        );
+        assert!(resolve_and_validate_create_role(Some("owner".to_string())).is_err());
+    }
+
+    #[test]
+    fn test_resolve_and_validate_update_role() {
+        assert_eq!(
+            resolve_and_validate_update_role(None, "editor").unwrap(),
+            "editor"
+        );
+        assert_eq!(
+            resolve_and_validate_update_role(Some("   ".to_string()), "admin").unwrap(),
+            "admin"
+        );
+        assert_eq!(
+            resolve_and_validate_update_role(Some("editor".to_string()), "author").unwrap(),
+            "editor"
+        );
+        assert_eq!(
+            resolve_and_validate_update_role(Some(" ADMIN ".to_string()), "editor").unwrap(),
+            "admin"
+        );
+        assert!(resolve_and_validate_update_role(Some("moderator".to_string()), "author").is_err());
+    }
 }
