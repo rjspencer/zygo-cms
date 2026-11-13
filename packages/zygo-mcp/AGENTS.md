@@ -68,3 +68,9 @@
 - `zygo_get_form_submission`: Retrieve a form submission by numeric ID.
 - `zygo_update_form_submission_status`: Update submission status (`unread`, `read`, `archived`).
 - `zygo_delete_form_submission`: Delete a form submission by numeric ID.
+
+### 8. User Management
+- `zygo_list_users`: List CMS users with optional filtering by role (`admin`, `editor`, `author`) and `include_deleted`.
+- `zygo_create_user`: Invite/create a new CMS user with `email` and `role` (`admin`, `editor`, or `author`; defaults to `author`).
+- `zygo_update_user`: Update an existing CMS user's role or profile fields by numeric `id`.
+- `zygo_delete_user`: Soft-delete a CMS user by numeric `id` with optional `dry_run` preview.
