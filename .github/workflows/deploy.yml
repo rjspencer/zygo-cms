@@ -35,7 +35,7 @@ jobs:
         run: cargo test --lib
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
@@ -85,7 +85,7 @@ jobs:
         run: cargo install worker-build --locked
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 11
 
