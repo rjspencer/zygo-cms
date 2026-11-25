@@ -19,4 +19,4 @@ sha2 = { version = "0.10", features = ["oid"] }
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-rand = "0.8"
+rand = "0.10"
